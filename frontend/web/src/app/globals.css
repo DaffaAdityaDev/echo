@@ -1,0 +1,131 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Core Palette */
+  --echo-bg: #050505;
+  --echo-surface: #0a0a0a;
+  --echo-surface-hover: #111111;
+  --echo-foreground: #ffffff;
+  --echo-muted: #737373;
+  --echo-border: rgba(255, 255, 255, 0.06);
+  --echo-border-strong: rgba(255, 255, 255, 0.12);
+  
+  /* Brand */
+  --echo-accent: #2563eb;
+  --echo-accent-muted: rgba(37, 99, 235, 0.1);
+  --echo-accent-glow: rgba(37, 99, 235, 0.2);
+
+  /* Semantic */
+  --echo-success: #10b981;
+  --echo-warning: #f59e0b;
+  --echo-error: #ef4444;
+
+  /* Glassmorphism */
+  --echo-glass-bg: rgba(10, 10, 10, 0.7);
+  --echo-glass-border: rgba(255, 255, 255, 0.08);
+  --echo-glass-blur: 12px;
+
+  /* Animation */
+  --echo-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --echo-duration: 200ms;
+}
+
+@theme inline {
+  --color-background: var(--echo-bg);
+  --color-foreground: var(--echo-foreground);
+  --color-surface: var(--echo-surface);
+  --color-surface-hover: var(--echo-surface-hover);
+  --color-muted: var(--echo-muted);
+  --color-accent: var(--echo-accent);
+  --color-success: var(--echo-success);
+  --color-warning: var(--echo-warning);
+  --color-error: var(--echo-error);
+  --color-border: var(--echo-border);
+  
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui;
+  --font-display: var(--font-outfit), var(--font-inter);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --animate-in: animate-in 0.3s var(--echo-ease);
+  --animate-out: animate-out 0.2s var(--echo-ease);
+}
+
+@keyframes animate-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  * {
+    border-color: var(--echo-border);
+    outline-color: var(--echo-accent);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--echo-bg);
+    color: var(--echo-foreground);
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: var(--echo-glass-bg);
+    backdrop-filter: blur(var(--echo-glass-blur));
+    border: 1px solid var(--echo-glass-border);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 12px var(--echo-accent-glow);
+  }
+
+  .border-glow {
+    box-shadow: 0 0 15px var(--echo-accent-muted);
+  }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/* KaTeX custom styling */
+.katex-display {
+  margin: 1.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5em 0;
+}
+
+.katex {
+  font-size: 1.1em;
+  line-height: 1.2;
+  text-rendering: auto;
+}
+
+@utility prose-xs {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  
+  p {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}
