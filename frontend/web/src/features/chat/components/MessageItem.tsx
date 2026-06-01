@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2 } from "lucide-react";
+import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { Markdown } from "@/components/Markdown";
@@ -130,6 +130,125 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           <span>Observation: {step.toolName}</span>
         </div>
         <p className="text-[10px] text-white/30 leading-relaxed max-h-32 overflow-y-auto scrollbar-hide">{step.content}</p>
+      </div>
+    );
+  }
+
+  if (step.type === PACKET_TYPES.TODO && step.todos) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl bg-white/[0.02] border border-white/5 px-4 py-3">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-accent uppercase tracking-widest border-b border-white/5 pb-2">
+          <ListTodo size={12} className="text-accent" />
+          <span>📋 Active Mission Plan</span>
+        </div>
+        <div className="flex flex-col gap-2 mt-1.5">
+          {step.todos.map((todo) => {
+            const isDone = todo.status === 'done';
+            const isProgress = todo.status === 'in_progress';
+            const isFailed = todo.status === 'failed';
+
+            return (
+              <div key={todo.id} className="flex items-start gap-2.5 text-xs text-white/70">
+                <div className={cn(
+                  "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                  isDone ? "bg-success/20 border-success/50 text-success" :
+                  isProgress ? "bg-accent/20 border-accent/50 text-accent animate-pulse" :
+                  isFailed ? "bg-error/20 border-error/50 text-error" :
+                  "border-white/20 text-transparent"
+                )}>
+                  {isDone && <span className="text-[10px]">✓</span>}
+                  {isProgress && <span className="text-[10px] animate-spin">⚡</span>}
+                  {isFailed && <span className="text-[10px]">!</span>}
+                </div>
+                <div className="flex flex-col">
+                  <span className={cn(
+                    "font-semibold",
+                    isDone && "line-through text-white/30"
+                  )}>
+                    {todo.id}
+                  </span>
+                  <span className="text-[11px] text-white/40">{todo.description}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if ((step.type === PACKET_TYPES.SUBAGENT_CALL || step.type === PACKET_TYPES.SUBAGENT_RESULT) && step.subagent) {
+    const s = step.subagent;
+    const isCalling = s.status === 'calling';
+    const isFailed = s.status === 'failed';
+
+    return (
+      <div className={cn(
+        "flex flex-col gap-2 rounded-xl border px-4 py-3 transition-all",
+        isCalling ? "bg-accent/[0.02] border-accent/25" :
+        isFailed ? "bg-error/[0.02] border-error/25" :
+        "bg-success/[0.02] border-success/25"
+      )}>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest border-b border-white/5 pb-2">
+          <Terminal size={12} className={cn(
+            isCalling ? "text-accent animate-pulse" :
+            isFailed ? "text-error" :
+            "text-success"
+          )} />
+          <span>🤖 Sub-Agent Delegation: {s.name}</span>
+          <span className={cn(
+            "ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase",
+            isCalling ? "bg-accent/20 text-accent animate-pulse" :
+            isFailed ? "bg-error/20 text-error" :
+            "bg-success/20 text-success"
+          )}>
+            {s.status}
+          </span>
+        </div>
+        <div className="text-xs text-white/80 mt-1.5">
+          <div className="font-semibold text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Instruction</div>
+          <p className="bg-black/25 px-2.5 py-2 rounded border border-white/5 text-white/70 italic">{s.instruction}</p>
+        </div>
+        {s.result && (
+          <div className="text-xs text-white/80 mt-2">
+            <div className="font-semibold text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Findings & Summary</div>
+            <div className="bg-black/40 px-2.5 py-2 rounded border border-white/5 max-h-48 overflow-y-auto scrollbar-hide text-white/60 font-mono text-[10px]">
+              <Markdown content={s.result} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (step.type === PACKET_TYPES.FILE_OPERATION && step.fileOp) {
+    const f = step.fileOp;
+    const isOffload = f.operation === 'offload';
+
+    return (
+      <div className={cn(
+        "flex flex-col gap-2 rounded-xl border px-3 py-2.5",
+        isOffload ? "bg-warning/[0.02] border-warning/20" : "bg-white/[0.01] border-white/5"
+      )}>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
+          {isOffload ? (
+            <AlertTriangle size={11} className="text-warning animate-bounce" />
+          ) : (
+            <FileText size={11} className="text-muted" />
+          )}
+          <span>
+            {isOffload ? "📦 Context Offloaded" : f.operation === 'write' ? "💾 File Written" : "📖 File Read"}
+          </span>
+          <span className="ml-auto font-mono text-[9px] text-white/40 break-all">{f.path}</span>
+        </div>
+        {f.preview && (
+          <div className="mt-1">
+            <div className="text-[9px] text-white/30 uppercase tracking-wider font-semibold mb-0.5">Preview (First 10 lines)</div>
+            <pre className="text-[9px] text-white/40 font-mono bg-black/30 p-2 rounded border border-white/5 whitespace-pre-wrap break-all">
+              {f.preview}
+            </pre>
+          </div>
+        )}
       </div>
     );
   }

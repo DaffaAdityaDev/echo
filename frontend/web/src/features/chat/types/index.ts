@@ -1,11 +1,24 @@
 export interface ThoughtStep {
-  type: 'reasoning' | 'tool_call' | 'tool_result';
+  type: 'reasoning' | 'tool_call' | 'tool_result' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation';
   content?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
+  todos?: Array<{ id: string; description: string; status: 'pending' | 'in_progress' | 'done' | 'failed' }>;
+  subagent?: {
+    name: string;
+    instruction: string;
+    result?: string;
+    status: 'calling' | 'completed' | 'failed';
+  };
+  fileOp?: {
+    operation: 'write' | 'read' | 'offload';
+    path: string;
+    preview?: string;
+  };
 }
 
 export interface MissionMeta {
+  missionId?: string;
   strategy?: string;
   historyDepth?: number;
   toolsAvailable?: string[];
@@ -34,10 +47,22 @@ export interface HistoryMessage {
 }
 
 export interface StreamPacket {
-  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata' | 'usage';
+  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation';
   content?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
   meta?: MissionMeta | TokenUsage;
+  todos?: Array<{ id: string; description: string; status: 'pending' | 'in_progress' | 'done' | 'failed' }>;
+  subagent?: {
+    name: string;
+    instruction: string;
+    result?: string;
+    status: 'calling' | 'completed' | 'failed';
+  };
+  fileOp?: {
+    operation: 'write' | 'read' | 'offload';
+    path: string;
+    preview?: string;
+  };
   choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
 }

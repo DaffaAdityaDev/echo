@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    image: ankane/pgvector:latest
     container_name: echo_postgres
     environment:
       POSTGRES_USER: user
@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
     restart: unless-stopped
 
   chroma:
@@ -19,6 +20,103 @@ services:
       - "8000:8000"
     volumes:
       - chroma_data:/chroma/chroma
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: echo_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent
+    container_name: echo_agent
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379
+      - LLM_MODEL_API_URL=http://localhost:1234/v1
+      - OTEL_COLLECTOR_ADDR=otel-collector:4317
+      - ENABLE_REDIS=true
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: echo_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - AGENT_HTTP_URL=http://agent:3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=echo_db
+      - OTEL_COLLECTOR_ADDR=otel-collector:4317
+      - ENABLE_OTEL=true
+    depends_on:
+      - postgres
+      - agent
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend/web
+    container_name: echo_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Observability Infrastructure
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: echo_otel_collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./infra/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: echo_jaeger
+    ports:
+      - "16686:16686" # UI
+      - "4317"        # OTLP gRPC receiver (internal)
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: echo_prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: echo_grafana
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3100:3000" # Access UI at http://localhost:3100
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
 volumes:

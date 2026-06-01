@@ -35,10 +35,16 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
         .filter(m => m.content.trim().length > 0)
         .map(m => ({ role: m.role, content: m.content }));
 
+      const activeMissionId = [...messages]
+        .reverse()
+        .find(m => m.role === CHAT_ROLES.ASSISTANT && m.meta?.missionId)
+        ?.meta?.missionId;
+
       await api.stream<StreamPacket>(CHAT_ENDPOINTS.STREAM, { 
         message: input, 
         model: selectedModel,
         mode: mode,
+        missionId: activeMissionId,
         history
       }, (data) => {
         setMessages((prev) => {
@@ -72,6 +78,26 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
               type: PACKET_TYPES.TOOL_RESULT,
               toolName: data.toolName,
               content: data.content
+            });
+          } else if (data.type === PACKET_TYPES.TODO) {
+            lastMessage.steps.push({
+              type: PACKET_TYPES.TODO,
+              todos: data.todos
+            });
+          } else if (data.type === PACKET_TYPES.SUBAGENT_CALL) {
+            lastMessage.steps.push({
+              type: PACKET_TYPES.SUBAGENT_CALL,
+              subagent: data.subagent
+            });
+          } else if (data.type === PACKET_TYPES.SUBAGENT_RESULT) {
+            lastMessage.steps.push({
+              type: PACKET_TYPES.SUBAGENT_RESULT,
+              subagent: data.subagent
+            });
+          } else if (data.type === PACKET_TYPES.FILE_OPERATION) {
+            lastMessage.steps.push({
+              type: PACKET_TYPES.FILE_OPERATION,
+              fileOp: data.fileOp
             });
           } else {
             // Handle various SSE formats safely

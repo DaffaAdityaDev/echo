@@ -16,6 +16,8 @@ func Load() *models.Config {
 		AllowOrigins:  getEnv("ALLOW_ORIGINS", cfgConst.DefaultAllowOrigins),
 		RedisAddr:     getEnv("REDIS_ADDR", cfgConst.DefaultRedisAddr),
 		RedisPassword: getEnv("REDIS_PASSWORD", cfgConst.DefaultRedisPass),
+		OtelCollectorAddr: getEnv("OTEL_COLLECTOR_ADDR", "otel-collector:4317"),
+		EnableOtel:        getEnv("ENABLE_OTEL", "false") == "true",
 	}
 }
 

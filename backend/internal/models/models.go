@@ -15,6 +15,8 @@ type Config struct {
 	AllowOrigins  string
 	RedisAddr     string
 	RedisPassword string
+	OtelCollectorAddr string
+	EnableOtel        bool
 }
 
 type DB struct {

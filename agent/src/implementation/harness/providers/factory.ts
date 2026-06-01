@@ -2,7 +2,7 @@ import { LMStudioProvider } from "./lm-studio";
 import { OpenAIProvider } from "./openai";
 import { AnthropicProvider } from "./anthropic";
 import { LLMProvider } from "../types";
-import { LLM_API_VERSIONS } from "../../shared/constants";
+import { LLM_API_VERSIONS } from "../../../shared/constants";
 
 export class ProviderFactory {
     static create(model: string, baseHost: string): LLMProvider {

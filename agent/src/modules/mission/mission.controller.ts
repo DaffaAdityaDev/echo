@@ -1,7 +1,7 @@
 import { Context } from "hono";
 import { streamText } from "hono/streaming";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import { AgentHarness, ProviderFactory, toolRegistry, StrategyFactory } from "../../harness";
+import { AgentHarness, ProviderFactory, toolRegistry, StrategyFactory } from "../../implementation/harness";
 import { logger } from "../../shared/utils/logger";
 import { generateMissionSchema } from "./mission.schema";
 import { ValidationError } from "../../shared/utils/errors";
@@ -16,12 +16,12 @@ export class MissionController {
             throw new ValidationError("Invalid request data", result.error.issues);
         }
 
-        const { message, model, history } = result.data;
-        
+        const { message, model, missionId, history } = result.data;
+
         const targetModel = model || "deepseek-r1-distill-llama-8b";
         const baseURL = process.env.LLM_MODEL_API_URL || "http://localhost:1234/v1";
-        
-        logger.info(`Orchestrating mission`, { targetModel });
+
+        logger.info(`Orchestrating mission`, { targetModel, missionId });
 
         // Reconstruct LangChain message objects from the conversation history
         const historyMessages = (history || []).map((m: { role: string; content: string }) =>
@@ -32,7 +32,7 @@ export class MissionController {
             try {
                 // The factory handles all the complexity of choosing the right strategy
                 const provider = ProviderFactory.create(targetModel, baseURL);
-                
+
                 await toolRegistry.autoload();
 
                 // Select strategy based on requested mode
@@ -46,11 +46,11 @@ export class MissionController {
 
                 await harness.runMission(message, historyMessages, async (packet: any) => {
                     await stream.write(JSON.stringify(packet) + "\n");
-                });
+                }, missionId);
 
             } catch (error: any) {
                 logger.error('Mission failed during execution', error);
-                await stream.write(JSON.stringify({ 
+                await stream.write(JSON.stringify({
                     type: 'error',
                     content: 'An internal error occurred during mission orchestration.',
                     meta: { message: error.message }

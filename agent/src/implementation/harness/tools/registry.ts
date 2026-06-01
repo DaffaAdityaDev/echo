@@ -1,5 +1,5 @@
 import { ToolDefinition, Observation } from '../types';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 import { readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

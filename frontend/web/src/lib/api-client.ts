@@ -4,7 +4,7 @@
  */
 
 import { API_CONFIG, API_VERSION } from "@/constants";
-
+import { generateTraceContext } from "./telemetry-fetch";
 
 export type ApiRequestOptions = RequestInit & {
   params?: Record<string, string>;
@@ -23,12 +23,20 @@ async function request<T>(endpoint: string, options: ApiRequestOptions = {}): Pr
     Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
   }
 
+  const { traceparent } = generateTraceContext();
+  const headers = new Headers(init.headers || {});
+  headers.set("Content-Type", "application/json");
+  headers.set("traceparent", traceparent);
+
+  // Extract session ID if passed in params or init headers
+  const sessionId = headers.get("x-agent-session-id");
+  if (sessionId) {
+    headers.set("x-agent-session-id", sessionId);
+  }
+
   const response = await fetch(url.toString(), {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -54,12 +62,22 @@ async function stream<T = unknown>(
   const { version, ...restOptions } = options;
   const targetBaseUrl = version ? `${API_CONFIG.BASE_URL}/${version}` : BASE_URL;
 
+  const { traceparent } = generateTraceContext();
+  const headers = new Headers(restOptions.headers || {});
+  headers.set("Content-Type", "application/json");
+  headers.set("traceparent", traceparent);
+
+  // Extract session/mission ID from body if possible
+  if (body && typeof body === "object") {
+    const missionId = (body as any).missionId || (body as any).sessionId;
+    if (missionId) {
+      headers.set("x-agent-session-id", missionId);
+    }
+  }
+
   const response = await fetch(`${targetBaseUrl}${endpoint}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...restOptions.headers,
-    },
+    headers,
     body: JSON.stringify(body),
     ...restOptions,
   });

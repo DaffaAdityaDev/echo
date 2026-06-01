@@ -1,7 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../types";
-import { LLM_CONFIG } from "../../shared/constants";
+import { LLM_CONFIG } from "../../../shared/constants";
 
 // Side-channel store for reasoning tokens (captured from the raw SSE stream)
 const reasoningStore = new Map<string, string>();

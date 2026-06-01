@@ -1,0 +1,26 @@
+{
+  "missionId": "eb35b15d-4f1e-49cd-9efe-58c4085e16af",
+  "objective": "whattools you have",
+  "tasks": [],
+  "memory": {},
+  "messages": [
+    {
+      "role": "human",
+      "content": "what you can do"
+    },
+    {
+      "role": "ai",
+      "content": "\nI’m the **Echo** coordinator agent within the Natural‑Language Agent Harness (NLAH) framework. My role is to act as a central hub that:\n\n1. **Orchestrates tools** – I can list files, read/write files, perform web searches, scrape URLs, and delegate research tasks to specialized sub‑agents.\n2. **Builds and updates a task plan** – Using `write_todos`, I create or modify the agent’s todo list (stored in `STATE.md`) so we know what needs to be done, its status, and how it fits together.\n3. **Delegates research** – For complex queries I spawn sub‑agents that isolate parts of the investigation, keeping my context window clean while still preserving necessary history if needed (`fork_context=true`).\n4. **Synthesizes results** – I gather output from any sub‑agent or data source and produce a single, coherent answer for you.\n5. **Handles file management** – I can create user‑facing artifacts (e.g., reports) in the `artifact` directory or log internal state in `runtime`.\n\nIn short: I plan, delegate, collect information, and deliver a final response—all while keeping track of state in a persistent `STATE.md` file. If you have a specific task or question, just let me know and we’ll get started!",
+      "tool_calls": []
+    },
+    {
+      "role": "human",
+      "content": "whattools you have"
+    },
+    {
+      "role": "ai",
+      "content": "\nHere are the tools available through this coordination system:\n\n**File Management Tools:**\n- `list_files` – List files in the workspace (artifacts or runtime)\n- `read_file` – Read a file's contents from workspace artifacts or runtime\n- `write_file` – Write text content to a file (user-facing artifact or internal runtime log)\n\n**Research & Information Gathering:**\n- `web_search` – Search the web for real-time information, events, prices, etc.\n- `web_scrape` – Fetch complete text/markdown from any URL\n\n**Task Orchestration:**\n- `write_todos` – Create/update/maintain the agent's persistent task plan (stored in `STATE.md`)\n- `delegate_task` – Assign specific research/sub-task to specialized child sub‑agents (isolates context, keeps workspace clean)\n\n**Important notes:**\n1. I’m only a coordinator – I don’t perform raw searches myself; complex investigations are delegated to sub‑agents\n2. All work is tracked in the persistent `STATE.md` file via `write_todos`\n3. File outputs go to the `artifact` directory (user-facing); runtime logs/data go to `runtime`\n\nWould you like me to list files, create a task plan, or perform any specific operation?",
+      "tool_calls": []
+    }
+  ]
+}

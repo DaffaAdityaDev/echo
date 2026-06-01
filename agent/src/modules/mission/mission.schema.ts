@@ -7,6 +7,7 @@ import { z } from "zod";
 export const generateMissionSchema = z.object({
     message: z.string().min(1, "Mission objective is required"),
     model: z.string().optional(),
+    missionId: z.string().uuid().optional(),
     history: z.array(
         z.object({
             role: z.string(),

@@ -1,18 +1,18 @@
-import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../types";
-import { LLM_CONFIG } from "../../shared/constants";
+import { LLM_CONFIG } from "../../../shared/constants";
 
-export class AnthropicProvider implements LLMProvider {
-    private chat: ChatAnthropic;
+export class OpenAIProvider implements LLMProvider {
+    private chat: ChatOpenAI;
 
     constructor(baseURL: string, modelName: string, apiKey: string = "dummy") {
-        this.chat = new ChatAnthropic({
-            anthropicApiKey: apiKey,
+        this.chat = new ChatOpenAI({
+            configuration: { baseURL },
             modelName,
+            apiKey,
             temperature: LLM_CONFIG.DEFAULT_TEMPERATURE,
             streaming: true,
-            clientOptions: baseURL ? { baseURL } : undefined,
         });
     }
 

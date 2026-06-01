@@ -33,15 +33,27 @@ export function Sidebar({ mode, setMode, selectedModel, setSelectedModel }: Side
         <span className="font-display font-bold text-lg tracking-tight">ECHO Brain</span>
       </div>
 
-      <nav className="flex-1 space-y-1">
-        <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 text-white transition-all hover:bg-white/10 group">
-          <LayoutDashboard size={18} className="text-accent" aria-hidden="true" />
-          <span className="text-sm font-medium">Missions</span>
-          <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
-        </button>
+      <nav className="flex-1 space-y-2">
+        <div className="text-[10px] uppercase tracking-wider text-muted font-bold px-3 mb-2">Workspace Modes</div>
         
         <button 
-          onClick={() => setMode(mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT)}
+          onClick={() => setMode(CHAT_MODES.STANDARD)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 group relative overflow-hidden",
+            mode === CHAT_MODES.STANDARD 
+              ? "bg-white/5 text-white border border-white/10" 
+              : "text-muted hover:bg-white/5 hover:text-white"
+          )}
+        >
+          <Sparkles size={18} className={cn("transition-colors", mode === CHAT_MODES.STANDARD ? "text-accent" : "text-white/40")} aria-hidden="true" />
+          <div className="flex flex-col items-start text-left">
+            <span className="text-sm font-bold leading-tight">Standard Chat</span>
+            <span className="text-[9px] uppercase tracking-tighter opacity-50 font-bold">Direct Response</span>
+          </div>
+        </button>
+
+        <button 
+          onClick={() => setMode(CHAT_MODES.AGENT)}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 group relative overflow-hidden",
             mode === CHAT_MODES.AGENT 
@@ -49,23 +61,35 @@ export function Sidebar({ mode, setMode, selectedModel, setSelectedModel }: Side
               : "text-muted hover:bg-white/5 hover:text-white"
           )}
         >
-          <Sparkles size={18} className={cn("transition-colors", mode === CHAT_MODES.AGENT ? "text-accent" : "text-white/40")} aria-hidden="true" />
+          <Sparkles size={18} className={cn("transition-colors", mode === CHAT_MODES.AGENT ? "text-accent animate-pulse" : "text-white/40")} aria-hidden="true" />
           <div className="flex flex-col items-start text-left">
-            <span className="text-sm font-bold leading-tight">Mission Mode</span>
-            <span className="text-[9px] uppercase tracking-tighter opacity-50 font-bold">Iterative Agent</span>
+            <span className="text-sm font-bold leading-tight">Iterative Agent</span>
+            <span className="text-[9px] uppercase tracking-tighter opacity-50 font-bold">ReAct Loop</span>
           </div>
-          {mode === CHAT_MODES.AGENT && (
-            <motion.div 
-              layoutId="active-glow"
-              className="absolute inset-0 bg-accent/5 blur-xl -z-10"
-            />
-          )}
         </button>
 
-        <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted transition-all hover:bg-white/5 hover:text-white group">
-          <Settings size={18} aria-hidden="true" />
-          <span className="text-sm font-medium">Settings</span>
+        <button 
+          onClick={() => setMode(CHAT_MODES.NLAH)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 group relative overflow-hidden",
+            mode === CHAT_MODES.NLAH 
+              ? "bg-accent/15 text-accent border border-accent/30 shadow-[0_0_15px_rgba(99,102,241,0.08)] animate-pulse" 
+              : "text-muted hover:bg-white/5 hover:text-white"
+          )}
+        >
+          <Sparkles size={18} className={cn("transition-colors text-success", mode === CHAT_MODES.NLAH ? "text-success animate-bounce" : "text-white/40")} aria-hidden="true" />
+          <div className="flex flex-col items-start text-left">
+            <span className="text-sm font-bold leading-tight">Deep Research</span>
+            <span className="text-[9px] uppercase tracking-tighter opacity-50 font-bold">NLAH Sub-Agents</span>
+          </div>
         </button>
+
+        <div className="pt-4 border-t border-white/5 mt-2">
+          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted transition-all hover:bg-white/5 hover:text-white group">
+            <Settings size={18} aria-hidden="true" />
+            <span className="text-sm font-medium">Settings</span>
+          </button>
+        </div>
       </nav>
 
       <div className="mt-auto pt-4 border-t border-white/5">

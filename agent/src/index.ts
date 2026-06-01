@@ -4,6 +4,8 @@ import { logger } from "./shared/utils/logger";
 import { logger as honoLogger } from "hono/logger";
 import missionRoutes from "./modules/mission/mission.routes";
 import modelRoutes from "./modules/model/model.routes";
+import queueRoutes from "./modules/queue/queue.routes";
+import { startWorker } from "./modules/queue/queue.worker";
 
 const app = new Hono();
 
@@ -14,6 +16,14 @@ app.use("*", honoLogger());
 // Routes
 app.route("/api", missionRoutes);
 app.route("/api", modelRoutes);
+app.route("/api", queueRoutes);
+
+// Start BullMQ Worker if Redis is enabled
+if (process.env.ENABLE_REDIS === "true") {
+    startWorker();
+} else {
+    logger.info("BullMQ background worker is disabled (ENABLE_REDIS is not 'true')");
+}
 
 import { AppError } from "./shared/utils/errors";
 
