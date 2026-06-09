@@ -6,7 +6,7 @@ import { join, isAbsolute } from 'node:path';
 export const LLM_API_VERSIONS = {
     V1: "/v1",
     V2: "/v2",
-    LM_STUDIO_NATIVE: "/api/v1"
+    LM_STUDIO_NATIVE: "/v1"
 } as const;
 
 export const LLM_CONFIG = {

@@ -17,6 +17,7 @@ type Config struct {
 	RedisPassword string
 	OtelCollectorAddr string
 	EnableOtel        bool
+	InternalAuthToken string
 }
 
 type DB struct {

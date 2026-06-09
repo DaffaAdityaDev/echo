@@ -1,50 +1,32 @@
+import "./config/env";
+import { ENV } from "./config/env";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "./shared/utils/logger";
-import { logger as honoLogger } from "hono/logger";
-import missionRoutes from "./modules/mission/mission.routes";
-import modelRoutes from "./modules/model/model.routes";
-import queueRoutes from "./modules/queue/queue.routes";
-import { startWorker } from "./modules/queue/queue.worker";
+import routes from "./app/api/routes";
+import { monitorMiddleware } from "./app/middleware/monitor";
+import { authMiddleware } from "./app/middleware/auth";
+import { errorHandler } from "./app/middleware/error";
+import { toolRegistry } from "./core/agent/tools/registry";
+
+// Autoload Agent Tools
+await toolRegistry.autoload();
 
 const app = new Hono();
 
 // Global Middleware
 app.use("*", cors());
-app.use("*", honoLogger());
+app.use("*", monitorMiddleware);
+app.use("/api/*", authMiddleware);
 
 // Routes
-app.route("/api", missionRoutes);
-app.route("/api", modelRoutes);
-app.route("/api", queueRoutes);
-
-// Start BullMQ Worker if Redis is enabled
-if (process.env.ENABLE_REDIS === "true") {
-    startWorker();
-} else {
-    logger.info("BullMQ background worker is disabled (ENABLE_REDIS is not 'true')");
-}
-
-import { AppError } from "./shared/utils/errors";
+app.get("/", (c) => c.json({ status: "ok", service: "agent-platform" }));
+app.route("/api", routes);
 
 // Error Handling
-app.onError((err, c) => {
-    if (err instanceof AppError) {
-        return c.json({ 
-            status: "error", 
-            message: err.message,
-            ...(err.errors && { details: err.errors })
-        }, err.statusCode as any);
-    }
+app.onError(errorHandler);
 
-    logger.error("Unhandled system error", err);
-    return c.json({ 
-        status: "error", 
-        message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message 
-    }, 500);
-});
-
-const PORT = 3001;
+const PORT = parseInt(ENV.PORT, 10);
 
 logger.info(`Agent Platform booting...`);
 logger.info(`Backend Service: Standard Modular Pattern`);

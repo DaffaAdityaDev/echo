@@ -24,7 +24,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 
 	// 4. Initialize Handlers
 	authHandler := handler.NewAuthHandler(cfg, authSvc)
-	chatHandler := handler.NewChatHandler(cfg)
+	chatHandler := handler.NewChatHandler(cfg, infra.Redis)
 	modelHandler := handler.NewModelHandler(cfg)
 
 	// Global Health Check
@@ -45,5 +45,6 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 
 	// Feature routes
 	api.Post(routes.V1PathChat, chatHandler.HandleChat)
+	api.Get("/v1/missions/:missionId/stream", chatHandler.StreamMissionLogs)
 	api.Get(routes.V1PathModels, modelHandler.HandleGetModels)
 }

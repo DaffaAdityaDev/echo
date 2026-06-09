@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: default
+data:
+  init-pgvector.sql: |
+    -- Enable vector extension
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- Create tool_catalog table
+    CREATE TABLE IF NOT EXISTS tool_catalog (
+      id          SERIAL PRIMARY KEY,
+      name        TEXT NOT NULL UNIQUE,
+      description TEXT,
+      schema      JSONB,
+      embedding   vector(384)  -- 384 dimensions matching all-MiniLM-L6-v2
+    );
+
+    -- Create HNSW index for sub-10ms JIT tool recoveries
+    CREATE INDEX IF NOT EXISTS tool_catalog_hnsw_idx 
+    ON tool_catalog USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-postgres
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-postgres
+  template:
+    metadata:
+      labels:
+        app: echo-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: ankane/pgvector:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "user"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+        - name: POSTGRES_DB
+          value: "echo_db"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d/init-pgvector.sql
+          subPath: init-pgvector.sql
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      - name: init-script
+        configMap:
+          name: postgres-init-sql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-postgres
+  namespace: default
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: echo-postgres
