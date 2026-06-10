@@ -1,4 +1,5 @@
 import { ToolDefinition } from '../../../shared/types';
+import { RETRIEVER_CONFIG, MATCH_WEIGHTS, RETRIEVER_FALLBACK_TOOLS } from './retriever.constants';
 
 export class ToolRetriever {
     private tools: ToolDefinition[];
@@ -12,48 +13,51 @@ export class ToolRetriever {
     }
 
     /**
-     * Mengembalikan daftar tool yang paling relevan dengan prompt user
+     * Returns a list of tools most relevant to the user prompt.
      */
-    public getRelevantTools(userPrompt: string, allTools: ToolDefinition[], limit = 4): ToolDefinition[] {
+    public getRelevantTools(
+        userPrompt: string, 
+        allTools: ToolDefinition[], 
+        limit = RETRIEVER_CONFIG.DEFAULT_LIMIT
+    ): ToolDefinition[] {
         const query = userPrompt.toLowerCase();
         
         const scored = allTools.map(tool => {
             let score = 0;
             
-            // 1. Keyword matching (weight: 0.6)
+            // 1. Keyword matching (weight based on MATCH_WEIGHTS.KEYWORD)
             if (tool.keywords) {
                 for (const keyword of tool.keywords) {
                     if (query.includes(keyword.toLowerCase())) {
-                        score += 0.6;
+                        score += MATCH_WEIGHTS.KEYWORD;
                     }
                 }
             }
 
-            // 2. Description matching (weight: 0.3)
+            // 2. Description matching (weight based on MATCH_WEIGHTS.DESCRIPTION)
             const descLower = tool.description.toLowerCase();
             if (query.includes(descLower) || descLower.includes(query)) {
-                score += 0.3;
+                score += MATCH_WEIGHTS.DESCRIPTION;
             }
 
-            // 3. Name matching (weight: 0.1)
+            // 3. Name matching (weight based on MATCH_WEIGHTS.NAME)
             const nameLower = tool.name.toLowerCase();
             if (query.includes(nameLower) || nameLower.includes(query)) {
-                score += 0.1;
+                score += MATCH_WEIGHTS.NAME;
             }
 
             return { tool, score };
         });
 
-        // Filter yang score-nya > 0 lalu urutkan menurun
+        // Filter out matches with a score above the minimum, then sort descending
         const matched = scored
-            .filter(item => item.score > 0)
+            .filter(item => item.score > RETRIEVER_CONFIG.MIN_MATCH_SCORE)
             .sort((a, b) => b.score - a.score)
             .map(item => item.tool);
 
         if (matched.length === 0) {
-            // Fallback: Jika tidak ada yang cocok sama sekali, berikan core tools bawaan
-            const fallbackNames = ['web_search', 'list_files'];
-            return allTools.filter(t => fallbackNames.includes(t.name));
+            // Fallback: If no tools match, return default core tools
+            return allTools.filter(t => (RETRIEVER_FALLBACK_TOOLS as readonly string[]).includes(t.name));
         }
 
         return matched.slice(0, limit);

@@ -3,6 +3,8 @@ import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../../shared/types";
 import { LLM_CONFIG } from "../../shared/constants";
 
+import { getLangChainCallbacks } from "../../utils/langfuse";
+
 export class AnthropicProvider implements LLMProvider {
     private chat: ChatAnthropic;
     public modelName: string;
@@ -32,7 +34,8 @@ export class AnthropicProvider implements LLMProvider {
             ...(idx === tools.length - 1 && { cache_control: { type: "ephemeral" } })
         }));
         const chatWithTools = this.chat.bindTools(lcTools as any);
-        const langchainStream = await chatWithTools.stream(fullMessages);
+        const callbacks = await getLangChainCallbacks();
+        const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
 
         let accumulatedChunk: AIMessageChunk | null = null;
 

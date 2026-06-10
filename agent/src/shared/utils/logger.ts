@@ -69,6 +69,46 @@ function writeToFile(level: string, msg: string, meta?: any) {
 }
 
 export class Logger {
+    langfuse(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', msg: string, meta?: any) {
+        // Log locally first
+        if (level === 'INFO') {
+            console.log(`${CYAN}${BOLD}[INFO]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${msg}${formatMeta(meta)}`);
+            writeToFile('INFO', msg, meta);
+        } else if (level === 'WARN') {
+            console.warn(`${YELLOW}${BOLD}[WARN]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${YELLOW}${msg}${RESET}${formatMeta(meta)}`);
+            writeToFile('WARN', msg, meta);
+        } else if (level === 'ERROR') {
+            console.error(`${RED}${BOLD}[ERROR]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${RED}${BOLD}${msg}${RESET}${formatMeta(meta)}`);
+            writeToFile('ERROR', msg, meta);
+        } else if (level === 'DEBUG') {
+            console.debug(`${GRAY}${BOLD}[DEBUG]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${GRAY}${msg}${RESET}${formatMeta(meta)}`);
+            writeToFile('DEBUG', msg, meta);
+        }
+
+        try {
+            // Dynamic import to avoid circular dependency
+            import('../../utils/langfuse').then(({ langfuseStorage }) => {
+                const store = langfuseStorage.getStore();
+                const activeObservation = store?.span || store?.trace;
+                if (activeObservation) {
+                    const levelMap: Record<string, string> = {
+                        INFO: 'DEFAULT',
+                        WARN: 'WARNING',
+                        ERROR: 'ERROR',
+                        DEBUG: 'DEBUG'
+                    };
+                    activeObservation.startObservation(msg, {
+                        input: msg,
+                        level: levelMap[level] || 'DEFAULT',
+                        metadata: meta
+                    }, { asType: "event" });
+                }
+            }).catch(() => {});
+        } catch {
+            // Fail silently to prevent logger crashing
+        }
+    }
+
     info(msg: string, meta?: any) {
         console.log(`${CYAN}${BOLD}[INFO]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${msg}${formatMeta(meta)}`);
         writeToFile('INFO', msg, meta);

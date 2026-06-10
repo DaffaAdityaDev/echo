@@ -1,4 +1,4 @@
-import { ToolDefinition, Observation } from '../../../shared/types';
+import { ToolDefinition } from '../../../shared/types';
 import { logger } from '../../../shared/utils/logger';
 import { readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -8,22 +8,40 @@ export class ToolRegistry {
     private tools: Map<string, ToolDefinition> = new Map();
 
     /**
-     * Automatically scan and load all tools from the definitions directory.
+     * Scans the definitions/ directory and auto-imports all tool modules.
      */
     async autoload() {
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = dirname(__filename);
         const definitionsPath = join(__dirname, 'definitions');
         try {
-            const files = await readdir(definitionsPath);
-            for (const file of files) {
-                if (file.endsWith('.ts') || file.endsWith('.js')) {
-                    const module = await import(join(definitionsPath, file));
-                    const tool: ToolDefinition = module.default || module;
-                    
-                    if (tool && tool.name && tool.schema) {
-                        this.tools.set(tool.name, tool);
-                        logger.info(`Tool registered: ${tool.name}`);
+            const entries = await readdir(definitionsPath, { withFileTypes: true });
+            for (const entry of entries) {
+                let importPath = "";
+                if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
+                    // Ignore deprecated redirect files that have been relocated
+                    if (entry.name === 'deep-web-research.ts' || entry.name === 'delegation.ts') {
+                        continue;
+                    }
+                    importPath = join(definitionsPath, entry.name);
+                } else if (entry.isDirectory()) {
+                    importPath = join(definitionsPath, entry.name, 'index.ts');
+                }
+
+                if (importPath) {
+                    try {
+                        const module = await import(importPath);
+                        const tool: ToolDefinition = module.default || module;
+                        
+                        if (tool && tool.name && tool.schema) {
+                            this.tools.set(tool.name, tool);
+                            logger.info(`Tool registered: ${tool.name}`);
+                        }
+                    } catch (err: any) {
+                        // Suppress logs for directories without index.ts or other standard non-tool directories
+                        if (entry.isFile()) {
+                            logger.warn(`Failed to import tool ${entry.name}: ${err.message}`);
+                        }
                     }
                 }
             }

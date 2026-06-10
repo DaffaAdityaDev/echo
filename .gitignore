@@ -203,3 +203,4 @@ dist
 .agents/
 GEMINI.md
 skills-lock.json
+agent/langfuse/

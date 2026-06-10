@@ -12,6 +12,8 @@ const reasoningStore = new Map<string, string>();
  * Strategy: Stream for display (content + reasoning), then use the accumulated
  * final message to extract tool calls. This avoids partial-chunk parsing errors.
  */
+import { getLangChainCallbacks } from "../../utils/langfuse";
+
 export class LMStudioProvider implements LLMProvider {
     private chat: ChatOpenAI;
     public modelName: string;
@@ -112,7 +114,8 @@ export class LMStudioProvider implements LLMProvider {
         }));
 
         const chatWithTools = this.chat.bindTools(lcTools);
-        const langchainStream = await chatWithTools.stream(fullMessages);
+        const callbacks = await getLangChainCallbacks();
+        const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
 
         const sentReasoningMap = new Map<string, string>();
         let accumulatedChunk: AIMessageChunk | null = null;

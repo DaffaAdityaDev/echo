@@ -1,6 +1,0 @@
-Current weather in Jakarta, Indonesia:
-- Temperature: [Need to extract]
-- Conditions: [Need to extract]
-- Precipitation: [Need to extract]
-
-Full scraped content length: 4178 characters available for detailed analysis.

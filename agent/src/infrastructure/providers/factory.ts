@@ -3,6 +3,7 @@ import { OpenAIProvider } from "./openai";
 import { AnthropicProvider } from "./anthropic";
 import { LLMProvider } from "../../shared/types";
 import { LLM_API_VERSIONS } from "../../shared/constants";
+import { ENV } from "../../config/env";
 
 export class ProviderFactory {
     static create(model: string, baseHost: string): LLMProvider {
@@ -24,7 +25,7 @@ export class ProviderFactory {
 
     static get(provider: string): LLMProvider {
         const model = process.env.LLM_MODEL || "deepseek-r1-distill-llama-8b";
-        const baseHost = process.env.LLM_MODEL_API_URL || "http://localhost:1234/v1";
+        const baseHost = ENV.LLM_MODEL_API_URL;
 
         switch (provider.toLowerCase()) {
             case "anthropic":

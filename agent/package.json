@@ -4,7 +4,7 @@
   "description": "Node.js Agent for Echo",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "node dist/index.js",
     "dev": "bun --watch src/index.ts"
   },
@@ -25,9 +25,15 @@
     "bullmq": "^5.41.0",
     "langchain": "^1.4.0",
     "zod": "^4.4.3",
-    "zod-to-json-schema": "^3.25.2"
+    "zod-to-json-schema": "^3.25.2",
+    "@langfuse/otel": "^5.4.1",
+    "@opentelemetry/sdk-node": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
+    "@opentelemetry/sdk-trace-base": "^2.0.1"
   },
   "devDependencies": {
+    "@langfuse/langchain": "^5.4.1",
+    "@types/bun": "latest",
     "@types/node": "^22.13.0",
     "nodemon": "^3.0.3",
     "ts-node": "^10.9.2",

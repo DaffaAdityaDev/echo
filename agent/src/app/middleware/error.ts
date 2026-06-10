@@ -2,6 +2,8 @@ import { Context } from "hono";
 import { AppError } from "../../shared/utils/errors";
 import { logger } from "../../shared/utils/logger";
 
+import { ERROR_TYPES, ERROR_MESSAGES } from "../../shared/constants/errors";
+
 export function errorHandler(err: Error, c: Context) {
   const requestId = c.req.header("x-request-id") || "unknown";
   
@@ -10,7 +12,7 @@ export function errorHandler(err: Error, c: Context) {
     logger.warn(`AppError handled [Request: ${requestId}]: ${err.message}`, { statusCode: err.statusCode, details: err.errors });
     return c.json({
       status: "error",
-      error_type: "APPLICATION_ERROR",
+      error_type: ERROR_TYPES.APPLICATION_ERROR,
       message: err.message,
       ...(err.errors && { details: err.errors })
     }, err.statusCode as any);
@@ -22,8 +24,8 @@ export function errorHandler(err: Error, c: Context) {
     logger.error(`LLM Rate Limit encountered [Request: ${requestId}]: ${errMsg}`);
     return c.json({
       status: "error",
-      error_type: "RATE_LIMIT_ERROR",
-      message: "Upstream LLM Provider API rate limit exceeded. Please retry shortly."
+      error_type: ERROR_TYPES.RATE_LIMIT,
+      message: ERROR_MESSAGES.RATE_LIMIT
     }, 429);
   }
 
@@ -31,8 +33,8 @@ export function errorHandler(err: Error, c: Context) {
     logger.error(`Upstream timeout encountered [Request: ${requestId}]: ${errMsg}`);
     return c.json({
       status: "error",
-      error_type: "TIMEOUT_ERROR",
-      message: "Upstream LLM Provider query timed out. Please retry."
+      error_type: ERROR_TYPES.TIMEOUT,
+      message: ERROR_MESSAGES.TIMEOUT
     }, 504);
   }
 
@@ -41,8 +43,8 @@ export function errorHandler(err: Error, c: Context) {
     logger.warn(`Invalid JSON payload submitted [Request: ${requestId}]: ${errMsg}`);
     return c.json({
       status: "error",
-      error_type: "BAD_REQUEST",
-      message: "Malformed request payload body. Ensure valid JSON structure is supplied."
+      error_type: ERROR_TYPES.BAD_REQUEST,
+      message: ERROR_MESSAGES.BAD_REQUEST
     }, 400);
   }
 
@@ -50,7 +52,7 @@ export function errorHandler(err: Error, c: Context) {
   logger.error(`Unhandled system exception caught [Request: ${requestId}]`, err);
   return c.json({
     status: "error",
-    error_type: "INTERNAL_SERVER_ERROR",
-    message: process.env.NODE_ENV === "production" ? "Internal server error" : err.message
+    error_type: ERROR_TYPES.INTERNAL_SERVER,
+    message: process.env.NODE_ENV === "production" ? ERROR_MESSAGES.INTERNAL_SERVER : err.message
   }, 500);
 }

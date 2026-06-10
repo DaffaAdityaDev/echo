@@ -3,6 +3,8 @@ import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../../shared/types";
 import { LLM_CONFIG } from "../../shared/constants";
 
+import { getLangChainCallbacks } from "../../utils/langfuse";
+
 export class OpenAIProvider implements LLMProvider {
     private chat: ChatOpenAI;
     public modelName: string;
@@ -48,7 +50,8 @@ export class OpenAIProvider implements LLMProvider {
         const fullMessages = [new SystemMessage(systemPrompt), ...messages];
         const lcTools = tools.map(t => ({ name: t.name, description: t.description, schema: t.schema }));
         const chatWithTools = this.chat.bindTools(lcTools);
-        const langchainStream = await chatWithTools.stream(fullMessages);
+        const callbacks = await getLangChainCallbacks();
+        const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
 
         let accumulatedChunk: AIMessageChunk | null = null;
 

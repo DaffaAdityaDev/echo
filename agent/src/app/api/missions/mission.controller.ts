@@ -1,0 +1,103 @@
+import { Context } from 'hono';
+import { streamSSE } from 'hono/streaming';
+import { MissionPayload } from '../../../shared/types';
+import { AgentHarness } from '../../../core/agent/harness';
+import { ProviderFactory } from '../../../infrastructure/providers/factory';
+import { StrategyFactory } from '../../../core/agent/strategies/factory';
+import { logger } from '../../../shared/utils/logger';
+import { HumanMessage } from "@langchain/core/messages";
+import { stateStorage } from '../../../core/agent/storage/factory';
+import { ENV } from '../../../config/env';
+import { randomUUID } from 'node:crypto';
+import { createMissionSchema } from './mission.schema';
+import { mapHistoryToMessages } from '../../../shared/utils/messages';
+import { AnchorFactory } from '../../../core/agent/anchors/factory';
+import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
+
+export class MissionController {
+  public async createMission(c: Context) {
+    try {
+      const body = await c.req.json();
+      
+      // Boundary validation
+      const parseResult = createMissionSchema.safeParse(body);
+      if (!parseResult.success) {
+        return c.json({
+          error: VALIDATION_MESSAGES.VALIDATION_ERROR,
+          details: parseResult.error.format()
+        }, 400);
+      }
+
+      const validatedData = parseResult.data;
+      const missionId = validatedData.missionId || randomUUID();
+      
+      const payload: MissionPayload = {
+        missionId,
+        tenant: {
+          tenantId: validatedData.tenantId,
+          userId: validatedData.userId,
+          orgId: validatedData.orgId
+        },
+        prompt: validatedData.prompt,
+        strategy: validatedData.strategy,
+        provider: validatedData.provider
+      };
+
+      // Reconstruct LangChain message objects from the conversation history
+      const historyMessages = mapHistoryToMessages(validatedData.history);
+
+      // Performance Optimization 1: Instantiate factories early
+      const llmProvider = ProviderFactory.create(validatedData.model || payload.provider, ENV.LLM_MODEL_API_URL);
+      const executionStrategy = StrategyFactory.create(payload.strategy);
+
+      // Performance Optimization 2: Read state from storage early (pre-stream)
+      let state = await stateStorage.get(missionId);
+      if (state) {
+        state.objective = payload.prompt;
+        const hasNewMessage = state.messages.some(m => m.content === payload.prompt);
+        if (!hasNewMessage) {
+          state.messages.push(new HumanMessage(payload.prompt));
+        }
+      } else {
+        state = {
+          missionId,
+          objective: payload.prompt,
+          tasks: [],
+          memory: {},
+          messages: [
+            AnchorFactory.create().build(),
+            ...historyMessages,
+            new HumanMessage(payload.prompt)
+          ]
+        };
+      }
+
+      return streamSSE(c, async (streamInstance) => {
+        const harness = new AgentHarness({
+          missionId,
+          tenantId: payload.tenant.tenantId,
+          provider: llmProvider,
+          strategy: executionStrategy
+        });
+
+        await harness.runMission(
+          state,
+          async (packet: any) => {
+            try {
+              await streamInstance.writeSSE({
+                data: JSON.stringify(packet)
+              });
+            } catch (err: any) {
+              logger.warn(`${MISSION_LOG_MESSAGES.STREAM_WRITE_FAILED}: ${err.message}`);
+            }
+          }
+        );
+      });
+    } catch (error: any) {
+      logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, error);
+      return c.json({ error: MISSION_LOG_MESSAGES.EXECUTION_FAILURE, details: error.message }, 500);
+    }
+  }
+}
+
+export const missionController = new MissionController();

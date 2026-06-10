@@ -1,4 +1,5 @@
 import "./config/env";
+import "./utils/telemetry";
 import { ENV } from "./config/env";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
