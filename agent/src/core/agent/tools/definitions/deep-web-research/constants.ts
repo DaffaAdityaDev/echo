@@ -27,6 +27,14 @@ export const PARSE_PATTERNS = {
   UDDG: /uddg=([^&]+)/,
 } as const;
 
+export const SWARM_CONFIG = {
+  QUEUE_NAME: 'deep-research-swarm-queue',
+  DEFAULT_MAX_DEPTH: 2,
+  DEFAULT_CONCURRENCY: 3,
+  DEFAULT_MAX_RETRIES: 3,
+  BACKOFF_DELAY_MS: 1000,
+} as const;
+
 export const RESEARCH_DEFAULTS = {
   DUCKDUCKGO_MAX_RESULTS: 5,
   MAX_TARGETS: 3,

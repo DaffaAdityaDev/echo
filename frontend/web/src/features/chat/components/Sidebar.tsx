@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
+import { useFeatures } from "../api/useFeatures";
 import { useModels } from "../api/useModels";
 import { CHAT_MODES } from "../constants";
 
@@ -18,10 +19,13 @@ interface SidebarProps {
   setMode: (mode: typeof CHAT_MODES[keyof typeof CHAT_MODES]) => void;
   selectedModel: string;
   setSelectedModel: (id: string) => void;
+  selectedFeatures: string[];
+  setSelectedFeatures: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 
-export function Sidebar({ mode, setMode, selectedModel, setSelectedModel }: SidebarProps) {
+export function Sidebar({ mode, setMode, selectedModel, setSelectedModel, selectedFeatures, setSelectedFeatures }: SidebarProps) {
+  const { features } = useFeatures();
   const { models } = useModels();
 
   return (
@@ -91,6 +95,49 @@ export function Sidebar({ mode, setMode, selectedModel, setSelectedModel }: Side
           </button>
         </div>
       </nav>
+
+      {/* Dynamic Capabilities Panel (for Agent / NLAH Modes only) */}
+      {(mode === CHAT_MODES.AGENT || mode === CHAT_MODES.NLAH) && features.length > 0 && (
+        <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted font-bold px-3 mb-1">Agent Capabilities</div>
+          <div className="space-y-1.5 px-3 max-h-48 overflow-y-auto scrollbar-hide">
+            {features.map((f) => (
+              <label 
+                key={f.id} 
+                className={cn(
+                  "flex items-start gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer transition-colors text-xs hover:bg-white/[0.02]",
+                  f.locked ? "opacity-40 cursor-not-allowed" : "text-white/80"
+                )}
+              >
+                <input 
+                  type="checkbox"
+                  checked={selectedFeatures.includes(f.id)}
+                  disabled={f.locked}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedFeatures(prev => [...prev, f.id]);
+                    } else {
+                      setSelectedFeatures(prev => prev.filter(id => id !== f.id));
+                    }
+                  }}
+                  className="mt-0.5 rounded border-white/10 bg-white/5 text-accent focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
+                />
+                <div className="flex flex-col">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    {f.name}
+                    {f.locked && (
+                      <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-warning/20 text-warning uppercase border border-warning/30">
+                        PRO
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[9px] text-white/40 leading-tight">{f.description}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-auto pt-4 border-t border-white/5">
         <div className="px-3 py-2">

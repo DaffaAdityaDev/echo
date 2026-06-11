@@ -1,4 +1,4 @@
-import { LLMProvider, AgentStrategy, AgentState } from '../../../shared/types';
+import { LLMProvider, AgentStrategy, AgentState, ToolDefinition } from '../../../shared/types';
 
 export interface HarnessConfig {
     provider: LLMProvider;
@@ -6,6 +6,7 @@ export interface HarnessConfig {
     missionId?: string;
     tenantId?: string;
     harnessType?: string; // Opt-in harness type selection, default is 'nlah'
+    tools?: ToolDefinition[]; // Explicitly bound tools
 }
 
 export interface AgentHarness {

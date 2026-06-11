@@ -18,7 +18,8 @@ export class ReActStrategy implements AgentStrategy {
     name = STRATEGY_NAMES.REACT;
 
     buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string {
-        const toolDescriptions = tools
+        const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+        const toolDescriptions = sortedTools
             .map(t => `- ${t.name}: ${t.description}`)
             .join('\n');
 

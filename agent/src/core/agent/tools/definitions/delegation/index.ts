@@ -11,6 +11,8 @@ import {
     PACKET_TYPES, 
     DELEGATION_DEFAULTS 
 } from './constants';
+import { langfuseStorage } from '../../../../../utils/langfuse';
+
 
 export const delegate_task: ToolDefinition = {
     name: DELEGATION_CONFIG.NAME,
@@ -24,15 +26,23 @@ export const delegate_task: ToolDefinition = {
     }),
     execute: async (
         input: { agentName: string; instruction: string; systemPrompt: string; fork_context: boolean }, 
-        config?: { parentMessages?: BaseMessage[]; onPacket?: (p: any) => Promise<void>; provider?: LLMProvider }
+        config?: { parentMessages?: BaseMessage[]; onPacket?: (p: any) => Promise<void>; provider?: LLMProvider; tools?: any[] }
     ): Promise<Observation> => {
+        const store = langfuseStorage.getStore();
+        const parentMissionId = store?.sessionId || "standalone";
+        const childMissionId = crypto.randomUUID();
+
         try {
             const provider = config?.provider;
             if (!provider) {
                 throw new Error("LLMProvider is required for delegation");
             }
 
-            logger.info(DELEGATION_DEFAULTS.LOG_INFO_START(input.agentName), { fork_context: input.fork_context });
+            logger.agentActivity(parentMissionId, 'DELEGATE_START', `Delegating task to sub-agent "${input.agentName}": "${input.instruction}"`, {
+                childMissionId,
+                agentName: input.agentName,
+                forkContext: input.fork_context
+            });
 
             // Reconstruct history if fork_context is true
             let historyMessages: BaseMessage[] = [];
@@ -46,12 +56,12 @@ export const delegate_task: ToolDefinition = {
                 buildSystemPrompt: () => input.systemPrompt
             };
 
-            const childMissionId = crypto.randomUUID();
             const childHarness = new AgentHarness({
                 provider,
                 strategy: subagentStrategy,
                 missionId: childMissionId,
-                tenantId: DELEGATION_DEFAULTS.TENANT_ID
+                tenantId: DELEGATION_DEFAULTS.TENANT_ID,
+                tools: config?.tools
             });
 
             // Build child hydrated state
@@ -77,10 +87,13 @@ export const delegate_task: ToolDefinition = {
                     // Collect reasoning and content from child
                     if (packet.type === PACKET_TYPES.REASONING && packet.content) {
                         stepLogs.push(`${DELEGATION_DEFAULTS.LOG_REASONING_PREFIX}${packet.content}`);
+                        logger.agentActivity(parentMissionId, 'DELEGATE_REASONING', `[Sub-Agent ${input.agentName}] ${packet.content.trim()}`, { childMissionId });
                     } else if (packet.type === PACKET_TYPES.TOOL_CALL) {
                         stepLogs.push(DELEGATION_DEFAULTS.LOG_ACTION_PREFIX(packet.toolName, packet.toolInput));
+                        logger.agentActivity(parentMissionId, 'DELEGATE_TOOL_CALL', `[Sub-Agent ${input.agentName}] Calling tool "${packet.toolName}"`, { childMissionId, toolName: packet.toolName, toolInput: packet.toolInput });
                     } else if (packet.type === PACKET_TYPES.TOOL_RESULT) {
                         stepLogs.push(DELEGATION_DEFAULTS.LOG_OBSERVATION_PREFIX(packet.content));
+                        logger.agentActivity(parentMissionId, 'DELEGATE_TOOL_RESULT', `[Sub-Agent ${input.agentName}] Tool returned: ${packet.content.trim().slice(0, 100)}...`, { childMissionId });
                     } else if (packet.type === PACKET_TYPES.CONTENT && packet.content) {
                         subAgentOutput += packet.content;
                     }
@@ -92,6 +105,8 @@ export const delegate_task: ToolDefinition = {
                 }
             );
 
+            logger.agentActivity(parentMissionId, 'DELEGATE_COMPLETE', `Sub-agent "${input.agentName}" completed task. Output: "${subAgentOutput.trim().slice(0, 100)}..."`, { childMissionId, agentName: input.agentName });
+
             return {
                 status: OPERATION_STATUS.SUCCESS,
                 summary: DELEGATION_DEFAULTS.SUMMARY_SUCCESS(input.agentName, subAgentOutput),
@@ -102,6 +117,7 @@ export const delegate_task: ToolDefinition = {
                 }
             };
         } catch (error: any) {
+            logger.agentActivity(parentMissionId, 'DELEGATE_ERROR', `Sub-agent "${input.agentName}" failed: ${error.message}`, { childMissionId, error: error.message });
             logger.error(DELEGATION_DEFAULTS.LOG_ERROR_FAIL(input.agentName), error);
             return {
                 status: OPERATION_STATUS.ERROR,
@@ -109,6 +125,7 @@ export const delegate_task: ToolDefinition = {
                 error: error.message
             };
         }
+
     }
 };
 

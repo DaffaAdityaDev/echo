@@ -8,16 +8,24 @@ import { ChatInput } from "./ChatInput";
 import { useChatStream } from "../api/useChatStream";
 import { useModels } from "../api/useModels";
 import { CHAT_MODES } from "../constants";
+import { useFeatures, AgentFeature } from "../api/useFeatures";
 
 export function ChatInterface() {
   const [selectedModel, setSelectedModel] = useState("");
   const [mode, setMode] = useState<typeof CHAT_MODES[keyof typeof CHAT_MODES]>(CHAT_MODES.STANDARD);
+  const { features } = useFeatures();
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [prevFeatures, setPrevFeatures] = useState<AgentFeature[]>([]);
 
+  if (features !== prevFeatures) {
+    setPrevFeatures(features);
+    setSelectedFeatures(features.filter(f => !f.locked).map(f => f.id));
+  }
 
   
   const { models } = useModels();
   const activeModelId = selectedModel || models[0]?.id || "";
-  const { messages, isLoading, sendMessage, clearMessages } = useChatStream(activeModelId, mode);
+  const { messages, isLoading, sendMessage, clearMessages } = useChatStream(activeModelId, mode, selectedFeatures);
 
 
   return (
@@ -27,6 +35,8 @@ export function ChatInterface() {
         setMode={setMode} 
         selectedModel={selectedModel} 
         setSelectedModel={setSelectedModel} 
+        selectedFeatures={selectedFeatures}
+        setSelectedFeatures={setSelectedFeatures}
       />
 
       <main className="flex-1 flex flex-col relative" id="main-content">

@@ -27,6 +27,7 @@ export class NlahHarness implements AgentHarness {
     private strategy: AgentStrategy;
     private missionId: string;
     private tenantId: string;
+    private explicitTools?: ToolDefinition[];
     private static toolRetriever: ToolRetriever | null = null;
 
     constructor(options: HarnessConfig) {
@@ -34,6 +35,7 @@ export class NlahHarness implements AgentHarness {
         this.strategy = options.strategy;
         this.missionId = options.missionId || crypto.randomUUID();
         this.tenantId = options.tenantId || HARNESS_CONFIG.DEFAULT_TENANT_ID;
+        this.explicitTools = options.tools;
 
         if (!NlahHarness.toolRetriever) {
             NlahHarness.toolRetriever = new ToolRetriever(toolRegistry.getAllTools());
@@ -100,21 +102,21 @@ export class NlahHarness implements AgentHarness {
 
         const trace = startAgentTrace(traceId, state.missionId, this.tenantId, this.strategy.name, state.objective);
 
-        const allPhysicalTools = toolRegistry.getAllTools();
+        const allPhysicalTools = this.explicitTools || toolRegistry.getAllTools();
         const isSubAgent = this.tenantId === HARNESS_CONFIG.SUBAGENT_TENANT_ID;
 
-        // Filter out delegation and search tools for subagents to prevent infinite recursion loop
+        // Filter out delegation to prevent infinite recursion loop
         let filteredPhysicalTools = allPhysicalTools;
         if (isSubAgent) {
             filteredPhysicalTools = allPhysicalTools.filter(
-                t => t.name !== 'delegate_task' && t.name !== 'deep_web_research' && t.name !== 'web_search'
+                t => t.name !== 'delegate_task'
             );
         }
 
-        // Get relevant tools using pre-indexed retriever
-        const relevantTools = NlahHarness.toolRetriever!.getRelevantTools(state.objective, filteredPhysicalTools);
-
-        const tools = [...relevantTools];
+        // If tools are explicitly bound, we bypass the retriever and bind all of them (minus delegation for sub-agents)
+        const tools = this.explicitTools 
+            ? filteredPhysicalTools 
+            : NlahHarness.toolRetriever!.getRelevantTools(state.objective, filteredPhysicalTools);
         
         // Optimasi pencarian tool dari O(T) ke O(1) menggunakan Map Lookup table
         const toolMap = new Map<string, ToolDefinition>(tools.map(t => [t.name, t]));
@@ -233,6 +235,7 @@ export class NlahHarness implements AgentHarness {
 
                         let assistantContent = "";
                         let pendingToolCall: { name: string; args: Record<string, unknown> } | null = null;
+                        let hasContentEmitted = false;
 
                         for await (const event of eventStream) {
                             if (event.reasoning) {
@@ -243,6 +246,7 @@ export class NlahHarness implements AgentHarness {
                             if (event.toolCall) pendingToolCall = event.toolCall;
 
                             if (event.content && !pendingToolCall) {
+                                hasContentEmitted = true;
                                 await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: event.content }, iteration);
                             }
                             if (event.usage) {
@@ -370,7 +374,8 @@ export class NlahHarness implements AgentHarness {
                                         observation = await tool.execute(pendingToolCall.args, {
                                             parentMessages: state.messages,
                                             onPacket,
-                                            provider: this.provider
+                                            provider: this.provider,
+                                            tools
                                         });
                                     }
                                     if (toolSpan) {
@@ -505,6 +510,9 @@ export class NlahHarness implements AgentHarness {
                             } else {
                                 state.messages.push(new AIMessage(assistantContent));
                                 isComplete = true;
+                                if (!hasContentEmitted && assistantContent) {
+                                    await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: assistantContent }, iteration);
+                                }
                             }
                         }
 
@@ -544,6 +552,16 @@ export class NlahHarness implements AgentHarness {
         }
 
         await stateStorage.set(state.missionId, state);
+
+        // Queue final debug log to ensure the last messages (last AI + Tool response) are captured
+        if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === FILE_OPS.DEVELOPMENT_ENV) {
+            queuePromptDebug({
+                state,
+                iteration,
+                strategyName: this.strategy.name,
+                systemPrompt
+            });
+        }
 
         if (trace) {
             trace.update({

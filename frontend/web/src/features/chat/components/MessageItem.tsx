@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle } from "lucide-react";
+import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle, Cpu } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { Markdown } from "@/components/Markdown";
@@ -247,6 +247,90 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
             <pre className="text-[9px] text-white/40 font-mono bg-black/30 p-2 rounded border border-white/5 whitespace-pre-wrap break-all">
               {f.preview}
             </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (step.type === PACKET_TYPES.SWARM_STATUS && step.swarm) {
+    const s = step.swarm;
+    const isFailed = s.status === 'critic_failed';
+    const isPassed = s.status === 'critic_passed';
+
+    return (
+      <div className={cn(
+        "flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all duration-300",
+        isFailed ? "bg-error/[0.02] border-error/20" :
+        isPassed ? "bg-success/[0.02] border-success/20" :
+        "bg-accent/[0.02] border-accent/15"
+      )}>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border-b border-white/5 pb-2">
+          <Cpu size={12} className={cn(
+            isFailed ? "text-error" :
+            isPassed ? "text-success" :
+            "text-accent animate-pulse"
+          )} />
+          <span>Swarm Researcher (Depth {s.depth})</span>
+          <span className={cn(
+            "ml-auto text-[8px] font-mono px-2 py-0.5 rounded-full uppercase tracking-tighter",
+            isFailed ? "bg-error/10 text-error border border-error/20" :
+            isPassed ? "bg-success/10 text-success border border-success/20" :
+            "bg-accent/10 text-accent border border-accent/20"
+          )}>
+            {s.status.replace('_', ' ')}
+          </span>
+        </div>
+
+        {s.message && (
+          <p className="text-[11px] text-white/70 leading-relaxed font-semibold italic mt-0.5">{s.message}</p>
+        )}
+
+        {s.url && (
+          <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded border border-white/5 text-[10px] text-white/50 break-all font-mono">
+            <span className="text-accent/60">URL:</span>
+            <span>{s.url}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+          {s.activeAgents !== undefined && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
+              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Active Agents</span>
+              <span className="text-xs font-bold text-white/80">{s.activeAgents}</span>
+            </div>
+          )}
+          {s.estTime !== undefined && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
+              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Est. Wait</span>
+              <span className="text-xs font-bold text-white/80">{s.estTime}</span>
+            </div>
+          )}
+          {s.dataSize !== undefined && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
+              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Cleaned Size</span>
+              <span className="text-xs font-bold text-white/80">{s.dataSize} chars</span>
+            </div>
+          )}
+          {s.discoveredLinks !== undefined && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
+              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Discovered Links</span>
+              <span className="text-xs font-bold text-white/80">{s.discoveredLinks}</span>
+            </div>
+          )}
+        </div>
+
+        {s.factsCount !== undefined && s.factsCount > 0 && (
+          <div className="text-[10px] text-success/80 font-semibold bg-success/5 border border-success/10 px-2.5 py-1.5 rounded-lg mt-1 flex items-center gap-1.5">
+            <CheckCircle2 size={10} className="text-success" />
+            <span>Successfully extracted {s.factsCount} key facts.</span>
+          </div>
+        )}
+
+        {s.feedback && (
+          <div className="text-[10px] text-warning/80 font-mono bg-warning/5 border border-warning/10 px-2.5 py-1.5 rounded-lg mt-1 whitespace-pre-wrap break-all">
+            <span className="font-bold uppercase tracking-wider text-[8px] block mb-0.5 text-warning/60">Critic Feedback:</span>
+            {s.feedback}
           </div>
         )}
       </div>

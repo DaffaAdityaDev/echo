@@ -2,12 +2,14 @@ export const HARNESS_PROMPTS = {
   STUCK_CLASSIFIER_SYSTEM: "You are a state classifier. Respond with exactly 'COMPLETE' or 'STUCK'.",
   STUCK_CLASSIFIER_USER: (objective: string, assistantContent: string) => 
     `Analyze the Assistant's last response and the User's objective.
-Determine if the Assistant has provided a direct response/final answer/greeting/clarification to the human user, OR if the Assistant has halted in a thinking/planning state (e.g. stating "I should search", "I need to find", "Let me check" without actually doing it or giving the final answer).
+Determine if the Assistant has halted in an internal thinking/planning state (e.g. stating "I should search", "I need to find", "Let me check" without actually outputting a message for the human or calling a tool).
+
+If the Assistant is asking the human user a clarifying question, proposing options to choose from, greeting the user, or explaining why it cannot proceed without more details, this is NOT stuck. It is a valid response to the user.
 
 User Objective: "${objective}"
 Assistant Response: "${assistantContent}"
 
-Respond with exactly one of these two labels: "COMPLETE" or "STUCK".`,
+Respond with exactly "COMPLETE" (if it's a valid message/clarification/answer to the user) or "STUCK" (if it is just internal planning/thinking/halting without a message/action).`,
   
   COMPACTION_SYSTEM: "You are a structured state summarization system.",
   COMPACTION_PROMPT: `Summarize the conversation so far. You MUST return your response as a dense, structured JSON block (wrapped in a markdown code block) with the following schema:

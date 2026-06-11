@@ -9,4 +9,5 @@ const (
 	V1PathLogin    = "/login"
 	V1PathChat     = "/chat"
 	V1PathModels   = "/models"
+	V1PathFeatures = "/features"
 )

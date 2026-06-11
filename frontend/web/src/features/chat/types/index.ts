@@ -1,5 +1,5 @@
 export interface ThoughtStep {
-  type: 'reasoning' | 'tool_call' | 'tool_result' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation';
+  type: 'reasoning' | 'tool_call' | 'tool_result' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status';
   content?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
@@ -14,6 +14,18 @@ export interface ThoughtStep {
     operation: 'write' | 'read' | 'offload';
     path: string;
     preview?: string;
+  };
+  swarm?: {
+    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis';
+    depth: number;
+    url?: string;
+    activeAgents?: number;
+    estTime?: string;
+    dataSize?: number;
+    discoveredLinks?: number;
+    factsCount?: number;
+    feedback?: string;
+    message?: string;
   };
 }
 
@@ -47,7 +59,8 @@ export interface HistoryMessage {
 }
 
 export interface StreamPacket {
-  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation';
+  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status';
+  missionId?: string;
   content?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
@@ -63,6 +76,18 @@ export interface StreamPacket {
     operation: 'write' | 'read' | 'offload';
     path: string;
     preview?: string;
+  };
+  swarm?: {
+    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis';
+    depth: number;
+    url?: string;
+    activeAgents?: number;
+    estTime?: string;
+    dataSize?: number;
+    discoveredLinks?: number;
+    factsCount?: number;
+    feedback?: string;
+    message?: string;
   };
   choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
 }

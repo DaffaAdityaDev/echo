@@ -1,4 +1,4 @@
-export const MISSION_STRATEGIES = ['react', 'sequential', 'standard'] as const;
+export const MISSION_STRATEGIES = ['react', 'sequential', 'standard', 'nlah'] as const;
 export const MISSION_PROVIDERS = ['openai', 'anthropic', 'gemini-local'] as const;
 
 export const DEFAULT_MISSION_VALUES = {
@@ -12,7 +12,8 @@ export const DEFAULT_MISSION_VALUES = {
 export const STRATEGY_MAPPING = {
   react: ['react', 'agent'] as readonly string[],
   sequential: ['sequential'] as readonly string[],
-  standard: ['standard', 'chat', 'nlah'] as readonly string[],
+  standard: ['standard', 'chat'] as readonly string[],
+  nlah: ['nlah', 'deep-research'] as readonly string[],
 } as const;
 
 export const VALIDATION_MESSAGES = {

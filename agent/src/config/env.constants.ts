@@ -4,7 +4,6 @@ export const ENV_DEFAULTS = {
   CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   SA_OUTPUT_PATH: "./sa-output",
-  ENABLE_REDIS: "false",
   REDIS_URL: "redis://localhost:6379",
   LANGFUSE_BASE_URL: "http://localhost:3000",
 } as const;

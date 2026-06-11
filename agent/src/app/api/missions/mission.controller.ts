@@ -13,6 +13,7 @@ import { createMissionSchema } from './mission.schema';
 import { mapHistoryToMessages } from '../../../shared/utils/messages';
 import { AnchorFactory } from '../../../core/agent/anchors/factory';
 import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
+import { toolRegistry } from '../../../core/agent/tools/registry';
 
 export class MissionController {
   public async createMission(c: Context) {
@@ -72,12 +73,15 @@ export class MissionController {
         };
       }
 
+      const resolvedTools = await toolRegistry.resolveTools(validatedData.features);
+
       return streamSSE(c, async (streamInstance) => {
         const harness = new AgentHarness({
           missionId,
           tenantId: payload.tenant.tenantId,
           provider: llmProvider,
-          strategy: executionStrategy
+          strategy: executionStrategy,
+          tools: resolvedTools
         });
 
         await harness.runMission(

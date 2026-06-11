@@ -45,6 +45,21 @@ type ChatRequest struct {
 	Mode      string           `json:"mode"`
 	MissionID string           `json:"missionId"`
 	History   []HistoryMessage `json:"history"`
+	Features  []string         `json:"features"`
+}
+
+type Feature struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Description     string `json:"description"`
+	TierRequirement string `json:"tier_requirement"`
+}
+
+type FeatureResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Locked      bool   `json:"locked"`
 }
 
 func parseTraceparent(tp string) (trace.SpanContext, bool) {
@@ -90,6 +105,33 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 	))
 	defer span.End()
 
+	userTier := c.Get("X-User-Tier")
+	if userTier == "" {
+		userTier = "pro" // Default to pro for local backward-compatibility
+	}
+
+	// Validate features payload against user tier requirements
+	if len(req.Features) > 0 {
+		featuresCatalog, err := h.GetFeatures(ctx)
+		if err == nil {
+			catalogMap := make(map[string]Feature)
+			for _, f := range featuresCatalog {
+				catalogMap[f.ID] = f
+			}
+
+			for _, fID := range req.Features {
+				if feat, exists := catalogMap[fID]; exists {
+					if userTier == "free" && feat.TierRequirement == "pro" {
+						span.RecordError(fmt.Errorf("access denied: feature %s requires pro", feat.Name))
+						return c.Status(403).JSON(fiber.Map{
+							"error": fmt.Sprintf("Feature '%s' requires a Pro subscription.", feat.Name),
+						})
+					}
+				}
+			}
+		}
+	}
+
 	// Forward the mode to the agent via query param
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
 
@@ -102,6 +144,9 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 	}
 	if req.MissionID != "" {
 		payload["missionId"] = req.MissionID
+	}
+	if len(req.Features) > 0 {
+		payload["features"] = req.Features
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
@@ -262,4 +307,87 @@ func (h *ChatHandler) StreamMissionLogs(c fiber.Ctx) error {
 			}
 		})
 	}
+}
+
+// GetFeatures retrieves feature metadata from Hono and caches them in Redis for 10 minutes.
+func (h *ChatHandler) GetFeatures(ctx context.Context) ([]Feature, error) {
+	cacheKey := "agent:features"
+
+	// 1. Try to read from Redis
+	if h.RedisClient != nil {
+		cached, err := h.RedisClient.Get(ctx, cacheKey).Result()
+		if err == nil && cached != "" {
+			var features []Feature
+			if err := json.Unmarshal([]byte(cached), &features); err == nil {
+				return features, nil
+			}
+		}
+	}
+
+	// 2. Fetch from Hono
+	agentURL := fmt.Sprintf("%s/api/features", h.HonoAPIURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", agentURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("agent features request failed: status %d, details: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var features []Feature
+	if err := json.Unmarshal(bodyBytes, &features); err != nil {
+		return nil, err
+	}
+
+	// Cache in Redis
+	if h.RedisClient != nil {
+		_ = h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err()
+	}
+
+	return features, nil
+}
+
+// HandleGetFeatures returns the catalog of features, dynamically locking premium ones depending on user tier.
+func (h *ChatHandler) HandleGetFeatures(c fiber.Ctx) error {
+	ctx := c.Context()
+	userTier := c.Get("X-User-Tier")
+	if userTier == "" {
+		userTier = "pro" // Default to pro for local backward-compatibility
+	}
+
+	features, err := h.GetFeatures(ctx)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve features", "details": err.Error()})
+	}
+
+	response := make([]FeatureResponse, len(features))
+	for i, f := range features {
+		locked := false
+		if userTier == "free" && f.TierRequirement == "pro" {
+			locked = true
+		}
+		response[i] = FeatureResponse{
+			ID:          f.ID,
+			Name:        f.Name,
+			Description: f.Description,
+			Locked:      locked,
+		}
+	}
+
+	return c.JSON(response)
 }

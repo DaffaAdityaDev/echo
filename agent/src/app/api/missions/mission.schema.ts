@@ -18,6 +18,8 @@ export const createMissionSchema = z.preprocess((input: any) => {
     strategy = 'sequential';
   } else if (STRATEGY_MAPPING.standard.includes(rawStrategy)) {
     strategy = 'standard';
+  } else if (STRATEGY_MAPPING.nlah.includes(rawStrategy)) {
+    strategy = 'nlah';
   }
 
   return {
@@ -37,6 +39,7 @@ export const createMissionSchema = z.preprocess((input: any) => {
   orgId: z.string(),
   missionId: z.string().optional(),
   model: z.string().optional(),
+  features: z.array(z.string()).optional(),
   history: z.array(
     z.object({
       role: z.string(),

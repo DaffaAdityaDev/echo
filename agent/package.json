@@ -29,12 +29,16 @@
     "@langfuse/otel": "^5.4.1",
     "@opentelemetry/sdk-node": "^0.218.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
-    "@opentelemetry/sdk-trace-base": "^2.0.1"
+    "@opentelemetry/sdk-trace-base": "^2.0.1",
+    "playwright": "^1.60.0",
+    "cheerio": "^1.0.0",
+    "turndown": "^7.2.0"
   },
   "devDependencies": {
     "@langfuse/langchain": "^5.4.1",
     "@types/bun": "latest",
     "@types/node": "^22.13.0",
+    "@types/turndown": "^5.0.5",
     "nodemon": "^3.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client";
 import { Message, StreamPacket, HistoryMessage, MissionMeta, TokenUsage } from "../types";
 import { CHAT_ROLES, CHAT_MODES, PACKET_TYPES, CHAT_MESSAGES, CHAT_ENDPOINTS } from "../constants";
 
-export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[keyof typeof CHAT_MODES] | string) {
+export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[keyof typeof CHAT_MODES] | string, selectedFeatures: string[]) {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,11 +45,19 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
         model: selectedModel,
         mode: mode,
         missionId: activeMissionId,
-        history
+        history,
+        features: selectedFeatures
       }, (data) => {
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
           const lastMessage = { ...prev[lastIdx], steps: [...prev[lastIdx].steps] };
+
+          const parentMissionId = (data.type === PACKET_TYPES.METADATA && data.meta && (data.meta as any).missionId) || lastMessage.meta?.missionId;
+          const isSubAgentPacket = data.missionId && parentMissionId && data.missionId !== parentMissionId;
+
+          if (isSubAgentPacket) {
+            return prev;
+          }
 
           if (data.type === PACKET_TYPES.METADATA && data.meta) {
             lastMessage.meta = data.meta as MissionMeta;
@@ -99,6 +107,11 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
               type: PACKET_TYPES.FILE_OPERATION,
               fileOp: data.fileOp
             });
+          } else if (data.type === PACKET_TYPES.SWARM_STATUS) {
+            lastMessage.steps.push({
+              type: PACKET_TYPES.SWARM_STATUS,
+              swarm: data.swarm
+            });
           } else {
             // Handle various SSE formats safely
             const delta = (data.choices?.[0]?.delta || data) as StreamPacket & { reasoning_content?: string };
@@ -125,8 +138,16 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
           return [...prev.slice(0, -1), lastMessage];
         });
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(CHAT_MESSAGES.ERROR, err);
+      setMessages((prev) => {
+        const lastIdx = prev.length - 1;
+        const lastMessage = { 
+          ...prev[lastIdx], 
+          content: `Error: ${err.message || "Failed to fetch response from agent."}` 
+        };
+        return [...prev.slice(0, -1), lastMessage];
+      });
     } finally {
       setIsLoading(false);
     }

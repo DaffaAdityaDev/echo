@@ -20,6 +20,7 @@ export const PACKET_TYPES = {
   SUBAGENT_CALL: "subagent_call",
   SUBAGENT_RESULT: "subagent_result",
   FILE_OPERATION: "file_operation",
+  SWARM_STATUS: "swarm_status",
 } as const;
 
 export const CHAT_MESSAGES = {

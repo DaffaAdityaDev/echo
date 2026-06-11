@@ -11,7 +11,7 @@ export interface MissionPayload {
   missionId: string;
   tenant: TenantContext;
   prompt: string;
-  strategy: 'react' | 'sequential' | 'standard';
+  strategy: 'react' | 'nlah' | 'standard' | 'sequential';
   provider: 'openai' | 'anthropic' | 'gemini-local';
 }
 

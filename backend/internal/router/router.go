@@ -47,4 +47,5 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	api.Post(routes.V1PathChat, chatHandler.HandleChat)
 	api.Get("/v1/missions/:missionId/stream", chatHandler.StreamMissionLogs)
 	api.Get(routes.V1PathModels, modelHandler.HandleGetModels)
+	api.Get(routes.V1PathFeatures, chatHandler.HandleGetFeatures)
 }
