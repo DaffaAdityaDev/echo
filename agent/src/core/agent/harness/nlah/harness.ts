@@ -21,6 +21,7 @@ import { HARNESS_PROMPTS } from "./prompts";
 import { calculateUsageCost } from "../../../../infrastructure/providers/utils";
 import { queuePromptDebug } from "./utils/debug";
 import { AgentHarness, HarnessConfig } from '../types';
+import { cancellationManager } from '../cancel_manager';
 
 export class NlahHarness implements AgentHarness {
     private provider: LLMProvider;
@@ -145,6 +146,13 @@ export class NlahHarness implements AgentHarness {
         let previousThought = "";
 
         while (!isComplete && iteration < maxIterations) {
+            if (cancellationManager.isAborted(this.missionId)) {
+                logger.info(`NlahHarness: Mission ${this.missionId} cancelled, aborting harness run.`);
+                await this.emit(onPacket, PACKET_TYPES.METADATA, {
+                    content: `Mission execution cancelled.`
+                }, iteration);
+                break;
+            }
             iteration++;
             let span: any = null;
             if (trace) {
@@ -384,15 +392,20 @@ export class NlahHarness implements AgentHarness {
                                             level: observation.status === OPERATION_STATUS.ERROR ? "ERROR" : "DEFAULT"
                                         });
                                     }
-                                } catch (err: any) {
-                                    if (toolSpan) {
-                                        toolSpan.update({
-                                            level: "ERROR",
-                                            statusMessage: err.message
-                                        });
-                                    }
-                                    throw err;
-                                } finally {
+                                 } catch (err: any) {
+                                     logger.error(`Tool execution failed for ${pendingToolCall.name}: ${err.message}`, err);
+                                     if (toolSpan) {
+                                         toolSpan.update({
+                                             level: "ERROR",
+                                             statusMessage: err.message
+                                         });
+                                     }
+                                     observation = {
+                                         status: OPERATION_STATUS.ERROR,
+                                         summary: `Tool execution failed: Failed to perform ${pendingToolCall.name}. Please try again later or refine the request.`,
+                                         error: 'TOOL_EXECUTION_FAILED'
+                                     };
+                                 } finally {
                                     if (toolSpan) {
                                         toolSpan.end();
                                     }

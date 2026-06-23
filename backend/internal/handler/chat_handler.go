@@ -178,11 +178,12 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		return c.Status(resp.StatusCode).JSON(fiber.Map{"error": "Agent request failed", "details": string(bodyBytes)})
 	}
 
-	// Set headers for streaming
+	// Set headers for streaming (bypass compression and caching)
 	c.Response().Header.Set("Content-Type", "text/event-stream")
-	c.Response().Header.Set("Cache-Control", "no-cache")
+	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
 	c.Response().Header.Set("Connection", "keep-alive")
 	c.Response().Header.Set("Transfer-Encoding", "chunked")
+	c.Response().Header.Set("X-Accel-Buffering", "no")
 
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		reader := resp.Body
@@ -218,11 +219,12 @@ func (h *ChatHandler) StreamMissionLogs(c fiber.Ctx) error {
 		runtimeMode = "local" // Default to safe local mode
 	}
 
-	// 1. Establish SSE Headers on the Response
+	// 1. Establish SSE Headers on the Response (bypass compression and caching)
 	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-Control", "no-cache")
+	c.Set("Cache-Control", "no-cache, no-transform")
 	c.Set("Connection", "keep-alive")
 	c.Set("Transfer-Encoding", "chunked")
+	c.Set("X-Accel-Buffering", "no")
 
 	// 2. Execute Dynamic Streaming Strategies
 	if runtimeMode == "saas" {

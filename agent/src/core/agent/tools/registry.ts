@@ -18,14 +18,14 @@ export const LAZY_TOOLS: Record<string, () => Promise<{ default: ToolDefinition 
 
 // 2. Active Feature catalog exposed to API and clients
 export const ACTIVE_FEATURES = [
-    { id: 'deep_web_research', name: 'Deep Web Research Swarm', description: 'Deploys a swarm of scraper and validation critic agents to crawl websites in parallel.', tier_requirement: 'pro' },
-    { id: 'delegate_task', name: 'Sub-Agent Delegation', description: 'Enables splitting complex objectives into sub-tasks and delegating to specialist sub-agents.', tier_requirement: 'pro' },
-    { id: 'web_search', name: 'Web Search', description: 'Quick search for real-time weather, prices, and news facts.', tier_requirement: 'free' },
-    { id: 'web_scrape', name: 'Web Scraping', description: 'Reads single webpage content using static or fallback dynamic scraper.', tier_requirement: 'free' },
-    { id: 'write_todos', name: 'Task Planning & Execution Board', description: 'Updates task board list state.', tier_requirement: 'free' },
-    { id: 'read_file', name: 'File Reader', description: 'Accesses target workspace files in read-only mode.', tier_requirement: 'free' },
-    { id: 'write_file', name: 'File Writer', description: 'Modifies workspace files with formatting checks.', tier_requirement: 'free' },
-    { id: 'list_files', name: 'Directory File Explorer', description: 'Lists target workspace file structures.', tier_requirement: 'free' },
+    { id: 'deep_web_research', name: 'Deep Web Research Swarm', description: 'Deploys a swarm of scraper and validation critic agents to crawl websites in parallel.', tier_requirement: 'pro', ui_schema: { render_type: 'grid_timeline', icon: 'globe-search', primary_color: '#10b981' } },
+    { id: 'delegate_task', name: 'Sub-Agent Delegation', description: 'Enables splitting complex objectives into sub-tasks and delegating to specialist sub-agents.', tier_requirement: 'pro', ui_schema: { render_type: 'hierarchy_tree', icon: 'users', primary_color: '#3b82f6' } },
+    { id: 'web_search', name: 'Web Search', description: 'Quick search for real-time weather, prices, and news facts.', tier_requirement: 'free', ui_schema: { render_type: 'card_list', icon: 'search', primary_color: '#6366f1' } },
+    { id: 'web_scrape', name: 'Web Scraping', description: 'Reads single webpage content using static or fallback dynamic scraper.', tier_requirement: 'free', ui_schema: { render_type: 'preview_pane', icon: 'code', primary_color: '#f59e0b' } },
+    { id: 'write_todos', name: 'Task Planning & Execution Board', description: 'Updates task board list state.', tier_requirement: 'free', ui_schema: { render_type: 'kanban_board', icon: 'check-square', primary_color: '#8b5cf6' } },
+    { id: 'read_file', name: 'File Reader', description: 'Accesses target workspace files in read-only mode.', tier_requirement: 'free', ui_schema: { render_type: 'code_viewer', icon: 'file-text', primary_color: '#6b7280' } },
+    { id: 'write_file', name: 'File Writer', description: 'Modifies workspace files with formatting checks.', tier_requirement: 'free', ui_schema: { render_type: 'code_editor', icon: 'edit', primary_color: '#ec4899' } },
+    { id: 'list_files', name: 'Directory File Explorer', description: 'Lists target workspace file structures.', tier_requirement: 'free', ui_schema: { render_type: 'file_tree', icon: 'folder', primary_color: '#14b8a6' } },
 ];
 
 export class ToolRegistry {

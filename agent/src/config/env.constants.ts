@@ -11,6 +11,7 @@ export const ENV_DEFAULTS = {
 export const ENV_VALUES = {
   STATE_BACKENDS: ["memory", "redis"] as const,
   ENVIRONMENTS: ["development", "production", "test"] as const,
+  RUNTIME_MODES: ["local", "saas"] as const,
 } as const;
 
 export const ENV_VALIDATION_MESSAGES = {

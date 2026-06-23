@@ -22,7 +22,8 @@ export const envSchema = z.object({
   LANGFUSE_SECRET_KEY: z.string({
     message: ENV_VALIDATION_MESSAGES.LANGFUSE_SECRET_KEY
   }),
-  LANGFUSE_BASE_URL: z.string().default(ENV_DEFAULTS.LANGFUSE_BASE_URL)
+  LANGFUSE_BASE_URL: z.string().default(ENV_DEFAULTS.LANGFUSE_BASE_URL),
+  AGENT_RUNTIME_MODE: z.enum(ENV_VALUES.RUNTIME_MODES).default("local")
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

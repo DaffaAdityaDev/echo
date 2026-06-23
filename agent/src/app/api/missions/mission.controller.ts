@@ -14,6 +14,8 @@ import { mapHistoryToMessages } from '../../../shared/utils/messages';
 import { AnchorFactory } from '../../../core/agent/anchors/factory';
 import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
 import { toolRegistry } from '../../../core/agent/tools/registry';
+import { HttpStreamTransport, RedisStreamTransport, MultiStreamTransport, StreamTransport } from './stream.transport';
+import { cancellationManager } from '../../../core/agent/harness/cancel_manager';
 
 export class MissionController {
   public async createMission(c: Context) {
@@ -76,6 +78,14 @@ export class MissionController {
       const resolvedTools = await toolRegistry.resolveTools(validatedData.features);
 
       return streamSSE(c, async (streamInstance) => {
+        const transports: StreamTransport[] = [new HttpStreamTransport(streamInstance)];
+        if (ENV.AGENT_RUNTIME_MODE === 'saas') {
+          transports.push(new RedisStreamTransport(missionId));
+        }
+        const transport = new MultiStreamTransport(transports);
+
+        const signal = cancellationManager.register(missionId);
+
         const harness = new AgentHarness({
           missionId,
           tenantId: payload.tenant.tenantId,
@@ -84,18 +94,19 @@ export class MissionController {
           tools: resolvedTools
         });
 
-        await harness.runMission(
-          state,
-          async (packet: any) => {
-            try {
-              await streamInstance.writeSSE({
-                data: JSON.stringify(packet)
-              });
-            } catch (err: any) {
-              logger.warn(`${MISSION_LOG_MESSAGES.STREAM_WRITE_FAILED}: ${err.message}`);
+        try {
+          await harness.runMission(
+            state,
+            async (packet: any) => {
+              if (signal.aborted) {
+                throw new Error("Mission cancelled by client disconnect");
+              }
+              await transport.send(packet);
             }
-          }
-        );
+          );
+        } finally {
+          cancellationManager.unregister(missionId);
+        }
       });
     } catch (error: any) {
       logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, error);
