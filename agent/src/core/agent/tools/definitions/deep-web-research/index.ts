@@ -3,10 +3,7 @@ import { ToolDefinition, Observation, LLMProvider } from '../../../../../shared/
 import { logger } from '../../../../../shared/utils/logger';
 import { HumanMessage } from '@langchain/core/messages';
 import webScrapeTool from '../web-scrape';
-import { Queue, Worker, QueueEvents } from 'bullmq';
-import { Redis } from 'ioredis';
 import * as cheerio from 'cheerio';
-import { ENV } from '../../../../../config/env';
 import { langfuseStorage } from '../../../../../utils/langfuse';
 
 import { 
@@ -280,521 +277,224 @@ export const deep_web_research: ToolDefinition = {
             discoveryQueue.push({ url, depth: 1 });
         }
 
-        // Check Redis availability if state backend is redis
-        let isRedisActive = false;
-        let redisConnection: Redis | null = null;
-        if (ENV.STATE_BACKEND === 'redis') {
-            try {
-                redisConnection = new Redis(ENV.REDIS_URL, { maxRetriesPerRequest: null });
-                await redisConnection.ping();
-                isRedisActive = true;
-                logger.info("Redis connection verified for swarm execution.");
-            } catch (err: any) {
-                logger.warn(`Redis connection failed (${err.message}). Falling back to local queue.`);
-                if (redisConnection) {
-                    try { redisConnection.disconnect(); } catch {}
-                    redisConnection = null;
-                }
-            }
-        }
+        // ==========================================
+        // LOCAL IN-MEMORY SWARM PIPELINE
+        // ==========================================
+        let currentDepth = 1;
+        const maxDepth = SWARM_CONFIG.DEFAULT_MAX_DEPTH;
+        let activeLevelUrls = [...seedUrls];
 
-        if (isRedisActive && redisConnection) {
-            // ==========================================
-            // REDIS & BULLMQ SWARM PIPELINE
-            // ==========================================
-            const queueName = `deep-research-${missionId}`;
-            
-            // Exclusive Redis connections for each BullMQ class to prevent pub/sub clashing
-            const queueConnection = new Redis(ENV.REDIS_URL, { maxRetriesPerRequest: null });
-            const workerConnection = new Redis(ENV.REDIS_URL, { maxRetriesPerRequest: null });
-            const eventsConnection = new Redis(ENV.REDIS_URL, { maxRetriesPerRequest: null });
-
-            const queue = new Queue(queueName, { connection: queueConnection });
-            const queueEvents = new QueueEvents(queueName, { connection: eventsConnection });
-
-            // Initialize visited URLs key in Redis
-            const redisVisitedKey = `swarm:visited:${missionId}`;
-            for (const url of seedUrls) {
-                await redisConnection.sadd(redisVisitedKey, url);
-            }
-
-            // Set up worker
-            const worker = new Worker(queueName, async (job) => {
-                const { url, depth } = job.data;
-                logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_START', `[Depth ${depth}] Worker starting to scrape URL: ${url}`, { url, depth });
-
-                // Stream tool action details via reasoning packet to display in UI collapsible box
-                await config?.onPacket?.({
-                    type: 'reasoning',
-                    content: `\n[Swarm Depth ${depth}] Spawning agent worker (concurrency: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} active).\n` +
-                             ` 🌐 Crawling: ${url}\n` +
-                             ` 👥 Swarm Active Size: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} concurrent agents\n` +
-                             ` ⏳ Est. level wait: ~${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`
-                });
-                await config?.onPacket?.({
-                    type: 'swarm_status',
-                    swarm: {
-                        status: 'crawling',
-                        depth,
-                        url,
-                        activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                        estTime: `${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`,
-                        message: `Spawning agent worker`
-                    }
-                });
-
-                // HTML-to-Markdown ETL
-                const scrapeResult = await withTimeout(
-                    webScrapeTool.execute({ url }),
-                    15000,
-                    `ETL scrape timed out after 15s for URL: ${url}`
-                );
-                if (scrapeResult.status !== 'success' || !scrapeResult.data?.markdown) {
-                    logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_FAIL', `Worker ETL scrape failed for URL: ${url}`, { url });
-                    await config?.onPacket?.({
-                        type: 'reasoning',
-                        content: `\n[Swarm Worker Scrape Failed] URL: ${url} (unreachable or blocked)`
-                    });
-                    throw new Error(`ETL scrape failed for URL: ${url}`);
-                }
-
-                const markdown = scrapeResult.data.markdown;
-                const html = scrapeResult.data.html || '';
-                const title = scrapeResult.summary.split("from")[0]?.trim() || url;
-                const engine = scrapeResult.data.engineUsed || 'unknown';
-                logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_SUCCESS', `Successfully scraped ${url} (Markdown: ${markdown.length} chars, Engine: ${engine})`, { url, engine, title });
-
-                // Extract links using Cheerio in memory
-                const discoveredLinks: string[] = [];
-                if (html) {
-                    try {
-                        const $ = cheerio.load(html);
-                        $('a').each((_, element) => {
-                            const href = $(element).attr('href');
-                            if (href) {
-                                discoveredLinks.push(href);
-                            }
-                        });
-                        logger.agentActivity(parentMissionId, 'SWARM_LINKS_EXTRACTED', `Extracted ${discoveredLinks.length} raw links via Cheerio for: ${url}`, { url, count: discoveredLinks.length });
-                    } catch (cheerioErr: any) {
-                        logger.error(`Cheerio link extraction failed for URL: ${url}`, cheerioErr);
-                    }
-                }
-
-                // LLM Extractor & QA Critic Self-Correction Loop
-                let attempts = 0;
-                let success = false;
-                let feedback = "";
-                let facts: string[] = [];
-
-                while (attempts < SWARM_CONFIG.DEFAULT_MAX_RETRIES && !success) {
-                    attempts++;
-                    
-                    logger.agentActivity(parentMissionId, 'SWARM_EXTRACT_ATTEMPT', `Attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES}: Extracting facts from ${url}`, { url, attempt: attempts });
-                    await config?.onPacket?.({
-                        type: 'reasoning',
-                        content: `\n[Swarm Worker LLM] Scraped ${url}\n` +
-                                 `  📊 Cleaned size: ${markdown.length} chars (Engine: ${engine})\n` +
-                                 `  🔗 Discovered: ${discoveredLinks.length} internal links\n` +
-                                 `  🧠 Extracting facts (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})...`
-                    });
-                    await config?.onPacket?.({
-                        type: 'swarm_status',
-                        swarm: {
-                            status: 'scraped',
-                            depth,
-                            url,
-                            activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                            dataSize: markdown.length,
-                            discoveredLinks: discoveredLinks.length,
-                            message: `Scraped page content (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})`
-                        }
-                    });
-
-                    const extractPrompt = generateExtractorPrompt(markdown, input.objective);
-                    const systemPrompt = feedback 
-                        ? `You are an extractor. Correct your output based on critic feedback: ${feedback}`
-                        : `You are an extractor. Extract details matching the objective.`;
-                    
-                    const extractionRaw = await withTimeout(
-                        callLLM(provider, systemPrompt, extractPrompt),
-                        60000,
-                        `LLM extraction timed out after 60s for URL: ${url}`
-                    );
-                    const extracted = parseJSONSafe(extractionRaw);
-                    facts = extracted.facts;
-                    logger.agentActivity(parentMissionId, 'SWARM_FACTS_EXTRACTED', `Extracted ${facts.length} facts from ${url}`, { url, count: facts.length });
-                    if (extracted.internalLinks && Array.isArray(extracted.internalLinks)) {
-                        discoveredLinks.push(...extracted.internalLinks);
-                    }
-
-                    logger.agentActivity(parentMissionId, 'SWARM_CRITIC_START', `QA Critic validating facts for ${url}`, { url, factsCount: facts.length });
-                    await config?.onPacket?.({
-                        type: 'reasoning',
-                        content: `\n[Swarm QA Critic] Validating ${facts.length} extracted facts for URL: ${url}`
-                    });
-                    await config?.onPacket?.({
-                        type: 'swarm_status',
-                        swarm: {
-                            status: 'critic_validating',
-                            depth,
-                            url,
-                            activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                            factsCount: facts.length,
-                            message: `QA Critic validating ${facts.length} extracted facts`
-                        }
-                    });
-
-                    const criticPrompt = generateCriticPrompt(markdown, facts, input.objective);
-                    const criticRaw = await withTimeout(
-                        callLLM(provider, `Verify the truthfulness of facts.`, criticPrompt),
-                        60000,
-                        `QA Critic validation timed out after 60s for URL: ${url}`
-                    );
-                    const criticResult = parseCriticJSONSafe(criticRaw);
-
-                    if (criticResult.status === 'PASS') {
-                        success = true;
-                        logger.agentActivity(parentMissionId, 'SWARM_CRITIC_PASS', `Critic PASSED verification for ${url}`, { url });
-                        await config?.onPacket?.({
-                            type: 'reasoning',
-                            content: `\n[Swarm QA Passed] Critic verified facts for: ${url} (PASS)`
-                        });
-                        await config?.onPacket?.({
-                            type: 'swarm_status',
-                            swarm: {
-                                status: 'critic_passed',
-                                depth,
-                                url,
-                                activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                factsCount: facts.length,
-                                message: `Critic verified facts (PASS)`
-                            }
-                        });
-                    } else {
-                        feedback = criticResult.reason;
-                        logger.agentActivity(parentMissionId, 'SWARM_CRITIC_FAIL', `Critic FAILED verification for ${url}. Reason: ${feedback}`, { url, feedback });
-                        await config?.onPacket?.({
-                            type: 'reasoning',
-                            content: `\n[Swarm QA Failed] Critic rejected facts for: ${url} (FAIL)\n` +
-                                     ` ❌ Reason: ${feedback}`
-                        });
-                        await config?.onPacket?.({
-                            type: 'swarm_status',
-                            swarm: {
-                                status: 'critic_failed',
-                                depth,
-                                url,
-                                activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                feedback,
-                                message: `Critic rejected facts (FAIL)`
-                            }
-                        });
-
-                        const delay = SWARM_CONFIG.BACKOFF_DELAY_MS * Math.pow(2, attempts - 1);
-                        await new Promise((resolve) => setTimeout(resolve, delay));
-                    }
-                }
-
-                logger.agentActivity(parentMissionId, 'SWARM_WORKER_COMPLETE', `Finished URL: ${url}. Success: ${success}. Facts: ${facts.length}`, { url, success, factsCount: facts.length });
-                return { url, title, facts, discoveredLinks };
-
-            }, { 
-                connection: workerConnection, 
-                concurrency: SWARM_CONFIG.DEFAULT_CONCURRENCY 
+        while (activeLevelUrls.length > 0 && currentDepth <= maxDepth) {
+            logger.agentActivity(parentMissionId, 'SWARM_DEPTH_START', `[Local] Starting depth level ${currentDepth} containing ${activeLevelUrls.length} pages.`, { depth: currentDepth, count: activeLevelUrls.length });
+            await config?.onPacket?.({
+                type: 'reasoning',
+                content: `\n[Local Swarm Depth ${currentDepth}] Starting level containing ${activeLevelUrls.length} pages.`
             });
 
-            try {
-                let currentDepth = 1;
-                const maxDepth = SWARM_CONFIG.DEFAULT_MAX_DEPTH;
-                let activeLevelUrls = [...seedUrls];
+            const semaphore = new Semaphore(SWARM_CONFIG.DEFAULT_CONCURRENCY);
+            const nextLevelUrls: string[] = [];
 
-                while (activeLevelUrls.length > 0 && currentDepth <= maxDepth) {
-                    logger.agentActivity(parentMissionId, 'SWARM_DEPTH_START', `Starting depth level ${currentDepth} containing ${activeLevelUrls.length} pages.`, { depth: currentDepth, count: activeLevelUrls.length });
+            const levelPromises = activeLevelUrls.map(async (url) => {
+                await semaphore.acquire();
+                try {
+                    logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_START', `[Local Depth ${currentDepth}] Worker starting to scrape URL: ${url}`, { url, depth: currentDepth });
                     await config?.onPacket?.({
                         type: 'reasoning',
-                        content: `\n[Swarm Depth ${currentDepth}] Starting level containing ${activeLevelUrls.length} pages.`
+                        content: `\n[Local Swarm Depth ${currentDepth}] Spawning agent worker (concurrency: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} active).\n` +
+                                 ` 🌐 Crawling: ${url}\n` +
+                                 ` 👥 Swarm Active Size: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} concurrent agents\n` +
+                                 ` ⏳ Est. level wait: ~${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`
+                    });
+                    await config?.onPacket?.({
+                        type: 'swarm_status',
+                        swarm: {
+                            status: 'crawling',
+                            depth: currentDepth,
+                            url,
+                            activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
+                            estTime: `${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`,
+                            message: `Spawning agent worker`
+                        }
                     });
 
-                    // Add all jobs for this level
-                    const jobs = await Promise.all(
-                        activeLevelUrls.map(url => queue.add('scrape-job', { url, depth: currentDepth }))
+                    const scrapeResult = await withTimeout(
+                        webScrapeTool.execute({ url }),
+                        15000,
+                        `ETL scrape timed out after 15s for URL: ${url}`
                     );
+                    if (scrapeResult.status !== 'success' || !scrapeResult.data?.markdown) {
+                        logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_FAIL', `[Local] Worker ETL scrape failed for URL: ${url}`, { url });
+                        await config?.onPacket?.({
+                            type: 'reasoning',
+                            content: `\n[Local Swarm Worker Scrape Failed] URL: ${url} (unreachable or blocked)`
+                        });
+                        return;
+                    }
 
-                    // Wait for level jobs to finish
-                    const results = await Promise.all(
-                        jobs.map(async (job) => {
-                            try {
-                                return await job.waitUntilFinished(queueEvents);
-                            } catch (err) {
-                                return null;
-                            }
-                        })
-                    );
+                    const markdown = scrapeResult.data.markdown;
+                    const html = scrapeResult.data.html || '';
+                    const title = scrapeResult.summary.split("from")[0]?.trim() || url;
+                    const engine = scrapeResult.data.engineUsed || 'unknown';
+                    logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_SUCCESS', `[Local] Successfully scraped ${url} (Markdown: ${markdown.length} chars, Engine: ${engine})`, { url, engine, title });
 
-                    const nextLevelUrls: string[] = [];
-
-                    for (const res of results) {
-                        if (!res) continue;
-                        const { url, title, facts, discoveredLinks } = res;
-                        
-                        if (facts && facts.length > 0) {
-                            allSourceResults.push({ url, title, facts });
-                        }
-
-                        // Filter and resolve links for next depth level
-                        const cleanLinks = extractAndNormalizeLinks(url, discoveredLinks || [], queryKeywords);
-                        for (const link of cleanLinks) {
-                            const isNew = await redisConnection.sadd(redisVisitedKey, link);
-                            if (isNew === 1) {
-                                nextLevelUrls.push(link);
-                            }
+                    // Extract links using Cheerio in memory
+                    const discoveredLinks: string[] = [];
+                    if (html) {
+                        try {
+                            const $ = cheerio.load(html);
+                            $('a').each((_, element) => {
+                                const href = $(element).attr('href');
+                                if (href) {
+                                    discoveredLinks.push(href);
+                                }
+                            });
+                            logger.agentActivity(parentMissionId, 'SWARM_LINKS_EXTRACTED', `[Local] Extracted ${discoveredLinks.length} raw links via Cheerio for: ${url}`, { url, count: discoveredLinks.length });
+                        } catch (cheerioErr: any) {
+                            logger.error(`Cheerio link extraction failed for URL: ${url}`, cheerioErr);
                         }
                     }
 
-                    // Limit next depth URLs to top 10 relevant links to prevent queue explosion
-                    activeLevelUrls = nextLevelUrls.slice(0, 10);
-                    currentDepth++;
+                    // Extraction & Critic
+                    let attempts = 0;
+                    let success = false;
+                    let feedback = "";
+                    let facts: string[] = [];
 
-                }
-
-            } finally {
-                // Ensure absolute cleanup to prevent leaking worker processes and connections
-                try {
-                    await worker.close();
-                    await queue.close();
-                    await queueEvents.close();
-                    await queueConnection.quit();
-                    await workerConnection.quit();
-                    await eventsConnection.quit();
-                    await redisConnection.del(redisVisitedKey);
-                    await redisConnection.quit();
-                } catch (cleanupErr: any) {
-                    logger.error("Error during BullMQ swarm cleanup", cleanupErr);
-                }
-            }
-
-        } else {
-            // ==========================================
-            // LOCAL IN-MEMORY SWARM PIPELINE (FALLBACK)
-            // ==========================================
-            let currentDepth = 1;
-            const maxDepth = SWARM_CONFIG.DEFAULT_MAX_DEPTH;
-            let activeLevelUrls = [...seedUrls];
-
-            while (activeLevelUrls.length > 0 && currentDepth <= maxDepth) {
-                logger.agentActivity(parentMissionId, 'SWARM_DEPTH_START', `[Local] Starting depth level ${currentDepth} containing ${activeLevelUrls.length} pages.`, { depth: currentDepth, count: activeLevelUrls.length });
-                await config?.onPacket?.({
-                    type: 'reasoning',
-                    content: `\n[Local Swarm Depth ${currentDepth}] Starting level containing ${activeLevelUrls.length} pages.`
-                });
-
-                const semaphore = new Semaphore(SWARM_CONFIG.DEFAULT_CONCURRENCY);
-                const nextLevelUrls: string[] = [];
-
-                const levelPromises = activeLevelUrls.map(async (url) => {
-                    await semaphore.acquire();
-                    try {
-                        logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_START', `[Local Depth ${currentDepth}] Worker starting to scrape URL: ${url}`, { url, depth: currentDepth });
+                    while (attempts < SWARM_CONFIG.DEFAULT_MAX_RETRIES && !success) {
+                        attempts++;
+                        
+                        logger.agentActivity(parentMissionId, 'SWARM_EXTRACT_ATTEMPT', `[Local] Attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES}: Extracting facts from ${url}`, { url, attempt: attempts });
                         await config?.onPacket?.({
                             type: 'reasoning',
-                            content: `\n[Local Swarm Depth ${currentDepth}] Spawning agent worker (concurrency: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} active).\n` +
-                                     ` 🌐 Crawling: ${url}\n` +
-                                     ` 👥 Swarm Active Size: ${SWARM_CONFIG.DEFAULT_CONCURRENCY} concurrent agents\n` +
-                                     ` ⏳ Est. level wait: ~${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`
+                            content: `\n[Local Swarm Worker LL] Scraped ${url}\n` +
+                                     `  📊 Cleaned size: ${markdown.length} chars (Engine: ${engine})\n` +
+                                     `  🔗 Discovered: ${discoveredLinks.length} internal links\n` +
+                                     `  🧠 Extracting facts (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})...`
                         });
                         await config?.onPacket?.({
                             type: 'swarm_status',
                             swarm: {
-                                status: 'crawling',
+                                status: 'scraped',
                                 depth: currentDepth,
                                 url,
                                 activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                estTime: `${Math.ceil((activeLevelUrls?.length || 1) / SWARM_CONFIG.DEFAULT_CONCURRENCY) * 15}s`,
-                                message: `Spawning agent worker`
+                                dataSize: markdown.length,
+                                discoveredLinks: discoveredLinks.length,
+                                message: `Scraped page content (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})`
                             }
                         });
 
-                        const scrapeResult = await withTimeout(
-                            webScrapeTool.execute({ url }),
-                            15000,
-                            `ETL scrape timed out after 15s for URL: ${url}`
+                        const extractPrompt = generateExtractorPrompt(markdown, input.objective);
+                        const systemPrompt = feedback 
+                            ? `Correct previous work based on critic feedback: ${feedback}`
+                            : `Extract key facts relevant to objective.`;
+                        
+                        const extractionRaw = await withTimeout(
+                            callLLM(provider, systemPrompt, extractPrompt),
+                            60000,
+                            `LLM extraction timed out after 60s for URL: ${url}`
                         );
-                        if (scrapeResult.status !== 'success' || !scrapeResult.data?.markdown) {
-                            logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_FAIL', `[Local] Worker ETL scrape failed for URL: ${url}`, { url });
-                            await config?.onPacket?.({
-                                type: 'reasoning',
-                                content: `\n[Local Swarm Worker Scrape Failed] URL: ${url} (unreachable or blocked)`
-                            });
-                            return;
+                        const extracted = parseJSONSafe(extractionRaw);
+                        facts = extracted.facts;
+                        logger.agentActivity(parentMissionId, 'SWARM_FACTS_EXTRACTED', `[Local] Extracted ${facts.length} facts from ${url}`, { url, count: facts.length });
+                        if (extracted.internalLinks && Array.isArray(extracted.internalLinks)) {
+                            discoveredLinks.push(...extracted.internalLinks);
                         }
 
-                        const markdown = scrapeResult.data.markdown;
-                        const html = scrapeResult.data.html || '';
-                        const title = scrapeResult.summary.split("from")[0]?.trim() || url;
-                        const engine = scrapeResult.data.engineUsed || 'unknown';
-                        logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_SUCCESS', `[Local] Successfully scraped ${url} (Markdown: ${markdown.length} chars, Engine: ${engine})`, { url, engine, title });
-
-                        // Extract links using Cheerio in memory
-                        const discoveredLinks: string[] = [];
-                        if (html) {
-                            try {
-                                const $ = cheerio.load(html);
-                                $('a').each((_, element) => {
-                                    const href = $(element).attr('href');
-                                    if (href) {
-                                        discoveredLinks.push(href);
-                                    }
-                                });
-                                logger.agentActivity(parentMissionId, 'SWARM_LINKS_EXTRACTED', `[Local] Extracted ${discoveredLinks.length} raw links via Cheerio for: ${url}`, { url, count: discoveredLinks.length });
-                            } catch (cheerioErr: any) {
-                                logger.error(`Cheerio link extraction failed for URL: ${url}`, cheerioErr);
+                        logger.agentActivity(parentMissionId, 'SWARM_CRITIC_START', `[Local] QA Critic validating facts for ${url}`, { url, factsCount: facts.length });
+                        await config?.onPacket?.({
+                            type: 'reasoning',
+                            content: `\n[Local Swarm QA Critic] Validating ${facts.length} extracted facts for URL: ${url}`
+                        });
+                        await config?.onPacket?.({
+                            type: 'swarm_status',
+                            swarm: {
+                                status: 'critic_validating',
+                                depth: currentDepth,
+                                url,
+                                activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
+                                factsCount: facts.length,
+                                message: `QA Critic validating ${facts.length} extracted facts`
                             }
-                        }
+                        });
 
-                        // Extraction & Critic
-                        let attempts = 0;
-                        let success = false;
-                        let feedback = "";
-                        let facts: string[] = [];
+                        const criticPrompt = generateCriticPrompt(markdown, facts, input.objective);
+                        const criticRaw = await withTimeout(
+                            callLLM(provider, `Verify extracted details.`, criticPrompt),
+                            60000,
+                            `QA Critic validation timed out after 60s for URL: ${url}`
+                        );
+                        const criticResult = parseCriticJSONSafe(criticRaw);
 
-                        while (attempts < SWARM_CONFIG.DEFAULT_MAX_RETRIES && !success) {
-                            attempts++;
-                            
-                            logger.agentActivity(parentMissionId, 'SWARM_EXTRACT_ATTEMPT', `[Local] Attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES}: Extracting facts from ${url}`, { url, attempt: attempts });
+                        if (criticResult.status === 'PASS') {
+                            success = true;
+                            logger.agentActivity(parentMissionId, 'SWARM_CRITIC_PASS', `[Local] Critic PASSED verification for ${url}`, { url });
                             await config?.onPacket?.({
                                 type: 'reasoning',
-                                content: `\n[Local Swarm Worker LL] Scraped ${url}\n` +
-                                         `  📊 Cleaned size: ${markdown.length} chars (Engine: ${engine})\n` +
-                                         `  🔗 Discovered: ${discoveredLinks.length} internal links\n` +
-                                         `  🧠 Extracting facts (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})...`
+                                content: `\n[Local Swarm QA Passed] Critic verified facts for: ${url} (PASS)`
                             });
                             await config?.onPacket?.({
                                 type: 'swarm_status',
                                 swarm: {
-                                    status: 'scraped',
-                                    depth: currentDepth,
-                                    url,
-                                    activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                    dataSize: markdown.length,
-                                    discoveredLinks: discoveredLinks.length,
-                                    message: `Scraped page content (attempt ${attempts}/${SWARM_CONFIG.DEFAULT_MAX_RETRIES})`
-                                }
-                            });
-
-                            const extractPrompt = generateExtractorPrompt(markdown, input.objective);
-                            const systemPrompt = feedback 
-                                ? `Correct previous work based on critic feedback: ${feedback}`
-                                : `Extract key facts relevant to objective.`;
-                            
-                            const extractionRaw = await withTimeout(
-                                callLLM(provider, systemPrompt, extractPrompt),
-                                60000,
-                                `LLM extraction timed out after 60s for URL: ${url}`
-                            );
-                            const extracted = parseJSONSafe(extractionRaw);
-                            facts = extracted.facts;
-                            logger.agentActivity(parentMissionId, 'SWARM_FACTS_EXTRACTED', `[Local] Extracted ${facts.length} facts from ${url}`, { url, count: facts.length });
-                            if (extracted.internalLinks && Array.isArray(extracted.internalLinks)) {
-                                discoveredLinks.push(...extracted.internalLinks);
-                            }
-
-                            logger.agentActivity(parentMissionId, 'SWARM_CRITIC_START', `[Local] QA Critic validating facts for ${url}`, { url, factsCount: facts.length });
-                            await config?.onPacket?.({
-                                type: 'reasoning',
-                                content: `\n[Local Swarm QA Critic] Validating ${facts.length} extracted facts for URL: ${url}`
-                            });
-                            await config?.onPacket?.({
-                                type: 'swarm_status',
-                                swarm: {
-                                    status: 'critic_validating',
+                                    status: 'critic_passed',
                                     depth: currentDepth,
                                     url,
                                     activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
                                     factsCount: facts.length,
-                                    message: `QA Critic validating ${facts.length} extracted facts`
+                                    message: `Critic verified facts (PASS)`
+                                }
+                            });
+                        } else {
+                            feedback = criticResult.reason;
+                            logger.agentActivity(parentMissionId, 'SWARM_CRITIC_FAIL', `[Local] Critic FAILED verification for ${url}. Reason: ${feedback}`, { url, feedback });
+                            await config?.onPacket?.({
+                                type: 'reasoning',
+                                content: `\n[Local Swarm QA Failed] Critic rejected facts for: ${url} (FAIL)\n` +
+                                         ` ❌ Reason: ${feedback}`
+                            });
+                            await config?.onPacket?.({
+                                type: 'swarm_status',
+                                swarm: {
+                                    status: 'critic_failed',
+                                    depth: currentDepth,
+                                    url,
+                                    activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
+                                    feedback,
+                                    message: `Critic rejected facts (FAIL)`
                                 }
                             });
 
-                            const criticPrompt = generateCriticPrompt(markdown, facts, input.objective);
-                            const criticRaw = await withTimeout(
-                                callLLM(provider, `Verify extracted details.`, criticPrompt),
-                                60000,
-                                `QA Critic validation timed out after 60s for URL: ${url}`
-                            );
-                            const criticResult = parseCriticJSONSafe(criticRaw);
-
-                            if (criticResult.status === 'PASS') {
-                                success = true;
-                                logger.agentActivity(parentMissionId, 'SWARM_CRITIC_PASS', `[Local] Critic PASSED verification for ${url}`, { url });
-                                await config?.onPacket?.({
-                                    type: 'reasoning',
-                                    content: `\n[Local Swarm QA Passed] Critic verified facts for: ${url} (PASS)`
-                                });
-                                await config?.onPacket?.({
-                                    type: 'swarm_status',
-                                    swarm: {
-                                        status: 'critic_passed',
-                                        depth: currentDepth,
-                                        url,
-                                        activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                        factsCount: facts.length,
-                                        message: `Critic verified facts (PASS)`
-                                    }
-                                });
-                            } else {
-                                feedback = criticResult.reason;
-                                logger.agentActivity(parentMissionId, 'SWARM_CRITIC_FAIL', `[Local] Critic FAILED verification for ${url}. Reason: ${feedback}`, { url, feedback });
-                                await config?.onPacket?.({
-                                    type: 'reasoning',
-                                    content: `\n[Local Swarm QA Failed] Critic rejected facts for: ${url} (FAIL)\n` +
-                                             ` ❌ Reason: ${feedback}`
-                                });
-                                await config?.onPacket?.({
-                                    type: 'swarm_status',
-                                    swarm: {
-                                        status: 'critic_failed',
-                                        depth: currentDepth,
-                                        url,
-                                        activeAgents: SWARM_CONFIG.DEFAULT_CONCURRENCY,
-                                        feedback,
-                                        message: `Critic rejected facts (FAIL)`
-                                    }
-                                });
-
-                                const delay = SWARM_CONFIG.BACKOFF_DELAY_MS * Math.pow(2, attempts - 1);
-                                await new Promise((resolve) => setTimeout(resolve, delay));
-                            }
+                            const delay = SWARM_CONFIG.BACKOFF_DELAY_MS * Math.pow(2, attempts - 1);
+                            await new Promise((resolve) => setTimeout(resolve, delay));
                         }
-
-
-                        if (facts.length > 0) {
-                            allSourceResults.push({ url, title, facts });
-                        }
-                        logger.agentActivity(parentMissionId, 'SWARM_WORKER_COMPLETE', `[Local] Finished URL: ${url}. Success: ${success}. Facts: ${facts.length}`, { url, success, factsCount: facts.length });
-
-                        // Queue new links
-                        const cleanLinks = extractAndNormalizeLinks(url, discoveredLinks, queryKeywords);
-                        for (const link of cleanLinks) {
-                            if (!visitedUrls.has(link)) {
-                                visitedUrls.add(link);
-                                nextLevelUrls.push(link);
-                            }
-                        }
-
-                    } catch (err: any) {
-                        logger.error(`Error processing URL ${url}: ${err.message}`);
-                    } finally {
-                        semaphore.release();
                     }
-                });
 
-                await Promise.all(levelPromises);
-                // Limit next depth URLs to top 10 relevant links to prevent queue explosion
-                activeLevelUrls = nextLevelUrls.slice(0, 10);
-                currentDepth++;
 
-            }
+                    if (facts.length > 0) {
+                        allSourceResults.push({ url, title, facts });
+                    }
+                    logger.agentActivity(parentMissionId, 'SWARM_WORKER_COMPLETE', `[Local] Finished URL: ${url}. Success: ${success}. Facts: ${facts.length}`, { url, success, factsCount: facts.length });
+
+                    // Queue new links
+                    const cleanLinks = extractAndNormalizeLinks(url, discoveredLinks, queryKeywords);
+                    for (const link of cleanLinks) {
+                        if (!visitedUrls.has(link)) {
+                            visitedUrls.add(link);
+                            nextLevelUrls.push(link);
+                        }
+                    }
+
+                } catch (err: any) {
+                    logger.error(`Error processing URL ${url}: ${err.message}`);
+                } finally {
+                    semaphore.release();
+                }
+            });
+
+            await Promise.all(levelPromises);
+            // Limit next depth URLs to top 10 relevant links to prevent queue explosion
+            activeLevelUrls = nextLevelUrls.slice(0, 10);
+            currentDepth++;
         }
 
         if (allSourceResults.length === 0) {

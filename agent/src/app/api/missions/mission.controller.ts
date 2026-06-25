@@ -14,7 +14,7 @@ import { mapHistoryToMessages } from '../../../shared/utils/messages';
 import { AnchorFactory } from '../../../core/agent/anchors/factory';
 import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
 import { toolRegistry } from '../../../core/agent/tools/registry';
-import { HttpStreamTransport, RedisStreamTransport, MultiStreamTransport, StreamTransport } from './stream.transport';
+import { HttpStreamTransport } from './stream.transport';
 import { cancellationManager } from '../../../core/agent/harness/cancel_manager';
 
 export class MissionController {
@@ -78,11 +78,7 @@ export class MissionController {
       const resolvedTools = await toolRegistry.resolveTools(validatedData.features);
 
       return streamSSE(c, async (streamInstance) => {
-        const transports: StreamTransport[] = [new HttpStreamTransport(streamInstance)];
-        if (ENV.AGENT_RUNTIME_MODE === 'saas') {
-          transports.push(new RedisStreamTransport(missionId));
-        }
-        const transport = new MultiStreamTransport(transports);
+        const transport = new HttpStreamTransport(streamInstance);
 
         const signal = cancellationManager.register(missionId);
 

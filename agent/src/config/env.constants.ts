@@ -4,12 +4,11 @@ export const ENV_DEFAULTS = {
   CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   SA_OUTPUT_PATH: "./sa-output",
-  REDIS_URL: "redis://localhost:6379",
   LANGFUSE_BASE_URL: "http://localhost:3000",
 } as const;
 
 export const ENV_VALUES = {
-  STATE_BACKENDS: ["memory", "redis"] as const,
+  STATE_BACKENDS: ["memory"] as const,
   ENVIRONMENTS: ["development", "production", "test"] as const,
   RUNTIME_MODES: ["local", "saas"] as const,
 } as const;

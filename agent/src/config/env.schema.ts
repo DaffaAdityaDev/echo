@@ -8,7 +8,6 @@ export const envSchema = z.object({
   LLM_MODEL_API_URL: z.string().default(ENV_DEFAULTS.LLM_MODEL_API_URL),
   SA_OUTPUT_PATH: z.string().default(ENV_DEFAULTS.SA_OUTPUT_PATH),
   STATE_BACKEND: z.enum(ENV_VALUES.STATE_BACKENDS).default(ENV_VALUES.STATE_BACKENDS[0]),
-  REDIS_URL: z.string().default(ENV_DEFAULTS.REDIS_URL),
   NODE_ENV: z.enum(ENV_VALUES.ENVIRONMENTS).default(ENV_VALUES.ENVIRONMENTS[0]),
   DEBUG_PROMPT: z
     .preprocess((val) => val === "true" || val === true, z.boolean())
