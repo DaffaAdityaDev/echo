@@ -7,7 +7,6 @@ import { StrategyFactory } from '../../../core/agent/strategies/factory';
 import { logger } from '../../../shared/utils/logger';
 import { HumanMessage } from "@langchain/core/messages";
 import { stateStorage } from '../../../core/agent/storage/factory';
-import { ENV } from '../../../config/env';
 import { randomUUID } from 'node:crypto';
 import { createMissionSchema } from './mission.schema';
 import { mapHistoryToMessages } from '../../../shared/utils/messages';
@@ -21,10 +20,13 @@ export class MissionController {
   public async createMission(c: Context) {
     try {
       const body = await c.req.json();
+      const queryParams = c.req.query();
+      const rawInput = { ...queryParams, ...body };
       
       // Boundary validation
-      const parseResult = createMissionSchema.safeParse(body);
+      const parseResult = createMissionSchema.safeParse(rawInput);
       if (!parseResult.success) {
+        logger.error(VALIDATION_MESSAGES.VALIDATION_ERROR, parseResult.error.format());
         return c.json({
           error: VALIDATION_MESSAGES.VALIDATION_ERROR,
           details: parseResult.error.format()
@@ -43,14 +45,17 @@ export class MissionController {
         },
         prompt: validatedData.prompt,
         strategy: validatedData.strategy,
-        provider: validatedData.provider
       };
 
       // Reconstruct LangChain message objects from the conversation history
-      const historyMessages = mapHistoryToMessages(validatedData.history);
+      const historyMessages = mapHistoryToMessages(validatedData.history ?? undefined);
 
       // Performance Optimization 1: Instantiate factories early
-      const llmProvider = ProviderFactory.create(validatedData.model || payload.provider, ENV.LLM_MODEL_API_URL);
+      const apiKeyCleaned = validatedData.provider_config.api_key?.trim();
+      const llmProvider = ProviderFactory.fromConfig({
+        ...validatedData.provider_config,
+        api_key: apiKeyCleaned ? apiKeyCleaned : undefined
+      });
       const executionStrategy = StrategyFactory.create(payload.strategy);
 
       // Performance Optimization 2: Read state from storage early (pre-stream)
@@ -75,10 +80,14 @@ export class MissionController {
         };
       }
 
-      const resolvedTools = await toolRegistry.resolveTools(validatedData.features);
+      const resolvedTools = await toolRegistry.resolveTools(validatedData.features ?? undefined);
 
       return streamSSE(c, async (streamInstance) => {
         const transport = new HttpStreamTransport(streamInstance);
+
+        const heartbeat = setInterval(() => {
+          streamInstance.writeSSE({ data: JSON.stringify({ type: "ping" }) }).catch(() => {});
+        }, 15_000);
 
         const signal = cancellationManager.register(missionId);
 
@@ -101,6 +110,7 @@ export class MissionController {
             }
           );
         } finally {
+          clearInterval(heartbeat);
           cancellationManager.unregister(missionId);
         }
       });

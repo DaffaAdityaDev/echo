@@ -255,7 +255,7 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
 
   if (step.type === PACKET_TYPES.SWARM_STATUS && step.swarm) {
     const s = step.swarm;
-    const isFailed = s.status === 'critic_failed';
+    const isFailed = s.status === 'critic_failed' || s.status === 'scrape_failed';
     const isPassed = s.status === 'critic_passed';
 
     return (

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { chromium, Browser, BrowserContext } from 'playwright';
 import TurndownService from 'turndown';
 import * as cheerio from 'cheerio';
 import { ToolDefinition, Observation } from '../../../../../shared/types';
@@ -12,9 +11,6 @@ import {
     SCHEMA_DESC, 
     OPERATION_STATUS 
 } from './constants';
-
-let globalBrowser: Browser | null = null;
-let globalBrowserPromise: Promise<Browser> | null = null;
 
 // Initialize the turndown service with custom clean rules
 const turndownService = new TurndownService({
@@ -29,202 +25,103 @@ turndownService.addRule('remove-useless', {
     replacement: () => ''
 });
 
-async function getBrowserInstance(): Promise<Browser> {
-    if (globalBrowser) return globalBrowser;
-    if (globalBrowserPromise) return globalBrowserPromise;
-
-    globalBrowserPromise = (async () => {
-        const launchOptions: any = {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--disable-extensions',
-                '--no-first-run',
-                '--no-default-browser-check',
-                '--no-zygote',
-                '--disable-web-security'
-            ]
-        };
-
-        if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
-            launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-            logger.info(`Using system Chromium path: ${launchOptions.executablePath}`);
-        }
-
-        logger.info("Initializing singleton Playwright Chromium browser...");
-        const browser = await chromium.launch(launchOptions);
-        globalBrowser = browser;
-
-        // Cleanup handler
-        process.on('exit', () => {
-            logger.info("Closing singleton browser instance...");
-            browser.close().catch((err) => logger.error("Error closing browser on exit", err));
-        });
-
-        return browser;
-    })();
-
-    return globalBrowserPromise;
-}
-
 export const webScrapeTool: ToolDefinition = {
     name: SCRAPE_CONFIG.NAME,
     description: SCRAPE_CONFIG.DESCRIPTION,
     keywords: [...SCRAPE_CONFIG.KEYWORDS],
     schema: z.object({
-        url: z.string().url().describe(SCHEMA_DESC.URL),
-        actions: z.array(z.object({
-            type: z.enum(['click', 'wait', 'fill']).describe('Type of interaction'),
-            selector: z.string().describe('CSS selector to interact with'),
-            value: z.string().optional().describe('Value to fill, or wait duration in milliseconds')
-        })).optional().describe('Optional interactive user actions to perform before scraping')
+        url: z.string().url().describe(SCHEMA_DESC.URL)
     }),
     execute: async (
-        input: { url: string; actions?: Array<{ type: 'click' | 'wait' | 'fill'; selector: string; value?: string }> }
+        input: { url: string }
     ): Promise<Observation> => {
         let html = '';
-        let engineUsed: 'STATIC_CHEERIO' | 'DYNAMIC_PLAYWRIGHT' = 'STATIC_CHEERIO';
+        const engineUsed = 'STATIC_CHEERIO';
 
         try {
             logger.info(SCRAPE_LOGS.INFO_START(input.url));
 
-            // ========================================================
-            // STEP 1: FAST LANE (fetch + Cheerio) - Static/SSR websites
-            // ========================================================
-            let rawHtml = '';
-            try {
-                const response = await fetch(input.url, {
-                    headers: {
-                        [SCRAPE_HEADERS.USER_AGENT_KEY]: SCRAPE_HEADERS.USER_AGENT_VALUE,
-                        [SCRAPE_HEADERS.ACCEPT_KEY]: SCRAPE_HEADERS.ACCEPT_VALUE,
-                        [SCRAPE_HEADERS.ACCEPT_LANG_KEY]: SCRAPE_HEADERS.ACCEPT_LANG_VALUE,
+            const response = await fetch(input.url, {
+                headers: {
+                    [SCRAPE_HEADERS.USER_AGENT_KEY]: SCRAPE_HEADERS.USER_AGENT_VALUE,
+                    [SCRAPE_HEADERS.ACCEPT_KEY]: SCRAPE_HEADERS.ACCEPT_VALUE,
+                    [SCRAPE_HEADERS.ACCEPT_LANG_KEY]: SCRAPE_HEADERS.ACCEPT_LANG_VALUE,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+            }
+
+            html = await response.text();
+            logger.info(`[⚡ Fast Lane] Scraped successfully using Cheerio (Static/SSR) for: ${input.url}`);
+
+            // Clean HTML: strip boilerplate before extraction + conversion
+            let markdown = '';
+            let structure: string[] = [];
+            let paragraphs: string[] = [];
+            if (html) {
+                const $clean = cheerio.load(html);
+                $clean('nav, footer, header, script, style, noscript, iframe, svg, link, meta, .ads, #sidebar, .sidebar, .menu, .footer, .header, .advertisement, .banner, .nav').remove();
+
+                // 1. Page structure with markdown hierarchy (h1-h6)
+                const seen = new Set<string>();
+                $clean('h1, h2, h3, h4, h5, h6').each((i, el) => {
+                    const tag = el.tagName.toLowerCase();
+                    const text = $clean(el).text().trim().replace(/\s+/g, ' ');
+                    if (text && text.length > 5 && !seen.has(text) && seen.size < 8) {
+                        seen.add(text);
+                        const level = parseInt(tag.replace('h', '')) || 1;
+                        const indent = '  '.repeat(level - 1);
+                        structure.push(`${indent}- ${text}`);
                     }
                 });
 
-                if (response.ok) {
-                    rawHtml = await response.text();
-                }
-            } catch (fetchErr: any) {
-                logger.warn(`Fast lane fetch failed for URL ${input.url}: ${fetchErr.message}. Trying Playwright.`);
-            }
-
-            let isClientSideRendering = true;
-            if (rawHtml) {
-                const $ = cheerio.load(rawHtml);
-                const bodyTextLength = $('body').text().trim().length;
-                const hasAppRoot = $('#root').length > 0 || $('#app').length > 0 || rawHtml.includes('bundle.js') || rawHtml.includes('app.js');
-                
-                // Heuristic check: if there is substantial text and no empty client root container, treat as static
-                isClientSideRendering = bodyTextLength < 250 && hasAppRoot;
-
-                if (!isClientSideRendering) {
-                    html = rawHtml;
-                    engineUsed = 'STATIC_CHEERIO';
-                    logger.info(`[⚡ Fast Lane] Scraped successfully using Cheerio (Static/SSR) for: ${input.url}`);
-                }
-            }
-
-            // ========================================================
-            // STEP 2: FALLBACK LANE (Playwright) - Dynamic/CSR/SPA websites
-            // ========================================================
-            if (isClientSideRendering) {
-                logger.info(`[🐢 Fallback Lane] CSR detected or fetch failed. Activating Playwright for: ${input.url}`);
-                let context: BrowserContext | null = null;
-                try {
-                    const browser = await getBrowserInstance();
-                    context = await browser.newContext({
-                        userAgent: SCRAPE_HEADERS.USER_AGENT_VALUE,
-                        viewport: { width: 1280, height: 720 },
-                        bypassCSP: true
-                    });
-
-                    const page = await context.newPage();
-
-                    // Network interception (aggressive resource blocking)
-                    await page.route('**/*', (route) => {
-                        const request = route.request();
-                        const resourceType = request.resourceType();
-                        const url = request.url();
-
-                        if (['stylesheet', 'image', 'font', 'media', 'other'].includes(resourceType)) {
-                            return route.abort();
-                        }
-                        if (
-                            /analytics|google-analytics|doubleclick|googleadservices|hotjar|mixpanel|segment|facebook|pixel|optimizely|amplitude/i.test(url) ||
-                            /\.(css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|mp4|webm|mp3|ogg)$/i.test(url)
-                        ) {
-                            return route.abort();
-                        }
-                        return route.continue();
-                    });
-
-                    await page.goto(input.url, {
-                        waitUntil: 'domcontentloaded',
-                        timeout: 30000
-                    });
-
-                    // Execute user interactions
-                    if (input.actions && input.actions.length > 0) {
-                        for (const action of input.actions) {
-                            try {
-                                if (action.type === 'click') {
-                                    await page.click(action.selector, { timeout: 5000 });
-                                } else if (action.type === 'wait') {
-                                    const delay = parseInt(action.value || '1000', 10);
-                                    await page.waitForTimeout(delay);
-                                } else if (action.type === 'fill') {
-                                    await page.fill(action.selector, action.value || '', { timeout: 5000 });
-                                }
-                            } catch (actionErr: any) {
-                                logger.warn(`Scrape action failed: ${action.type} on ${action.selector}: ${actionErr.message}`);
-                            }
-                        }
+                // 2. First meaningful paragraphs
+                $clean('p').each((i, el) => {
+                    const text = $clean(el).text().trim().replace(/\s+/g, ' ');
+                    if (text.length > 100 && paragraphs.length < 3) {
+                        paragraphs.push(text);
                     }
+                });
 
-                    html = await page.content();
-                    engineUsed = 'DYNAMIC_PLAYWRIGHT';
-                } catch (playwrightErr: any) {
-                    logger.error(`[Playwright Fallback Failed] URL: ${input.url}`, playwrightErr);
-                    // If Playwright itself fails to run (e.g. browser context errors), fall back to rawHtml if it was fetched
-                    if (rawHtml) {
-                        html = rawHtml;
-                        engineUsed = 'STATIC_CHEERIO';
-                        logger.warn(`Recovered via previous static rawHtml for: ${input.url}`);
-                    } else {
-                        throw playwrightErr;
-                    }
-                } finally {
-                    if (context) {
-                        await context.close().catch((err) => logger.error("Error closing context", err));
-                    }
-                }
-            }
-
-            // Convert raw HTML to markdown in main process using Turndown
-            let markdown = '';
-            if (html) {
-                markdown = turndownService.turndown(html);
+                const cleanHtml = $clean.html();
+                markdown = turndownService.turndown(cleanHtml);
             }
 
             if (!markdown) {
                 return {
                     status: OPERATION_STATUS.WARNING,
                     summary: SCRAPE_SUMMARIES.EMPTY_HTML,
-                    data: { html: html.substring(0, 1000), engineUsed }
+                    data: { html: html ? html.substring(0, 1000) : '', engineUsed }
                 };
             }
 
+            // Fallback: if no paragraphs found, grab first clean 500 chars of markdown
+            const keyContent = paragraphs.length > 0
+                ? paragraphs.join('\n\n')
+                : markdown.replace(/[#*`\n]+/g, ' ').trim().substring(0, 500);
+
+            const previewLimit = 1500;
+            const preview = markdown.length > previewLimit
+                ? markdown.substring(0, previewLimit) + `\n\n... [truncated, full: ${markdown.length} chars]`
+                : markdown;
+
+            let summary = `${SCRAPE_SUMMARIES.SUCCESS(input.url, markdown.length)} (Engine: ${engineUsed})`;
+            if (structure.length > 0) {
+                summary += `\n\n## Page Structure\n${structure.join('\n')}`;
+            }
+            summary += `\n\n## Key Content\n${keyContent}`;
+            summary += `\n\n## Content Preview\n${preview}`;
+
             return {
                 status: OPERATION_STATUS.SUCCESS,
-                summary: SCRAPE_SUMMARIES.SUCCESS(input.url, markdown.length) + ` (Engine: ${engineUsed})`,
+                summary,
                 data: {
                     url: input.url,
                     markdown,
                     html,
+                    structure,
                     engineUsed
                 }
             };
@@ -241,3 +138,4 @@ export const webScrapeTool: ToolDefinition = {
 };
 
 export default webScrapeTool;
+

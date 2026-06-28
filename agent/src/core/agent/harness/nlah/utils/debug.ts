@@ -2,8 +2,8 @@ import { join } from 'node:path';
 import { mkdir, appendFile } from 'node:fs/promises';
 import { AgentState } from '../../../../../shared/types';
 import { logger } from '../../../../../shared/utils/logger';
-import { FILE_OPS } from '../constants';
 import { HARNESS_PROMPTS } from '../prompts';
+import { DEBUG_CONFIG } from '../constants';
 
 export interface DebugLedgerOptions {
     state: AgentState;
@@ -20,7 +20,7 @@ export interface DebugLedgerOptions {
 export function queuePromptDebug({ state, iteration, strategyName, systemPrompt }: DebugLedgerOptions): void {
     setImmediate(async () => {
         try {
-            const debugDir = join(process.cwd(), FILE_OPS.DEBUG_DIR);
+            const debugDir = join(process.cwd(), DEBUG_CONFIG.DIR);
             const today = new Date().toISOString().split('T')[0];
             const debugPath = join(debugDir, `agent_history_debug_${today}.md`);
             const purePath = join(debugDir, `agent_history_pure_${today}.md`);
@@ -66,8 +66,8 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
             // Create directory if absent, then write both logs in parallel
             await mkdir(debugDir, { recursive: true });
             await Promise.all([
-                appendFile(debugPath, mdContent, FILE_OPS.FILE_ENCODING),
-                appendFile(purePath, pureContent, FILE_OPS.FILE_ENCODING)
+                appendFile(debugPath, mdContent, DEBUG_CONFIG.ENCODING),
+                appendFile(purePath, pureContent, DEBUG_CONFIG.ENCODING)
             ]);
         } catch (err) {
             logger.error("Failed to write prompt debug ledger to local file", err);

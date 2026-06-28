@@ -2,10 +2,8 @@ import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, HarnessPacket, AgentPacketType } from '../../../../shared/types';
 import { toolRegistry } from '../../tools/registry';
 import { logger } from '../../../../shared/utils/logger';
-import { PATHS } from '../../../../shared/constants';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { getCosineSimilarity, getHistoryTokens, validateContent } from '../../../../utils/harness';
+
+import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from '../../../../utils/harness';
 import { ENV } from '../../../../config/env';
 import { stateStorage } from '../../storage/factory';
 import { ToolRetriever } from '../../services/retriever';
@@ -13,7 +11,7 @@ import { startAgentTrace, langfuseStorage } from '../../../../utils/langfuse';
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { 
     HARNESS_CONFIG, 
-    FILE_OPS, 
+    DEBUG_CONFIG,
     OPERATION_STATUS, 
     PACKET_TYPES 
 } from "./constants";
@@ -115,12 +113,12 @@ export class NlahHarness implements AgentHarness {
         }
 
         // If tools are explicitly bound, we bypass the retriever and bind all of them (minus delegation for sub-agents)
-        const tools = this.explicitTools 
+        let tools = this.explicitTools 
             ? filteredPhysicalTools 
             : NlahHarness.toolRetriever!.getRelevantTools(state.objective, filteredPhysicalTools);
         
         // Optimasi pencarian tool dari O(T) ke O(1) menggunakan Map Lookup table
-        const toolMap = new Map<string, ToolDefinition>(tools.map(t => [t.name, t]));
+        let toolMap = new Map<string, ToolDefinition>(tools.map(t => [t.name, t]));
         
         const systemPrompt = this.strategy.buildSystemPrompt(state, tools);
 
@@ -131,13 +129,17 @@ export class NlahHarness implements AgentHarness {
                 historyDepth: state.messages.length,
                 toolsAvailable: tools.map(t => t.name),
                 objective: state.objective,
+                maxIterations: HARNESS_CONFIG.MAX_ITERATIONS,
             }
         }, state.tasks.length);
 
         let isComplete = false;
         let iteration = state.tasks.length;
         const maxIterations = HARNESS_CONFIG.MAX_ITERATIONS;
-        const maxContextTokens = this.provider.maxContextTokens || HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS;
+        const maxContextTokens = this.provider.maxContextTokens ?? HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS;
+        if (this.provider.maxContextTokens === undefined) {
+            logger.warn(`maxContextTokens undefined for provider=${this.provider.constructor.name} model=${this.provider.modelName ?? 'unknown'}. Using fallback=${HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS}.`);
+        }
 
         let totalCost = 0;
         let cachedTokensSum = 0;
@@ -173,9 +175,12 @@ export class NlahHarness implements AgentHarness {
                 await langfuseStorage.run({ trace, span, sessionId: state.missionId, userId: this.tenantId }, async () => {
                     try {
                         if (iteration > HARNESS_CONFIG.PACING_THRESHOLD) {
-                            logger.warn(`Cognitive pacing threshold crossed (iteration: ${iteration}). Injecting pacing guideline.`);
+                            logger.warn(`Cognitive pacing threshold crossed (iteration: ${iteration}). Injecting forced synthesis.`);
                             const pacingWarning = HARNESS_PROMPTS.PACING_WARNING(iteration);
                             state.messages.push(new HumanMessage(pacingWarning));
+                            // Revoke tool access — LLM has no choice but to synthesize final answer
+                            tools = [];
+                            toolMap = new Map();
                         }
 
                         // OPTIMASI 1: Ambil token history sekali saja di awal turn
@@ -187,21 +192,38 @@ export class NlahHarness implements AgentHarness {
                             logger.info(`Compacting conversation context due to high token ratio (${(tokenUsageRatio * 100).toFixed(1)}%)`);
                             try {
                                 const compactionPrompt = HARNESS_PROMPTS.COMPACTION_PROMPT;
+                                const keepCount = HARNESS_CONFIG.KEEP_LAST_TURNS * 2;
+                                const totalMsgs = state.messages.length;
 
-                                const compactEventStream = this.provider.stream(
-                                    [...state.messages, new HumanMessage(compactionPrompt)],
-                                    [],
-                                    HARNESS_PROMPTS.COMPACTION_SYSTEM
-                                );
+                                const anchor = state.messages[0];
+                                const cutIndex = Math.max(1, totalMsgs - keepCount);
+                                const msgsToCompact = state.messages.slice(1, cutIndex);
+                                const lastTurns = state.messages.slice(cutIndex);
+
+                                const droppedLastTurns = selectiveTruncateToolResults(lastTurns, HARNESS_CONFIG.DROP_TOOL_IF_LONGER);
 
                                 let summaryText = "";
-                                for await (const ev of compactEventStream) {
-                                    if (ev.content) summaryText += ev.content;
+                                if (msgsToCompact.length > 0) {
+                                    const compactEventStream = this.provider.stream(
+                                        [anchor, ...msgsToCompact, new HumanMessage(compactionPrompt)],
+                                        [],
+                                        HARNESS_PROMPTS.COMPACTION_SYSTEM
+                                    );
+
+                                    for await (const ev of compactEventStream) {
+                                        if (ev.content) summaryText += ev.content;
+                                    }
+                                    await this.provider.cleanupReasoning?.();
                                 }
 
+                                const summaryMsg = summaryText 
+                                    ? [new AIMessage(HARNESS_PROMPTS.COMPACTION_SUMMARY_WRAPPER(iteration, summaryText))]
+                                    : [];
+
                                 state.messages = [
-                                    new HumanMessage(state.objective),
-                                    new AIMessage(HARNESS_PROMPTS.COMPACTION_SUMMARY_WRAPPER(iteration, summaryText))
+                                    anchor,
+                                    ...summaryMsg,
+                                    ...droppedLastTurns
                                 ];
 
                                 currentTokens = getHistoryTokens(state.messages);
@@ -216,7 +238,7 @@ export class NlahHarness implements AgentHarness {
                         }
 
                         // ==================== PROMPT DEBUG GATES ====================
-                        if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === FILE_OPS.DEVELOPMENT_ENV) {
+                        if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
                             queuePromptDebug({
                                 state,
                                 iteration,
@@ -242,12 +264,13 @@ export class NlahHarness implements AgentHarness {
                         const eventStream = this.provider.stream(state.messages, tools, systemPrompt);
 
                         let assistantContent = "";
+                        let reasoningContent = "";
                         let pendingToolCall: { name: string; args: Record<string, unknown> } | null = null;
                         let hasContentEmitted = false;
 
                         for await (const event of eventStream) {
                             if (event.reasoning) {
-                                assistantContent += event.reasoning;
+                                reasoningContent += event.reasoning;
                                 await this.emit(onPacket, PACKET_TYPES.REASONING, { content: event.reasoning }, iteration);
                             }
                             if (event.content) assistantContent += event.content;
@@ -344,22 +367,6 @@ export class NlahHarness implements AgentHarness {
                                             status: 'calling'
                                         }
                                     }, iteration);
-                                } else if (pendingToolCall.name === 'write_file' || pendingToolCall.name === 'read_file') {
-                                    await this.emit(onPacket, PACKET_TYPES.FILE_OPERATION, {
-                                        fileOp: {
-                                            operation: pendingToolCall.name === 'write_file' ? FILE_OPS.WRITE : FILE_OPS.READ,
-                                            path: pendingToolCall.args.filename as string
-                                        }
-                                    }, iteration);
-                                }
-
-                                let validationError: string | null = null;
-                                if (pendingToolCall.name === 'write_file' && pendingToolCall.args.content) {
-                                    const filename = (pendingToolCall.args.filename || "file.txt") as string;
-                                    const check = validateContent(filename, pendingToolCall.args.content as string);
-                                    if (!check.valid) {
-                                        validationError = HARNESS_PROMPTS.VALIDATION_REJECTION(check.reason || "Unknown validation error");
-                                    }
                                 }
 
                                 let toolSpan: any = null;
@@ -371,21 +378,12 @@ export class NlahHarness implements AgentHarness {
 
                                 let observation;
                                 try {
-                                    if (validationError) {
-                                        logger.warn(`Validation gate rejected tool call: ${pendingToolCall.name}`);
-                                        observation = {
-                                            status: OPERATION_STATUS.ERROR,
-                                            summary: validationError,
-                                            error: 'VALIDATION_REJECTION'
-                                        };
-                                    } else {
-                                        observation = await tool.execute(pendingToolCall.args, {
-                                            parentMessages: state.messages,
-                                            onPacket,
-                                            provider: this.provider,
-                                            tools
-                                        });
-                                    }
+                                    observation = await tool.execute(pendingToolCall.args, {
+                                        parentMessages: state.messages,
+                                        onPacket,
+                                        provider: this.provider,
+                                        tools
+                                    });
                                     if (toolSpan) {
                                         toolSpan.update({
                                             output: observation,
@@ -411,36 +409,7 @@ export class NlahHarness implements AgentHarness {
                                     }
                                 }
 
-                                let finalSummary = observation.summary;
-                                const remainingRatio = 1 - (currentTokens / maxContextTokens);
-                                const dynamicOffloadThreshold = Math.max(2000, Math.floor(20000 * remainingRatio));
-                                logger.info(`Dynamic offload threshold set to ${dynamicOffloadThreshold} characters (remaining ratio: ${(remainingRatio * 100).toFixed(1)}%)`);
-
-                                if (finalSummary.length > dynamicOffloadThreshold) {
-                                    try {
-                                        const runtimeFilesRoot = PATHS.OFFLOAD_ROOT;
-                                        await mkdir(runtimeFilesRoot, { recursive: true });
-
-                                        const offloadFilename = `offload_${Date.now()}_${tool.name}.txt`;
-                                        const offloadPath = join(runtimeFilesRoot, offloadFilename);
-                                        await writeFile(offloadPath, finalSummary, FILE_OPS.FILE_ENCODING);
-
-                                        const lines = finalSummary.split('\n');
-                                        const previewLines = lines.slice(0, 10).join('\n');
-                                        finalSummary = HARNESS_PROMPTS.OFFLOAD_WRAPPER(offloadFilename, previewLines);
-
-                                        logger.info(`Context offloaded to ${offloadPath}`);
-                                        await this.emit(onPacket, PACKET_TYPES.FILE_OPERATION, {
-                                            fileOp: {
-                                                operation: FILE_OPS.OFFLOAD,
-                                                path: `sa-output/runtime/files/${offloadFilename}`,
-                                                preview: previewLines
-                                            }
-                                        }, iteration);
-                                    } catch (err: any) {
-                                        logger.error("Failed to offload context", err);
-                                    }
-                                }
+                                const finalSummary = observation.summary;
 
                                 if (pendingToolCall.name === 'delegate_task') {
                                     await this.emit(onPacket, PACKET_TYPES.SUBAGENT_RESULT, {
@@ -461,7 +430,8 @@ export class NlahHarness implements AgentHarness {
                                         name: pendingToolCall.name,
                                         args: pendingToolCall.args,
                                         type: "tool_call"
-                                    }]
+                                    }],
+                                    additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined
                                 }));
                                 state.messages.push(new ToolMessage({
                                     tool_call_id: toolCallId,
@@ -470,11 +440,19 @@ export class NlahHarness implements AgentHarness {
 
                                 await this.emit(onPacket, PACKET_TYPES.TOOL_RESULT, {
                                     toolName: pendingToolCall.name,
-                                    content: finalSummary
+                                    content: finalSummary,
+                                    toolResult: observation.data
                                 }, iteration);
 
                             } else {
-                                logger.warn(`Tool not found: ${pendingToolCall.name}`, { missionId: state.missionId });
+                                logger.warn(`Tool not found: ${pendingToolCall.name} (possibly pacing forced synthesis)`, { missionId: state.missionId });
+                                state.messages.push(new AIMessage({
+                                    content: assistantContent,
+                                    additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined
+                                }));
+                                if (!hasContentEmitted && assistantContent) {
+                                    await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: assistantContent }, iteration);
+                                }
                                 isComplete = true;
                             }
 
@@ -499,7 +477,10 @@ export class NlahHarness implements AgentHarness {
                                 pendingToolCall = { name: toolName, args };
                                 logger.info(`[NLAH RECOVER] Successfully extracted tool: ${toolName}. Retrying loop.`);
                                 
-                                state.messages.push(new AIMessage(assistantContent));
+                                state.messages.push(new AIMessage({
+                                    content: assistantContent,
+                                    additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined
+                                }));
                                 state.messages.push(new ToolMessage({ 
                                     tool_call_id: `fallback_${Date.now()}`, 
                                     content: HARNESS_PROMPTS.LOG_RE_ROUTE
@@ -518,10 +499,16 @@ export class NlahHarness implements AgentHarness {
                                 logger.warn(`[NLAH RECOVER] Tier 2 Feedback Recovery triggered. Agent halted in thinking state.`);
                                 const feedbackPrompt = HARNESS_PROMPTS.FEEDBACK_PROMPT;
                                 
-                                state.messages.push(new AIMessage(assistantContent));
+                                state.messages.push(new AIMessage({
+                                    content: assistantContent,
+                                    additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined
+                                }));
                                 state.messages.push(new HumanMessage(feedbackPrompt));
                             } else {
-                                state.messages.push(new AIMessage(assistantContent));
+                                state.messages.push(new AIMessage({
+                                    content: assistantContent,
+                                    additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined
+                                }));
                                 isComplete = true;
                                 if (!hasContentEmitted && assistantContent) {
                                     await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: assistantContent }, iteration);
@@ -567,7 +554,7 @@ export class NlahHarness implements AgentHarness {
         await stateStorage.set(state.missionId, state);
 
         // Queue final debug log to ensure the last messages (last AI + Tool response) are captured
-        if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === FILE_OPS.DEVELOPMENT_ENV) {
+        if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
             queuePromptDebug({
                 state,
                 iteration,

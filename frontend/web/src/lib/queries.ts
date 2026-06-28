@@ -3,7 +3,9 @@ import { QUERY_KEYS, ENDPOINTS } from "@/constants";
 
 export interface Model {
   id: string;
-  name?: string;
+  name: string;
+  provider_type: string;
+  provider_name: string;
 }
 
 export const modelQueries = {

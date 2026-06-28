@@ -16,7 +16,7 @@ export interface ThoughtStep {
     preview?: string;
   };
   swarm?: {
-    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis';
+    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis' | 'scrape_failed';
     depth: number;
     url?: string;
     activeAgents?: number;
@@ -35,6 +35,7 @@ export interface MissionMeta {
   historyDepth?: number;
   toolsAvailable?: string[];
   objective?: string;
+  maxIterations?: number;
 }
 
 export interface TokenUsage {
@@ -78,7 +79,7 @@ export interface StreamPacket {
     preview?: string;
   };
   swarm?: {
-    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis';
+    status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis' | 'scrape_failed';
     depth: number;
     url?: string;
     activeAgents?: number;
@@ -90,4 +91,34 @@ export interface StreamPacket {
     message?: string;
   };
   choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
+  toolResult?: any;
+}
+
+export interface FailedUrl {
+  url: string;
+  reason: string;
+}
+
+export interface AgentProgress {
+  iteration: number;
+  totalIterations: number;
+  currentTool?: string;
+  swarm?: {
+    scrapedCount: number;
+    failedCount: number;
+    factsCount: number;
+    discoveredCount: number;
+    status?: string;
+    url?: string;
+    depth?: number;
+    failedUrls: FailedUrl[];
+    activeUrls: Record<string, {
+      url: string;
+      status: string;
+      factsCount?: number;
+      dataSize?: number;
+      attempt?: number;
+      feedback?: string;
+    }>;
+  };
 }

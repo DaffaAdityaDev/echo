@@ -6,6 +6,7 @@ import (
 	"context"
 	"echo-backend/internal/models"
 	"echo-backend/internal/observability"
+	"echo-backend/internal/service"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,13 +25,15 @@ type ChatHandler struct {
 	Cfg         *models.Config
 	RedisClient *redis.Client
 	HonoAPIURL  string
+	ModelSvc    service.ModelService
 }
 
-func NewChatHandler(cfg *models.Config, rdb *redis.Client) *ChatHandler {
+func NewChatHandler(cfg *models.Config, rdb *redis.Client, modelSvc service.ModelService) *ChatHandler {
 	return &ChatHandler{
 		Cfg:         cfg,
 		RedisClient: rdb,
 		HonoAPIURL:  cfg.AgentHTTPURL,
+		ModelSvc:    modelSvc,
 	}
 }
 
@@ -132,15 +135,37 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		}
 	}
 
+	// Resolve model to provider configuration
+	modelID := req.Model
+	if modelID == "" {
+		modelID = h.ModelSvc.GetDefault().Model
+	}
+	providerCfg, err := h.ModelSvc.ResolveModel(modelID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": fmt.Sprintf("Unknown model '%s'", modelID),
+		})
+	}
+
 	// Forward the mode to the agent via query param
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
 
-	// Prepare payload for Agent, including conversation history and missionId
+	providerMap := map[string]interface{}{
+		"type":     providerCfg.Type,
+		"base_url": providerCfg.BaseURL,
+		"model":    providerCfg.Model,
+	}
+	if providerCfg.APIKey != "" {
+		providerMap["api_key"] = providerCfg.APIKey
+	}
+
+	// Prepare payload for Agent, including provider_config, conversation history and missionId
 	payload := map[string]interface{}{
-		"user_id":    1,
-		"message":    req.Message,
-		"model":      req.Model,
-		"history":    req.History,
+		"user_id":         1,
+		"message":         req.Message,
+		"model":           req.Model,
+		"history":         req.History,
+		"provider_config": providerMap,
 	}
 	if req.MissionID != "" {
 		payload["missionId"] = req.MissionID
@@ -276,7 +301,10 @@ func (h *ChatHandler) StreamMissionLogs(c fiber.Ctx) error {
 		honoStreamURL := fmt.Sprintf("%s/api/v1/missions/%s/stream", h.HonoAPIURL, missionID)
 		
 		return c.SendStreamWriter(func(w *bufio.Writer) {
-			req, err := http.NewRequestWithContext(context.Background(), "GET", honoStreamURL, nil)
+			reqCtx, reqCancel := context.WithCancel(c.Context())
+			defer reqCancel()
+
+			req, err := http.NewRequestWithContext(reqCtx, "GET", honoStreamURL, nil)
 			if err != nil {
 				return
 			}

@@ -1,9 +1,7 @@
 export const MISSION_STRATEGIES = ['react', 'sequential', 'standard', 'nlah'] as const;
-export const MISSION_PROVIDERS = ['openai', 'anthropic', 'gemini-local'] as const;
 
 export const DEFAULT_MISSION_VALUES = {
   STRATEGY: 'react' as typeof MISSION_STRATEGIES[number],
-  PROVIDER: 'openai' as typeof MISSION_PROVIDERS[number],
   TENANT_ID: 'local-developer',
   USER_ID: 'local-dev-user',
   ORG_ID: 'local-org',

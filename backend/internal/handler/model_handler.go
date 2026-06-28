@@ -1,38 +1,22 @@
 package handler
 
 import (
-	"echo-backend/internal/models"
-	"fmt"
-	"io"
-	"net/http"
-
+	"echo-backend/internal/service"
 	"github.com/gofiber/fiber/v3"
 )
 
 type ModelHandler struct {
-	Cfg *models.Config
+	ModelSvc service.ModelService
 }
 
-func NewModelHandler(cfg *models.Config) *ModelHandler {
-	return &ModelHandler{Cfg: cfg}
+func NewModelHandler(modelSvc service.ModelService) *ModelHandler {
+	return &ModelHandler{ModelSvc: modelSvc}
 }
 
 func (h *ModelHandler) HandleGetModels(c fiber.Ctx) error {
-	agentURL := fmt.Sprintf("%s/api/models", h.Cfg.AgentHTTPURL)
-
-	req, err := http.NewRequest("GET", agentURL, nil)
+	models, err := h.ModelSvc.GetModels(c.Context())
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create request"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve models", "details": err.Error()})
 	}
-	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Agent service unavailable"})
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	return c.Status(resp.StatusCode).Send(body)
+	return c.JSON(fiber.Map{"models": models})
 }

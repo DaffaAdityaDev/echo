@@ -28,7 +28,6 @@
     "@opentelemetry/sdk-node": "^0.218.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
     "@opentelemetry/sdk-trace-base": "^2.0.1",
-    "playwright": "^1.60.0",
     "cheerio": "^1.0.0",
     "turndown": "^7.2.0"
   },

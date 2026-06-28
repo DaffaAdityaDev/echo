@@ -1,6 +1,6 @@
 export const SCRAPE_CONFIG = {
   NAME: 'web_scrape',
-  DESCRIPTION: 'Scrapes main text content from a URL.',
+  DESCRIPTION: 'Scrapes main text content from a URL and returns a markdown preview of the content directly in the tool response.',
   KEYWORDS: ["scrape", "webpage", "url", "extract", "html", "content", "download"],
   SUBSTRING_LIMIT: 1000,
 } as const;

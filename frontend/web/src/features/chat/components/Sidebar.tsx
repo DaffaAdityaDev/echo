@@ -2,17 +2,27 @@
 
 import React from "react";
 import { 
-  LayoutDashboard, 
-  ChevronRight, 
   Settings, 
   Sparkles, 
-  Command 
+  Command, 
+  Bot, 
+  Cloud, 
+  Cpu, 
+  ChevronDown 
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { useFeatures } from "../api/useFeatures";
 import { useModels } from "../api/useModels";
 import { CHAT_MODES } from "../constants";
+import type { Model } from "@/lib/queries";
+
+const providerIcon: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  OpenAI: Bot,
+  Anthropic: Sparkles,
+  "LM Studio": Cpu,
+  "OpenCode Go": Cloud,
+};
 
 interface SidebarProps {
   mode: typeof CHAT_MODES[keyof typeof CHAT_MODES] | string;
@@ -27,6 +37,10 @@ interface SidebarProps {
 export function Sidebar({ mode, setMode, selectedModel, setSelectedModel, selectedFeatures, setSelectedFeatures }: SidebarProps) {
   const { features } = useFeatures();
   const { models } = useModels();
+  const groupedModels = models.reduce<Record<string, Model[]>>((acc, m) => {
+    (acc[m.provider_name] ??= []).push(m);
+    return acc;
+  }, {});
 
   return (
     <aside className="w-64 border-r border-white/5 bg-surface flex flex-col p-4 gap-4">
@@ -141,19 +155,37 @@ export function Sidebar({ mode, setMode, selectedModel, setSelectedModel, select
 
       <div className="mt-auto pt-4 border-t border-white/5">
         <div className="px-3 py-2">
-          <label htmlFor="model-select" className="text-[10px] uppercase tracking-wider text-muted font-bold mb-2 block">Active Model</label>
-          <select 
-            id="model-select"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-accent/50 transition-colors cursor-pointer"
-          >
-            {models.map((m) => (
-              <option key={m.id} value={m.id} className="bg-[#0a0a0a]">
-                {m.name || m.id}
-              </option>
-            ))}
-          </select>
+          <div className="text-[10px] uppercase tracking-wider text-muted font-bold mb-2 block">Active Model</div>
+          <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-hide">
+            {Object.entries(groupedModels).map(([provider, providerModels]) => {
+              const Icon = providerIcon[provider];
+              return (
+                <details key={provider} className="group" open>
+                  <summary className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-bold text-white/40 uppercase tracking-wider cursor-pointer hover:text-white/60 transition-colors list-none">
+                    {Icon && <Icon size={12} aria-hidden="true" />}
+                    <span>{provider}</span>
+                    <ChevronDown size={10} className="ml-auto group-open:rotate-180 transition-transform" aria-hidden="true" />
+                  </summary>
+                  <div className="mt-1 space-y-0.5 pl-1">
+                    {providerModels.map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedModel(m.id)}
+                        className={cn(
+                          "w-full text-left px-2 py-1.5 rounded-lg text-xs transition-all",
+                          selectedModel === m.id
+                            ? "bg-accent/10 text-accent border border-accent/20"
+                            : "text-white/50 hover:bg-white/5 hover:text-white"
+                        )}
+                      >
+                        {m.name}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
         </div>
       </div>
     </aside>

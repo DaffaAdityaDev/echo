@@ -42,6 +42,29 @@ export function getHistoryTokens(msgs: BaseMessage[]): number {
     return msgs.reduce((acc, m) => acc + Math.ceil((m.content || "").toString().length / 4), 0);
 }
 
+export function selectiveTruncateToolResults(messages: BaseMessage[], threshold: number): BaseMessage[] {
+    return messages.map(msg => {
+        if (msg._getType() === 'tool') {
+            const contentStr = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+            if (contentStr.length > threshold) {
+                const ToolMsgClass = msg.constructor as any;
+                return new ToolMsgClass({
+                    content: `[Tool output truncated: original length ${contentStr.length} chars exceeding threshold ${threshold}]`,
+                    name: msg.name,
+                    id: msg.id,
+                    tool_call_id: (msg as any).tool_call_id,
+                    additional_kwargs: msg.additional_kwargs,
+                    response_metadata: msg.response_metadata,
+                });
+            }
+        }
+        return msg;
+    });
+}
+
+/** @deprecated Use selectiveTruncateToolResults instead */
+export const selectiveDropToolResults = selectiveTruncateToolResults;
+
 export function validateContent(filename: string, content: string): { valid: boolean; reason?: string } {
     const placeholders = [
         /\[Not available\]/i,

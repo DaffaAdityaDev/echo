@@ -1,12 +1,13 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
-import { LLMProvider, ToolDefinition, ProviderEvent } from "../../shared/types";
-import { LLM_CONFIG } from "../../shared/constants";
-
-import { getLangChainCallbacks } from "../../utils/langfuse";
+import { LLMProvider, ToolDefinition, ProviderEvent } from "../../../shared/types";
+import { LLM_CONFIG } from "../../../shared/constants";
+import { getLangChainCallbacks } from "../../../utils/langfuse";
+import { ReasoningInterceptor } from "../utils";
 
 export class OpenAIProvider implements LLMProvider {
     private chat: ChatOpenAI;
+    private interceptor = new ReasoningInterceptor();
     public modelName: string;
     public baseURL: string;
     public maxContextTokens: number;
@@ -15,7 +16,10 @@ export class OpenAIProvider implements LLMProvider {
         this.modelName = modelName;
         this.baseURL = baseURL;
         this.chat = new ChatOpenAI({
-            configuration: { baseURL },
+            configuration: {
+                baseURL,
+                fetch: (url: any, options: any) => this.interceptor.interceptFetch(url, options)
+            },
             modelName,
             apiKey,
             temperature: LLM_CONFIG.DEFAULT_TEMPERATURE,
@@ -28,37 +32,66 @@ export class OpenAIProvider implements LLMProvider {
         const lowerModel = model.toLowerCase();
         const lowerURL = url.toLowerCase();
 
-        // Check if running on localhost / LM Studio
         if (lowerURL.includes("localhost") || lowerURL.includes("127.0.0.1") || lowerURL.includes("lm-studio")) {
+            if (lowerModel.includes("128k")) return 128000;
             if (lowerModel.includes("32k")) return 32768;
             if (lowerModel.includes("16k")) return 16384;
             if (lowerModel.includes("8k")) return 8192;
             if (lowerModel.includes("4k")) return 4096;
-            return 8192; // Safe fallback for small local models
+            return 8192;
         }
 
-        // OpenAI Cloud models
         if (lowerModel.includes("gpt-4o-mini")) return 128000;
         if (lowerModel.includes("gpt-4o")) return 128000;
         if (lowerModel.includes("gpt-4")) return 8192;
         if (lowerModel.includes("gpt-3.5")) return 16384;
 
-        return 4096; // Absolute fallback
+        if (lowerModel.includes("deepseek-")) return 1_000_000;
+        if (lowerModel.includes("minimax-m3")) return 1_000_000;
+        if (lowerModel.includes("minimax-m2.5")) return 192_000;
+        if (lowerModel.includes("minimax-")) return 256_000;
+        if (lowerModel.includes("kimi-")) return 256_000;
+        if (lowerModel.includes("glm-5.2")) return 1_000_000;
+        if (lowerModel.includes("glm-5.1") || lowerModel.includes("glm-5")) return 198_000;
+        if (lowerModel.includes("glm-")) return 198_000;
+        if (lowerModel.includes("qwen")) return 1_000_000;
+        if (lowerModel.includes("mimo-v2.5-pro")) return 1_000_000;
+        if (lowerModel.includes("mimo-")) return 128_000;
+        if (lowerModel.includes("hy3-")) return 128_000;
+
+        return 128_000;
     }
 
     async *stream(messages: any[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
         const fullMessages = [new SystemMessage(systemPrompt), ...messages];
-        const lcTools = tools.map(t => ({ name: t.name, description: t.description, schema: t.schema }));
+
+        const lcTools = tools.map(t => ({
+            name: t.name,
+            description: t.description,
+            schema: t.schema
+        }));
+
         const chatWithTools = this.chat.bindTools(lcTools);
         const callbacks = await getLangChainCallbacks();
         const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
 
+        const sentReasoningMap = new Map<string, string>();
         let accumulatedChunk: AIMessageChunk | null = null;
-
         for await (const chunk of langchainStream) {
             accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
+
+            const messageId = chunk.id;
+            const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
+
             const textContent = typeof chunk.content === 'string' ? chunk.content : "";
-            if (textContent) yield { content: textContent, id: chunk.id };
+
+            if (textContent || deltaReasoning) {
+                yield {
+                    content: textContent || undefined,
+                    reasoning: deltaReasoning || undefined,
+                    id: messageId
+                };
+            }
         }
 
         if (accumulatedChunk) {
@@ -67,18 +100,29 @@ export class OpenAIProvider implements LLMProvider {
                 const tc = toolCalls[0];
                 yield { toolCall: { name: tc.name, args: tc.args as Record<string, unknown> } };
             }
+
             const usage = accumulatedChunk.usage_metadata;
             if (usage) {
+                const lastId = accumulatedChunk.id;
+                const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
+
                 const cachedTokens = (usage as any).input_token_details?.cache_read ?? 0;
                 yield {
                     usage: {
                         promptTokens: usage.input_tokens ?? 0,
                         completionTokens: usage.output_tokens ?? 0,
                         totalTokens: usage.total_tokens ?? 0,
-                        cachedTokens
+                        cachedTokens,
+                        reasoningTokens: reasoningTokenCount
                     }
                 };
             }
         }
+
+        await this.interceptor.cleanup(sentReasoningMap.keys());
+    }
+
+    async cleanupReasoning(): Promise<void> {
+        await this.interceptor.clearAll();
     }
 }

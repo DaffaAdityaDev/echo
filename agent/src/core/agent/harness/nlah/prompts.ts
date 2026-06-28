@@ -12,20 +12,34 @@ Assistant Response: "${assistantContent}"
 Respond with exactly "COMPLETE" (if it's a valid message/clarification/answer to the user) or "STUCK" (if it is just internal planning/thinking/halting without a message/action).`,
   
   COMPACTION_SYSTEM: "You are a structured state summarization system.",
-  COMPACTION_PROMPT: `Summarize the conversation so far. You MUST return your response as a dense, structured JSON block (wrapped in a markdown code block) with the following schema:
+  COMPACTION_PROMPT: `Summarize the conversation so far and determine next action steps. You MUST return your response as a dense, structured JSON block (wrapped in a markdown code block) with the following schema:
 {
   "decisions": ["list of key technical decisions"],
   "accomplishments": ["list of tasks completed"],
   "facts": {"key_variable": "value"},
-  "pending_challenges": ["remaining roadblocks to solve"]
+  "pending_challenges": ["remaining roadblocks to solve"],
+  "next_course_of_action": [{"priority": 1, "action": "step description"}]
 }
 Return ONLY this structured JSON.`,
 
-  COMPACTION_SUMMARY_WRAPPER: (iteration: number, summaryText: string) => 
-    `[Context Compaction Structured State Summary of Steps 1-${iteration - 1}]:\n${summaryText}`,
+  COMPACTION_SUMMARY_WRAPPER: (iteration: number, summaryText: string) => {
+    try {
+      const cleaned = summaryText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      const nextSteps = Array.isArray(parsed.next_course_of_action)
+        ? parsed.next_course_of_action.map((item: any, i: number) => `${i + 1}. ${typeof item === 'string' ? item : item.action}`).join('\n')
+        : '';
+      
+      return `<context_reconstruction>\n  <summary>\n${summaryText.trim()}\n  </summary>\n${nextSteps ? `  <next_steps>\n${nextSteps.split('\n').map((s: string) => `    ${s}`).join('\n')}\n  </next_steps>\n` : ''}</context_reconstruction>`;
+    } catch {
+      return `<context_reconstruction>\n  <summary>\n${summaryText.trim()}\n  </summary>\n</context_reconstruction>`;
+    }
+  },
 
   PACING_WARNING: (iteration: number) => 
-    `[SYSTEM PACING WARNING]: You have taken ${iteration} turns. Please analyze if you are stuck in a loop. Adjust your plan, summarize what works, and move towards final synthesis to preserve execution budget.`,
+    `[SYSTEM FORCED SYNTHESIS]: You have reached the maximum tool call limit (${iteration} turns).
+ANY FURTHER TOOL CALLS WILL FAIL. You MUST now synthesize your FINAL ANSWER using only the information currently available in the chat history.
+Format your response immediately as the final conclusion for the user.`,
 
   REPEATING_WARNING: 
     `SYSTEM SYSTEM WARNING: You are repeating your previous reasoning path. Your last action failed with a silent state conflict. Do not attempt the same tool configuration again. Choose a different diagnostic endpoint or execute a graceful exit.`,
@@ -44,12 +58,6 @@ Return ONLY this structured JSON.`,
 
   FINANCIAL_ABORT: (threshold: number, spend: number) => 
     `FINANCIAL_ABORT: Execution budget of $${threshold.toFixed(2)} exceeded. Current spend: $${spend.toFixed(4)}. Aborting run to protect resources.`,
-
-  VALIDATION_REJECTION: (reason: string) => 
-    `Validation Gate Rejection: ${reason}. You are prohibited from writing files containing empty placeholders or syntax errors. Fix the code/content and write it.`,
-
-  OFFLOAD_WRAPPER: (filename: string, previewLines: string) => 
-    `[Context Offloaded to sa-output/runtime/files/${filename} due to size limit. First 10 lines preview:]\n${previewLines}\n\n...[Full contents saved to disk]...`,
 
   MD_LEDGER_HEADER: (time: string, missionId: string, iteration: number, strategy: string, storageStatus: string, depth: number, systemPrompt: string) => `
 ================================================================================

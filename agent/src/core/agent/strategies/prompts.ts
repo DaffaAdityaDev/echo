@@ -46,7 +46,7 @@ RESEARCHER ROLE GUIDELINES (Use as systemPrompt when delegating):
 - Focus search on key keywords.
 - Limit searches: 2-3 searches for simple queries, max 5 searches for complex comparison queries.
 - Before executing a tool, reflect on what you need and what information is missing.
-- Write your final detailed findings using write_file to save the report to "artifact" folder.
+- Provide your final detailed findings clearly in your response.
 `,
 } as const;
 

@@ -1,52 +1,29 @@
 import { LMStudioProvider } from "./lm-studio";
 import { OpenAIProvider } from "./openai";
 import { AnthropicProvider } from "./anthropic";
+import { OpenCodeGoProvider } from "./opencode-go";
 import { LLMProvider } from "../../shared/types";
-import { LLM_API_VERSIONS } from "../../shared/constants";
-import { ENV } from "../../config/env";
+
+export interface ProviderConnectionConfig {
+    type: 'openai' | 'anthropic' | 'lm-studio' | 'opencode-go';
+    base_url: string;
+    api_key?: string;
+    model: string;
+}
 
 export class ProviderFactory {
-    static create(model: string, baseHost: string): LLMProvider {
-        const type = this.detectProviderType(model, baseHost);
-        
-        // Clean the base host from any trailing slashes
-        const host = baseHost.replace(/\/$/, '');
-
-        switch (type) {
+    static fromConfig(config: ProviderConnectionConfig): LLMProvider {
+        switch (config.type) {
+            case "opencode-go":
+                return new OpenCodeGoProvider(config.base_url, config.model, config.api_key);
             case "lm-studio":
-                return new LMStudioProvider(`${host}${LLM_API_VERSIONS.LM_STUDIO_NATIVE}`, model, process.env.LM_STUDIO_API_KEY);
+                return new LMStudioProvider(config.base_url, config.model, config.api_key);
             case "anthropic":
-                return new AnthropicProvider("", model, process.env.ANTHROPIC_API_KEY);
+                return new AnthropicProvider(config.base_url, config.model, config.api_key);
             case "openai":
             default:
-                return new OpenAIProvider(`${host}${LLM_API_VERSIONS.V1}`, model, process.env.OPENAI_API_KEY);
+                return new OpenAIProvider(config.base_url, config.model, config.api_key);
         }
-    }
-
-    static get(provider: string): LLMProvider {
-        const model = process.env.LLM_MODEL || "deepseek-r1-distill-llama-8b";
-        const baseHost = ENV.LLM_MODEL_API_URL;
-
-        switch (provider.toLowerCase()) {
-            case "anthropic":
-                return new AnthropicProvider("", "claude-3-5-sonnet-latest", process.env.ANTHROPIC_API_KEY);
-            case "openai":
-                return new OpenAIProvider(baseHost, "gpt-4o", process.env.OPENAI_API_KEY);
-            case "gemini-local":
-            default:
-                // Map to LM Studio/OpenAI local endpoint if using gemini-local/default
-                return new OpenAIProvider(baseHost.replace(/\/$/, '') + LLM_API_VERSIONS.V1, model, process.env.OPENAI_API_KEY);
-        }
-    }
-
-    private static detectProviderType(model: string, baseURL: string): string {
-        const lowerModel = model.toLowerCase();
-        if (baseURL.includes(":1234") || baseURL.includes("lm-studio") || lowerModel.includes("r1")) {
-            return "lm-studio";
-        }
-        if (lowerModel.includes("claude") || lowerModel.includes("anthropic")) {
-            return "anthropic";
-        }
-        return "openai";
     }
 }
+

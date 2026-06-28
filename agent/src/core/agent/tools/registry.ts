@@ -8,12 +8,9 @@ import { fileURLToPath } from 'node:url';
 export const LAZY_TOOLS: Record<string, () => Promise<{ default: ToolDefinition } | ToolDefinition>> = {
     deep_web_research: () => import('./definitions/deep-web-research'),
     delegate_task: () => import('./definitions/delegation'),
-    list_files: () => import('./definitions/list-files'),
     write_todos: () => import('./definitions/planning'),
-    read_file: () => import('./definitions/read-file'),
     web_scrape: () => import('./definitions/web-scrape'),
     web_search: () => import('./definitions/web-search'),
-    write_file: () => import('./definitions/write-file'),
 };
 
 // 2. Active Feature catalog exposed to API and clients
@@ -23,9 +20,6 @@ export const ACTIVE_FEATURES = [
     { id: 'web_search', name: 'Web Search', description: 'Quick search for real-time weather, prices, and news facts.', tier_requirement: 'free', ui_schema: { render_type: 'card_list', icon: 'search', primary_color: '#6366f1' } },
     { id: 'web_scrape', name: 'Web Scraping', description: 'Reads single webpage content using static or fallback dynamic scraper.', tier_requirement: 'free', ui_schema: { render_type: 'preview_pane', icon: 'code', primary_color: '#f59e0b' } },
     { id: 'write_todos', name: 'Task Planning & Execution Board', description: 'Updates task board list state.', tier_requirement: 'free', ui_schema: { render_type: 'kanban_board', icon: 'check-square', primary_color: '#8b5cf6' } },
-    { id: 'read_file', name: 'File Reader', description: 'Accesses target workspace files in read-only mode.', tier_requirement: 'free', ui_schema: { render_type: 'code_viewer', icon: 'file-text', primary_color: '#6b7280' } },
-    { id: 'write_file', name: 'File Writer', description: 'Modifies workspace files with formatting checks.', tier_requirement: 'free', ui_schema: { render_type: 'code_editor', icon: 'edit', primary_color: '#ec4899' } },
-    { id: 'list_files', name: 'Directory File Explorer', description: 'Lists target workspace file structures.', tier_requirement: 'free', ui_schema: { render_type: 'file_tree', icon: 'folder', primary_color: '#14b8a6' } },
 ];
 
 export class ToolRegistry {

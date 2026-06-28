@@ -9,6 +9,7 @@ import { useChatStream } from "../api/useChatStream";
 import { useModels } from "../api/useModels";
 import { CHAT_MODES } from "../constants";
 import { useFeatures, AgentFeature } from "../api/useFeatures";
+import { AgentProgress } from "./AgentProgress";
 
 export function ChatInterface() {
   const [selectedModel, setSelectedModel] = useState("");
@@ -25,7 +26,7 @@ export function ChatInterface() {
   
   const { models } = useModels();
   const activeModelId = selectedModel || models[0]?.id || "";
-  const { messages, isLoading, sendMessage, clearMessages } = useChatStream(activeModelId, mode, selectedFeatures);
+  const { messages, isLoading, agentProgress, sendMessage, clearMessages } = useChatStream(activeModelId, mode, selectedFeatures);
 
 
   return (
@@ -59,6 +60,9 @@ export function ChatInterface() {
 
         {/* Chat Area */}
         <MessageList messages={messages} isLoading={isLoading} />
+
+        {/* Progress UI */}
+        {isLoading && <AgentProgress progress={agentProgress} />}
 
         {/* Input Area */}
         <ChatInput onSend={sendMessage} isLoading={isLoading} />

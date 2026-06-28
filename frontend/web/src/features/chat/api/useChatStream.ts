@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api-client";
-import { Message, StreamPacket, HistoryMessage, MissionMeta, TokenUsage } from "../types";
+import { Message, StreamPacket, HistoryMessage, MissionMeta, TokenUsage, AgentProgress } from "../types";
 import { CHAT_ROLES, CHAT_MODES, PACKET_TYPES, CHAT_MESSAGES, CHAT_ENDPOINTS } from "../constants";
 
 export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[keyof typeof CHAT_MODES] | string, selectedFeatures: string[]) {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [agentProgress, setAgentProgress] = useState<AgentProgress | null>(null);
 
   const sendMessage = async (input: string) => {
     if (!input.trim() || isLoading) return;
@@ -29,6 +30,10 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
+    setAgentProgress({
+      iteration: 1,
+      totalIterations: 0,
+    });
 
     try {
       const history: HistoryMessage[] = messages
@@ -61,6 +66,10 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
 
           if (data.type === PACKET_TYPES.METADATA && data.meta) {
             lastMessage.meta = data.meta as MissionMeta;
+            const metaObj = data.meta as any;
+            if (metaObj?.maxIterations) {
+              setAgentProgress(prev => prev ? { ...prev, totalIterations: metaObj.maxIterations } : { iteration: 1, totalIterations: metaObj.maxIterations });
+            }
           } else if (data.type === PACKET_TYPES.USAGE && data.meta) {
             lastMessage.usage = data.meta as TokenUsage;
           } else if (data.type === PACKET_TYPES.CONTENT && data.content) {
@@ -76,12 +85,34 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
               lastMessage.steps.push({ type: PACKET_TYPES.REASONING, content: data.content });
             }
           } else if (data.type === PACKET_TYPES.TOOL_CALL) {
+            setAgentProgress(prev => {
+              if (!prev) {
+                return { iteration: 1, totalIterations: 0, currentTool: data.toolName };
+              }
+              return { 
+                ...prev, 
+                iteration: prev.totalIterations > 0 ? Math.min(prev.iteration + 1, prev.totalIterations) : prev.iteration + 1, 
+                currentTool: data.toolName 
+              };
+            });
             lastMessage.steps.push({
               type: PACKET_TYPES.TOOL_CALL,
               toolName: data.toolName,
               toolInput: data.toolInput
             });
           } else if (data.type === PACKET_TYPES.TOOL_RESULT) {
+            setAgentProgress(prev => {
+              if (!prev) return null;
+              const nextProgress = { ...prev, currentTool: undefined };
+              if (data.toolResult?.failedUrls && Array.isArray(data.toolResult.failedUrls) && nextProgress.swarm) {
+                nextProgress.swarm = {
+                  ...nextProgress.swarm,
+                  failedUrls: data.toolResult.failedUrls,
+                  failedCount: data.toolResult.failedUrls.length
+                };
+              }
+              return nextProgress;
+            });
             lastMessage.steps.push({
               type: PACKET_TYPES.TOOL_RESULT,
               toolName: data.toolName,
@@ -108,6 +139,69 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
               fileOp: data.fileOp
             });
           } else if (data.type === PACKET_TYPES.SWARM_STATUS) {
+            if (data.swarm) {
+              setAgentProgress(prev => {
+                if (!prev) {
+                  prev = { iteration: 1, totalIterations: 0 };
+                }
+                const swarm = prev.swarm || { scrapedCount: 0, failedCount: 0, factsCount: 0, discoveredCount: 0, failedUrls: [], activeUrls: {} };
+                const activeUrls = { ...swarm.activeUrls };
+                const s = data.swarm!;
+                
+                if (s.url) {
+                  const existing = activeUrls[s.url] || { url: s.url, status: '', factsCount: 0, dataSize: 0 };
+                  let newStatus = s.status;
+                  let factsCount = s.factsCount ?? existing.factsCount;
+                  let dataSize = s.dataSize ?? existing.dataSize;
+                  let attempt = existing.attempt ?? 0;
+                  if (s.status === 'critic_failed') {
+                    attempt = attempt + 1;
+                  }
+                  
+                  activeUrls[s.url] = {
+                    ...existing,
+                    status: newStatus,
+                    factsCount,
+                    dataSize,
+                    attempt,
+                    feedback: s.feedback ?? existing.feedback
+                  };
+                }
+                
+                // Re-calculate counts
+                let scraped = 0;
+                let failed = 0;
+                let facts = 0;
+                const failedUrls = [...swarm.failedUrls];
+                
+                Object.values(activeUrls).forEach(item => {
+                  if (item.status === 'critic_passed') {
+                    scraped += 1;
+                    facts += item.factsCount || 0;
+                  } else if (item.status === 'scrape_failed') {
+                    failed += 1;
+                    if (!failedUrls.some(f => f.url === item.url)) {
+                      failedUrls.push({ url: item.url, reason: item.feedback || 'unreachable or blocked' });
+                    }
+                  }
+                });
+                
+                return {
+                  ...prev,
+                  swarm: {
+                    scrapedCount: scraped,
+                    failedCount: failed,
+                    factsCount: facts,
+                    discoveredCount: Object.keys(activeUrls).length,
+                    status: s.status,
+                    url: s.url || swarm.url,
+                    depth: s.depth ?? swarm.depth,
+                    failedUrls,
+                    activeUrls
+                  }
+                };
+              });
+            }
             lastMessage.steps.push({
               type: PACKET_TYPES.SWARM_STATUS,
               swarm: data.swarm
@@ -150,6 +244,7 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
       });
     } finally {
       setIsLoading(false);
+      setAgentProgress(null);
     }
   };
 
@@ -158,6 +253,7 @@ export function useChatStream(selectedModel: string, mode: typeof CHAT_MODES[key
   return {
     messages,
     isLoading,
+    agentProgress,
     sendMessage,
     clearMessages
   };

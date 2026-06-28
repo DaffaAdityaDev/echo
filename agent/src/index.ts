@@ -1,5 +1,7 @@
 import "./config/env";
 import "./utils/telemetry";
+import { rmSync } from "node:fs";
+import { join } from "node:path";
 import { ENV } from "./config/env";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -10,8 +12,16 @@ import { authMiddleware } from "./app/middleware/auth";
 import { errorHandler } from "./app/middleware/error";
 import { toolRegistry } from "./core/agent/tools/registry";
 
+import { fileURLToPath } from "node:url";
+
 // Autoload Agent Tools
 await toolRegistry.autoload();
+
+// Cleanup leftover files from previous sessions at startup only
+const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+rmSync(join(root, "debug"), { recursive: true, force: true });
+rmSync(join(root, "logs"), { recursive: true, force: true });
+logger.info("Startup cleanup complete (debug/, logs/)");
 
 const app = new Hono();
 
@@ -36,4 +46,5 @@ logger.info(`Harness Service: Isolated Core Engine`);
 export default {
     port: PORT,
     fetch: app.fetch,
+    idleTimeout: 255,
 };

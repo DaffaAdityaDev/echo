@@ -21,11 +21,12 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 
 	// 3. Initialize Services
 	authSvc := service.NewAuthService(cfg, userRepo)
+	modelSvc := service.NewModelService(cfg)
 
 	// 4. Initialize Handlers
 	authHandler := handler.NewAuthHandler(cfg, authSvc)
-	chatHandler := handler.NewChatHandler(cfg, infra.Redis)
-	modelHandler := handler.NewModelHandler(cfg)
+	chatHandler := handler.NewChatHandler(cfg, infra.Redis, modelSvc)
+	modelHandler := handler.NewModelHandler(modelSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {

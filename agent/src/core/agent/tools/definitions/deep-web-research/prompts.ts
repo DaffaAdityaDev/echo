@@ -13,7 +13,7 @@ ${markdown}
 ---
 
 Your response MUST be a single, valid JSON object containing:
-1. "facts": An array of clear, dense, factual sentences extracted from the webpage that directly address the objective.
+1. "facts": An array of clear, dense, factual sentences extracted from the webpage that directly address the objective. For news portal indexes, visible headlines and summaries are valid facts.
 2. "internalLinks": An array of internal URLs found in the webpage content (resolved or relative) that look highly relevant to the objective and could be explored for more details. Do not include external domains or social media shares.
 
 JSON Format:
@@ -51,8 +51,8 @@ Your response MUST be a single, valid JSON object with the following structure:
 }
 
 Rules:
-- Mark as "FAIL" if any extracted fact is not directly supported by the webpage text, or if it exaggerates or misrepresents the original page content.
-- Mark as "PASS" only if all facts are 100% truthful and verified.
+- Mark as "FAIL" if any extracted fact is completely unsupported or contradicts the webpage text.
+- Mark as "PASS" if all facts are directly stated, summarized, or present as headlines/visible summaries in the page content.
 
 Respond ONLY with the JSON object. Do not add any conversational preamble.
 `;

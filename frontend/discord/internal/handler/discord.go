@@ -289,13 +289,20 @@ func (h *DiscordHandler) processChat(s *discordgo.Session, m *discordgo.MessageC
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Backend returned status code: %d", resp.StatusCode)
-		_, _ = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Gagal memproses request. Status: %d", resp.StatusCode))
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		errMsg := fmt.Sprintf("Gagal memproses request. Status: %d", resp.StatusCode)
+		if readErr == nil && len(bodyBytes) > 0 {
+			errMsg = fmt.Sprintf("Gagal memproses request (%d): %s", resp.StatusCode, string(bodyBytes))
+		}
+		_, _ = s.ChannelMessageSend(m.ChannelID, errMsg)
 		return
 	}
 
 	var responseBuilder strings.Builder
 	scanner := bufio.NewScanner(resp.Body)
+	lineCount := 0
+	contentCount := 0
+	parseFailCount := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -309,13 +316,31 @@ func (h *DiscordHandler) processChat(s *discordgo.Session, m *discordgo.MessageC
 			continue
 		}
 
+		lineCount++
+
 		var packet StreamPacket
 		if err := json.Unmarshal([]byte(dataJSON), &packet); err == nil {
 			if packet.Type == "content" {
+				contentCount++
 				responseBuilder.WriteString(packet.Content)
+			}
+		} else {
+			parseFailCount++
+			if parseFailCount <= 3 {
+				limit := len(dataJSON)
+				if limit > 200 {
+					limit = 200
+				}
+				log.Printf("[SSE PARSE FAIL %d] err=%v len=%d first=%.200s", parseFailCount, err, len(dataJSON), dataJSON[:limit])
 			}
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("SSE scanner error: %v", err)
+	}
+
+	log.Printf("[SSE END] totalLines=%d contentPkts=%d parseFail=%d accLen=%d", lineCount, contentCount, parseFailCount, responseBuilder.Len())
 
 	finalResponse := strings.TrimSpace(responseBuilder.String())
 	if finalResponse == "" {

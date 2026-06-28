@@ -12,7 +12,6 @@ export interface MissionPayload {
   tenant: TenantContext;
   prompt: string;
   strategy: 'react' | 'nlah' | 'standard' | 'sequential';
-  provider: 'openai' | 'anthropic' | 'gemini-local';
 }
 
 export type AgentPacketType = 
@@ -27,8 +26,13 @@ export type AgentPacketType =
   | 'todo'
   | 'subagent_call'
   | 'subagent_result'
-  | 'file_operation'
+  | 'swarm_status'
   | 'debug';
+
+export interface FailedUrl {
+  url: string;
+  reason: string;
+}
 
 export interface HarnessPacket {
   type: AgentPacketType;
@@ -47,11 +51,8 @@ export interface HarnessPacket {
     result?: string;
     status: 'calling' | 'completed' | 'failed';
   };
-  fileOp?: {
-    operation: 'write' | 'read' | 'offload';
-    path: string;
-    preview?: string;
-  };
+  swarm?: any;
+  failedUrls?: FailedUrl[];
 }
 
 // Infrastructure Adapter Contracts
@@ -167,4 +168,5 @@ export interface LLMProvider {
         tools: ToolDefinition[],
         systemPrompt: string
     ): AsyncIterable<ProviderEvent>;
+    cleanupReasoning?(): Promise<void>;
 }

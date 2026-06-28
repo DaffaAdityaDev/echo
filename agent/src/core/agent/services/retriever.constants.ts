@@ -9,4 +9,4 @@ export const MATCH_WEIGHTS = {
   NAME: 0.1,
 } as const;
 
-export const RETRIEVER_FALLBACK_TOOLS = ['web_search', 'list_files'] as const;
+export const RETRIEVER_FALLBACK_TOOLS = ['web_search'] as const;

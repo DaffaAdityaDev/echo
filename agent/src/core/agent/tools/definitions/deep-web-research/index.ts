@@ -271,6 +271,7 @@ export const deep_web_research: ToolDefinition = {
         const visitedUrls = new Set<string>();
         const discoveryQueue: { url: string; depth: number }[] = [];
         const allSourceResults: Array<{ url: string; title: string; facts: string[] }> = [];
+        const failedUrls: Array<{ url: string; reason: string }> = [];
 
         for (const url of seedUrls) {
             visitedUrls.add(url);
@@ -317,16 +318,37 @@ export const deep_web_research: ToolDefinition = {
                         }
                     });
 
-                    const scrapeResult = await withTimeout(
-                        webScrapeTool.execute({ url }),
-                        15000,
-                        `ETL scrape timed out after 15s for URL: ${url}`
-                    );
+                    let scrapeResult: any;
+                    try {
+                        scrapeResult = await withTimeout(
+                            webScrapeTool.execute({ url }),
+                            15000,
+                            `ETL scrape timed out after 15s for URL: ${url}`
+                        );
+                    } catch (e: any) {
+                        scrapeResult = {
+                            status: 'error' as const,
+                            summary: e.message || 'Scrape timed out',
+                            error: e.message || 'Scrape timed out'
+                        };
+                    }
+
                     if (scrapeResult.status !== 'success' || !scrapeResult.data?.markdown) {
-                        logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_FAIL', `[Local] Worker ETL scrape failed for URL: ${url}`, { url });
+                        const reason = scrapeResult.error || scrapeResult.summary || 'unreachable or blocked';
+                        logger.agentActivity(parentMissionId, 'SWARM_SCRAPE_FAIL', `[Local] Worker ETL scrape failed for URL: ${url}`, { url, reason });
                         await config?.onPacket?.({
                             type: 'reasoning',
-                            content: `\n[Local Swarm Worker Scrape Failed] URL: ${url} (unreachable or blocked)`
+                            content: `\n[Local Swarm Worker Scrape Failed] URL: ${url} (${reason})`
+                        });
+                        failedUrls.push({ url, reason });
+                        await config?.onPacket?.({
+                            type: 'swarm_status',
+                            swarm: {
+                                status: 'scrape_failed',
+                                depth: currentDepth,
+                                url,
+                                message: reason
+                            }
                         });
                         return;
                     }
@@ -391,8 +413,8 @@ export const deep_web_research: ToolDefinition = {
                         
                         const extractionRaw = await withTimeout(
                             callLLM(provider, systemPrompt, extractPrompt),
-                            60000,
-                            `LLM extraction timed out after 60s for URL: ${url}`
+                            30000,
+                            `LLM extraction timed out after 30s for URL: ${url}`
                         );
                         const extracted = parseJSONSafe(extractionRaw);
                         facts = extracted.facts;
@@ -421,8 +443,8 @@ export const deep_web_research: ToolDefinition = {
                         const criticPrompt = generateCriticPrompt(markdown, facts, input.objective);
                         const criticRaw = await withTimeout(
                             callLLM(provider, `Verify extracted details.`, criticPrompt),
-                            60000,
-                            `QA Critic validation timed out after 60s for URL: ${url}`
+                            30000,
+                            `QA Critic validation timed out after 30s for URL: ${url}`
                         );
                         const criticResult = parseCriticJSONSafe(criticRaw);
 
@@ -485,15 +507,26 @@ export const deep_web_research: ToolDefinition = {
                     }
 
                 } catch (err: any) {
-                    logger.error(`Error processing URL ${url}: ${err.message}`);
+                    const reason = err.message || 'extraction or validation failed';
+                    logger.error(`Error processing URL ${url}: ${reason}`);
+                    failedUrls.push({ url, reason });
+                    await config?.onPacket?.({
+                        type: 'swarm_status',
+                        swarm: {
+                            status: 'scrape_failed',
+                            depth: currentDepth,
+                            url,
+                            message: reason
+                        }
+                    });
                 } finally {
                     semaphore.release();
                 }
             });
 
             await Promise.all(levelPromises);
-            // Limit next depth URLs to top 10 relevant links to prevent queue explosion
-            activeLevelUrls = nextLevelUrls.slice(0, 10);
+            // Limit next depth URLs to top 5 relevant links to prevent queue explosion
+            activeLevelUrls = nextLevelUrls.slice(0, 5);
             currentDepth++;
         }
 
@@ -502,7 +535,7 @@ export const deep_web_research: ToolDefinition = {
             return {
                 status: OPERATION_STATUS.WARNING,
                 summary: `Swarm finished but could not extract any valid facts for objective: "${input.objective}"`,
-                data: { results: [] }
+                data: { results: [], failedUrls }
             };
         }
 
@@ -534,7 +567,7 @@ export const deep_web_research: ToolDefinition = {
         return {
             status: OPERATION_STATUS.SUCCESS,
             summary: finalReport,
-            data: { results: allSourceResults }
+            data: { results: allSourceResults, failedUrls }
         };
 
     }

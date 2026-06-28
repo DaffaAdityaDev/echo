@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { ENV_DEFAULTS, ENV_VALUES, ENV_VALIDATION_MESSAGES } from "./env.constants";
 
+/**
+ * Agent Environment Schema.
+ * Note: LLM Provider credentials (API keys) are passed dynamically via provider_config in payloads from Go Backend.
+ */
 export const envSchema = z.object({
   PORT: z.string().default(ENV_DEFAULTS.PORT),
   GRPC_PORT: z.string().default(ENV_DEFAULTS.GRPC_PORT),
   CHROMA_URL: z.string().default(ENV_DEFAULTS.CHROMA_URL),
   LLM_MODEL_API_URL: z.string().default(ENV_DEFAULTS.LLM_MODEL_API_URL),
-  SA_OUTPUT_PATH: z.string().default(ENV_DEFAULTS.SA_OUTPUT_PATH),
   STATE_BACKEND: z.enum(ENV_VALUES.STATE_BACKENDS).default(ENV_VALUES.STATE_BACKENDS[0]),
   NODE_ENV: z.enum(ENV_VALUES.ENVIRONMENTS).default(ENV_VALUES.ENVIRONMENTS[0]),
   DEBUG_PROMPT: z

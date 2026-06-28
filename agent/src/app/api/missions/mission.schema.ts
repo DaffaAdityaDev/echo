@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { 
   MISSION_STRATEGIES, 
-  MISSION_PROVIDERS, 
   DEFAULT_MISSION_VALUES, 
   STRATEGY_MAPPING, 
   VALIDATION_MESSAGES 
@@ -22,30 +21,43 @@ export const createMissionSchema = z.preprocess((input: any) => {
     strategy = 'nlah';
   }
 
+  const userIdRaw = input.userId ?? input.user_id;
+  const tenantIdRaw = input.tenantId ?? input.tenant_id;
+  const orgIdRaw = input.orgId ?? input.org_id;
+
   return {
     ...input,
     strategy,
     prompt: input.prompt || input.message,
-    tenantId: input.tenantId || DEFAULT_MISSION_VALUES.TENANT_ID,
-    userId: input.userId || DEFAULT_MISSION_VALUES.USER_ID,
-    orgId: input.orgId || DEFAULT_MISSION_VALUES.ORG_ID,
+    tenantId: tenantIdRaw != null ? String(tenantIdRaw) : DEFAULT_MISSION_VALUES.TENANT_ID,
+    userId: userIdRaw != null ? String(userIdRaw) : DEFAULT_MISSION_VALUES.USER_ID,
+    orgId: orgIdRaw != null ? String(orgIdRaw) : DEFAULT_MISSION_VALUES.ORG_ID,
+    history: input.history ?? undefined,
+    features: input.features ?? undefined,
+    missionId: input.missionId ?? undefined,
+    model: input.model ?? undefined,
   };
 }, z.object({
   prompt: z.string({ message: VALIDATION_MESSAGES.PROMPT_REQUIRED }),
   strategy: z.enum(MISSION_STRATEGIES),
-  provider: z.enum(MISSION_PROVIDERS).default(DEFAULT_MISSION_VALUES.PROVIDER),
   tenantId: z.string(),
   userId: z.string(),
   orgId: z.string(),
-  missionId: z.string().optional(),
-  model: z.string().optional(),
-  features: z.array(z.string()).optional(),
+  missionId: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  provider_config: z.object({
+    type: z.enum(['openai', 'anthropic', 'lm-studio', 'opencode-go']),
+    base_url: z.string(),
+    api_key: z.string().nullable().optional(),
+    model: z.string(),
+  }),
+  features: z.array(z.string()).nullable().optional(),
   history: z.array(
     z.object({
       role: z.string(),
       content: z.string()
     })
-  ).optional()
+  ).nullable().optional()
 }));
 
 export type CreateMissionInput = z.infer<typeof createMissionSchema>;
