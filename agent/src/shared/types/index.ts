@@ -11,7 +11,7 @@ export interface MissionPayload {
   missionId: string;
   tenant: TenantContext;
   prompt: string;
-  strategy: 'react' | 'nlah' | 'standard' | 'sequential';
+  strategy: 'standard' | 'agent';
 }
 
 export type AgentPacketType = 
@@ -27,11 +27,30 @@ export type AgentPacketType =
   | 'subagent_call'
   | 'subagent_result'
   | 'swarm_status'
-  | 'debug';
+  | 'debug'
+  | 'tool_skip'       // skipped tool call due to circuit breaker
+  | 'degraded'        // strategy degradation signal
+  | 'state_change'    // agent state transitions
+  | 'progress'        // checkpoint progress updates
+  | 'heartbeat'       // live connection heartbeat with status
+  | 'turn_complete';  // final packet for turn commit
 
 export interface FailedUrl {
   url: string;
   reason: string;
+}
+
+export interface AgentStatus {
+  state: 'starting' | 'running' | 'stalled' | 'looping' | 'degraded' | 'completed' | 'aborted';
+  step: number;
+  maxSteps: number;
+  strategy: 'agent' | 'standard' | 'restricted';
+  lastActivity: string;               // ISO 8601 timestamp
+  currentTool?: string;               // tool being executed (if any)
+  currentThought?: string;            // latest reasoning snippet (50 chars)
+  consecutiveFailures?: number;
+  activeCircuitBreakers?: string[];   // tool names with open circuit
+  throughput?: number;                // tokens/second (for performance UX)
 }
 
 export interface HarnessPacket {
@@ -53,21 +72,7 @@ export interface HarnessPacket {
   };
   swarm?: any;
   failedUrls?: FailedUrl[];
-}
-
-// Infrastructure Adapter Contracts
-export interface IStateStore {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, mode?: string, ttl?: number): Promise<void>;
-  del(key: string): Promise<void>;
-}
-
-export interface ITaskQueue {
-  enqueue(payload: MissionPayload): Promise<void>;
-}
-
-export interface ISandboxExecutor {
-  execute(command: string, tenantId: string): Promise<{ stdout: string; stderr: string; code: number }>;
+  agentStatus?: AgentStatus;
 }
 
 /**
@@ -79,18 +84,6 @@ export interface Observation<T = unknown> {
     data?: T;
     artifacts?: string[];
     error?: string;
-}
-
-/**
- * Represents a decision made by the agent's strategy.
- * Used when the stream signals a tool invocation.
- */
-export interface Action {
-    type: 'tool_call' | 'finish' | 'plan_update' | 'complete';
-    toolName?: string;
-    toolInput?: Record<string, unknown>;
-    content?: string;
-    result?: string;
 }
 
 /**

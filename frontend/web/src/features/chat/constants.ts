@@ -6,7 +6,6 @@ export const CHAT_ROLES = {
 export const CHAT_MODES = {
   STANDARD: "standard",
   AGENT: "agent",
-  NLAH: "nlah",
 } as const;
 
 export const PACKET_TYPES = {
@@ -21,14 +20,22 @@ export const PACKET_TYPES = {
   SUBAGENT_RESULT: "subagent_result",
   FILE_OPERATION: "file_operation",
   SWARM_STATUS: "swarm_status",
-} as const;
-
-export const CHAT_MESSAGES = {
-  ERROR: "Chat error:",
-  ORCHESTRATING: "Orchestrating response...",
+  TOOL_SKIP: "tool_skip",
+  HEARTBEAT: "heartbeat",
+  STATE_CHANGE: "state_change",
+  DEGRADED: "degraded",
+  PROGRESS: "progress",
+  TURN_COMPLETE: "turn_complete",
 } as const;
 
 export const CHAT_ENDPOINTS = {
-  STREAM: "/chat",
-  HISTORY: "/chat/history",
+  STREAM: "/chat/stream",
+} as const;
+
+export const SESSION_ENDPOINTS = {
+  LIST: "/sessions",
+  CREATE: "/sessions",
+  GET: (id: string) => `/sessions/${id}`,
+  MESSAGES: (id: string) => `/sessions/${id}/messages`,
+  DELETE: (id: string) => `/sessions/${id}`,
 } as const;

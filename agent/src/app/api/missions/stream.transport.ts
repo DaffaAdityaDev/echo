@@ -1,10 +1,6 @@
 import { logger } from '../../../shared/utils/logger';
 
-export interface StreamTransport {
-    send(packet: any): Promise<void>;
-}
-
-export class HttpStreamTransport implements StreamTransport {
+export class HttpStreamTransport {
     private seq = 0;
     constructor(private streamInstance: any) {}
 

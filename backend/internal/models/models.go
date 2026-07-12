@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ProviderType string
@@ -51,14 +49,21 @@ type Config struct {
 	LMStudioAPIKey     string
 	OpenCodeGoAPIKey   string
 	DefaultModel       string
+	ServiceJWTSecret   string
+	PRUNE_THRESHOLD         int
+	PRUNE_KEEP_LATEST_TURNS int
+	SUMMARIZE_MAX_TOKENS    int
 }
 
-type DB struct {
-	Pool *pgxpool.Pool
-}
-
-func (db *DB) Close() {
-	db.Pool.Close()
+type ApiKey struct {
+	ID        string     `json:"id"`
+	KeyHash   string     `json:"-"`
+	Prefix    string     `json:"prefix"`
+	Name      string     `json:"name"`
+	Scopes    []string   `json:"scopes"`
+	UserID    string     `json:"user_id"`
+	Status    string     `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 type User struct {
@@ -69,4 +74,34 @@ type User struct {
 	Role         string    `json:"role"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type Session struct {
+	ID             string    `json:"id"`
+	UserID         int       `json:"user_id"`
+	Title          string    `json:"title"`
+	ContextSummary string    `json:"context_summary"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	MessageCount   int       `json:"message_count,omitempty"`
+	TokenCount     int       `json:"token_count,omitempty"`
+}
+
+type UserPreferences struct {
+	UserID         int      `json:"user_id"`
+	DefaultMode    string   `json:"default_mode"`
+	DefaultModel   string   `json:"default_model"`
+	DefaultFeatures []string `json:"default_features"`
+	DefaultSkills  []string `json:"default_skills"`
+}
+
+type Message struct {
+	ID         int64     `json:"id"`
+	SessionID  string    `json:"session_id"`
+	Role       string    `json:"role"`
+	Content    string    `json:"content"`
+	TokenCount int       `json:"token_count"`
+	TurnNumber int       `json:"turn_number"`
+	CreatedAt  time.Time `json:"created_at"`
 }

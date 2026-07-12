@@ -1,8 +1,8 @@
 export interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
-  avatar?: string;
+  role: string;
 }
 
 export interface AuthState {
@@ -12,7 +12,12 @@ export interface AuthState {
 }
 
 export interface LoginCredentials {
-  username: string;
-  password?: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
 }
 

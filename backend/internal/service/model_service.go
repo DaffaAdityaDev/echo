@@ -13,37 +13,27 @@ import (
 	"time"
 )
 
+var httpClient = &http.Client{}
+
 const openCodeGoPrefix = "opencode-go/"
 
-type openCodeGoCache struct {
+type modelCache struct {
 	mu        sync.RWMutex
 	models    []models.ModelInfo
 	expiresAt time.Time
 }
 
-type lmStudioCache struct {
-	mu        sync.RWMutex
-	models    []models.ModelInfo
-	expiresAt time.Time
-}
-
-type ModelService interface {
-	GetModels(ctx context.Context) ([]models.ModelInfo, error)
-	ResolveModel(modelID string) (*models.ProviderConfig, error)
-	GetDefault() *models.ProviderConfig
-}
-
-type modelService struct {
+type ModelService struct {
 	cfg     *models.Config
-	goCache openCodeGoCache
-	lmCache lmStudioCache
+	goCache modelCache
+	lmCache modelCache
 }
 
-func NewModelService(cfg *models.Config) ModelService {
-	return &modelService{cfg: cfg}
+func NewModelService(cfg *models.Config) *ModelService {
+	return &ModelService{cfg: cfg}
 }
 
-func (s *modelService) GetModels(ctx context.Context) ([]models.ModelInfo, error) {
+func (s *ModelService) GetModels(ctx context.Context) ([]models.ModelInfo, error) {
 	var result []models.ModelInfo
 
 	if s.cfg.OpenAIAPIKey != "" {
@@ -81,7 +71,7 @@ func (s *modelService) GetModels(ctx context.Context) ([]models.ModelInfo, error
 	return result, nil
 }
 
-func (s *modelService) ResolveModel(modelID string) (*models.ProviderConfig, error) {
+func (s *ModelService) ResolveModel(modelID string) (*models.ProviderConfig, error) {
 	for _, m := range s.cfg.OpenAIModels {
 		if m == modelID {
 			apiKey := s.cfg.OpenAIAPIKey
@@ -140,7 +130,7 @@ func (s *modelService) ResolveModel(modelID string) (*models.ProviderConfig, err
 	return nil, fmt.Errorf("unknown model: %s", modelID)
 }
 
-func (s *modelService) GetDefault() *models.ProviderConfig {
+func (s *ModelService) GetDefault() *models.ProviderConfig {
 	cfg, err := s.ResolveModel(s.cfg.DefaultModel)
 	if err != nil {
 		if s.cfg.OpenAIAPIKey == "" {
@@ -156,64 +146,48 @@ func (s *modelService) GetDefault() *models.ProviderConfig {
 	return cfg
 }
 
-func (s *modelService) getCachedOpenCodeModels(ctx context.Context) []models.ModelInfo {
-	s.goCache.mu.RLock()
-	if time.Now().Before(s.goCache.expiresAt) {
-		defer s.goCache.mu.RUnlock()
-		return s.goCache.models
+func (s *ModelService) getCachedModels(ctx context.Context, cache *modelCache, ttl time.Duration, fetch func(context.Context) ([]models.ModelInfo, error)) []models.ModelInfo {
+	cache.mu.RLock()
+	if time.Now().Before(cache.expiresAt) {
+		defer cache.mu.RUnlock()
+		return cache.models
 	}
-	s.goCache.mu.RUnlock()
+	cache.mu.RUnlock()
 
-	s.goCache.mu.Lock()
-	defer s.goCache.mu.Unlock()
-	if time.Now().Before(s.goCache.expiresAt) {
-		return s.goCache.models
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if time.Now().Before(cache.expiresAt) {
+		return cache.models
 	}
 
-	models, err := s.fetchOpenCodeGoModels(ctx)
+	models, err := fetch(ctx)
 	if err != nil {
-		log.Printf("opencode-go: failed to fetch models: %v", err)
+		log.Printf("failed to fetch models: %v", err)
 		return nil
 	}
-	s.goCache.models = models
-	s.goCache.expiresAt = time.Now().Add(5 * time.Minute)
+	cache.models = models
+	cache.expiresAt = time.Now().Add(ttl)
 	return models
 }
 
-func (s *modelService) getCachedLMStudioModels(ctx context.Context) []models.ModelInfo {
-	s.lmCache.mu.RLock()
-	if time.Now().Before(s.lmCache.expiresAt) {
-		defer s.lmCache.mu.RUnlock()
-		return s.lmCache.models
-	}
-	s.lmCache.mu.RUnlock()
-
-	s.lmCache.mu.Lock()
-	defer s.lmCache.mu.Unlock()
-	if time.Now().Before(s.lmCache.expiresAt) {
-		return s.lmCache.models
-	}
-
-	models, err := s.fetchLMStudioModels(ctx)
-	if err != nil {
-		log.Printf("lm-studio: failed to fetch models from %s: %v", s.cfg.LMStudioBaseURL, err)
-		return nil
-	}
-	s.lmCache.models = models
-	s.lmCache.expiresAt = time.Now().Add(30 * time.Second)
-	return models
+func (s *ModelService) getCachedOpenCodeModels(ctx context.Context) []models.ModelInfo {
+	return s.getCachedModels(ctx, &s.goCache, 5*time.Minute, s.fetchOpenCodeGoModels)
 }
 
-func (s *modelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.ModelInfo, error) {
-	url := "https://opencode.ai/zen/go/v1/models"
+func (s *ModelService) getCachedLMStudioModels(ctx context.Context) []models.ModelInfo {
+	return s.getCachedModels(ctx, &s.lmCache, 30*time.Second, s.fetchLMStudioModels)
+}
+
+func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, transform func(id string) models.ModelInfo) ([]models.ModelInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.cfg.OpenCodeGoAPIKey)
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -235,56 +209,29 @@ func (s *modelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.Mode
 
 	var items []models.ModelInfo
 	for _, m := range apiResp.Data {
-		items = append(items, models.ModelInfo{
-			ID:           openCodeGoPrefix + m.ID,
-			Name:         m.ID,
-			ProviderType: openCodeProviderType(m.ID),
-			ProviderName: "OpenCode Go",
-		})
+		items = append(items, transform(m.ID))
 	}
 	return items, nil
 }
 
-func openCodeProviderType(modelID string) models.ProviderType {
-	return models.ProviderOpenCode
+func (s *ModelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.ModelInfo, error) {
+	return s.fetchModels(ctx, "https://opencode.ai/zen/go/v1/models", s.cfg.OpenCodeGoAPIKey, func(id string) models.ModelInfo {
+		return models.ModelInfo{
+			ID:           openCodeGoPrefix + id,
+			Name:         id,
+			ProviderType: models.ProviderOpenCode,
+			ProviderName: "OpenCode Go",
+		}
+	})
 }
 
-func (s *modelService) fetchLMStudioModels(ctx context.Context) ([]models.ModelInfo, error) {
-	url := fmt.Sprintf("%s/v1/models", s.cfg.LMStudioBaseURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var lmResp struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &lmResp); err != nil {
-		return nil, err
-	}
-
-	var items []models.ModelInfo
-	for _, m := range lmResp.Data {
-		items = append(items, models.ModelInfo{
-			ID:           m.ID,
-			Name:         m.ID,
+func (s *ModelService) fetchLMStudioModels(ctx context.Context) ([]models.ModelInfo, error) {
+	return s.fetchModels(ctx, fmt.Sprintf("%s/v1/models", s.cfg.LMStudioBaseURL), "", func(id string) models.ModelInfo {
+		return models.ModelInfo{
+			ID:           id,
+			Name:         id,
 			ProviderType: models.ProviderLMStudio,
 			ProviderName: "LM Studio",
-		})
-	}
-	return items, nil
+		}
+	})
 }

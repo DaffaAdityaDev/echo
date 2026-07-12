@@ -41,23 +41,28 @@ export class OpenAIProvider implements LLMProvider {
             return 8192;
         }
 
-        if (lowerModel.includes("gpt-4o-mini")) return 128000;
-        if (lowerModel.includes("gpt-4o")) return 128000;
-        if (lowerModel.includes("gpt-4")) return 8192;
-        if (lowerModel.includes("gpt-3.5")) return 16384;
+        const modelMap: [string, number][] = [
+            ["gpt-4o-mini", 128000],
+            ["gpt-4o", 128000],
+            ["gpt-4", 8192],
+            ["gpt-3.5", 16384],
+            ["deepseek-", 1_000_000],
+            ["minimax-m3", 1_000_000],
+            ["minimax-m2.5", 192_000],
+            ["minimax-", 256_000],
+            ["kimi-", 256_000],
+            ["glm-5.2", 1_000_000],
+            ["glm-5", 198_000],
+            ["glm-", 198_000],
+            ["qwen", 1_000_000],
+            ["mimo-v2.5-pro", 1_000_000],
+            ["mimo-", 128_000],
+            ["hy3-", 128_000],
+        ];
 
-        if (lowerModel.includes("deepseek-")) return 1_000_000;
-        if (lowerModel.includes("minimax-m3")) return 1_000_000;
-        if (lowerModel.includes("minimax-m2.5")) return 192_000;
-        if (lowerModel.includes("minimax-")) return 256_000;
-        if (lowerModel.includes("kimi-")) return 256_000;
-        if (lowerModel.includes("glm-5.2")) return 1_000_000;
-        if (lowerModel.includes("glm-5.1") || lowerModel.includes("glm-5")) return 198_000;
-        if (lowerModel.includes("glm-")) return 198_000;
-        if (lowerModel.includes("qwen")) return 1_000_000;
-        if (lowerModel.includes("mimo-v2.5-pro")) return 1_000_000;
-        if (lowerModel.includes("mimo-")) return 128_000;
-        if (lowerModel.includes("hy3-")) return 128_000;
+        for (const [pattern, tokens] of modelMap) {
+            if (lowerModel.includes(pattern)) return tokens;
+        }
 
         return 128_000;
     }

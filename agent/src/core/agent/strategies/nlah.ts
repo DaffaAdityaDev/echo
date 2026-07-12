@@ -16,7 +16,7 @@ export const RESEARCHER_INSTRUCTIONS = NLAH_INSTRUCTIONS.RESEARCHER;
  * or research actions directly.
  */
 export class NLAHStrategy implements AgentStrategy {
-    name = STRATEGY_NAMES.NLAH;
+    name = STRATEGY_NAMES.AGENT;
 
     buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string {
         const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));

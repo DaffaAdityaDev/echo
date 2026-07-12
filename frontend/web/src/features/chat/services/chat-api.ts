@@ -1,18 +1,23 @@
 import { api } from "@/lib/api-client";
-import { Message, StreamPacket } from "../types";
-import { CHAT_ENDPOINTS } from "../constants";
+import { Session, DbMessage } from "../types";
+import { SESSION_ENDPOINTS } from "../constants";
 
-export const chatApi = {
-  sendMessage: async (message: string, model: string, onChunk: (data: StreamPacket) => void) => {
-    return api.stream<StreamPacket>(CHAT_ENDPOINTS.STREAM, { message, model }, onChunk);
+export const sessionApi = {
+  list: async (): Promise<Session[]> => {
+    const data = await api.get<{ sessions: Session[] }>(SESSION_ENDPOINTS.LIST);
+    return data.sessions;
   },
-
-  getHistory: async (): Promise<Message[]> => {
-    return api.get(CHAT_ENDPOINTS.HISTORY);
+  create: async (title?: string): Promise<Session> => {
+    return api.post(SESSION_ENDPOINTS.CREATE, { title: title || "New Chat" });
   },
-  clearHistory: async () => {
-    return api.delete(CHAT_ENDPOINTS.HISTORY);
+  get: async (id: string): Promise<Session> => {
+    return api.get(SESSION_ENDPOINTS.GET(id));
+  },
+  getMessages: async (id: string): Promise<DbMessage[]> => {
+    const data = await api.get<{ messages: DbMessage[] }>(SESSION_ENDPOINTS.MESSAGES(id));
+    return data.messages;
+  },
+  delete: async (id: string): Promise<void> => {
+    return api.delete(SESSION_ENDPOINTS.DELETE(id));
   }
 };
-
-

@@ -11,6 +11,8 @@ import { monitorMiddleware } from "./app/middleware/monitor";
 import { authMiddleware } from "./app/middleware/auth";
 import { errorHandler } from "./app/middleware/error";
 import { toolRegistry } from "./core/agent/tools/registry";
+import { MemoryAdapter } from "./adapter/backend/memory.adapter";
+import { CredentialManager } from "./core/agent/credentials/manager";
 
 import { fileURLToPath } from "node:url";
 
@@ -22,6 +24,20 @@ const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 rmSync(join(root, "debug"), { recursive: true, force: true });
 rmSync(join(root, "logs"), { recursive: true, force: true });
 logger.info("Startup cleanup complete (debug/, logs/)");
+
+// Initialize Memory Client
+const memoryProvider = new MemoryAdapter(ENV.BACKEND_INTERNAL_URL);
+logger.info("Memory client initialized (backend)");
+
+// Initialize Credential Manager
+const credentialManager = new CredentialManager();
+toolRegistry.setCredentialManager(credentialManager);
+logger.info("Credential manager initialized");
+
+// Initialize MCP clients if configured
+if (ENV.ENABLE_MCP && ENV.MCP_SERVER_URL) {
+  logger.info(`MCP server configured at ${ENV.MCP_SERVER_URL}`);
+}
 
 const app = new Hono();
 
@@ -48,3 +64,5 @@ export default {
     fetch: app.fetch,
     idleTimeout: 255,
 };
+
+export { memoryProvider, credentialManager };

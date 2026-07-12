@@ -8,5 +8,4 @@ const (
 
 const (
 	ErrMissingToken = "Unauthorized: Missing token"
-	ErrInvalidToken = "Unauthorized: Invalid token"
 )

@@ -37,13 +37,20 @@ export class AnthropicProvider implements LLMProvider {
             }
             return true;
         });
-        const fullMessages = [new SystemMessage(systemParts.join('\n\n')), ...nonSystemMessages];
-        const lcTools = tools.map((t, idx) => ({
+        // System prompt as content blocks with cache_control for max prefix cache hit
+        const systemContent = [{
+            type: "text" as const,
+            text: systemParts.join('\n\n'),
+            cache_control: { type: "ephemeral" as const }
+        }];
+        const fullMessages = [new SystemMessage({ content: systemContent }), ...nonSystemMessages];
+
+        // All tools are cacheable (they never change mid-mission)
+        const lcTools = tools.map((t) => ({
             name: t.name,
             description: t.description,
             schema: t.schema,
-            // Mark the last tool with ephemeral cache_control to freeze schema in cluster cache
-            ...(idx === tools.length - 1 && { cache_control: { type: "ephemeral" } })
+            cache_control: { type: "ephemeral" as const }
         }));
         const chatWithTools = this.chat.bindTools(lcTools as any);
         const callbacks = await getLangChainCallbacks();

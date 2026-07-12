@@ -1,7 +1,7 @@
 import { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { MissionPayload } from '../../../shared/types';
-import { AgentHarness } from '../../../core/agent/harness';
+import { MissionPayload, ToolDefinition } from '../../../shared/types';
+import { NlahHarness } from '../../../core/agent/harness';
 import { ProviderFactory } from '../../../infrastructure/providers/factory';
 import { StrategyFactory } from '../../../core/agent/strategies/factory';
 import { logger } from '../../../shared/utils/logger';
@@ -10,9 +10,10 @@ import { stateStorage } from '../../../core/agent/storage/factory';
 import { randomUUID } from 'node:crypto';
 import { createMissionSchema } from './mission.schema';
 import { mapHistoryToMessages } from '../../../shared/utils/messages';
-import { AnchorFactory } from '../../../core/agent/anchors/factory';
+import { StandardContextAnchor } from '../../../core/agent/anchors/standard';
 import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
 import { toolRegistry } from '../../../core/agent/tools/registry';
+import { SkillRegistry } from '../../../core/agent/skills';
 import { HttpStreamTransport } from './stream.transport';
 import { cancellationManager } from '../../../core/agent/harness/cancel_manager';
 
@@ -73,30 +74,54 @@ export class MissionController {
           tasks: [],
           memory: {},
           messages: [
-            AnchorFactory.create().build(),
+            new StandardContextAnchor().build(),
             ...historyMessages,
             new HumanMessage(payload.prompt)
           ]
         };
       }
 
-      const resolvedTools = await toolRegistry.resolveTools(validatedData.features ?? undefined);
+      // Resolve tools from features + skills' preferred tools
+      const explicitFeatures = validatedData.features ?? undefined;
+      let resolvedTools: ToolDefinition[] | undefined;
+
+      if (explicitFeatures !== undefined) {
+        // User explicitly set features (even empty) — use as authoritative list
+        resolvedTools = await toolRegistry.resolveTools(explicitFeatures);
+      }
+
+      // Only allow skills to add preferred tools when features were not explicitly set
+      if (explicitFeatures === undefined && validatedData.skills && validatedData.skills.length > 0) {
+        const skillsRegistry = SkillRegistry.getInstance();
+        const preferredToolNames = new Set<string>();
+
+        for (const skillName of validatedData.skills) {
+          const skill = skillsRegistry.getSkill(skillName);
+          if (skill?.preferredTools) {
+            for (const tool of skill.preferredTools) {
+              preferredToolNames.add(tool);
+            }
+          }
+        }
+
+        if (preferredToolNames.size > 0) {
+          resolvedTools = await toolRegistry.resolveTools([...preferredToolNames]);
+        }
+      }
 
       return streamSSE(c, async (streamInstance) => {
         const transport = new HttpStreamTransport(streamInstance);
 
-        const heartbeat = setInterval(() => {
-          streamInstance.writeSSE({ data: JSON.stringify({ type: "ping" }) }).catch(() => {});
-        }, 15_000);
-
         const signal = cancellationManager.register(missionId);
 
-        const harness = new AgentHarness({
+        const harness = new NlahHarness({
           missionId,
           tenantId: payload.tenant.tenantId,
           provider: llmProvider,
           strategy: executionStrategy,
-          tools: resolvedTools
+          tools: resolvedTools,
+          skills: validatedData.skills ?? undefined,
+          harnessConfig: validatedData.config.harnessConfig
         });
 
         try {
@@ -110,7 +135,6 @@ export class MissionController {
             }
           );
         } finally {
-          clearInterval(heartbeat);
           cancellationManager.unregister(missionId);
         }
       });

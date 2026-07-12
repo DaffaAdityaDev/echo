@@ -5,35 +5,47 @@ import (
 	"bytes"
 	"context"
 	"echo-backend/internal/models"
-	"echo-backend/internal/observability"
+	"echo-backend/internal/repository"
 	"echo-backend/internal/service"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ChatHandler struct {
-	Cfg         *models.Config
-	RedisClient *redis.Client
-	HonoAPIURL  string
-	ModelSvc    service.ModelService
+	Cfg              *models.Config
+	RedisClient      *redis.Client
+	HonoAPIURL       string
+	ModelSvc         *service.ModelService
+	SessionRepo      *repository.SessionRepository
+	ConsolidationSvc *service.ConsolidationService
 }
 
-func NewChatHandler(cfg *models.Config, rdb *redis.Client, modelSvc service.ModelService) *ChatHandler {
+func NewChatHandler(
+	cfg *models.Config,
+	rdb *redis.Client,
+	modelSvc *service.ModelService,
+	sessionRepo *repository.SessionRepository,
+	consolidationSvc *service.ConsolidationService,
+) *ChatHandler {
 	return &ChatHandler{
-		Cfg:         cfg,
-		RedisClient: rdb,
-		HonoAPIURL:  cfg.AgentHTTPURL,
-		ModelSvc:    modelSvc,
+		Cfg:              cfg,
+		RedisClient:      rdb,
+		HonoAPIURL:       cfg.AgentHTTPURL,
+		ModelSvc:         modelSvc,
+		SessionRepo:      sessionRepo,
+		ConsolidationSvc: consolidationSvc,
 	}
 }
 
@@ -46,9 +58,11 @@ type ChatRequest struct {
 	Message   string           `json:"message"`
 	Model     string           `json:"model"`
 	Mode      string           `json:"mode"`
+	SessionID string           `json:"sessionId"`
 	MissionID string           `json:"missionId"`
 	History   []HistoryMessage `json:"history"`
 	Features  []string         `json:"features"`
+	Skills    []string         `json:"skills"`
 }
 
 type Feature struct {
@@ -101,12 +115,11 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		ctx = trace.ContextWithRemoteSpanContext(ctx, sc)
 	}
 
-	ctx, span := observability.Tracer.Start(ctx, "HandleChat", trace.WithAttributes(
-		attribute.String("agent.session_id", req.MissionID),
-		attribute.String("mission.id", req.MissionID),
-		attribute.String("llm.model", req.Model),
-	))
-	defer span.End()
+	// Get authenticated user ID
+	userID, err := getUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
 
 	userTier := c.Get("X-User-Tier")
 	if userTier == "" {
@@ -125,7 +138,6 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			for _, fID := range req.Features {
 				if feat, exists := catalogMap[fID]; exists {
 					if userTier == "free" && feat.TierRequirement == "pro" {
-						span.RecordError(fmt.Errorf("access denied: feature %s requires pro", feat.Name))
 						return c.Status(403).JSON(fiber.Map{
 							"error": fmt.Sprintf("Feature '%s' requires a Pro subscription.", feat.Name),
 						})
@@ -147,8 +159,25 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		})
 	}
 
-	// Forward the mode to the agent via query param
-	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
+	// Validate skills payload (only fetch catalog if skills were sent)
+	if len(req.Skills) > 0 {
+		skillsCatalog, err := h.GetSkills(ctx)
+		if err == nil {
+			skillMap := make(map[string]bool)
+			for _, s := range skillsCatalog {
+				if name, ok := s["name"].(string); ok {
+					skillMap[name] = true
+				}
+			}
+			for _, skillName := range req.Skills {
+				if !skillMap[skillName] {
+					return c.Status(400).JSON(fiber.Map{
+						"error": fmt.Sprintf("Unknown skill '%s'", skillName),
+					})
+				}
+			}
+		}
+	}
 
 	providerMap := map[string]interface{}{
 		"type":     providerCfg.Type,
@@ -159,41 +188,115 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		providerMap["api_key"] = providerCfg.APIKey
 	}
 
-	// Prepare payload for Agent, including provider_config, conversation history and missionId
+	// Load and validate session if SessionID is provided
+	var history []HistoryMessage
+	nextTurn := 1
+
+	if req.SessionID != "" {
+		session, err := h.SessionRepo.GetByID(ctx, req.SessionID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session", "details": err.Error()})
+		}
+		if session == nil || session.Status == "deleted" {
+			return c.Status(404).JSON(fiber.Map{"error": "Session not found"})
+		}
+		if session.UserID != userID {
+			return c.Status(403).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		}
+
+		// Check/trigger token consolidation before running the turn
+		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
+		if err == nil && isThresholdCrossed {
+			log.Printf("[CONSOLIDATION] Token threshold reached. Compacting session %s...", req.SessionID)
+			err = h.ConsolidationSvc.TriggerConsolidation(ctx, req.SessionID, providerMap)
+			if err != nil {
+				log.Printf("[CONSOLIDATION] Error during auto-consolidation: %v", err)
+			} else {
+				// Reload session after consolidation
+				session, _ = h.SessionRepo.GetByID(ctx, req.SessionID)
+			}
+		}
+
+		// Load existing messages
+		dbMessages, err := h.SessionRepo.GetSessionMessages(ctx, req.SessionID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session history", "details": err.Error()})
+		}
+
+		// Prepend context summary as system message if it exists
+		if session.ContextSummary != "" {
+			history = append(history, HistoryMessage{
+				Role:    "system",
+				Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", session.ContextSummary),
+			})
+		}
+
+		// Convert DB messages to history array and find max turn
+		// Strip thought, tool_call, tool_result — only user+assistant+system go to LLM
+		for _, dbMsg := range dbMessages {
+			if dbMsg.Role == "thought" || dbMsg.Role == "tool_call" || dbMsg.Role == "tool_result" {
+				if dbMsg.TurnNumber >= nextTurn {
+					nextTurn = dbMsg.TurnNumber + 1
+				}
+				continue
+			}
+			history = append(history, HistoryMessage{
+				Role:    dbMsg.Role,
+				Content: dbMsg.Content,
+			})
+			if dbMsg.TurnNumber >= nextTurn {
+				nextTurn = dbMsg.TurnNumber + 1
+			}
+		}
+	} else {
+		// Fallback to client-provided history if SessionID is empty
+		history = req.History
+	}
+
+	// Forward the mode to the agent via query param
+	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
+
+	// Prepare payload for Agent, including provider_config, history and missionId
 	payload := map[string]interface{}{
-		"user_id":         1,
+		"user_id":         strconv.Itoa(userID),
 		"message":         req.Message,
 		"model":           req.Model,
-		"history":         req.History,
+		"history":         history,
 		"provider_config": providerMap,
 	}
-	if req.MissionID != "" {
-		payload["missionId"] = req.MissionID
+	missionIDToUse := req.SessionID
+	if missionIDToUse == "" {
+		missionIDToUse = req.MissionID
 	}
-	if len(req.Features) > 0 {
+	if missionIDToUse != "" {
+		payload["missionId"] = missionIDToUse
+	}
+	if req.Features == nil {
+		payload["features"] = []string{}
+	} else {
 		payload["features"] = req.Features
+	}
+	if len(req.Skills) > 0 {
+		payload["skills"] = req.Skills
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
 	// Create request to Agent
-	client := &http.Client{}
 	agentReq, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		span.RecordError(err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create request to agent"})
 	}
 	agentReq.Header.Set("Content-Type", "application/json")
 	agentReq.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
 
 	// Propagate traceparent header to downstream Agent
-	newTraceContext := span.SpanContext()
+	newTraceContext := trace.SpanContextFromContext(ctx)
 	agentTraceparent := fmt.Sprintf("00-%s-%s-01", newTraceContext.TraceID().String(), newTraceContext.SpanID().String())
 	agentReq.Header.Set("traceparent", agentTraceparent)
 
 	// Call Agent
-	resp, err := client.Do(agentReq)
+	resp, err := httpClient.Do(agentReq)
 	if err != nil {
-		span.RecordError(err)
 		return c.Status(500).JSON(fiber.Map{"error": "Agent service unreachable"})
 	}
 
@@ -211,22 +314,136 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 	c.Response().Header.Set("X-Accel-Buffering", "no")
 
 	return c.SendStreamWriter(func(w *bufio.Writer) {
-		reader := resp.Body
-		defer reader.Close()
+		reader := bufio.NewReader(resp.Body)
+		defer resp.Body.Close()
 
-		buf := make([]byte, 512)
+		var assistantBuilder strings.Builder
+		var thinkingBuilder strings.Builder
+		type ToolCallResult struct {
+			ToolName string
+			Content  string
+		}
+		type ToolCallCapture struct {
+			ToolName  string
+			ToolInput json.RawMessage
+		}
+		var toolResults []ToolCallResult
+		var toolCalls []ToolCallCapture
+		var isComplete bool
+
+		type AgentSSEPacket struct {
+			Type       string          `json:"type"`
+			Content    string          `json:"content"`
+			ToolName   string          `json:"toolName"`
+			ToolInput  json.RawMessage `json:"toolInput"`
+			ToolResult string          `json:"toolResult"`
+		}
+
 		for {
-			n, err := reader.Read(buf)
-			if n > 0 {
-				if _, err := w.Write(buf[:n]); err != nil {
+			line, rErr := reader.ReadBytes('\n')
+			if len(line) > 0 {
+				if _, wErr := w.Write(line); wErr != nil {
 					break
 				}
 				if err := w.Flush(); err != nil {
 					break
 				}
+
+				lineStr := string(line)
+				if strings.HasPrefix(lineStr, "data: ") {
+					dataStr := strings.TrimPrefix(lineStr, "data: ")
+					dataStr = strings.TrimSpace(dataStr)
+
+					var packet AgentSSEPacket
+					if err := json.Unmarshal([]byte(dataStr), &packet); err == nil {
+						switch packet.Type {
+						case "content":
+							assistantBuilder.WriteString(packet.Content)
+						case "reasoning":
+							thinkingBuilder.WriteString(packet.Content)
+						case "tool_call":
+							toolCalls = append(toolCalls, ToolCallCapture{
+								ToolName:  packet.ToolName,
+								ToolInput: packet.ToolInput,
+							})
+						case "tool_result":
+							toolResults = append(toolResults, ToolCallResult{
+								ToolName: packet.ToolName,
+								Content:  packet.Content,
+							})
+						case "turn_complete":
+							isComplete = true
+						}
+					}
+				}
 			}
-			if err != nil {
+			if rErr != nil {
 				break
+			}
+		}
+
+		// Perform Transactional Commit on successful stream completion
+		if isComplete && req.SessionID != "" {
+			userMsg := &models.Message{
+				Role:       "user",
+				Content:    req.Message,
+				TokenCount: len(req.Message) / 4,
+				TurnNumber: nextTurn,
+			}
+			if userMsg.TokenCount == 0 && len(userMsg.Content) > 0 {
+				userMsg.TokenCount = 1
+			}
+
+			assistantContent := assistantBuilder.String()
+			assistantMsg := &models.Message{
+				Role:       "assistant",
+				Content:    assistantContent,
+				TokenCount: len(assistantContent) / 4,
+				TurnNumber: nextTurn,
+			}
+			if assistantMsg.TokenCount == 0 && len(assistantMsg.Content) > 0 {
+				assistantMsg.TokenCount = 1
+			}
+
+			var dbToolResults []*models.Message
+
+			if thinkingBuilder.Len() > 0 {
+				dbToolResults = append(dbToolResults, &models.Message{
+					Role:       "thought",
+					Content:    thinkingBuilder.String(),
+					TokenCount: thinkingBuilder.Len() / 4,
+					TurnNumber: nextTurn,
+				})
+			}
+
+			for _, tc := range toolCalls {
+				inputJSON, _ := json.Marshal(tc.ToolInput)
+				content := fmt.Sprintf(`{"toolName":"%s","toolInput":%s}`, tc.ToolName, string(inputJSON))
+				dbToolResults = append(dbToolResults, &models.Message{
+					Role:       "tool_call",
+					Content:    content,
+					TokenCount: 0,
+					TurnNumber: nextTurn,
+				})
+			}
+
+			for _, tr := range toolResults {
+				dbToolResults = append(dbToolResults, &models.Message{
+					Role:       "tool_result",
+					Content:    fmt.Sprintf("%s result: %s", tr.ToolName, tr.Content),
+					TokenCount: len(tr.Content) / 4,
+					TurnNumber: nextTurn,
+				})
+			}
+
+			dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer dbCancel()
+
+			err = h.SessionRepo.SaveTurnMessages(dbCtx, req.SessionID, userMsg, assistantMsg, dbToolResults)
+			if err != nil {
+				log.Printf("[CHAT] Error committing turn messages: %v", err)
+			} else {
+				log.Printf("[CHAT] Successfully persisted turn %d for session %s", nextTurn, req.SessionID)
 			}
 		}
 	})
@@ -309,8 +526,7 @@ func (h *ChatHandler) StreamMissionLogs(c fiber.Ctx) error {
 				return
 			}
 
-			client := &http.Client{}
-			resp, err := client.Do(req)
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				return
 			}
@@ -362,8 +578,7 @@ func (h *ChatHandler) GetFeatures(ctx context.Context) ([]Feature, error) {
 	}
 	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -386,10 +601,76 @@ func (h *ChatHandler) GetFeatures(ctx context.Context) ([]Feature, error) {
 
 	// Cache in Redis
 	if h.RedisClient != nil {
-		_ = h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err()
+		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
+			log.Printf("Failed to cache features in Redis: %v", err)
+		}
 	}
 
 	return features, nil
+}
+
+// GetSkills retrieves skill metadata from Hono and caches them in Redis for 10 minutes.
+func (h *ChatHandler) GetSkills(ctx context.Context) ([]map[string]interface{}, error) {
+	cacheKey := "agent:skills"
+
+	// 1. Try to read from Redis
+	if h.RedisClient != nil {
+		cached, err := h.RedisClient.Get(ctx, cacheKey).Result()
+		if err == nil && cached != "" {
+			var skills []map[string]interface{}
+			if err := json.Unmarshal([]byte(cached), &skills); err == nil {
+				return skills, nil
+			}
+		}
+	}
+
+	// 2. Fetch from Hono
+	agentURL := fmt.Sprintf("%s/api/skills", h.HonoAPIURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", agentURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("agent skills request failed: status %d, details: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var skills []map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &skills); err != nil {
+		return nil, err
+	}
+
+	// Cache in Redis
+	if h.RedisClient != nil {
+		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
+			log.Printf("Failed to cache skills in Redis: %v", err)
+		}
+	}
+
+	return skills, nil
+}
+
+// HandleGetSkills returns the catalog of skills from the agent.
+func (h *ChatHandler) HandleGetSkills(c fiber.Ctx) error {
+	ctx := c.Context()
+	skills, err := h.GetSkills(ctx)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve skills", "details": err.Error()})
+	}
+	return c.JSON(skills)
 }
 
 // HandleGetFeatures returns the catalog of features, dynamically locking premium ones depending on user tier.

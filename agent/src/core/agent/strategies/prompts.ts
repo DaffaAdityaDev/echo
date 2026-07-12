@@ -31,6 +31,10 @@ RESEARCH WORKFLOW INSTRUCTIONS:
 3. Delegate: Break complex investigation into isolated child tasks and run them using delegate_task. Do not perform raw searches yourself.
 4. Synthesize: Aggregate findings from sub-agents.
 5. Respond: Provide a high-quality consolidated response to the user.
+
+COMPLETION CONTRACT:
+- The run is complete ONLY when: (a) the objective has been answered, AND (b) each claim in the answer cites which tool result or sub-agent finding supports it.
+- Do NOT finalize without cited evidence. If evidence is missing, delegate another sub-agent or call web_search.
 `,
   SUBAGENT_DELEGATION: `
 SUB-AGENT DELEGATION PROTOCOL:
@@ -40,6 +44,7 @@ SUB-AGENT DELEGATION PROTOCOL:
 - Parallelism limit: Max 3 concurrent sub-agents.
 - Safety limit: Max 3 iteration rounds of delegation.
 - Context isolation: Set fork_context=false unless context history is strictly needed.
+- Sub-agents MUST write their findings before responding. Capture sub-agent results into the parent message.
 `,
   RESEARCHER: `
 RESEARCHER ROLE GUIDELINES (Use as systemPrompt when delegating):
@@ -47,6 +52,7 @@ RESEARCHER ROLE GUIDELINES (Use as systemPrompt when delegating):
 - Limit searches: 2-3 searches for simple queries, max 5 searches for complex comparison queries.
 - Before executing a tool, reflect on what you need and what information is missing.
 - Provide your final detailed findings clearly in your response.
+- Cite sources: include the URL or tool name that produced each finding.
 `,
 } as const;
 
@@ -62,6 +68,15 @@ CORE PROTOCOLS:
 2. In-State Planning: Start by creating a plan using write_todos. Track progress (pending, in_progress, done, failed).
 3. Clear Validation: Before finishing, verify that the sub-agents successfully completed their tasks and generated appropriate files.
 4. Durable State: Your state is logged in STATE.md. Ensure write_todos updates this.
+
+EVIDENCE-BACKED ANSWERING:
+- Before finalizing, ensure each claim in your answer cites which tool result or sub-agent finding supports it.
+- If evidence is missing for any claim, call web_search or delegate another sub-agent before responding.
+- Do NOT produce a final answer without cited evidence paths.
+
+COMPLETION CONTRACT:
+- The run is complete ONLY when: (a) the objective has been answered, AND (b) each claim cites a tool result or sub-agent finding.
+- If these conditions are not met, continue executing. Do not mark complete prematurely.
 
 AVAILABLE ORCHESTRATION TOOLS:
 {tools}

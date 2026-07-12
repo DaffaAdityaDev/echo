@@ -25,7 +25,12 @@ export const envSchema = z.object({
     message: ENV_VALIDATION_MESSAGES.LANGFUSE_SECRET_KEY
   }),
   LANGFUSE_BASE_URL: z.string().default(ENV_DEFAULTS.LANGFUSE_BASE_URL),
-  AGENT_RUNTIME_MODE: z.enum(ENV_VALUES.RUNTIME_MODES).default("local")
+  AGENT_RUNTIME_MODE: z.enum(ENV_VALUES.RUNTIME_MODES).default("local"),
+  SERVICE_JWT_SECRET: z.string().min(32, ENV_VALIDATION_MESSAGES.SERVICE_JWT_SECRET),
+  BACKEND_INTERNAL_URL: z.string().url().default(ENV_DEFAULTS.BACKEND_INTERNAL_URL),
+  MCP_SERVER_URL: z.string().url().optional(),
+  ENABLE_MCP: z.coerce.boolean().default(false),
+  ENABLE_REST_TOOLS: z.coerce.boolean().default(false),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

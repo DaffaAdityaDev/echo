@@ -89,34 +89,36 @@ function writeToFile(level: string, msg: string, meta?: any) {
     }
 }
 
-export class Logger {
-    langfuse(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', msg: string, meta?: any) {
-        // Log locally first
-        if (level === 'INFO') {
-            console.log(`${CYAN}${BOLD}[INFO]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${msg}${formatMeta(meta)}`);
-            writeToFile('INFO', msg, meta);
-        } else if (level === 'WARN') {
-            console.warn(`${YELLOW}${BOLD}[WARN]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${YELLOW}${msg}${RESET}${formatMeta(meta)}`);
-            writeToFile('WARN', msg, meta);
-        } else if (level === 'ERROR') {
-            console.error(`${RED}${BOLD}[ERROR]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${RED}${BOLD}${msg}${RESET}${formatMeta(meta)}`);
-            writeToFile('ERROR', msg, meta);
-        } else if (level === 'DEBUG') {
-            console.debug(`${GRAY}${BOLD}[DEBUG]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${GRAY}${msg}${RESET}${formatMeta(meta)}`);
-            writeToFile('DEBUG', msg, meta);
-        }
+const LEVEL_CONFIG: Record<string, { color: string; consoleFn: 'log' | 'warn' | 'error' | 'debug'; fmt: (msg: string) => string }> = {
+    INFO: { color: CYAN, consoleFn: 'log', fmt: (m) => m },
+    WARN: { color: YELLOW, consoleFn: 'warn', fmt: (m) => `${YELLOW}${m}${RESET}` },
+    ERROR: { color: RED, consoleFn: 'error', fmt: (m) => `${RED}${BOLD}${m}${RESET}` },
+    DEBUG: { color: GRAY, consoleFn: 'debug', fmt: (m) => `${GRAY}${m}${RESET}` },
+};
 
+export class Logger {
+    private log(level: string, msg: string, meta?: any) {
+        const config = LEVEL_CONFIG[level];
+        if (config) {
+            console[config.consoleFn](`${config.color}${BOLD}[${level}]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${config.fmt(msg)}${formatMeta(meta)}`);
+        }
+        writeToFile(level, msg, meta);
+    }
+
+    info(msg: string, meta?: any) { this.log('INFO', msg, meta); }
+    warn(msg: string, meta?: any) { this.log('WARN', msg, meta); }
+    error(msg: string, meta?: any) { this.log('ERROR', msg, meta); }
+    debug(msg: string, meta?: any) { this.log('DEBUG', msg, meta); }
+
+    langfuse(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', msg: string, meta?: any) {
+        this.log(level, msg, meta);
         try {
-            // Dynamic import to avoid circular dependency
             import('../../utils/langfuse').then(({ langfuseStorage }) => {
                 const store = langfuseStorage.getStore();
                 const activeObservation = store?.span || store?.trace;
                 if (activeObservation) {
                     const levelMap: Record<string, string> = {
-                        INFO: 'DEFAULT',
-                        WARN: 'WARNING',
-                        ERROR: 'ERROR',
-                        DEBUG: 'DEBUG'
+                        INFO: 'DEFAULT', WARN: 'WARNING', ERROR: 'ERROR', DEBUG: 'DEBUG'
                     };
                     activeObservation.startObservation(msg, {
                         input: msg,
@@ -125,37 +127,18 @@ export class Logger {
                     }, { asType: "event" });
                 }
             }).catch(() => {});
-        } catch {
-            // Fail silently to prevent logger crashing
-        }
+        } catch { /* fail silently */ }
     }
 
-    info(msg: string, meta?: any) {
-        console.log(`${CYAN}${BOLD}[INFO]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${msg}${formatMeta(meta)}`);
-        writeToFile('INFO', msg, meta);
-    }
-    warn(msg: string, meta?: any) {
-        console.warn(`${YELLOW}${BOLD}[WARN]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${YELLOW}${msg}${RESET}${formatMeta(meta)}`);
-        writeToFile('WARN', msg, meta);
-    }
-    error(msg: string, meta?: any) {
-        console.error(`${RED}${BOLD}[ERROR]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${RED}${BOLD}${msg}${RESET}${formatMeta(meta)}`);
-        writeToFile('ERROR', msg, meta);
-    }
-    debug(msg: string, meta?: any) {
-        console.debug(`${GRAY}${BOLD}[DEBUG]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${GRAY}${msg}${RESET}${formatMeta(meta)}`);
-        writeToFile('DEBUG', msg, meta);
-    }
     telemetry(type: string, payload: Record<string, any>) {
         const spanId = payload.spanId || "unknown";
         const sessionId = payload.sessionId || "unknown";
         const messagesCount = payload.input?.messages?.length || 0;
         const cost = payload.metadata?.monetary_cost_usd || 0;
-        console.log(
-            `${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`
-        );
+        console.log(`${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`);
         writeToFile('TELEMETRY', `${type.toUpperCase()} | Span: ${spanId} | Session: ${sessionId} | MsgCount: ${messagesCount} | Cost: $${cost.toFixed(5)}`, payload);
     }
+
     agentActivity(missionId: string, event: string, msg: string, meta?: any) {
         const timestamp = getTimestamp();
         console.log(`${MAGENTA}${BOLD}[AGENT:${event}]${RESET} ${DIM}[${timestamp}]${RESET} [${missionId.slice(0, 8)}] ${msg}${formatMeta(meta)}`);

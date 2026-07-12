@@ -1,5 +1,5 @@
 export interface ThoughtStep {
-  type: 'reasoning' | 'tool_call' | 'tool_result' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status';
+  type: 'reasoning' | 'tool_call' | 'tool_result' | 'tool_skip' | 'state_change' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status';
   content?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
@@ -45,6 +45,8 @@ export interface TokenUsage {
   reasoningTokens?: number;
 }
 
+export type ChatMode = 'standard' | 'agent'
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -59,8 +61,45 @@ export interface HistoryMessage {
   content: string;
 }
 
+export interface DbMessage {
+  id: number;
+  session_id: string;
+  role: string;
+  content: string;
+  token_count: number;
+  turn_number: number;
+  created_at: string;
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  contextSummary?: string;
+}
+
+export type AgentState = 'starting' | 'running' | 'looping' | 'stalled' | 'degraded' | 'completed' | 'aborted';
+
+export interface AgentStatus {
+  state: AgentState;
+  step: number;
+  throughput: number;
+  activeBreakers: string[];
+  currentTool?: string;
+  thought?: string;
+  lastActivity: number;
+}
+
+export interface TurnComplete {
+  tokenCount: number;
+  toolCalls: number;
+  duration: number;
+}
+
 export interface StreamPacket {
-  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status';
+  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'tool_skip' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status' | 'heartbeat' | 'state_change' | 'degraded' | 'progress' | 'turn_complete';
   missionId?: string;
   content?: string;
   toolName?: string;
@@ -90,8 +129,11 @@ export interface StreamPacket {
     feedback?: string;
     message?: string;
   };
+  agentStatus?: AgentStatus;
+  turnComplete?: TurnComplete;
+  step?: number;
   choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
-  toolResult?: any;
+  toolResult?: unknown;
 }
 
 export interface FailedUrl {
@@ -100,9 +142,12 @@ export interface FailedUrl {
 }
 
 export interface AgentProgress {
+  state?: AgentState;
+  agentStatus?: AgentStatus;
   iteration: number;
   totalIterations: number;
   currentTool?: string;
+  statusMessage?: string;
   swarm?: {
     scrapedCount: number;
     failedCount: number;

@@ -1,17 +1,18 @@
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { getQueryClient } from "@/lib/get-query-client";
-import { modelQueries } from "@/lib/queries";
-import { ChatInterface } from "@/features/chat";
+"use client";
 
-export default async function Home() {
-  const queryClient = getQueryClient();
+import { useState } from "react";
+import { ChatPage } from "@/features/chat/components/ChatPage";
+import { AuthGuard } from "@/features/auth/components/AuthGuard";
 
-  // Prefetch models data on the server
-  await queryClient.prefetchQuery(modelQueries.list());
+export default function Home() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <ChatInterface />
-    </HydrationBoundary>
+    <AuthGuard>
+      <ChatPage
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+      />
+    </AuthGuard>
   );
 }

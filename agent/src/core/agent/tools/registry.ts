@@ -3,27 +3,47 @@ import { logger } from '../../../shared/utils/logger';
 import { readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MCPClient } from '../../../infrastructure/transports/mcp/client';
+import type { McpServerConfig } from '../../../infrastructure/transports/mcp/types';
+import { RestAdapter } from '../../../infrastructure/transports/rest/adapter';
+import type { RestToolConfig } from '../../../infrastructure/transports/rest/types';
+import { CredentialManager } from '../credentials/manager';
 
 // 1. Static Lazy-Loading Registry (Developer controlled)
 export const LAZY_TOOLS: Record<string, () => Promise<{ default: ToolDefinition } | ToolDefinition>> = {
-    deep_web_research: () => import('./definitions/deep-web-research'),
     delegate_task: () => import('./definitions/delegation'),
     write_todos: () => import('./definitions/planning'),
-    web_scrape: () => import('./definitions/web-scrape'),
     web_search: () => import('./definitions/web-search'),
 };
 
 // 2. Active Feature catalog exposed to API and clients
 export const ACTIVE_FEATURES = [
-    { id: 'deep_web_research', name: 'Deep Web Research Swarm', description: 'Deploys a swarm of scraper and validation critic agents to crawl websites in parallel.', tier_requirement: 'pro', ui_schema: { render_type: 'grid_timeline', icon: 'globe-search', primary_color: '#10b981' } },
     { id: 'delegate_task', name: 'Sub-Agent Delegation', description: 'Enables splitting complex objectives into sub-tasks and delegating to specialist sub-agents.', tier_requirement: 'pro', ui_schema: { render_type: 'hierarchy_tree', icon: 'users', primary_color: '#3b82f6' } },
     { id: 'web_search', name: 'Web Search', description: 'Quick search for real-time weather, prices, and news facts.', tier_requirement: 'free', ui_schema: { render_type: 'card_list', icon: 'search', primary_color: '#6366f1' } },
-    { id: 'web_scrape', name: 'Web Scraping', description: 'Reads single webpage content using static or fallback dynamic scraper.', tier_requirement: 'free', ui_schema: { render_type: 'preview_pane', icon: 'code', primary_color: '#f59e0b' } },
     { id: 'write_todos', name: 'Task Planning & Execution Board', description: 'Updates task board list state.', tier_requirement: 'free', ui_schema: { render_type: 'kanban_board', icon: 'check-square', primary_color: '#8b5cf6' } },
 ];
 
 export class ToolRegistry {
     private tools: Map<string, ToolDefinition> = new Map();
+    private mcpClients: Map<string, MCPClient> = new Map();
+    private restTools: ToolDefinition[] = [];
+    private credentialManager?: CredentialManager;
+
+    constructor(credentialManager?: CredentialManager) {
+        this.credentialManager = credentialManager;
+    }
+
+    setCredentialManager(cm: CredentialManager): void {
+        this.credentialManager = cm;
+    }
+
+    private ensureCredentialManager(): CredentialManager {
+        if (!this.credentialManager) {
+            this.credentialManager = new CredentialManager();
+            logger.warn('CredentialManager not set — using default fallback instance');
+        }
+        return this.credentialManager;
+    }
 
     /**
      * Scans the definitions/ directory and auto-imports all tool modules.
@@ -38,7 +58,7 @@ export class ToolRegistry {
                 let importPath = "";
                 if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
                     // Ignore deprecated redirect files that have been relocated
-                    if (entry.name === 'deep-web-research.ts' || entry.name === 'delegation.ts') {
+                    if (entry.name === 'delegation.ts') {
                         continue;
                     }
                     importPath = join(definitionsPath, entry.name);
@@ -70,12 +90,12 @@ export class ToolRegistry {
 
     /**
      * Resolves and loads specified tools dynamically.
-     * If no feature array is provided, it falls back to all pre-loaded tools.
+     * Returns empty array if no features specified — harness
+     * falls back to ToolRetriever for keyword-based selection.
      */
     async resolveTools(features?: string[]): Promise<ToolDefinition[]> {
         if (!features || features.length === 0) {
-            // Backward compatibility: return all autoloaded tools
-            return this.getAllTools();
+            return [];
         }
 
         const resolved: ToolDefinition[] = [];
@@ -98,12 +118,68 @@ export class ToolRegistry {
         return resolved;
     }
 
+    async connectMCPServer(config: McpServerConfig): Promise<MCPClient> {
+        if (this.mcpClients.has(config.name)) {
+            logger.warn(`MCP server "${config.name}" already connected`);
+            return this.mcpClients.get(config.name)!;
+        }
+
+        if (config.credentials) {
+            this.ensureCredentialManager().registerToolCredentials(config.name, config.credentials);
+        }
+
+        const client = new MCPClient(config, this.credentialManager);
+        await client.connect();
+        await client.discoverTools();
+
+        this.mcpClients.set(config.name, client);
+        logger.info(`MCP server connected: ${config.name}`);
+        return client;
+    }
+
+    async disconnectMCPServer(name: string): Promise<void> {
+        const client = this.mcpClients.get(name);
+        if (!client) {
+            logger.warn(`MCP server "${name}" not found`);
+            return;
+        }
+
+        await client.disconnect();
+        this.mcpClients.delete(name);
+        logger.info(`MCP server disconnected: ${name}`);
+    }
+
+    addRestTool(config: RestToolConfig): void {
+        const cm = this.ensureCredentialManager();
+        const adapter = new RestAdapter(cm);
+        const tool = adapter.createTool(config);
+        this.restTools.push(tool);
+
+        if (config.headers) {
+            cm.registerToolCredentials(config.name, config.headers);
+        }
+        if (config.params) {
+            cm.registerToolCredentials(config.name, config.params);
+        }
+
+        logger.info(`REST tool registered: ${config.name}`);
+    }
+
+    getMCPServer(name: string): MCPClient | undefined {
+        return this.mcpClients.get(name);
+    }
+
     getTool(name: string): ToolDefinition | undefined {
         return this.tools.get(name);
     }
 
     getAllTools(): ToolDefinition[] {
-        return Array.from(this.tools.values());
+        const all = Array.from(this.tools.values());
+        for (const client of this.mcpClients.values()) {
+            all.push(...client.getTools());
+        }
+        all.push(...this.restTools);
+        return all;
     }
 }
 

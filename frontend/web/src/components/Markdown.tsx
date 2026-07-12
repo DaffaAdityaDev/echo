@@ -43,13 +43,14 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
-          code({ node, inline, className, children, ...props }: any) {
+          code({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) {
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
+            const isInline = !match && !String(children).includes('\n');
             
-            if (!inline && language) {
+            if (!isInline) {
               return (
-                <CodeBlock language={language} value={String(children).replace(/\n$/, '')} {...props} />
+                <CodeBlock language={language || 'text'} value={String(children).replace(/\n$/, '')} />
               );
             }
 

@@ -21,11 +21,6 @@ export const SCHEMA_DESC = {
   TODO_STATUS: 'Current status of the task',
 } as const;
 
-export const OPERATION_STATUS = {
-  SUCCESS: 'success',
-  ERROR: 'error',
-} as const;
-
 export const STATUS_MARKERS = {
   DONE: '[x]',
   IN_PROGRESS: '[/]',

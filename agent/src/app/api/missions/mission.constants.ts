@@ -1,17 +1,15 @@
-export const MISSION_STRATEGIES = ['react', 'sequential', 'standard', 'nlah'] as const;
+export const MISSION_STRATEGIES = ['standard', 'agent'] as const;
 
 export const DEFAULT_MISSION_VALUES = {
-  STRATEGY: 'react' as typeof MISSION_STRATEGIES[number],
+  STRATEGY: 'agent' as typeof MISSION_STRATEGIES[number],
   TENANT_ID: 'local-developer',
   USER_ID: 'local-dev-user',
   ORG_ID: 'local-org',
 } as const;
 
 export const STRATEGY_MAPPING = {
-  react: ['react', 'agent'] as readonly string[],
-  sequential: ['sequential'] as readonly string[],
   standard: ['standard', 'chat'] as readonly string[],
-  nlah: ['nlah', 'deep-research'] as readonly string[],
+  agent: ['agent', 'nlah', 'deep-research', 'react', 'sequential'] as readonly string[],
 } as const;
 
 export const VALIDATION_MESSAGES = {

@@ -1,42 +1,76 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Sparkles } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { MessageItem } from "./MessageItem";
 import { Message } from "../types";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
+  onScrollBtnChange?: (show: boolean) => void;
+}
+
+export interface MessageListHandle {
+  scrollToBottom: () => void;
 }
 
 import { UI_CONFIG } from "@/constants";
 
-export function MessageList({ messages, isLoading }: MessageListProps) {
+export const MessageList = forwardRef<MessageListHandle, MessageListProps>(function MessageList({ messages, isLoading, onScrollBtnChange }, ref) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(messages.length);
 
-  const scrollToBottom = () => {
+  const isNearBottom = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: UI_CONFIG.SCROLL_BEHAVIOR });
     }
-  };
+  }, []);
 
+  useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const prevLength = prevLengthRef.current;
+    prevLengthRef.current = messages.length;
+
+    if (messages.length > prevLength) {
+      const lastMessage = messages[messages.length - 1];
+      const secondToLast = messages[messages.length - 2];
+      
+      const justSent = (secondToLast && secondToLast.role === 'user') || (lastMessage && lastMessage.role === 'user');
+      
+      if (justSent) {
+        scrollToBottom();
+        return;
+      }
+    }
+
+    if (isNearBottom()) {
+      scrollToBottom();
+    }
+  }, [messages, isNearBottom, scrollToBottom]);
+
+  const handleScroll = useCallback(() => {
+    onScrollBtnChange?.(!isNearBottom());
+  }, [isNearBottom, onScrollBtnChange]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scrollbar-hide">
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scrollbar-hide relative"
+    >
       <div className="max-w-3xl mx-auto space-y-8">
-        <AnimatePresence initial={false}>
           {messages.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center py-24 text-center space-y-8"
-            >
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in">
               <div className="relative">
                 <div className="w-20 h-20 bg-accent/5 rounded-full flex items-center justify-center border border-accent/10">
                   <Sparkles size={32} className="text-accent" aria-hidden="true" />
@@ -50,7 +84,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                   Initialize a mission to begin.
                 </p>
               </div>
-            </motion.div>
+            </div>
           ) : (
             messages.map((msg, idx) => (
               <MessageItem 
@@ -61,9 +95,8 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
               />
             ))
           )}
-        </AnimatePresence>
         <div ref={scrollRef} className="h-4" />
       </div>
     </div>
   );
-}
+});

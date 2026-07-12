@@ -15,29 +15,4 @@ export class AppError extends Error {
     }
 }
 
-/**
- * Thrown when client input fails validation.
- */
-export class ValidationError extends AppError {
-    constructor(message: string, public errors?: any[]) {
-        super(message, 400);
-    }
-}
 
-/**
- * Thrown when a requested resource is not found.
- */
-export class NotFoundError extends AppError {
-    constructor(message: string = "Resource not found") {
-        super(message, 404);
-    }
-}
-
-/**
- * Thrown when an operation is forbidden.
- */
-export class ForbiddenError extends AppError {
-    constructor(message: string = "Forbidden") {
-        super(message, 403);
-    }
-}

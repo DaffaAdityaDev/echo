@@ -17,22 +17,20 @@ export function calculateUsageCost(
     }
 
     const model = modelName.toLowerCase();
-    let inputRate: number = PRICING_MODELS.DEFAULT.inputRate;
-    let outputRate: number = PRICING_MODELS.DEFAULT.outputRate;
-    let cacheReadRate: number = PRICING_MODELS.DEFAULT.cacheReadRate;
+    const pricingMap: { pattern: string; rates: { inputRate: number; outputRate: number; cacheReadRate: number } }[] = [
+        { pattern: PRICING_MODELS.GPT_4O_MINI.pattern, rates: PRICING_MODELS.GPT_4O_MINI },
+        { pattern: PRICING_MODELS.GPT_4O.pattern, rates: PRICING_MODELS.GPT_4O },
+        { pattern: PRICING_MODELS.CLAUDE_3_5_SONNET.pattern, rates: PRICING_MODELS.CLAUDE_3_5_SONNET },
+    ];
 
-    if (model.includes(PRICING_MODELS.GPT_4O_MINI.pattern)) {
-        inputRate = PRICING_MODELS.GPT_4O_MINI.inputRate;
-        outputRate = PRICING_MODELS.GPT_4O_MINI.outputRate;
-        cacheReadRate = PRICING_MODELS.GPT_4O_MINI.cacheReadRate;
-    } else if (model.includes(PRICING_MODELS.GPT_4O.pattern)) {
-        inputRate = PRICING_MODELS.GPT_4O.inputRate;
-        outputRate = PRICING_MODELS.GPT_4O.outputRate;
-        cacheReadRate = PRICING_MODELS.GPT_4O.cacheReadRate;
-    } else if (model.includes(PRICING_MODELS.CLAUDE_3_5_SONNET.pattern)) {
-        inputRate = PRICING_MODELS.CLAUDE_3_5_SONNET.inputRate;
-        outputRate = PRICING_MODELS.CLAUDE_3_5_SONNET.outputRate;
-        cacheReadRate = PRICING_MODELS.CLAUDE_3_5_SONNET.cacheReadRate;
+    let { inputRate, outputRate, cacheReadRate }: { inputRate: number; outputRate: number; cacheReadRate: number } = PRICING_MODELS.DEFAULT;
+    for (const { pattern, rates } of pricingMap) {
+        if (model.includes(pattern)) {
+            inputRate = rates.inputRate;
+            outputRate = rates.outputRate;
+            cacheReadRate = rates.cacheReadRate;
+            break;
+        }
     }
 
     const nonCached = Math.max(0, promptTokens - cachedTokens);

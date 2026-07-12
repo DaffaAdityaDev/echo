@@ -1,18 +1,19 @@
 import { api } from "@/lib/api-client";
 import { AUTH_ENDPOINTS } from "../constants";
-import { LoginCredentials } from "../types";
+import type { LoginCredentials, LoginResponse, User } from "../types";
 
 export const authApi = {
-  login: async (credentials: LoginCredentials) => {
-    return api.post(AUTH_ENDPOINTS.LOGIN, credentials);
+  login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
+    return api.post<LoginResponse>(AUTH_ENDPOINTS.LOGIN, credentials);
   },
 
-  logout: async () => {
-    return api.post(AUTH_ENDPOINTS.LOGOUT, {});
+  logout: async (): Promise<{ message: string }> => {
+    return api.post<{ message: string }>(AUTH_ENDPOINTS.LOGOUT, {});
   },
-  me: async () => {
-    return api.get(AUTH_ENDPOINTS.ME);
-  }
+
+  me: async (): Promise<User> => {
+    return api.get<User>(AUTH_ENDPOINTS.ME);
+  },
 };
 
 

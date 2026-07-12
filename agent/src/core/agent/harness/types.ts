@@ -5,14 +5,10 @@ export interface HarnessConfig {
     strategy: AgentStrategy;
     missionId?: string;
     tenantId?: string;
-    harnessType?: string; // Opt-in harness type selection, default is 'nlah'
-    tools?: ToolDefinition[]; // Explicitly bound tools
+    harnessType?: string;
+    tools?: ToolDefinition[];
+    skills?: string[];
+    harnessConfig?: any;
 }
 
-export interface AgentHarness {
-    runMission(
-        state: AgentState,
-        onPacket: (packet: any) => Promise<void>,
-        traceparent?: string
-    ): Promise<void>;
-}
+

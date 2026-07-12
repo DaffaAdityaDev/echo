@@ -12,18 +12,16 @@ export interface ProviderConnectionConfig {
 }
 
 export class ProviderFactory {
+    private static registry = new Map<string, new (...args: any[]) => LLMProvider>([
+        ['opencode-go', OpenCodeGoProvider],
+        ['lm-studio', LMStudioProvider],
+        ['anthropic', AnthropicProvider],
+        ['openai', OpenAIProvider],
+    ]);
+
     static fromConfig(config: ProviderConnectionConfig): LLMProvider {
-        switch (config.type) {
-            case "opencode-go":
-                return new OpenCodeGoProvider(config.base_url, config.model, config.api_key);
-            case "lm-studio":
-                return new LMStudioProvider(config.base_url, config.model, config.api_key);
-            case "anthropic":
-                return new AnthropicProvider(config.base_url, config.model, config.api_key);
-            case "openai":
-            default:
-                return new OpenAIProvider(config.base_url, config.model, config.api_key);
-        }
+        const Provider = ProviderFactory.registry.get(config.type) ?? OpenAIProvider;
+        return new Provider(config.base_url, config.model, config.api_key);
     }
 }
 

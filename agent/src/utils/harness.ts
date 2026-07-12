@@ -1,5 +1,4 @@
 import { BaseMessage } from "@langchain/core/messages";
-import * as ts from 'typescript';
 
 export function getCosineSimilarity(text1: string, text2: string): number {
     const tokenize = (text: string) => {
@@ -62,9 +61,6 @@ export function selectiveTruncateToolResults(messages: BaseMessage[], threshold:
     });
 }
 
-/** @deprecated Use selectiveTruncateToolResults instead */
-export const selectiveDropToolResults = selectiveTruncateToolResults;
-
 export function validateContent(filename: string, content: string): { valid: boolean; reason?: string } {
     const placeholders = [
         /\[Not available\]/i,
@@ -92,22 +88,9 @@ export function validateContent(filename: string, content: string): { valid: boo
         }
     } else if (ext === 'ts' || ext === 'js' || ext === 'tsx' || ext === 'jsx') {
         try {
-            const sourceFile = ts.createSourceFile(
-                filename,
-                content,
-                ts.ScriptTarget.Latest,
-                true
-            );
-            const diagnostics = (sourceFile as any).parseDiagnostics || [];
-            if (diagnostics.length > 0) {
-                const errors = diagnostics
-                    .slice(0, 3)
-                    .map((d: any) => `${d.messageText} (at line ${sourceFile.getLineAndCharacterOfPosition(d.start).line + 1})`)
-                    .join(', ');
-                return { valid: false, reason: `Syntax errors detected: ${errors}` };
-            }
+            new Function(content);
         } catch (err: any) {
-            return { valid: false, reason: `Failed to compile/parse JS/TS: ${err.message}` };
+            return { valid: false, reason: `Syntax error: ${err.message}` };
         }
     }
     return { valid: true };

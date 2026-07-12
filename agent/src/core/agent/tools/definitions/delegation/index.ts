@@ -2,15 +2,14 @@ import { z } from 'zod';
 import { ToolDefinition, Observation, LLMProvider } from '../../../../../shared/types';
 import { logger } from '../../../../../shared/utils/logger';
 import { HumanMessage, BaseMessage } from '@langchain/core/messages';
-import { AgentHarness } from '../../../harness';
-import { AnchorFactory } from '../../../anchors/factory';
+import { NlahHarness } from '../../../harness';
+import { StandardContextAnchor } from '../../../anchors/standard';
 import { 
     DELEGATION_CONFIG, 
     SCHEMA_DESC, 
-    OPERATION_STATUS, 
-    PACKET_TYPES, 
     DELEGATION_DEFAULTS 
 } from './constants';
+import { OPERATION_STATUS, PACKET_TYPES } from '../../../harness/nlah/constants';
 import { langfuseStorage } from '../../../../../utils/langfuse';
 
 
@@ -56,7 +55,7 @@ export const delegate_task: ToolDefinition = {
                 buildSystemPrompt: () => input.systemPrompt
             };
 
-            const childHarness = new AgentHarness({
+            const childHarness = new NlahHarness({
                 provider,
                 strategy: subagentStrategy,
                 missionId: childMissionId,
@@ -71,7 +70,7 @@ export const delegate_task: ToolDefinition = {
                 tasks: [],
                 memory: {},
                 messages: [
-                    AnchorFactory.create().build(),
+                    new StandardContextAnchor().build(),
                     ...historyMessages,
                     new HumanMessage(input.instruction)
                 ]

@@ -11,38 +11,36 @@ import (
 // AuthRequired verifies the JWT token from either the Authorization header or a cookie.
 func AuthRequired(secret string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		// 1. Try to get token from cookie (Secure practice)
-		tokenString := c.Cookies(auth.TokenCookie)
+		tryToken := func(s string) bool {
+			if s == "" {
+				return false
+			}
+			token, err := jwt.Parse(s, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secret), nil
+			})
+			if err != nil || !token.Valid {
+				return false
+			}
+			claims := token.Claims.(jwt.MapClaims)
+			c.Locals("user_id", claims["sub"])
+			return true
+		}
 
-		// 2. Fallback to Authorization header
-		if tokenString == "" {
-			authHeader := c.Get(auth.HeaderAuthorization)
-			if strings.HasPrefix(authHeader, auth.BearerPrefix) {
-				tokenString = strings.TrimPrefix(authHeader, auth.BearerPrefix)
+		// Try cookie first
+		if tryToken(c.Cookies(auth.TokenCookie)) {
+			return c.Next()
+		}
+
+		// Fallback to Authorization header
+		authHeader := c.Get(auth.HeaderAuthorization)
+		if strings.HasPrefix(authHeader, auth.BearerPrefix) {
+			if tryToken(strings.TrimPrefix(authHeader, auth.BearerPrefix)) {
+				return c.Next()
 			}
 		}
 
-		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": auth.ErrMissingToken,
-			})
-		}
-
-		// 3. Parse and validate token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secret), nil
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": auth.ErrMissingToken,
 		})
-
-		if err != nil || !token.Valid {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": auth.ErrInvalidToken,
-			})
-		}
-
-		// 4. Set claims to context for downstream handlers
-		claims := token.Claims.(jwt.MapClaims)
-		c.Locals("user_id", claims["sub"])
-
-		return c.Next()
 	}
 }

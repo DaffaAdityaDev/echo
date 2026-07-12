@@ -11,18 +11,6 @@ export const SCHEMA_DESC = {
   FORK_CONTEXT: 'If true, inherits parent message history. If false, starts with a clean memory/context.',
 } as const;
 
-export const OPERATION_STATUS = {
-  SUCCESS: 'success',
-  ERROR: 'error',
-} as const;
-
-export const PACKET_TYPES = {
-  REASONING: 'reasoning',
-  TOOL_CALL: 'tool_call',
-  TOOL_RESULT: 'tool_result',
-  CONTENT: 'content',
-} as const;
-
 export const DELEGATION_DEFAULTS = {
   STRATEGY_NAME: 'subagent',
   TENANT_ID: 'subagent',

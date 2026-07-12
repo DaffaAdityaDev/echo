@@ -1,13 +1,13 @@
 "use client";
 
 import React, { memo } from "react";
-import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle, Cpu } from "lucide-react";
-import { motion } from "framer-motion";
+import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle, Cpu, SkipForward } from "lucide-react";
+
 import { cn } from "@/utils/cn";
 import { Markdown } from "@/components/Markdown";
 import { Message, ThoughtStep } from "../types";
 
-import { CHAT_ROLES, PACKET_TYPES, CHAT_MESSAGES } from "../constants";
+import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 
 interface MessageItemProps {
   msg: Message;
@@ -20,9 +20,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
 
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={cn(
         "flex gap-4 group animate-in",
         !isAssistant ? "flex-row-reverse" : "flex-row"
@@ -38,8 +36,8 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
       <div className={cn(
         "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed flex flex-col gap-3",
         !isAssistant 
-          ? "bg-white/[0.03] text-white border border-white/5" 
-          : "text-white/90"
+          ? "bg-white/[0.06] text-white border border-white/10" 
+          : "text-white/95"
       )}>
         {/* Mission metadata bar */}
         {isAssistant && msg.meta && (
@@ -53,7 +51,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
               {msg.meta.strategy === 'react' ? '⚡ Agent' : '💬 Chat'}
             </span>
             
-            <span className="text-[9px] font-bold text-white/30 uppercase tracking-tight">
+            <span className="text-[9px] font-bold text-white/50 uppercase tracking-tight">
               {msg.meta.historyDepth ?? 0} Depth
             </span>
 
@@ -69,7 +67,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
 
         {/* Thought Process */}
         {msg.steps.length > 0 && (
-          <details className="group/thinking mb-1" open>
+          <details className="group/thinking mb-1" open={isLoading && isLast}>
             <summary className="flex items-center gap-2 text-[10px] font-bold text-muted cursor-pointer list-none hover:text-white/40 transition-colors uppercase tracking-widest">
               <Lightbulb size={11} className="text-warning/50" aria-hidden="true" />
               <span>Thought Process</span>
@@ -89,19 +87,19 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
         ) : (isLoading && isLast && msg.steps.length === 0 ? (
           <div className="flex items-center gap-2 py-2" aria-live="polite">
             <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-            <span className="text-white/20 text-xs italic tracking-wide">{CHAT_MESSAGES.ORCHESTRATING}</span>
+            <span className="text-white/20 text-xs italic tracking-wide">Orchestrating response...</span>
           </div>
         ) : null)}
       </div>
-    </motion.div>
+    </div>
   );
 });
 
 function ThoughtStepView({ step }: { step: ThoughtStep }) {
   if (step.type === PACKET_TYPES.REASONING) {
     return (
-      <div className="text-[11px] text-white/30 border-l border-white/10 pl-3 py-0.5 leading-relaxed">
-        <Markdown content={step.content || ""} className="prose-xs opacity-70" />
+      <div className="text-[11px] text-white/50 border-l border-white/10 pl-3 py-0.5 leading-relaxed">
+        <Markdown content={step.content || ""} className="prose-xs" />
       </div>
     );
   }
@@ -114,7 +112,7 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           <span>Action: {step.toolName}</span>
         </div>
         {step.toolInput && (
-          <pre className="text-[9px] text-white/20 font-mono whitespace-pre-wrap break-all bg-black/20 p-1.5 rounded">
+          <pre className="text-[9px] text-white/40 font-mono whitespace-pre-wrap break-all bg-black/20 p-1.5 rounded">
             {JSON.stringify(step.toolInput, null, 2)}
           </pre>
         )}
@@ -129,14 +127,14 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           <CheckCircle2 size={10} aria-hidden="true" />
           <span>Observation: {step.toolName}</span>
         </div>
-        <p className="text-[10px] text-white/30 leading-relaxed max-h-32 overflow-y-auto scrollbar-hide">{step.content}</p>
+        <p className="text-[10px] text-white/50 leading-relaxed max-h-32 overflow-y-auto scrollbar-hide">{step.content}</p>
       </div>
     );
   }
 
   if (step.type === PACKET_TYPES.TODO && step.todos) {
     return (
-      <div className="flex flex-col gap-2 rounded-xl bg-white/[0.02] border border-white/5 px-4 py-3">
+      <div className="flex flex-col gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3">
         <div className="flex items-center gap-2 text-[10px] font-bold text-accent uppercase tracking-widest border-b border-white/5 pb-2">
           <ListTodo size={12} className="text-accent" />
           <span>📋 Active Mission Plan</span>
@@ -148,7 +146,7 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
             const isFailed = todo.status === 'failed';
 
             return (
-              <div key={todo.id} className="flex items-start gap-2.5 text-xs text-white/70">
+              <div key={todo.id} className="flex items-start gap-2.5 text-xs text-white/85">
                 <div className={cn(
                   "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
                   isDone ? "bg-success/20 border-success/50 text-success" :
@@ -160,14 +158,14 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
                   {isProgress && <span className="text-[10px] animate-spin">⚡</span>}
                   {isFailed && <span className="text-[10px]">!</span>}
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col min-w-0">
                   <span className={cn(
-                    "font-semibold",
+                    "font-semibold truncate",
                     isDone && "line-through text-white/30"
                   )}>
-                    {todo.id}
+                    {todo.description}
                   </span>
-                  <span className="text-[11px] text-white/40">{todo.description}</span>
+                  <span className="text-[10px] text-white/30 font-mono truncate">{todo.id}</span>
                 </div>
               </div>
             );
@@ -206,7 +204,7 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           </span>
         </div>
         <div className="text-xs text-white/80 mt-1.5">
-          <div className="font-semibold text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Instruction</div>
+          <div className="font-semibold text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Instruction</div>
           <p className="bg-black/25 px-2.5 py-2 rounded border border-white/5 text-white/70 italic">{s.instruction}</p>
         </div>
         {s.result && (
@@ -333,6 +331,24 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
             {s.feedback}
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (step.type === PACKET_TYPES.TOOL_SKIP) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-white/40 italic bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1.5">
+        <SkipForward size={10} className="text-white/30 shrink-0" aria-hidden="true" />
+        <span>Skipped: {step.toolName} (circuit open)</span>
+      </div>
+    );
+  }
+
+  if (step.type === PACKET_TYPES.STATE_CHANGE) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-orange-400/80 italic bg-orange-500/5 border border-orange-500/10 rounded-lg px-2.5 py-1.5">
+        <AlertTriangle size={10} className="text-orange-400/60 shrink-0" aria-hidden="true" />
+        <span>{step.content}</span>
       </div>
     );
   }

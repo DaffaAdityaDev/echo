@@ -1,8 +1,7 @@
-import { IStateProvider } from './types';
 import { AgentState } from '../../../shared/types';
 import { serializeAgentState, deserializeAgentState } from './serializer';
 
-export class InMemoryStateProvider implements IStateProvider {
+export class InMemoryStateProvider {
     private cache = new Map<string, string>();
 
     async get(missionId: string): Promise<AgentState | null> {

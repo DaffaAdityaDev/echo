@@ -1,89 +1,107 @@
-/**
- * Unified API Client for Next.js (Server & Client)
- * Handles standard JSON requests and Server-Sent Events (SSE) streaming.
- */
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { STORAGE_KEYS } from "@/constants"
+import { generateTraceContext } from "./telemetry-fetch"
 
-import { API_CONFIG, API_VERSION } from "@/constants";
-import { generateTraceContext } from "./telemetry-fetch";
+const BASE_URL = "/api"
 
-export type ApiRequestOptions = RequestInit & {
-  params?: Record<string, string>;
-  version?: string;
-};
+const client: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+  withCredentials: true,
+})
 
-const BASE_URL = `${API_CONFIG.BASE_URL}/${API_VERSION}`;
+client.interceptors.request.use((config) => {
+  const { traceparent } = generateTraceContext()
+  config.headers.set('traceparent', traceparent)
 
-async function request<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { params, version, ...init } = options;
-  
-  const targetBaseUrl = version ? `${API_CONFIG.BASE_URL}/${version}` : BASE_URL;
-  const url = new URL(`${targetBaseUrl}${endpoint}`);
-  
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
-  }
-
-  const { traceparent } = generateTraceContext();
-  const headers = new Headers(init.headers || {});
-  headers.set("Content-Type", "application/json");
-  headers.set("traceparent", traceparent);
-
-  // Extract session ID if passed in params or init headers
-  const sessionId = headers.get("x-agent-session-id");
-  if (sessionId) {
-    headers.set("x-agent-session-id", sessionId);
-  }
-
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "An unexpected error occurred" }));
-    throw new Error(error.message || response.statusText);
-  }
-
-  // Handle empty responses
-  if (response.status === 204) return {} as T;
-
-  return response.json();
-}
-
-/**
- * Stream handler for SSE
- */
-async function stream<T = unknown>(
-  endpoint: string, 
-  body: unknown, 
-  onChunk: (data: T) => void,
-  options: ApiRequestOptions = {}
-) {
-  const { version, ...restOptions } = options;
-  const targetBaseUrl = version ? `${API_CONFIG.BASE_URL}/${version}` : BASE_URL;
-
-  const { traceparent } = generateTraceContext();
-  const headers = new Headers(restOptions.headers || {});
-  headers.set("Content-Type", "application/json");
-  headers.set("traceparent", traceparent);
-
-  // Extract session/mission ID from body if possible
-  if (body && typeof body === "object") {
-    const missionId = (body as any).missionId || (body as any).sessionId;
-    if (missionId) {
-      headers.set("x-agent-session-id", missionId);
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
+    if (token) {
+      config.headers.set('Authorization', `Bearer ${token}`)
     }
   }
 
-  const response = await fetch(`${targetBaseUrl}${endpoint}`, {
+  const sessionId = config.headers.get('x-agent-session-id') ||
+    (config.data?.sessionId) || (config.data?.missionId)
+  if (sessionId) {
+    config.headers.set('x-agent-session-id', sessionId)
+  }
+
+  return config
+})
+
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = error.config?.url || ''
+    const isAuthPage = url.includes('/auth/login') || url.includes('/auth/register')
+    if (error.response?.status === 401 && typeof window !== 'undefined' && !isAuthPage) {
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN)
+      window.location.href = '/login'
+    }
+    if (error.response) {
+      const msg = error.response.data?.message || error.response.data?.error || error.response.statusText
+      throw new Error(msg)
+    }
+    throw new Error(error.message || 'Network error')
+  }
+)
+
+export type ApiRequestOptions = AxiosRequestConfig & {
+  params?: Record<string, string>;
+};
+
+async function request<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { params, ...config } = options
+
+  const response = await client.request<T>({
+    ...config,
+    baseURL: BASE_URL,
+    url: endpoint,
+    params,
+  })
+
+  return response.data
+}
+
+async function stream<T = unknown>(
+  endpoint: string,
+  body: unknown,
+  onChunk: (data: T) => void,
+  options: ApiRequestOptions = {}
+) {
+  const { signal } = options
+
+  const { traceparent } = generateTraceContext()
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  headers.set("traceparent", traceparent);
+
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
+  if (body && typeof body === "object") {
+    const bodyRecord = body as Record<string, unknown>;
+    const sid = typeof bodyRecord.sessionId === 'string' ? bodyRecord.sessionId : typeof bodyRecord.missionId === 'string' ? bodyRecord.missionId : undefined;
+    if (sid) {
+      headers.set("x-agent-session-id", sid);
+    }
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
-    ...restOptions,
+    signal: signal as AbortSignal,
   });
 
   if (!response.body) throw new Error("ReadableStream not supported");
-  
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let partialLine = "";
@@ -113,7 +131,7 @@ async function stream<T = unknown>(
         } else {
           onChunk({ content: jsonStr } as T);
         }
-      } catch (e) {
+      } catch {
         onChunk({ content: jsonStr } as T);
       }
     }
@@ -121,12 +139,11 @@ async function stream<T = unknown>(
 }
 
 export const api = {
-  get: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "GET" }),
-  post: <T>(url: string, body: unknown, opts?: ApiRequestOptions) => 
-    request<T>(url, { ...opts, method: "POST", body: JSON.stringify(body) }),
-  put: <T>(url: string, body: unknown, opts?: ApiRequestOptions) => 
-    request<T>(url, { ...opts, method: "PUT", body: JSON.stringify(body) }),
-  delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "DELETE" }),
+  get: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: 'GET' }),
+  post: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+    request<T>(url, { ...opts, method: 'POST', data: body }),
+  put: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+    request<T>(url, { ...opts, method: 'PUT', data: body }),
+  delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: 'DELETE' }),
   stream,
-};
-
+}

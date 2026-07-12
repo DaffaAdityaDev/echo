@@ -16,8 +16,8 @@ type ModelUpdateRequest struct {
 }
 
 // SetupRoutes registers the HTTP route endpoints on the Fiber application instance.
-func SetupRoutes(fbApp *fiber.App, healthHandler *handler.HealthHandler, discordHandler *handler.DiscordHandler) {
-	fbApp.Get("/health", healthHandler.Check)
+func SetupRoutes(fbApp *fiber.App, discordHandler *handler.DiscordHandler) {
+	fbApp.Get("/health", handler.HealthCheck)
 
 	// GET /model - Fetch and return available models from backend (Hybrid HTTP API)
 	fbApp.Get("/model", func(c fiber.Ctx) error {

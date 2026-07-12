@@ -10,9 +10,9 @@ import {
     PLANNING_LOGS, 
     PLANNING_TEMPLATES, 
     TASK_STATUS, 
-    SCHEMA_DESC, 
-    OPERATION_STATUS 
+    SCHEMA_DESC 
 } from './constants';
+import { OPERATION_STATUS } from '../../../harness/nlah/constants';
 
 const STATE_ROOT = PATHS.STATE_ROOT;
 
