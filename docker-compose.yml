@@ -1,84 +1,185 @@
+name: echo
+
 services:
-  postgres:
+  # --- DATABASES & INFRASTRUCTURE ---
+  echo-postgres:
     image: ankane/pgvector:latest
     container_name: echo_postgres
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: echo_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-echo_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
       - ./backend/scripts/init-nuq.sql:/docker-entrypoint-initdb.d/init-nuq.sql
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  chroma:
-    image: chromadb/chroma:latest
-    container_name: echo_chroma
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-    restart: unless-stopped
-
-  redis:
+  echo-redis:
     image: redis:7-alpine
     container_name: echo_redis
-    ports:
-      - "6379:6379"
+    volumes:
+      - redis_data:/data
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  rabbitmq:
-    image: rabbitmq:3-alpine
-    container_name: echo_rabbitmq
-    ports:
-      - "5672:5672"
-    restart: unless-stopped
+  # --- AUTOMATED DATABASE MIGRATION & SEEDING ---
+  echo-migrate:
+    build:
+      context: ./backend
+      target: builder
+    container_name: echo_backend_migrate
+    command: ["./migrate"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
+      - DB_HOST=${DB_HOST:-echo-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-echo_db}
+    depends_on:
+      - echo-postgres
+    restart: on-failure
+    networks:
+      - dokploy-network
 
+  echo-seed:
+    build:
+      context: ./backend
+      target: builder
+    container_name: echo_backend_seed
+    command: ["./seed"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
+      - DB_HOST=${DB_HOST:-echo-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-echo_db}
+    depends_on:
+      - echo-migrate
+    restart: on-failure
+    networks:
+      - dokploy-network
 
-  # Observability Infrastructure
-  otel-collector:
+  # --- CORE APPLICATION SERVICES ---
+  echo-agent:
+    build:
+      context: ./agent
+    container_name: echo_agent
+    environment:
+      - PORT=${AGENT_PORT:-3001}
+      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
+      - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
+      - OTEL_COLLECTOR_ADDR=${OTEL_COLLECTOR_ADDR:-echo-otel-collector:4317}
+      - ENABLE_REDIS=${ENABLE_REDIS:-true}
+      - STATE_BACKEND=${STATE_BACKEND:-redis}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
+    depends_on:
+      - echo-redis
+    restart: on-failure
+    networks:
+      - dokploy-network
+
+  echo-backend:
+    build:
+      context: ./backend
+    container_name: echo_backend
+    environment:
+      - PORT=${BACKEND_PORT:-8080}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - AGENT_HTTP_URL=${AGENT_HTTP_URL:-http://echo-agent:3001}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
+      - DB_HOST=${DB_HOST:-echo-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-echo_db}
+      - REDIS_ADDR=${REDIS_ADDR:-echo-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:-replace-this-with-a-secure-secret}
+      - CORS_ORIGIN=${CORS_ORIGIN:-${ALLOW_ORIGINS:-http://localhost:3000}}
+      - ALLOW_ORIGINS=${ALLOW_ORIGINS:-http://localhost:3000}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
+      - OTEL_COLLECTOR_ADDR=${OTEL_COLLECTOR_ADDR:-echo-otel-collector:4317}
+      - ENABLE_OTEL=${ENABLE_OTEL:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gpt-4o}
+    depends_on:
+      - echo-postgres
+      - echo-redis
+      - echo-agent
+      - echo-migrate
+    restart: on-failure
+    networks:
+      - dokploy-network
+
+  echo-frontend:
+    build:
+      context: ./frontend/web
+      args:
+        - BACKEND_URL=http://echo-backend:8080
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    container_name: echo_frontend
+    environment:
+      - PORT=${FRONTEND_PORT:-3000}
+      - BACKEND_URL=http://echo-backend:8080
+      - INTERNAL_BACKEND_URL=http://echo-backend:8080
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - echo-backend
+    restart: on-failure
+    networks:
+      - dokploy-network
+
+  # --- OBSERVABILITY INFRASTRUCTURE ---
+  echo-otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: echo_otel_collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./infra/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  jaeger:
+  echo-jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: echo_jaeger
-    ports:
-      - "16686:16686" # UI
-      - "4317"        # OTLP gRPC receiver (internal)
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  prometheus:
+  echo-prometheus:
     image: prom/prometheus:latest
     container_name: echo_prometheus
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
     volumes:
       - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  grafana:
+  echo-grafana:
     image: grafana/grafana:latest
     container_name: echo_grafana
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning
-    ports:
-      - "3100:3000" # Access UI at http://localhost:3100
     depends_on:
-      - prometheus
+      - echo-prometheus
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
 volumes:
   postgres_data:
-  chroma_data:
+  redis_data:
+
+networks:
+  dokploy-network:
+    external: true
+
