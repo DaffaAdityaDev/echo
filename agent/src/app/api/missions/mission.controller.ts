@@ -109,6 +109,19 @@ export class MissionController {
         }
       }
 
+      // Pre-flight: validate provider connectivity before starting SSE stream.
+      // This prevents the "empty stream" syndrome where SSE headers are sent
+      // but the stream immediately fails because the provider is unreachable.
+      try {
+        await llmProvider.validate?.();
+      } catch (validateErr: any) {
+        logger.error(`Provider pre-validation failed: ${validateErr.message}`);
+        return c.json({
+          error: 'Provider unreachable',
+          details: validateErr.message
+        }, 502);
+      }
+
       return streamSSE(c, async (streamInstance) => {
         const transport = new HttpStreamTransport(streamInstance);
 
@@ -134,6 +147,19 @@ export class MissionController {
               await transport.send(packet);
             }
           );
+        } catch (streamErr: any) {
+          // Send error as SSE event instead of returning JSON (headers already set)
+          logger.error(`Stream execution failed: ${streamErr.message}`);
+          try {
+            await transport.send({
+              type: 'error',
+              content: streamErr.message,
+              meta: { code: 'STREAM_EXECUTION_ERROR' }
+            });
+          } catch (sendErr) {
+            // Transport already broken — nothing more we can do
+            logger.warn(`Failed to send error packet to client: ${sendErr}`);
+          }
         } finally {
           cancellationManager.unregister(missionId);
         }

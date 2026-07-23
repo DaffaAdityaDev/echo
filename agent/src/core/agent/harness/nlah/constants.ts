@@ -52,5 +52,6 @@ export const PACKET_TYPES = {
   PROGRESS: 'progress',
   HEARTBEAT: 'heartbeat',
   TURN_COMPLETE: 'turn_complete',
+  ERROR: 'error',
 } as const;
 

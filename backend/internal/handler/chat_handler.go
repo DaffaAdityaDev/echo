@@ -389,6 +389,12 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 								ToolName: packet.ToolName,
 								Content:  packet.Content,
 							})
+						case "error":
+							// Forward error packets to the client so they surface
+							// instead of silently ending the stream
+							if packet.Content != "" {
+								assistantBuilder.WriteString(packet.Content)
+							}
 						case "turn_complete":
 							isComplete = true
 						}

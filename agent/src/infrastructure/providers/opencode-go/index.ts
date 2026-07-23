@@ -178,4 +178,8 @@ export class OpenCodeGoProvider implements LLMProvider {
     async cleanupReasoning(): Promise<void> {
         await this.interceptor.clearAll();
     }
+
+    async validate(): Promise<void> {
+        await this.client.models.list();
+    }
 }

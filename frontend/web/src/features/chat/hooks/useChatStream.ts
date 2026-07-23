@@ -264,6 +264,10 @@ export function useChatStream() {
               totalTokens: data.turnComplete.tokenCount,
             };
           }
+        } else if (data.type === PACKET_TYPES.ERROR) {
+          // Surface stream-level errors (e.g. provider failure) to the user
+          lastMessage.content = `Error: ${data.content || "Stream execution failed"}`;
+          store.setAgentState('error');
         } else {
           const delta = (data.choices?.[0]?.delta || data) as StreamPacket & { reasoning_content?: string };
           const content = delta.content || "";

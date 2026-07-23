@@ -80,7 +80,7 @@ export interface Session {
   contextSummary?: string;
 }
 
-export type AgentState = 'starting' | 'running' | 'looping' | 'stalled' | 'degraded' | 'completed' | 'aborted';
+export type AgentState = 'starting' | 'running' | 'looping' | 'stalled' | 'degraded' | 'completed' | 'aborted' | 'error';
 
 export interface AgentStatus {
   state: AgentState;
@@ -99,7 +99,7 @@ export interface TurnComplete {
 }
 
 export interface StreamPacket {
-  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'tool_skip' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status' | 'heartbeat' | 'state_change' | 'degraded' | 'progress' | 'turn_complete';
+  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'tool_skip' | 'metadata' | 'usage' | 'todo' | 'subagent_call' | 'subagent_result' | 'file_operation' | 'swarm_status' | 'heartbeat' | 'state_change' | 'degraded' | 'progress' | 'turn_complete' | 'error';
   missionId?: string;
   content?: string;
   toolName?: string;

@@ -162,4 +162,10 @@ export interface LLMProvider {
         systemPrompt: string
     ): AsyncIterable<ProviderEvent>;
     cleanupReasoning?(): Promise<void>;
+    /**
+     * Optional pre-flight connectivity check.
+     * Called before the SSE stream starts so failures return a proper HTTP error
+     * instead of an empty/broken stream.
+     */
+    validate?(): Promise<void>;
 }

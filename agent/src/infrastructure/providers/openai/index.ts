@@ -130,4 +130,11 @@ export class OpenAIProvider implements LLMProvider {
     async cleanupReasoning(): Promise<void> {
         await this.interceptor.clearAll();
     }
+
+    async validate(): Promise<void> {
+        // Create a minimal client to test connectivity + API key
+        const { default: OpenAI } = await import("openai");
+        const client = new OpenAI({ baseURL: this.baseURL, apiKey: this.chat.apiKey });
+        await client.models.list();
+    }
 }

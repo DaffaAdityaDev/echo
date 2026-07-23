@@ -103,4 +103,17 @@ export class AnthropicProvider implements LLMProvider {
     async cleanupReasoning(): Promise<void> {
         await this.interceptor.clearAll();
     }
+
+    async validate(): Promise<void> {
+        const response = await fetch(`${this.baseURL}/v1/models`, {
+            headers: {
+                'x-api-key': this.chat.anthropicApiKey ?? '',
+                'anthropic-version': '2023-06-01',
+            },
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            throw new Error(`Anthropic validation failed (${response.status}): ${body}`);
+        }
+    }
 }

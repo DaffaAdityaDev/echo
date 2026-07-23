@@ -105,10 +105,12 @@ async function stream<T = unknown>(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let partialLine = "";
+  let hasReceivedData = false;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    if (value && value.byteLength > 0) hasReceivedData = true;
 
     const chunk = decoder.decode(value, { stream: true });
     const lines = (partialLine + chunk).split("\n");
@@ -135,6 +137,10 @@ async function stream<T = unknown>(
         onChunk({ content: jsonStr } as T);
       }
     }
+  }
+
+  if (!hasReceivedData) {
+    throw new Error("Stream ended without receiving any data");
   }
 }
 

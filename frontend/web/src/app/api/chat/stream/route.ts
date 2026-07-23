@@ -17,6 +17,17 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(body),
   })
 
+  // If the backend returned an error status, return it as a proper JSON response
+  // instead of pretending it's an SSE stream — the client will fail to parse SSE
+  // from a JSON error body.
+  if (!upstream.ok) {
+    const errorText = await upstream.text()
+    return new Response(errorText, {
+      status: upstream.status,
+      headers: { 'Content-Type': upstream.headers.get('Content-Type') || 'application/json' },
+    })
+  }
+
   return new Response(upstream.body, {
     status: upstream.status,
     headers: {

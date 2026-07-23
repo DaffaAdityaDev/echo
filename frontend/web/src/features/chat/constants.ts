@@ -26,6 +26,7 @@ export const PACKET_TYPES = {
   DEGRADED: "degraded",
   PROGRESS: "progress",
   TURN_COMPLETE: "turn_complete",
+  ERROR: "error",
 } as const;
 
 export const CHAT_ENDPOINTS = {

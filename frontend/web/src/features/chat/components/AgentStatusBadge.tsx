@@ -18,6 +18,7 @@ const stateConfig: Record<AgentState, { label: string; className: string }> = {
   degraded: { label: "Degraded", className: "bg-red-500/20 text-red-400 border-red-500/30" },
   completed: { label: "Completed", className: "bg-green-500/20 text-green-400 border-green-500/30" },
   aborted: { label: "Aborted", className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  error: { label: "Error", className: "bg-red-500/20 text-red-400 border-red-500/30" },
 };
 
 export function AgentStatusBadge({ state, className }: AgentStatusBadgeProps) {
