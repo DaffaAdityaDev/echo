@@ -1,5 +1,6 @@
 import { ToolDefinition } from '../../../shared/types';
 import { logger } from '../../../shared/utils/logger';
+import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,7 +52,17 @@ export class ToolRegistry {
     async autoload() {
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = dirname(__filename);
-        const definitionsPath = join(__dirname, 'definitions');
+        let definitionsPath = join(__dirname, 'definitions');
+
+        if (!existsSync(definitionsPath)) {
+            definitionsPath = join(process.cwd(), 'src/core/agent/tools/definitions');
+        }
+
+        if (!existsSync(definitionsPath)) {
+            logger.info('⏭️ Dynamic definitions directory not found — relying on static LAZY_TOOLS catalog');
+            return;
+        }
+
         try {
             const entries = await readdir(definitionsPath, { withFileTypes: true });
             for (const entry of entries) {
