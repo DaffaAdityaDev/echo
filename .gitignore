@@ -205,6 +205,10 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/go,nextjs,node
 
+# Agent runtime data
+agent/debug/
+agent/logs/
+
 # Assistant state
 .agents/
 GEMINI.md
