@@ -20,11 +20,18 @@ export function useChatPage() {
 
   useEffect(() => {
     const defaultModel = settingsConfig.defaultModel;
-    const isAvailable = models.some((m) => m.id === defaultModel);
-    const initialModel = isAvailable
-      ? defaultModel
+    const matchedModel = models.find(
+      (m) =>
+        m.id === defaultModel ||
+        m.name === defaultModel ||
+        (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
+        (defaultModel && defaultModel.endsWith(`/${m.name}`))
+    );
+
+    const initialModel = matchedModel
+      ? matchedModel.id
       : models.length > 0
-      ? (models.find((m) => m.id.includes("deepseek") || m.id.includes("flash"))?.id || models[0].id)
+      ? models[0].id
       : defaultModel || "";
 
     if (initialModel) {
