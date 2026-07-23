@@ -55,6 +55,9 @@ services:
     build:
       context: ./frontend/web
       target: runner
+      args:
+        - BACKEND_URL=http://echo-backend:8080
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     container_name: echo_frontend
     ports:
       - "3002:3000"
@@ -62,7 +65,7 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - BACKEND_URL=http://echo-backend:8080
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       - echo-backend
     restart: unless-stopped
