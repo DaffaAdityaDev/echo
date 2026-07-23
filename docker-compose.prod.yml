@@ -42,7 +42,7 @@ services:
       - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
       - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
       - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-pro}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
     depends_on:
       - echo-postgres
       - echo-agent
