@@ -14,17 +14,17 @@ const (
 )
 
 type ProviderConfig struct {
-	Type    ProviderType `json:"type"`
-	BaseURL string       `json:"base_url"`
-	APIKey  string       `json:"api_key,omitempty"`
-	Model   string       `json:"model"`
+	Type    ProviderType `json:"type" example:"openai"`
+	BaseURL string       `json:"base_url" example:"https://api.openai.com/v1"`
+	APIKey  string       `json:"api_key,omitempty" example:"sk-xxxxxxxxxxxxxxxx"`
+	Model   string       `json:"model" example:"gpt-4o"`
 }
 
 type ModelInfo struct {
-	ID           string       `json:"id"`
-	Name         string       `json:"name,omitempty"`
-	ProviderType ProviderType `json:"provider_type"`
-	ProviderName string       `json:"provider_name"`
+	ID           string       `json:"id" example:"gpt-4o"`
+	Name         string       `json:"name,omitempty" example:"GPT-4o"`
+	ProviderType ProviderType `json:"provider_type" example:"openai"`
+	ProviderName string       `json:"provider_name" example:"OpenAI"`
 }
 
 type Config struct {
@@ -56,52 +56,52 @@ type Config struct {
 }
 
 type ApiKey struct {
-	ID        string     `json:"id"`
+	ID        string     `json:"id" example:"key_a1b2c3d4e5f6"`
 	KeyHash   string     `json:"-"`
-	Prefix    string     `json:"prefix"`
-	Name      string     `json:"name"`
-	Scopes    []string   `json:"scopes"`
-	UserID    string     `json:"user_id"`
-	Status    string     `json:"status"`
-	CreatedAt time.Time  `json:"created_at"`
+	Prefix    string     `json:"prefix" example:"sk_a1b2c3d4"`
+	Name      string     `json:"name" example:"Production API Key"`
+	Scopes    []string   `json:"scopes" example:"read,write,admin"`
+	UserID    string     `json:"user_id" example:"1"`
+	Status    string     `json:"status" example:"active"`
+	CreatedAt time.Time  `json:"created_at" example:"2026-01-15T10:30:00Z"`
 }
 
 type User struct {
-	ID           int       `json:"id"`
-	Email        string    `json:"email"`
+	ID           int       `json:"id" example:"1"`
+	Email        string    `json:"email" example:"jane@example.com"`
 	PasswordHash string    `json:"-"`
-	Name         string    `json:"name"`
-	Role         string    `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Name         string    `json:"name" example:"Jane Doe"`
+	Role         string    `json:"role" example:"user"`
+	CreatedAt    time.Time `json:"created_at" example:"2026-01-15T10:30:00Z"`
+	UpdatedAt    time.Time `json:"updated_at" example:"2026-01-15T10:30:00Z"`
 }
 
 type Session struct {
-	ID             string    `json:"id"`
-	UserID         int       `json:"user_id"`
-	Title          string    `json:"title"`
-	ContextSummary string    `json:"context_summary"`
-	Status         string    `json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	MessageCount   int       `json:"message_count,omitempty"`
-	TokenCount     int       `json:"token_count,omitempty"`
+	ID             string    `json:"id" example:"sess_abc123"`
+	UserID         int       `json:"user_id" example:"1"`
+	Title          string    `json:"title" example:"Build a REST API with Express"`
+	ContextSummary string    `json:"context_summary" example:"User is building a REST API for a todo app using Express and Prisma"`
+	Status         string    `json:"status" example:"active"`
+	CreatedAt      time.Time `json:"created_at" example:"2026-01-15T10:30:00Z"`
+	UpdatedAt      time.Time `json:"updated_at" example:"2026-01-15T11:45:00Z"`
+	MessageCount   int       `json:"message_count,omitempty" example:"12"`
+	TokenCount     int       `json:"token_count,omitempty" example:"3421"`
 }
 
 type UserPreferences struct {
-	UserID         int      `json:"user_id"`
-	DefaultMode    string   `json:"default_mode"`
-	DefaultModel   string   `json:"default_model"`
-	DefaultFeatures []string `json:"default_features"`
-	DefaultSkills  []string `json:"default_skills"`
+	UserID         int      `json:"user_id" example:"1"`
+	DefaultMode    string   `json:"default_mode" example:"agent"`
+	DefaultModel   string   `json:"default_model" example:"gpt-4o"`
+	DefaultFeatures []string `json:"default_features" example:"web-browsing,code-interpreter"`
+	DefaultSkills  []string `json:"default_skills" example:"python,research"`
 }
 
 type Message struct {
-	ID         int64     `json:"id"`
-	SessionID  string    `json:"session_id"`
-	Role       string    `json:"role"`
-	Content    string    `json:"content"`
-	TokenCount int       `json:"token_count"`
-	TurnNumber int       `json:"turn_number"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID         int64     `json:"id" example:"42"`
+	SessionID  string    `json:"session_id" example:"sess_abc123"`
+	Role       string    `json:"role" example:"assistant"`
+	Content    string    `json:"content" example:"Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."`
+	TokenCount int       `json:"token_count" example:"156"`
+	TurnNumber int       `json:"turn_number" example:"3"`
+	CreatedAt  time.Time `json:"created_at" example:"2026-01-15T10:35:00Z"`
 }

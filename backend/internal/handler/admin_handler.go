@@ -25,6 +25,11 @@ func NewAdminHandler(cfg *models.Config, apiKeyRepo *repository.ApiKeyRepository
 	}
 }
 
+type createAPIKeyRequest struct {
+	Name   string   `json:"name" example:"Production Key"`
+	Scopes []string `json:"scopes" example:"read,write"`
+}
+
 func generateAPIKey() (fullKey, prefix, hash string, err error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -60,17 +65,14 @@ func (h *AdminHandler) HandleListKeys(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body object true "API Key creation parameters (name, scopes)"
+// @Param request body createAPIKeyRequest true "API Key creation parameters (name, scopes)"
 // @Success 201 {object} map[string]interface{} "Generated full key and record"
 // @Failure 400 {object} map[string]string "Invalid request or missing name"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Failed to generate/store key"
 // @Router /api/v1/admin/api-keys [post]
 func (h *AdminHandler) HandleCreateKey(c fiber.Ctx) error {
-	var req struct {
-		Name   string   `json:"name"`
-		Scopes []string `json:"scopes"`
-	}
+	var req createAPIKeyRequest
 	if err := c.Bind().JSON(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}

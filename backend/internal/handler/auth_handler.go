@@ -22,14 +22,14 @@ func NewAuthHandler(cfg *models.Config, authSvc *service.AuthService) *AuthHandl
 }
 
 type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" example:"jane@example.com"`
+	Password string `json:"password" example:"P@ssw0rd!23"`
 }
 
 type registerRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
+	Email    string `json:"email" example:"jane@example.com"`
+	Password string `json:"password" example:"P@ssw0rd!23"`
+	Name     string `json:"name" example:"Jane Doe"`
 }
 
 // @Summary Register user

@@ -34,8 +34,8 @@ func generateID(prefix string) string {
 // --- Episodic Memory (Redis) ---
 
 type episodicStoreRequest struct {
-	SessionID string      `json:"session_id"`
-	Content   interface{} `json:"content"`
+	SessionID string      `json:"session_id" example:"sess_abc123"`
+	Content   interface{} `json:"content" example:"{\"text\":\"User asked about pricing plans\"}"`
 	Metadata  interface{} `json:"metadata,omitempty"`
 }
 
@@ -87,9 +87,9 @@ func (h *MemoryHandler) HandleStoreEpisodic(c fiber.Ctx) error {
 }
 
 type episodicRecallRequest struct {
-	SessionID string `json:"session_id"`
-	Limit     int    `json:"limit,omitempty"`
-	Offset    int    `json:"offset,omitempty"`
+	SessionID string `json:"session_id" example:"sess_abc123"`
+	Limit     int    `json:"limit,omitempty" example:"50"`
+	Offset    int    `json:"offset,omitempty" example:"0"`
 }
 
 // @Summary Recall episodic memory
@@ -153,9 +153,9 @@ func (h *MemoryHandler) HandleGetEpisodic(c fiber.Ctx) error {
 // --- Semantic Memory (PostgreSQL) ---
 
 type semanticStoreRequest struct {
-	ID        string                 `json:"id"`
-	Content   string                 `json:"content"`
-	Embedding []float64              `json:"embedding,omitempty"`
+	ID        string                 `json:"id" example:"mem_sm_a1b2c3d4"`
+	Content   string                 `json:"content" example:"Echo is an AI agent platform for autonomous task execution"`
+	Embedding []float64              `json:"embedding,omitempty" example:"0.012,0.034,-0.056,0.078"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -222,10 +222,10 @@ func (h *MemoryHandler) HandleStoreSemantic(c fiber.Ctx) error {
 }
 
 type semanticSearchRequest struct {
-	Query     string    `json:"query"`
-	Embedding []float64 `json:"embedding,omitempty"`
-	Limit     int       `json:"limit,omitempty"`
-	Threshold float64   `json:"threshold,omitempty"`
+	Query     string    `json:"query" example:"What is Echo agent platform?"`
+	Embedding []float64 `json:"embedding,omitempty" example:"0.012,0.034,-0.056"`
+	Limit     int       `json:"limit,omitempty" example:"10"`
+	Threshold float64   `json:"threshold,omitempty" example:"0.75"`
 }
 
 // @Summary Search semantic memory
@@ -298,9 +298,9 @@ func (h *MemoryHandler) HandleSemanticSearch(c fiber.Ctx) error {
 // --- Procedural Memory (PostgreSQL) ---
 
 type proceduralStoreRequest struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	Content  string                 `json:"content"`
+	ID       string                 `json:"id" example:"mem_pr_e5f6g7h8"`
+	Name     string                 `json:"name" example:"deploy-to-ecs"`
+	Content  string                 `json:"content" example:"1. Build Docker image\n2. Push to ECR\n3. Update ECS service"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -350,8 +350,8 @@ func (h *MemoryHandler) HandleStoreProcedural(c fiber.Ctx) error {
 }
 
 type proceduralGetRequest struct {
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ID   string `json:"id,omitempty" example:"mem_pr_e5f6g7h8"`
+	Name string `json:"name,omitempty" example:"deploy-to-ecs"`
 }
 
 // @Summary Get procedural memory

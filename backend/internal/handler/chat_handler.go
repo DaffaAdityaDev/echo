@@ -50,19 +50,19 @@ func NewChatHandler(
 }
 
 type HistoryMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string `json:"role" example:"user"`
+	Content string `json:"content" example:"What is Echo and how does it work?"`
 }
 
 type ChatRequest struct {
-	Message   string           `json:"message"`
-	Model     string           `json:"model"`
-	Mode      string           `json:"mode"`
-	SessionID string           `json:"sessionId"`
-	MissionID string           `json:"missionId"`
+	Message   string           `json:"message" example:"Explain how the Echo agent works"`
+	Model     string           `json:"model" example:"gpt-4o"`
+	Mode      string           `json:"mode" example:"agent"`
+	SessionID string           `json:"sessionId" example:"sess_abc123"`
+	MissionID string           `json:"missionId" example:"mission_xyz789"`
 	History   []HistoryMessage `json:"history"`
-	Features  []string         `json:"features"`
-	Skills    []string         `json:"skills"`
+	Features  []string         `json:"features" example:"web-browsing,code-interpreter"`
+	Skills    []string         `json:"skills" example:"python,research"`
 }
 
 type Feature struct {
@@ -73,10 +73,10 @@ type Feature struct {
 }
 
 type FeatureResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Locked      bool   `json:"locked"`
+	ID          string `json:"id" example:"web-browsing"`
+	Name        string `json:"name" example:"Web Browsing"`
+	Description string `json:"description" example:"Browse the web in real-time to fetch up-to-date information"`
+	Locked      bool   `json:"locked" example:"false"`
 }
 
 func parseTraceparent(tp string) (trace.SpanContext, bool) {

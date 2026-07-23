@@ -23,7 +23,7 @@ func NewSessionHandler(cfg *models.Config, sessionRepo *repository.SessionReposi
 }
 
 type CreateSessionRequest struct {
-	Title string `json:"title"`
+	Title string `json:"title" example:"Build a REST API with Express"`
 }
 
 // @Summary Create a new session
@@ -216,7 +216,7 @@ func (h *SessionHandler) HandleDeleteSession(c fiber.Ctx) error {
 }
 
 type PruneRequest struct {
-	ProviderConfig map[string]interface{} `json:"provider_config"`
+	ProviderConfig map[string]interface{} `json:"provider_config" example:"{\"type\":\"openai\",\"base_url\":\"https://api.openai.com/v1\",\"model\":\"gpt-4o\"}"`
 }
 
 // @Summary Prune and consolidate session

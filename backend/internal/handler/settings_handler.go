@@ -20,10 +20,10 @@ func NewSettingsHandler(cfg *models.Config, settingsSvc *service.SettingsService
 }
 
 type UpdateSettingsRequest struct {
-	DefaultMode     string   `json:"default_mode"`
-	DefaultModel    string   `json:"default_model"`
-	DefaultFeatures []string `json:"default_features"`
-	DefaultSkills   []string `json:"default_skills"`
+	DefaultMode     string   `json:"default_mode" example:"agent"`
+	DefaultModel    string   `json:"default_model" example:"gpt-4o"`
+	DefaultFeatures []string `json:"default_features" example:"web-browsing,code-interpreter"`
+	DefaultSkills   []string `json:"default_skills" example:"python,research"`
 }
 
 // @Summary Get user settings
