@@ -47,6 +47,31 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 		})
 	})
 
+	// API Documentation (Scalar UI & OpenAPI spec)
+	fbApp.Get("/api/docs/openapi.json", func(c fiber.Ctx) error {
+		c.Set("Content-Type", "application/json; charset=utf-8")
+		return c.SendFile("./api/docs/swagger.json")
+	})
+
+	fbApp.Get("/api/docs", func(c fiber.Ctx) error {
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		return c.SendString(`<!doctype html>
+<html>
+  <head>
+    <title>Echo Backend API Reference</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/api/docs/openapi.json">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`)
+	})
+
 	// API v1 Routes
 	api := fbApp.Group(routes.V1APIPrefix)
 

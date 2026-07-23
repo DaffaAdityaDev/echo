@@ -32,6 +32,16 @@ type registerRequest struct {
 	Name     string `json:"name"`
 }
 
+// @Summary Register user
+// @Description Register a new user account with email, password, and name
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body registerRequest true "Registration credentials"
+// @Success 200 {object} map[string]interface{} "User and Token"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 409 {object} map[string]string "Email already exists"
+// @Router /api/v1/auth/register [post]
 func (h *AuthHandler) HandleRegister(c fiber.Ctx) error {
 	var req registerRequest
 	body := c.Request().Body()
@@ -55,6 +65,16 @@ func (h *AuthHandler) HandleRegister(c fiber.Ctx) error {
 	})
 }
 
+// @Summary Login user
+// @Description Authenticate user and receive JWT token and session cookie
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body loginRequest true "Login credentials"
+// @Success 200 {object} map[string]interface{} "User and Token"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 401 {object} map[string]string "Invalid email or password"
+// @Router /api/v1/auth/login [post]
 func (h *AuthHandler) HandleLogin(c fiber.Ctx) error {
 	var req loginRequest
 	body := c.Request().Body()
@@ -78,6 +98,15 @@ func (h *AuthHandler) HandleLogin(c fiber.Ctx) error {
 	})
 }
 
+// @Summary Get current user profile
+// @Description Fetch profile info for the currently authenticated user
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.User
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "User not found"
+// @Router /api/v1/auth/me [get]
 func (h *AuthHandler) HandleMe(c fiber.Ctx) error {
 	userID, err := getUserID(c)
 	if err != nil {
@@ -95,6 +124,13 @@ func (h *AuthHandler) HandleMe(c fiber.Ctx) error {
 	return c.JSON(user)
 }
 
+// @Summary Logout user
+// @Description Invalidate the session cookie
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "Logged out"
+// @Router /api/v1/auth/logout [post]
 func (h *AuthHandler) HandleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
@@ -120,3 +156,5 @@ func setAuthCookie(c fiber.Ctx, environment, token string) {
 		Path:     "/",
 	})
 }
+
+

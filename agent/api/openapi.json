@@ -1,0 +1,258 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ProviderConfig": {
+        "type": "object",
+        "required": ["type", "base_url", "model"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["openai", "anthropic", "lm-studio", "opencode-go"]
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string"
+          }
+        }
+      },
+      "GenerateMissionRequest": {
+        "type": "object",
+        "required": ["prompt", "provider_config"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The user instruction/mission objective"
+          },
+          "provider_config": {
+            "$ref": "#/components/schemas/ProviderConfig"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": ["standard", "agent"],
+            "default": "agent"
+          },
+          "tenantId": {
+            "type": "string",
+            "default": "local-developer"
+          },
+          "userId": {
+            "type": "string",
+            "default": "local-dev-user"
+          },
+          "orgId": {
+            "type": "string",
+            "default": "local-org"
+          },
+          "missionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "features": {
+            "type": "array",
+            "items": { "type": "string" },
+            "nullable": true
+          },
+          "skills": {
+            "type": "array",
+            "items": { "type": "string" },
+            "nullable": true
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            },
+            "nullable": true
+          }
+        }
+      },
+      "SummarizeRequest": {
+        "type": "object",
+        "required": ["messages", "provider_config"],
+        "properties": {
+          "session_id": { "type": "string" },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            }
+          },
+          "provider_config": {
+            "$ref": "#/components/schemas/ProviderConfig"
+          },
+          "max_summary_tokens": {
+            "type": "integer",
+            "default": 500
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns agent platform health status",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Agent healthy",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok",
+                  "service": "agent-platform"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/generate-mission": {
+      "post": {
+        "summary": "Execute agent mission (SSE Stream)",
+        "description": "Triggers autonomous agent execution loop and streams response packets via SSE",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateMissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events Stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "data: { HarnessPacket }\n\n"
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "403": { "description": "Forbidden - invalid internal auth token" },
+          "500": { "description": "Execution failure" }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "List agent provider models",
+        "description": "Fetch supported LLM provider model list",
+        "responses": {
+          "200": {
+            "description": "Model catalog",
+            "content": {
+              "application/json": {
+                "example": {
+                  "models": [
+                    { "id": "gpt-4o", "name": "gpt-4o" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/features": {
+      "get": {
+        "summary": "List available agent features",
+        "description": "Fetch list of active system tools and tier requirements",
+        "responses": {
+          "200": {
+            "description": "Feature catalog"
+          }
+        }
+      }
+    },
+    "/api/skills": {
+      "get": {
+        "summary": "List available agent skills",
+        "description": "Fetch catalog of specialized skill definitions",
+        "responses": {
+          "200": {
+            "description": "Skill catalog"
+          }
+        }
+      }
+    },
+    "/api/internal/sessions/summarize": {
+      "post": {
+        "summary": "Summarize chat session history",
+        "description": "Uses LLM provider to produce a condensed session summary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummarizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session summary result"
+          },
+          "400": { "description": "Invalid input" },
+          "500": { "description": "Summarization error" }
+        }
+      }
+    }
+  }
+}

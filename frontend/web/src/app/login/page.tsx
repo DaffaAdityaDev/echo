@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 
@@ -13,7 +14,9 @@ export default function LoginRoute() {
           <h1 className="text-2xl font-bold text-white">Sign in</h1>
           <p className="text-sm text-zinc-400">Welcome back to Echo</p>
         </div>
-        <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />
+        <Suspense fallback={<div className="text-center text-zinc-400 text-sm">Loading...</div>}>
+          <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />
+        </Suspense>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 .env
 .env.*
 *.log
-tmp/
-bin/
+logs/
+dist/
 node_modules/
-api/docs/
+debug/

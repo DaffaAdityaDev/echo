@@ -131,13 +131,35 @@ make dev-down
 | :--- | :--- | :--- |
 | **Next.js Web UI** | `http://localhost:3002` | HTTP Frontend |
 | **Go Fiber Gateway** | `http://localhost:8080` | REST API / SSE Proxy |
+| **Backend API Docs (Scalar)** | `http://localhost:8080/api/docs` | Interactive OpenAPI Reference |
 | **Bun Agent Engine** | `http://localhost:3001` | Internal Agent Service |
+| **Agent API Docs (Scalar)** | `http://localhost:3001/docs` | Interactive Agent Reference |
 | **Grafana Dashboard** | `http://localhost:3100` | Telemetry Dashboards |
 | **Jaeger UI** | `http://localhost:16686` | Distributed Tracing UI |
-| **Prometheus** | `http://localhost:9090` | Metrics Metrics Explorer |
+| **Prometheus** | `http://localhost:9090` | Metrics Explorer |
 | **ChromaDB Vector Store** | `http://localhost:8000` | Vector Database |
 | **PostgreSQL** | `localhost:5432` | Database Connection |
 | **Redis** | `localhost:6379` | Cache / PubSub |
+
+---
+
+## 📖 API Documentation & Deployment
+
+### Interactive Scalar UI
+Both services render interactive Scalar API documentation powered by OpenAPI specs:
+- **Backend API Docs**: `/api/docs` (OpenAPI JSON: `/api/docs/openapi.json`)
+- **Agent API Docs**: `/docs` (OpenAPI JSON spec: `agent/api/openapi.json`)
+
+### Dokploy Post-Deployment Steps
+To access API documentation on live production domains:
+1. **Domain Setup in Dokploy**:
+   - Assign primary backend API domain to `echo-backend` (e.g. `api.yourdomain.com`).
+   - Assign agent domain to `echo-agent` (e.g. `agent.yourdomain.com`).
+2. **Redeploy Stack**:
+   - Trigger production redeployment via Dokploy UI or `make deploy`.
+3. **Verify API Docs Access**:
+   - Access Backend Scalar Docs at `https://api.yourdomain.com/api/docs`.
+   - Access Agent Scalar Docs at `https://agent.yourdomain.com/docs`.
 
 ---
 

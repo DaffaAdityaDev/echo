@@ -1,9 +1,10 @@
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-libc6-compat
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package.json package-lock.json* bun.lock* ./
-RUN npm ci || npx bun install
+COPY package.json ./
+RUN npm install
+RUN npm install @tailwindcss/oxide-linux-x64-musl lightningcss-linux-x64-musl
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
