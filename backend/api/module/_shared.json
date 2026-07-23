@@ -27,7 +27,8 @@
                     },
                     "example": [
                         "read",
-                        "write"
+                        "write",
+                        "admin"
                     ]
                 },
                 "status": {
@@ -37,60 +38,6 @@
                 "user_id": {
                     "type": "string",
                     "example": "1"
-                }
-            }
-        },
-        "echo-backend_internal_models.Message": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "example": 42
-                },
-                "session_id": {
-                    "type": "string",
-                    "example": "sess_abc123"
-                },
-                "role": {
-                    "type": "string",
-                    "example": "assistant"
-                },
-                "content": {
-                    "type": "string",
-                    "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."
-                },
-                "token_count": {
-                    "type": "integer",
-                    "example": 156
-                },
-                "turn_number": {
-                    "type": "integer",
-                    "example": 3
-                },
-                "created_at": {
-                    "type": "string",
-                    "example": "2026-01-15T10:35:00Z"
-                }
-            }
-        },
-        "echo-backend_internal_models.ModelInfo": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "example": "gpt-4o"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "GPT-4o"
-                },
-                "provider_type": {
-                    "type": "string",
-                    "example": "openai"
-                },
-                "provider_name": {
-                    "type": "string",
-                    "example": "OpenAI"
                 }
             }
         },

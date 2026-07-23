@@ -41,25 +41,15 @@
                         "description": "List of sessions",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "sessions": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.Session"
-                                    }
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -67,11 +57,8 @@
                         "description": "Failed to list sessions",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to list sessions"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -113,11 +100,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -125,11 +109,8 @@
                         "description": "Failed to create session",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to create session"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -160,8 +141,7 @@
                         "description": "Session ID",
                         "name": "id",
                         "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -175,11 +155,8 @@
                         "description": "Missing session ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session ID is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -187,11 +164,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -199,11 +173,8 @@
                         "description": "Forbidden: ownership mismatch",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Forbidden: ownership mismatch"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -211,11 +182,8 @@
                         "description": "Session not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -242,8 +210,7 @@
                         "description": "Session ID",
                         "name": "id",
                         "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -251,15 +218,8 @@
                         "description": "Session soft deleted",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "example": "success"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Session soft deleted"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -267,11 +227,8 @@
                         "description": "Missing session ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session ID is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -279,11 +236,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -291,11 +245,8 @@
                         "description": "Forbidden: ownership mismatch",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Forbidden: ownership mismatch"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -303,11 +254,8 @@
                         "description": "Session not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -336,8 +284,7 @@
                         "description": "Session ID",
                         "name": "id",
                         "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -345,25 +292,15 @@
                         "description": "List of messages",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "messages": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.Message"
-                                    }
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Missing session ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session ID is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -371,11 +308,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -383,11 +317,8 @@
                         "description": "Forbidden: ownership mismatch",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Forbidden: ownership mismatch"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -395,11 +326,8 @@
                         "description": "Session not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -427,8 +355,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

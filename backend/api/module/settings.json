@@ -71,11 +71,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -83,11 +80,8 @@
                         "description": "Failed to get settings",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to get settings"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -130,11 +124,8 @@
                         "description": "Invalid request body",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Invalid request body"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -142,11 +133,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -154,11 +142,8 @@
                         "description": "Failed to update settings",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to update settings"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -211,8 +196,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

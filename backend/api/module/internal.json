@@ -2,24 +2,10 @@
     "basePath": "/",
     "definitions": {
         "internal_handler.PruneRequest": {
-            "type": "object",
-            "properties": {
-                "provider_config": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "example": {
-                        "type": "openai",
-                        "base_url": "https://api.openai.com/v1",
-                        "model": "gpt-4o"
-                    }
-                }
-            }
+            "type": "object"
         },
         "internal_handler.episodicRecallRequest": {
             "type": "object",
-            "required": [
-                "session_id"
-            ],
             "properties": {
                 "limit": {
                     "type": "integer",
@@ -36,23 +22,7 @@
             }
         },
         "internal_handler.episodicStoreRequest": {
-            "type": "object",
-            "required": [
-                "session_id",
-                "content"
-            ],
-            "properties": {
-                "content": {
-                    "example": {
-                        "text": "User asked about pricing plans"
-                    }
-                },
-                "metadata": {},
-                "session_id": {
-                    "type": "string",
-                    "example": "sess_abc123"
-                }
-            }
+            "type": "object"
         },
         "internal_handler.proceduralGetRequest": {
             "type": "object",
@@ -69,11 +39,6 @@
         },
         "internal_handler.proceduralStoreRequest": {
             "type": "object",
-            "required": [
-                "id",
-                "name",
-                "content"
-            ],
             "properties": {
                 "content": {
                     "type": "string",
@@ -95,9 +60,6 @@
         },
         "internal_handler.semanticSearchRequest": {
             "type": "object",
-            "required": [
-                "query"
-            ],
             "properties": {
                 "embedding": {
                     "type": "array",
@@ -126,10 +88,6 @@
         },
         "internal_handler.semanticStoreRequest": {
             "type": "object",
-            "required": [
-                "id",
-                "content"
-            ],
             "properties": {
                 "content": {
                     "type": "string",
@@ -198,51 +156,15 @@
                         "description": "Episodic entries",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "session_id": {
-                                    "type": "string",
-                                    "example": "sess_abc123"
-                                },
-                                "entries": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "content": {
-                                                "type": "string",
-                                                "example": "{\"text\":\"User asked about pricing\"}"
-                                            },
-                                            "timestamp": {
-                                                "type": "string",
-                                                "example": "2026-01-15T10:30:00Z"
-                                            }
-                                        }
-                                    }
-                                },
-                                "total": {
-                                    "type": "integer",
-                                    "example": 25
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "session_id is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -250,19 +172,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to recall episodic memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -299,15 +210,8 @@
                         "description": "Stored status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "example": "mem_ep_a1b2c3d4"
-                                },
-                                "status": {
-                                    "type": "string",
-                                    "example": "stored"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -315,19 +219,8 @@
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "session_id and content are required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -335,19 +228,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to store episodic memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -384,50 +266,15 @@
                         "description": "Procedural memory entry",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "example": "mem_pr_a1b2c3d4"
-                                },
-                                "name": {
-                                    "type": "string",
-                                    "example": "deploy-to-ecs"
-                                },
-                                "content": {
-                                    "type": "string",
-                                    "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"
-                                },
-                                "metadata": {
-                                    "type": "object"
-                                },
-                                "created_at": {
-                                    "type": "string",
-                                    "example": "2026-01-15T10:30:00Z"
-                                },
-                                "updated_at": {
-                                    "type": "string",
-                                    "example": "2026-01-15T11:45:00Z"
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "id or name is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -435,19 +282,8 @@
                         "description": "Not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "not_found"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Procedural memory not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -455,19 +291,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to get procedural memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -504,15 +329,8 @@
                         "description": "Recorded status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "example": "mem_pr_a1b2c3d4"
-                                },
-                                "status": {
-                                    "type": "string",
-                                    "example": "recorded"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -520,19 +338,8 @@
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "id, name, and content are required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -540,19 +347,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to store procedural memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -589,50 +385,15 @@
                         "description": "Search results",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "results": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "id": {
-                                                "type": "string",
-                                                "example": "mem_sm_b2c3d4e5"
-                                            },
-                                            "content": {
-                                                "type": "string",
-                                                "example": "Echo is an AI agent platform for autonomous task execution"
-                                            },
-                                            "metadata": {
-                                                "type": "object"
-                                            },
-                                            "created_at": {
-                                                "type": "string",
-                                                "example": "2026-01-15T10:30:00Z"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "query is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -640,19 +401,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to search semantic memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -689,15 +439,8 @@
                         "description": "Indexed status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "example": "mem_sm_a1b2c3d4"
-                                },
-                                "status": {
-                                    "type": "string",
-                                    "example": "indexed"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -705,19 +448,8 @@
                         "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "validation_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "id and content are required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -725,19 +457,8 @@
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "success": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "error": {
-                                    "type": "string",
-                                    "example": "internal_error"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Failed to store semantic memory"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -764,8 +485,7 @@
                         "description": "Session ID",
                         "name": "id",
                         "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
+                        "required": true
                     },
                     {
                         "description": "Provider config payload",
@@ -782,15 +502,8 @@
                         "description": "Consolidation status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "example": "success"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Session pruned and consolidated successfully"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -798,11 +511,8 @@
                         "description": "Invalid request body",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Invalid request body"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -810,11 +520,8 @@
                         "description": "Consolidation failed",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Consolidation failed"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -844,8 +551,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

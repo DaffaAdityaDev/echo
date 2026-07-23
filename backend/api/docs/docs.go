@@ -84,7 +84,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
                         }
                     }
                 ],
@@ -1479,28 +1479,39 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "key_a1b2c3d4e5f6"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Production API Key"
                 },
                 "prefix": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "sk_a1b2c3d4"
                 },
                 "scopes": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "read",
+                        "write",
+                        "admin"
+                    ]
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "active"
                 },
                 "user_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1"
                 }
             }
         },
@@ -1508,31 +1519,40 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "context_summary": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "User is building a REST API for a todo app using Express and Prisma"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "sess_abc123"
                 },
                 "message_count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 12
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "active"
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Build a REST API with Express"
                 },
                 "token_count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 3421
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-01-15T11:45:00Z"
                 },
                 "user_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -1540,22 +1560,28 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
                 },
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "jane@example.com"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Jane Doe"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
                 }
             }
         },
@@ -1566,22 +1592,33 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "default_mode": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "agent"
                 },
                 "default_model": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "gpt-4o"
                 },
                 "default_skills": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
                 },
                 "user_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -1592,7 +1629,11 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "history": {
                     "type": "array",
@@ -1601,25 +1642,34 @@ const docTemplate = `{
                     }
                 },
                 "message": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Explain how the Echo agent works"
                 },
                 "missionId": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mission_xyz789"
                 },
                 "mode": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "agent"
                 },
                 "model": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "gpt-4o"
                 },
                 "sessionId": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "sess_abc123"
                 },
                 "skills": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
                 }
             }
         },
@@ -1627,7 +1677,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Build a REST API with Express"
                 }
             }
         },
@@ -1635,16 +1686,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Browse the web in real-time to fetch up-to-date information"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "web-browsing"
                 },
                 "locked": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": false
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Web Browsing"
                 }
             }
         },
@@ -1652,21 +1707,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "What is Echo and how does it work?"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user"
                 }
             }
         },
         "internal_handler.PruneRequest": {
-            "type": "object",
-            "properties": {
-                "provider_config": {
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            }
+            "type": "object"
         },
         "internal_handler.UpdateSettingsRequest": {
             "type": "object",
@@ -1675,19 +1726,48 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "default_mode": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "agent"
                 },
                 "default_model": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "gpt-4o"
                 },
                 "default_skills": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
+                }
+            }
+        },
+        "internal_handler.createAPIKeyRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Production Key"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "read",
+                        "write"
+                    ]
                 }
             }
         },
@@ -1695,34 +1775,32 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "limit": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 50
                 },
                 "offset": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "session_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "sess_abc123"
                 }
             }
         },
         "internal_handler.episodicStoreRequest": {
-            "type": "object",
-            "properties": {
-                "content": {},
-                "metadata": {},
-                "session_id": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "internal_handler.loginRequest": {
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "jane@example.com"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "P@ssw0rd!23"
                 }
             }
         },
@@ -1730,10 +1808,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mem_pr_e5f6g7h8"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "deploy-to-ecs"
                 }
             }
         },
@@ -1741,17 +1821,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mem_pr_e5f6g7h8"
                 },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": true
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "deploy-to-ecs"
                 }
             }
         },
@@ -1759,13 +1842,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "jane@example.com"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Jane Doe"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "P@ssw0rd!23"
                 }
             }
         },
@@ -1776,16 +1862,24 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "number"
-                    }
+                    },
+                    "example": [
+                        0.012,
+                        0.034,
+                        -0.056
+                    ]
                 },
                 "limit": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 10
                 },
                 "query": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "What is Echo agent platform?"
                 },
                 "threshold": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 0.75
                 }
             }
         },
@@ -1793,16 +1887,24 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Echo is an AI agent platform for autonomous task execution"
                 },
                 "embedding": {
                     "type": "array",
                     "items": {
                         "type": "number"
-                    }
+                    },
+                    "example": [
+                        0.012,
+                        0.034,
+                        -0.056,
+                        0.078
+                    ]
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mem_sm_a1b2c3d4"
                 },
                 "metadata": {
                     "type": "object",

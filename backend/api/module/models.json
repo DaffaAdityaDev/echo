@@ -31,29 +31,15 @@
                         "description": "List of available models",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "models": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.ModelInfo"
-                                    }
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Failed to retrieve models",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to retrieve models"
-                                },
-                                "details": {
-                                    "type": "string",
-                                    "example": "All providers unreachable"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -77,8 +63,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

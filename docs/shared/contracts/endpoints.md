@@ -21,17 +21,23 @@ planned rate limits.
 | backend/internal/constants/   |                                            |
 |   routes/v1.go                | Route path constants                       |
 | backend/internal/router/      |                                            |
-|   router.go                   | Route wiring                               |
+|   router.go                   | Route wiring + docs serving                |
 | backend/internal/handler/     |                                            |
 |   auth_handler.go             | Auth endpoint handlers                     |
 |   chat_handler.go             | Chat endpoint handlers                     |
 |   memory_handler.go           | Internal memory endpoint handlers          |
 |   model_handler.go            | Model endpoint handlers                    |
+| backend/api/docs/swagger.json | Generated monolithic OpenAPI 2.0 spec      |
+| backend/api/module/*.json     | Split per-module spec files (see           |
+|                               |   docs/backend/application/patterns/       |
+|                               |   docs-api.md for pipeline details)        |
+| backend/api/split/main.go     | Modular split tool                         |
 | agent/src/index.ts            | Hono app entry                             |
 | agent/src/app/api/missions/   |                                            |
 |   mission.controller.ts       | Mission generation endpoint                |
 | agent/src/app/middleware/     |                                            |
 |   auth.ts                     | Agent auth middleware                      |
+| agent/api/openapi.json        | Hand-authored OpenAPI 3.0 spec             |
 | frontend/web/src/lib/         |                                            |
 |   api-client.ts               | Unified HTTP/SSE client                    |
 | frontend/web/src/features/    |                                            |
@@ -231,7 +237,11 @@ From `docs/architecture-plan.md` — not yet implemented:
 
 - **Go route definitions**: `backend/internal/constants/routes/v1.go`
 - **Go route wiring**: `backend/internal/router/router.go`
+- **Go modular spec pipeline**: `backend/api/split/main.go`
+- **Go modular spec files**: `backend/api/module/*.json`
+- **Go monolithic spec**: `backend/api/docs/swagger.json`
 - **Agent app**: `agent/src/index.ts`
+- **Agent OpenAPI spec**: `agent/api/openapi.json`
 - **Frontend API client**: `frontend/web/src/lib/api-client.ts`
 
 ## Dependencies
@@ -248,6 +258,7 @@ From `docs/architecture-plan.md` — not yet implemented:
 | backend/internal/constants/routes/v1.go         | 1-16  | All path constants               |
 | backend/internal/router/router.go               | 15-52 | Route wiring with handler        |
 |                                                 |       |   injection                      |
+| backend/api/split/main.go                      | 1-295  | Modular spec split tool          |
 | backend/internal/middleware/service_auth.go     | 1-52  | Service JWT verification MW      |
 | agent/src/app/middleware/auth.ts                | 6-32  | Agent auth bypass for /          |
 | frontend/web/src/features/chat/constants.ts     | 31-34 | Frontend endpoint constants      |

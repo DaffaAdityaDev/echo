@@ -18,75 +18,204 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
-        "/health": {
+        "/api/v1/admin/api-keys": {
             "get": {
-                "description": "Returns the health status of the backend API",
-                "produces": ["application/json"],
-                "tags": ["Health"],
-                "summary": "Health check",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all system API keys",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List API keys",
                 "responses": {
                     "200": {
-                        "description": "Health status",
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to list keys",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "status": {"type": "string", "example": "ok"},
-                                "message": {"type": "string", "example": "Echo Backend API is running"}
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate a new API key with specific scopes",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create API key",
+                "parameters": [
+                    {
+                        "description": "API Key creation parameters (name, scopes)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Generated full key and record",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing name",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to generate/store key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/auth/register": {
-            "post": {
-                "description": "Register a new user account with email, password, and name",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Auth"],
-                "summary": "Register user",
+        "/api/v1/admin/api-keys/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change an API key status to revoked",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Revoke API key",
                 "parameters": [
                     {
-                        "description": "Registration credentials",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.registerRequest"
-                        }
+                        "type": "string",
+                        "description": "API Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "User and Token",
+                        "description": "Key revoked",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "token": {
-                                    "type": "string",
-                                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJqYW5lQGV4YW1wbGUuY29tIiwicm9sZSI6InVzZXIiLCJleHAiOjE3MDAwMDAwMDB9.abc123def456"
-                                },
-                                "user": {
-                                    "$ref": "#/definitions/echo-backend_internal_models.User"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Missing key ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Invalid request: missing required fields"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
-                    "409": {
-                        "description": "Email already exists",
+                    "404": {
+                        "description": "Key not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Email already registered"}
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to revoke key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Count total and active API keys in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get admin API key statistics",
+                "responses": {
+                    "200": {
+                        "description": "Total and active key counts",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "int64"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get stats",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -96,9 +225,15 @@
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user and receive JWT token and session cookie",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Auth"],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
                 "summary": "Login user",
                 "parameters": [
                     {
@@ -116,23 +251,15 @@
                         "description": "User and Token",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "token": {
-                                    "type": "string",
-                                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJqYW5lQGV4YW1wbGUuY29tIiwicm9sZSI6InVzZXIiLCJleHAiOjE3MDAwMDAwMDB9.abc123def456"
-                                },
-                                "user": {
-                                    "$ref": "#/definitions/echo-backend_internal_models.User"
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Invalid request body"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -140,8 +267,36 @@
                         "description": "Invalid email or password",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Invalid email or password"}
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Invalidate the session cookie",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout user",
+                "responses": {
+                    "200": {
+                        "description": "Logged out",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -150,10 +305,18 @@
         },
         "/api/v1/auth/me": {
             "get": {
-                "security": [{"BearerAuth": []}],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Fetch profile info for the currently authenticated user",
-                "produces": ["application/json"],
-                "tags": ["Auth"],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
                 "summary": "Get current user profile",
                 "responses": {
                     "200": {
@@ -166,8 +329,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Missing or invalid authentication token"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -175,28 +338,61 @@
                         "description": "User not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "User not found"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/auth/logout": {
+        "/api/v1/auth/register": {
             "post": {
-                "security": [{"BearerAuth": []}],
-                "description": "Invalidate the session cookie",
-                "produces": ["application/json"],
-                "tags": ["Auth"],
-                "summary": "Logout user",
+                "description": "Register a new user account with email, password, and name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Register user",
+                "parameters": [
+                    {
+                        "description": "Registration credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.registerRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Logged out",
+                        "description": "User and Token",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "message": {"type": "string", "example": "Logged out"}
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Email already exists",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -205,12 +401,22 @@
         },
         "/api/v1/chat": {
             "post": {
-                "security": [{"BearerAuth": []}],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Stream LLM response packets (SSE) for user message in a session or mission",
-                "consumes": ["application/json"],
-                "produces": ["text/event-stream"],
-                "tags": ["Chat"],
-                "summary": "Send chat message & stream response (SSE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Send chat message \u0026 stream response (SSE)",
                 "parameters": [
                     {
                         "description": "Chat prompt and session parameters",
@@ -224,18 +430,17 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events stream (data: JSON). Each event is a JSON object with type, content, toolName, toolInput, toolResult fields.",
+                        "description": "Server-Sent Events stream (data: JSON)",
                         "schema": {
-                            "type": "string",
-                            "example": "data: {\"type\":\"reasoning\",\"content\":\"Let me analyze the request...\"}\n\ndata: {\"type\":\"content\",\"content\":\"Echo is an AI agent platform...\"}\n\ndata: {\"type\":\"tool_call\",\"toolName\":\"file_system\",\"toolInput\":{\"path\":\"/src\"}}\n\ndata: {\"type\":\"tool_result\",\"toolName\":\"file_system\",\"content\":\"Directory listing...\"}\n\ndata: {\"type\":\"turn_complete\",\"content\":\"\"}\n\n"
+                            "type": "string"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or unknown model/skill",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unknown model 'unknown-model-v1'"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -243,8 +448,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -252,8 +457,8 @@
                         "description": "Forbidden / Feature tier requirement",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Feature 'code-interpreter' requires a Pro subscription."}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -261,44 +466,8 @@
                         "description": "Session not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session not found"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/skills": {
-            "get": {
-                "description": "Fetch available skill definitions from the agent service",
-                "produces": ["application/json"],
-                "tags": ["Chat"],
-                "summary": "Get agent skills catalog",
-                "responses": {
-                    "200": {
-                        "description": "List of agent skills",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string", "example": "python"},
-                                    "description": {"type": "string", "example": "Python development and scripting"},
-                                    "preferredTools": {
-                                        "type": "array",
-                                        "items": {"type": "string", "example": "file_system,terminal"}
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve skills",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to retrieve skills"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -308,8 +477,12 @@
         "/api/v1/features": {
             "get": {
                 "description": "Fetch available features and their lock status based on user tier header (X-User-Tier)",
-                "produces": ["application/json"],
-                "tags": ["Chat"],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
                 "summary": "Get available features catalog",
                 "responses": {
                     "200": {
@@ -325,44 +498,408 @@
                         "description": "Failed to retrieve features",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to retrieve features"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/v1/missions/{missionId}/stream": {
-            "get": {
-                "description": "Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)",
-                "produces": ["text/event-stream"],
-                "tags": ["Chat"],
-                "summary": "Stream mission logs (SSE)",
+        "/api/v1/internal/memory/episodic/recall": {
+            "post": {
+                "description": "Retrieve episodic conversation context from Redis",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Recall episodic memory",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "missionId",
-                        "in": "path",
+                        "description": "Episodic recall payload",
+                        "name": "request",
+                        "in": "body",
                         "required": true,
-                        "example": "mission_xyz789"
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.episodicRecallRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events log stream. Events are JSON data lines prefixed with 'data: '.",
+                        "description": "Episodic entries",
                         "schema": {
-                            "type": "string",
-                            "example": "data: {\"type\":\"progress\",\"step\":1,\"content\":\"Starting mission execution...\"}\n\ndata: {\"type\":\"heartbeat\",\"content\":\"\"}\n\n"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Missing mission ID",
+                        "description": "Validation error",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "missionId is required"}
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/memory/episodic/store": {
+            "post": {
+                "description": "Save episodic conversation context into Redis",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Store episodic memory",
+                "parameters": [
+                    {
+                        "description": "Episodic store payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.episodicStoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Stored status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/memory/procedural/get": {
+            "post": {
+                "description": "Retrieve procedural workflow steps by ID or name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get procedural memory",
+                "parameters": [
+                    {
+                        "description": "Procedural get payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.proceduralGetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Procedural memory entry",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/memory/procedural/store": {
+            "post": {
+                "description": "Record or update procedural workflow steps in PostgreSQL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Store procedural memory",
+                "parameters": [
+                    {
+                        "description": "Procedural store payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.proceduralStoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Recorded status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/memory/semantic/search": {
+            "post": {
+                "description": "Perform text or vector search over semantic memory in PostgreSQL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Search semantic memory",
+                "parameters": [
+                    {
+                        "description": "Semantic search payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.semanticSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/memory/semantic/store": {
+            "post": {
+                "description": "Save or update vector embedding semantic memory in PostgreSQL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Store semantic memory",
+                "parameters": [
+                    {
+                        "description": "Semantic store payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.semanticStoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Indexed status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/sessions/{id}/prune": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Trigger LLM-driven memory consolidation for a session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Prune and consolidate session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Provider config payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.PruneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Consolidation status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Consolidation failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -372,48 +909,338 @@
         "/api/v1/models": {
             "get": {
                 "description": "Fetch aggregated LLM model catalog from configured providers (OpenAI, Anthropic, LM Studio, OpenCode Go)",
-                "produces": ["application/json"],
-                "tags": ["Models"],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Models"
+                ],
                 "summary": "Get available LLM models",
                 "responses": {
                     "200": {
                         "description": "List of available models",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "models": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.ModelInfo"
-                                    }
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Failed to retrieve models",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to retrieve models"},
-                                "details": {"type": "string", "example": "All providers unreachable"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/settings/defaults": {
+        "/api/v1/sessions": {
             "get": {
-                "description": "Retrieve baseline application defaults for modes, models, and features",
-                "produces": ["application/json"],
-                "tags": ["Settings"],
-                "summary": "Get system default settings",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all active chat sessions belonging to the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "List user sessions",
+                "responses": {
+                    "200": {
+                        "description": "List of sessions",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to list sessions",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Initialize a new chat session for the current user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Create a new session",
+                "parameters": [
+                    {
+                        "description": "Session title",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.CreateSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models.Session"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch session metadata by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get session details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "$ref": "#/definitions/echo-backend_internal_models.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing session ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden: ownership mismatch",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-delete a chat session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Delete session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session soft deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing session ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden: ownership mismatch",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve message history for a specific chat session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get session messages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of messages",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing session ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden: ownership mismatch",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -421,10 +1248,18 @@
         },
         "/api/v1/settings": {
             "get": {
-                "security": [{"BearerAuth": []}],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Retrieve current user preference settings",
-                "produces": ["application/json"],
-                "tags": ["Settings"],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Settings"
+                ],
                 "summary": "Get user settings",
                 "responses": {
                     "200": {
@@ -437,8 +1272,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -446,19 +1281,29 @@
                         "description": "Failed to get settings",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to get settings"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             },
             "put": {
-                "security": [{"BearerAuth": []}],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Save modified user preference settings",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Settings"],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Settings"
+                ],
                 "summary": "Update user settings",
                 "parameters": [
                     {
@@ -482,8 +1327,8 @@
                         "description": "Invalid request body",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Invalid request body"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -491,8 +1336,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -500,891 +1345,122 @@
                         "description": "Failed to update settings",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to update settings"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/sessions": {
+        "/api/v1/settings/defaults": {
             "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Retrieve all active chat sessions belonging to the authenticated user",
-                "produces": ["application/json"],
-                "tags": ["Sessions"],
-                "summary": "List user sessions",
-                "responses": {
-                    "200": {
-                        "description": "List of sessions",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "sessions": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.Session"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to list sessions",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to list sessions"}
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [{"BearerAuth": []}],
-                "description": "Initialize a new chat session for the current user",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Sessions"],
-                "summary": "Create a new session",
-                "parameters": [
-                    {
-                        "description": "Session title",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.CreateSessionRequest"
-                        }
-                    }
+                "description": "Retrieve baseline application defaults for modes, models, and features",
+                "produces": [
+                    "application/json"
                 ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to create session",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to create session"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/sessions/{id}": {
-            "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Fetch session metadata by ID",
-                "produces": ["application/json"],
-                "tags": ["Sessions"],
-                "summary": "Get session details",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
-                    }
+                "tags": [
+                    "Settings"
                 ],
+                "summary": "Get system default settings",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session ID is required"}
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden: ownership mismatch",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Forbidden: ownership mismatch"}
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session not found"}
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [{"BearerAuth": []}],
-                "description": "Soft-delete a chat session",
-                "produces": ["application/json"],
-                "tags": ["Sessions"],
-                "summary": "Delete session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Session soft deleted",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "status": {"type": "string", "example": "success"},
-                                "message": {"type": "string", "example": "Session soft deleted"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session ID is required"}
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden: ownership mismatch",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Forbidden: ownership mismatch"}
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session not found"}
-                            }
+                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
                         }
                     }
                 }
             }
         },
-        "/api/v1/sessions/{id}/messages": {
+        "/api/v1/skills": {
             "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Retrieve message history for a specific chat session",
-                "produces": ["application/json"],
-                "tags": ["Sessions"],
-                "summary": "Get session messages",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
-                    }
+                "description": "Fetch available skill definitions from the agent service",
+                "produces": [
+                    "application/json"
                 ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Get agent skills catalog",
                 "responses": {
                     "200": {
-                        "description": "List of messages",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "messages": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/echo-backend_internal_models.Message"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session ID is required"}
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden: ownership mismatch",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Forbidden: ownership mismatch"}
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Session not found"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/api-keys": {
-            "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Retrieve all system API keys",
-                "produces": ["application/json"],
-                "tags": ["Admin"],
-                "summary": "List API keys",
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                        "description": "List of agent skills",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                                "type": "object",
+                                "additionalProperties": true
                             }
                         }
                     },
                     "500": {
-                        "description": "Failed to list keys",
+                        "description": "Failed to retrieve skills",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to list keys"}
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [{"BearerAuth": []}],
-                "description": "Generate a new API key with specific scopes",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Admin"],
-                "summary": "Create API key",
-                "parameters": [
-                    {
-                        "description": "API Key creation parameters (name, scopes)",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Generated full key and record",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "key": {
-                                    "type": "string",
-                                    "example": "sk_a1b2c3d4e5f6g7h8i9j0k1l2"
-                                },
-                                "api_key": {
-                                    "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request or missing name",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "name is required"}
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Unauthorized"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to generate/store key",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to generate key"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/admin/api-keys/{id}": {
-            "delete": {
-                "security": [{"BearerAuth": []}],
-                "description": "Change an API key status to revoked",
-                "produces": ["application/json"],
-                "tags": ["Admin"],
-                "summary": "Revoke API key",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "API Key ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "example": "key_a1b2c3d4e5f6"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Key revoked",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {"type": "string", "example": "Key revoked"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Missing key ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "id is required"}
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Key not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Key not found"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to revoke key",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to revoke key"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/stats": {
+        "/health": {
             "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Count total and active API keys in the system",
-                "produces": ["application/json"],
-                "tags": ["Admin"],
-                "summary": "Get admin API key statistics",
+                "description": "Returns the health status of the backend API",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check",
                 "responses": {
                     "200": {
-                        "description": "Total and active key counts",
+                        "description": "Health status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "total_keys": {"type": "integer", "format": "int64", "example": 5},
-                                "active_keys": {"type": "integer", "format": "int64", "example": 3}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to get stats",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Failed to get stats"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/internal/sessions/{id}/prune": {
-            "post": {
-                "security": [{"BearerAuth": []}],
-                "description": "Trigger LLM-driven memory consolidation for a session",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Prune and consolidate session",
+        "/v1/missions/{missionId}/stream": {
+            "get": {
+                "description": "Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Stream mission logs (SSE)",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
+                        "description": "Mission ID",
+                        "name": "missionId",
                         "in": "path",
-                        "required": true,
-                        "example": "sess_abc123"
-                    },
-                    {
-                        "description": "Provider config payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.PruneRequest"
-                        }
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Consolidation status",
+                        "description": "Server-Sent Events log stream",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "status": {"type": "string", "example": "success"},
-                                "message": {"type": "string", "example": "Session pruned and consolidated successfully"}
-                            }
+                            "type": "string"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Missing mission ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Invalid request body"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Consolidation failed",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {"type": "string", "example": "Consolidation failed"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/episodic/store": {
-            "post": {
-                "description": "Save episodic conversation context into Redis",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Store episodic memory",
-                "parameters": [
-                    {
-                        "description": "Episodic store payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicStoreRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Stored status",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "string", "example": "mem_ep_a1b2c3d4"},
-                                "status": {"type": "string", "example": "stored"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "session_id and content are required"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to store episodic memory"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/episodic/recall": {
-            "post": {
-                "description": "Retrieve episodic conversation context from Redis",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Recall episodic memory",
-                "parameters": [
-                    {
-                        "description": "Episodic recall payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicRecallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Episodic entries",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "session_id": {"type": "string", "example": "sess_abc123"},
-                                "entries": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "content": {"type": "string", "example": "{\"text\":\"User asked about pricing\"}"},
-                                            "timestamp": {"type": "string", "example": "2026-01-15T10:30:00Z"}
-                                        }
-                                    }
-                                },
-                                "total": {"type": "integer", "example": 25}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "session_id is required"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to recall episodic memory"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/semantic/store": {
-            "post": {
-                "description": "Save or update vector embedding semantic memory in PostgreSQL",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Store semantic memory",
-                "parameters": [
-                    {
-                        "description": "Semantic store payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticStoreRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Indexed status",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "string", "example": "mem_sm_a1b2c3d4"},
-                                "status": {"type": "string", "example": "indexed"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "id and content are required"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to store semantic memory"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/semantic/search": {
-            "post": {
-                "description": "Perform text or vector search over semantic memory in PostgreSQL",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Search semantic memory",
-                "parameters": [
-                    {
-                        "description": "Semantic search payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticSearchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Search results",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "results": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "id": {"type": "string", "example": "mem_sm_b2c3d4e5"},
-                                            "content": {"type": "string", "example": "Echo is an AI agent platform for autonomous task execution"},
-                                            "metadata": {"type": "object"},
-                                            "created_at": {"type": "string", "example": "2026-01-15T10:30:00Z"}
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "query is required"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to search semantic memory"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/procedural/store": {
-            "post": {
-                "description": "Record or update procedural workflow steps in PostgreSQL",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Store procedural memory",
-                "parameters": [
-                    {
-                        "description": "Procedural store payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralStoreRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Recorded status",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "string", "example": "mem_pr_a1b2c3d4"},
-                                "status": {"type": "string", "example": "recorded"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "id, name, and content are required"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to store procedural memory"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/internal/memory/procedural/get": {
-            "post": {
-                "description": "Retrieve procedural workflow steps by ID or name",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "tags": ["Internal"],
-                "summary": "Get procedural memory",
-                "parameters": [
-                    {
-                        "description": "Procedural get payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralGetRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Procedural memory entry",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "string", "example": "mem_pr_a1b2c3d4"},
-                                "name": {"type": "string", "example": "deploy-to-ecs"},
-                                "content": {"type": "string", "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"},
-                                "metadata": {"type": "object"},
-                                "created_at": {"type": "string", "example": "2026-01-15T10:30:00Z"},
-                                "updated_at": {"type": "string", "example": "2026-01-15T11:45:00Z"}
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "validation_error"},
-                                "message": {"type": "string", "example": "id or name is required"}
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "not_found"},
-                                "message": {"type": "string", "example": "Procedural memory not found"}
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "success": {"type": "boolean", "example": false},
-                                "error": {"type": "string", "example": "internal_error"},
-                                "message": {"type": "string", "example": "Failed to get procedural memory"}
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -1414,8 +1490,14 @@
                 },
                 "scopes": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["read", "write"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "read",
+                        "write",
+                        "admin"
+                    ]
                 },
                 "status": {
                     "type": "string",
@@ -1424,27 +1506,6 @@
                 "user_id": {
                     "type": "string",
                     "example": "1"
-                }
-            }
-        },
-        "echo-backend_internal_models.ModelInfo": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "example": "gpt-4o"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "GPT-4o"
-                },
-                "provider_type": {
-                    "type": "string",
-                    "example": "openai"
-                },
-                "provider_name": {
-                    "type": "string",
-                    "example": "OpenAI"
                 }
             }
         },
@@ -1523,8 +1584,13 @@
             "properties": {
                 "default_features": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["web-browsing", "code-interpreter"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "default_mode": {
                     "type": "string",
@@ -1536,8 +1602,13 @@
                 },
                 "default_skills": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["python", "research"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
                 },
                 "user_id": {
                     "type": "integer",
@@ -1545,29 +1616,24 @@
                 }
             }
         },
-        "echo-backend_internal_models.Message": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "integer", "example": 42},
-                "session_id": {"type": "string", "example": "sess_abc123"},
-                "role": {"type": "string", "example": "assistant"},
-                "content": {"type": "string", "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."},
-                "token_count": {"type": "integer", "example": 156},
-                "turn_number": {"type": "integer", "example": 3},
-                "created_at": {"type": "string", "example": "2026-01-15T10:35:00Z"}
-            }
-        },
         "internal_handler.ChatRequest": {
             "type": "object",
             "properties": {
                 "features": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["web-browsing", "code-interpreter"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "history": {
                     "type": "array",
-                    "items": {"$ref": "#/definitions/internal_handler.HistoryMessage"}
+                    "items": {
+                        "$ref": "#/definitions/internal_handler.HistoryMessage"
+                    }
                 },
                 "message": {
                     "type": "string",
@@ -1591,8 +1657,13 @@
                 },
                 "skills": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["python", "research"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
                 }
             }
         },
@@ -1640,22 +1711,20 @@
             }
         },
         "internal_handler.PruneRequest": {
-            "type": "object",
-            "properties": {
-                "provider_config": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "example": {"type": "openai", "base_url": "https://api.openai.com/v1", "model": "gpt-4o"}
-                }
-            }
+            "type": "object"
         },
         "internal_handler.UpdateSettingsRequest": {
             "type": "object",
             "properties": {
                 "default_features": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["web-browsing", "code-interpreter"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
                 },
                 "default_mode": {
                     "type": "string",
@@ -1667,8 +1736,13 @@
                 },
                 "default_skills": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["python", "research"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
                 }
             }
         },
@@ -1681,95 +1755,161 @@
                 },
                 "scopes": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "example": ["read", "write"]
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "read",
+                        "write"
+                    ]
                 }
             }
         },
         "internal_handler.episodicRecallRequest": {
             "type": "object",
-            "required": ["session_id"],
             "properties": {
-                "limit": {"type": "integer", "example": 50},
-                "offset": {"type": "integer", "example": 0},
-                "session_id": {"type": "string", "example": "sess_abc123"}
+                "limit": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "session_id": {
+                    "type": "string",
+                    "example": "sess_abc123"
+                }
             }
         },
         "internal_handler.episodicStoreRequest": {
-            "type": "object",
-            "required": ["session_id", "content"],
-            "properties": {
-                "content": {"example": {"text": "User asked about pricing plans"}},
-                "metadata": {},
-                "session_id": {"type": "string", "example": "sess_abc123"}
-            }
+            "type": "object"
         },
         "internal_handler.loginRequest": {
             "type": "object",
-            "required": ["email", "password"],
             "properties": {
-                "email": {"type": "string", "example": "jane@example.com"},
-                "password": {"type": "string", "example": "P@ssw0rd!23"}
+                "email": {
+                    "type": "string",
+                    "example": "jane@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "P@ssw0rd!23"
+                }
             }
         },
         "internal_handler.proceduralGetRequest": {
             "type": "object",
             "properties": {
-                "id": {"type": "string", "example": "mem_pr_e5f6g7h8"},
-                "name": {"type": "string", "example": "deploy-to-ecs"}
+                "id": {
+                    "type": "string",
+                    "example": "mem_pr_e5f6g7h8"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "deploy-to-ecs"
+                }
             }
         },
         "internal_handler.proceduralStoreRequest": {
             "type": "object",
-            "required": ["id", "name", "content"],
             "properties": {
-                "content": {"type": "string", "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"},
-                "id": {"type": "string", "example": "mem_pr_e5f6g7h8"},
-                "metadata": {"type": "object", "additionalProperties": true},
-                "name": {"type": "string", "example": "deploy-to-ecs"}
+                "content": {
+                    "type": "string",
+                    "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "mem_pr_e5f6g7h8"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "deploy-to-ecs"
+                }
             }
         },
         "internal_handler.registerRequest": {
             "type": "object",
-            "required": ["email", "password", "name"],
             "properties": {
-                "email": {"type": "string", "example": "jane@example.com"},
-                "name": {"type": "string", "example": "Jane Doe"},
-                "password": {"type": "string", "example": "P@ssw0rd!23"}
+                "email": {
+                    "type": "string",
+                    "example": "jane@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Doe"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "P@ssw0rd!23"
+                }
             }
         },
         "internal_handler.semanticSearchRequest": {
             "type": "object",
-            "required": ["query"],
             "properties": {
                 "embedding": {
                     "type": "array",
-                    "items": {"type": "number"},
-                    "example": [0.012, 0.034, -0.056]
+                    "items": {
+                        "type": "number"
+                    },
+                    "example": [
+                        0.012,
+                        0.034,
+                        -0.056
+                    ]
                 },
-                "limit": {"type": "integer", "example": 10},
-                "query": {"type": "string", "example": "What is Echo agent platform?"},
-                "threshold": {"type": "number", "example": 0.75}
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "query": {
+                    "type": "string",
+                    "example": "What is Echo agent platform?"
+                },
+                "threshold": {
+                    "type": "number",
+                    "example": 0.75
+                }
             }
         },
         "internal_handler.semanticStoreRequest": {
             "type": "object",
-            "required": ["id", "content"],
             "properties": {
-                "content": {"type": "string", "example": "Echo is an AI agent platform for autonomous task execution"},
+                "content": {
+                    "type": "string",
+                    "example": "Echo is an AI agent platform for autonomous task execution"
+                },
                 "embedding": {
                     "type": "array",
-                    "items": {"type": "number"},
-                    "example": [0.012, 0.034, -0.056, 0.078]
+                    "items": {
+                        "type": "number"
+                    },
+                    "example": [
+                        0.012,
+                        0.034,
+                        -0.056,
+                        0.078
+                    ]
                 },
-                "id": {"type": "string", "example": "mem_sm_a1b2c3d4"},
-                "metadata": {"type": "object", "additionalProperties": true}
+                "id": {
+                    "type": "string",
+                    "example": "mem_sm_a1b2c3d4"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
             }
         }
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer <JWT>).",
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

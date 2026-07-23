@@ -111,21 +111,17 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events stream (data: JSON). Each event is a JSON object with type, content, toolName, toolInput, toolResult fields.",
+                        "description": "Server-Sent Events stream (data: JSON)",
                         "schema": {
-                            "type": "string",
-                            "example": "data: {\"type\":\"reasoning\",\"content\":\"Let me analyze the request...\"}\n\ndata: {\"type\":\"content\",\"content\":\"Echo is an AI agent platform...\"}\n\ndata: {\"type\":\"tool_call\",\"toolName\":\"file_system\",\"toolInput\":{\"path\":\"/src\"}}\n\ndata: {\"type\":\"tool_result\",\"toolName\":\"file_system\",\"content\":\"Directory listing...\"}\n\ndata: {\"type\":\"turn_complete\",\"content\":\"\"}\n\n"
+                            "type": "string"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or unknown model/skill",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unknown model 'unknown-model-v1'"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -133,11 +129,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -145,11 +138,8 @@
                         "description": "Forbidden / Feature tier requirement",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Feature 'code-interpreter' requires a Pro subscription."
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -157,11 +147,8 @@
                         "description": "Session not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Session not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -201,11 +188,8 @@
                         "description": "Failed to retrieve features",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to retrieve features"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -232,23 +216,7 @@
                             "type": "array",
                             "items": {
                                 "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "python"
-                                    },
-                                    "description": {
-                                        "type": "string",
-                                        "example": "Python development and scripting"
-                                    },
-                                    "preferredTools": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "example": "file_system,terminal"
-                                        }
-                                    }
-                                }
+                                "additionalProperties": true
                             }
                         }
                     },
@@ -256,11 +224,8 @@
                         "description": "Failed to retrieve skills",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to retrieve skills"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -285,27 +250,22 @@
                         "description": "Mission ID",
                         "name": "missionId",
                         "in": "path",
-                        "required": true,
-                        "example": "mission_xyz789"
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events log stream. Events are JSON data lines prefixed with 'data: '.",
+                        "description": "Server-Sent Events log stream",
                         "schema": {
-                            "type": "string",
-                            "example": "data: {\"type\":\"progress\",\"step\":1,\"content\":\"Starting mission execution...\"}\n\ndata: {\"type\":\"heartbeat\",\"content\":\"\"}\n\n"
+                            "type": "string"
                         }
                     },
                     "400": {
                         "description": "Missing mission ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "missionId is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -329,8 +289,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

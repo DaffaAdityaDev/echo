@@ -31,15 +31,8 @@
                         "description": "Health status",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "example": "ok"
-                                },
-                                "message": {
-                                    "type": "string",
-                                    "example": "Echo Backend API is running"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -63,8 +56,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"

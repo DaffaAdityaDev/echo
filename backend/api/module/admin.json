@@ -60,11 +60,8 @@
                         "description": "Failed to list keys",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to list keys"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -101,26 +98,15 @@
                         "description": "Generated full key and record",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "key": {
-                                    "type": "string",
-                                    "example": "sk_a1b2c3d4e5f6g7h8i9j0k1l2"
-                                },
-                                "api_key": {
-                                    "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Invalid request or missing name",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "name is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -128,11 +114,8 @@
                         "description": "Unauthorized",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Unauthorized"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -140,11 +123,8 @@
                         "description": "Failed to generate/store key",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to generate key"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -175,8 +155,7 @@
                         "description": "API Key ID",
                         "name": "id",
                         "in": "path",
-                        "required": true,
-                        "example": "key_a1b2c3d4e5f6"
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -184,11 +163,8 @@
                         "description": "Key revoked",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "example": "Key revoked"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -196,11 +172,8 @@
                         "description": "Missing key ID",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "id is required"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -208,11 +181,8 @@
                         "description": "Key not found",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Key not found"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -220,11 +190,8 @@
                         "description": "Failed to revoke key",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to revoke key"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -253,17 +220,9 @@
                         "description": "Total and active key counts",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "total_keys": {
-                                    "type": "integer",
-                                    "format": "int64",
-                                    "example": 5
-                                },
-                                "active_keys": {
-                                    "type": "integer",
-                                    "format": "int64",
-                                    "example": 3
-                                }
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "int64"
                             }
                         }
                     },
@@ -271,11 +230,8 @@
                         "description": "Failed to get stats",
                         "schema": {
                             "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string",
-                                    "example": "Failed to get stats"
-                                }
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -303,8 +259,6 @@
     "swagger": "2.0",
     "x-shared-definitions": [
         "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Message",
-        "echo-backend_internal_models.ModelInfo",
         "echo-backend_internal_models.Session",
         "echo-backend_internal_models.User",
         "echo-backend_internal_models.UserPreferences"
