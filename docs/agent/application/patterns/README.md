@@ -21,6 +21,7 @@ error propagation, auth implementation, and architectural patterns.
 ```
 patterns/
 ├── auth/               ← Authentication & authorization patterns
+├── api-docs/           ← OpenAPI spec authoring & Scalar rendering
 ├── code-conventions/   ← Naming, file structure, constants style
 ├── (more as needed)    ← e.g. error-handling, dependency-injection
 ```
@@ -40,6 +41,13 @@ Related docs in other layers:
   — End-to-end auth flow (user + service)
 - [`docs/shared/patterns/service-to-service-auth.md`](../../../shared/patterns/service-to-service-auth.md)
   — Service JWT implementation
+
+### api-docs/
+
+Documents covering the API documentation pattern using Scalar and OpenAPI.
+
+- [`docs-api.md`](docs-api.md) — OpenAPI spec authoring, Scalar rendering,
+  spec structure, and differences from the backend's Swaggo approach
 
 ### code-conventions/
 

@@ -19,4 +19,5 @@ const (
 	V1AdminGroup     = "/admin"
 
 	V1InternalGroup  = "/internal"
+	V1PathDocs       = "/docs"
 )

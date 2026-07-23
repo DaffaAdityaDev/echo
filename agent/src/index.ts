@@ -39,6 +39,8 @@ if (ENV.ENABLE_MCP && ENV.MCP_SERVER_URL) {
   logger.info(`MCP server configured at ${ENV.MCP_SERVER_URL}`);
 }
 
+import docsRouter from "./app/api/docs/docs";
+
 const app = new Hono();
 
 // Global Middleware
@@ -49,6 +51,7 @@ app.use("/api/*", authMiddleware);
 // Routes
 app.get("/", (c) => c.json({ status: "ok", service: "agent-platform" }));
 app.route("/api", routes);
+app.route("/docs", docsRouter);
 
 // Error Handling
 app.onError(errorHandler);

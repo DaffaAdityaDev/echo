@@ -32,3 +32,15 @@ func generateUUID() string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+// @Summary Health check
+// @Description Returns the health status of the backend API
+// @Tags Health
+// @Produce json
+// @Success 200 {object} map[string]string "Health status"
+// @Router /health [get]
+func _healthDoc() {} // dummy, swaggo reads annotation from this
+
+
+
+

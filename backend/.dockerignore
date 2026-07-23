@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+.env.*
+*.log
+tmp/
+bin/
+node_modules/
+api/docs/

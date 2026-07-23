@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down dev-logs prod-up prod-down prod-logs deploy clean status Help
+.PHONY: dev-up dev-down dev-logs prod-up prod-down prod-logs deploy clean status swagger-gen help
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,10 +20,17 @@ help:
 	@echo "Deployment:"
 	@echo "  make deploy       - Execute a clean build and start production stack"
 	@echo ""
+	@echo "Documentation:"
+	@echo "  make swagger-gen  - Generate backend Swaggo OpenAPI spec"
+	@echo ""
 	@echo "Utility:"
 	@echo "  make status       - Check status of all containers"
 	@echo "  make clean        - Stop stacks and prune unused docker resources"
 	@echo "======================================================================="
+
+# Swagger Docs Generation
+swagger-gen:
+	cd backend && go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/server/main.go -o api/docs --parseDependency --parseInternal
 
 # Development
 dev-up:

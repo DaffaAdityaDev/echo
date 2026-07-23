@@ -29,6 +29,7 @@
     "hono": "^4.12.18",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^1.4.0",
+    "@scalar/hono-api-reference": "^0.5.171",
     "turndown": "^7.2.0",
     "zod": "^4.4.3",
     "zod-to-json-schema": "^3.25.2"

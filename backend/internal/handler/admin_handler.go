@@ -38,6 +38,14 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 	return
 }
 
+// @Summary List API keys
+// @Description Retrieve all system API keys
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.ApiKey
+// @Failure 500 {object} map[string]string "Failed to list keys"
+// @Router /api/v1/admin/api-keys [get]
 func (h *AdminHandler) HandleListKeys(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {
@@ -46,6 +54,18 @@ func (h *AdminHandler) HandleListKeys(c fiber.Ctx) error {
 	return c.JSON(keys)
 }
 
+// @Summary Create API key
+// @Description Generate a new API key with specific scopes
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "API Key creation parameters (name, scopes)"
+// @Success 201 {object} map[string]interface{} "Generated full key and record"
+// @Failure 400 {object} map[string]string "Invalid request or missing name"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Failed to generate/store key"
+// @Router /api/v1/admin/api-keys [post]
 func (h *AdminHandler) HandleCreateKey(c fiber.Ctx) error {
 	var req struct {
 		Name   string   `json:"name"`
@@ -91,6 +111,17 @@ func (h *AdminHandler) HandleCreateKey(c fiber.Ctx) error {
 	})
 }
 
+// @Summary Revoke API key
+// @Description Change an API key status to revoked
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "API Key ID"
+// @Success 200 {object} map[string]string "Key revoked"
+// @Failure 400 {object} map[string]string "Missing key ID"
+// @Failure 404 {object} map[string]string "Key not found"
+// @Failure 500 {object} map[string]string "Failed to revoke key"
+// @Router /api/v1/admin/api-keys/{id} [delete]
 func (h *AdminHandler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -112,6 +143,14 @@ func (h *AdminHandler) HandleRevokeKey(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Key revoked"})
 }
 
+// @Summary Get admin API key statistics
+// @Description Count total and active API keys in the system
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]int64 "Total and active key counts"
+// @Failure 500 {object} map[string]string "Failed to get stats"
+// @Router /api/v1/admin/stats [get]
 func (h *AdminHandler) HandleStats(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {

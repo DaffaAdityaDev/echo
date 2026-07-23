@@ -18,15 +18,11 @@ export const envSchema = z.object({
   INTERNAL_AUTH_TOKEN: z.string({
     message: ENV_VALIDATION_MESSAGES.INTERNAL_AUTH_TOKEN
   }),
-  LANGFUSE_PUBLIC_KEY: z.string({
-    message: ENV_VALIDATION_MESSAGES.LANGFUSE_PUBLIC_KEY
-  }),
-  LANGFUSE_SECRET_KEY: z.string({
-    message: ENV_VALIDATION_MESSAGES.LANGFUSE_SECRET_KEY
-  }),
+  LANGFUSE_PUBLIC_KEY: z.string().default("pk-lf-dummy"),
+  LANGFUSE_SECRET_KEY: z.string().default("sk-lf-dummy"),
   LANGFUSE_BASE_URL: z.string().default(ENV_DEFAULTS.LANGFUSE_BASE_URL),
   AGENT_RUNTIME_MODE: z.enum(ENV_VALUES.RUNTIME_MODES).default("local"),
-  SERVICE_JWT_SECRET: z.string().min(32, ENV_VALIDATION_MESSAGES.SERVICE_JWT_SECRET),
+  SERVICE_JWT_SECRET: z.string().min(32).default("change-this-to-a-secure-service-jwt-secret-min32chars"),
   BACKEND_INTERNAL_URL: z.string().url().default(ENV_DEFAULTS.BACKEND_INTERNAL_URL),
   MCP_SERVER_URL: z.string().url().optional(),
   ENABLE_MCP: z.coerce.boolean().default(false),

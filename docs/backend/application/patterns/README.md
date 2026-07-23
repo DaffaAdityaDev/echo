@@ -24,6 +24,8 @@ Documentation Index
 |                                          | formatting, streaming SSE pattern, error mapping   |
 | middleware-chain.md                      | Request pipeline: recover, logger, CORS, JWT,      |
 |                                          | custom middleware implementations                  |
+| docs-api.md                              | OpenAPI spec generation via Swaggo annotations,    |
+|                                          | Scalar UI serving, Docker build integration        |
 +------------------------------------------+----------------------------------------------------+
 
 ================================================================================

@@ -39,6 +39,16 @@ type episodicStoreRequest struct {
 	Metadata  interface{} `json:"metadata,omitempty"`
 }
 
+// @Summary Store episodic memory
+// @Description Save episodic conversation context into Redis
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body episodicStoreRequest true "Episodic store payload"
+// @Success 201 {object} map[string]string "Stored status"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/episodic/store [post]
 func (h *MemoryHandler) HandleStoreEpisodic(c fiber.Ctx) error {
 	var req episodicStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -82,6 +92,16 @@ type episodicRecallRequest struct {
 	Offset    int    `json:"offset,omitempty"`
 }
 
+// @Summary Recall episodic memory
+// @Description Retrieve episodic conversation context from Redis
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body episodicRecallRequest true "Episodic recall payload"
+// @Success 200 {object} map[string]interface{} "Episodic entries"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/episodic/recall [post]
 func (h *MemoryHandler) HandleGetEpisodic(c fiber.Ctx) error {
 	var req episodicRecallRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -139,6 +159,16 @@ type semanticStoreRequest struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// @Summary Store semantic memory
+// @Description Save or update vector embedding semantic memory in PostgreSQL
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body semanticStoreRequest true "Semantic store payload"
+// @Success 201 {object} map[string]string "Indexed status"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/semantic/store [post]
 func (h *MemoryHandler) HandleStoreSemantic(c fiber.Ctx) error {
 	var req semanticStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -198,6 +228,16 @@ type semanticSearchRequest struct {
 	Threshold float64   `json:"threshold,omitempty"`
 }
 
+// @Summary Search semantic memory
+// @Description Perform text or vector search over semantic memory in PostgreSQL
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body semanticSearchRequest true "Semantic search payload"
+// @Success 200 {object} map[string]interface{} "Search results"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/semantic/search [post]
 func (h *MemoryHandler) HandleSemanticSearch(c fiber.Ctx) error {
 	var req semanticSearchRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -264,6 +304,16 @@ type proceduralStoreRequest struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// @Summary Store procedural memory
+// @Description Record or update procedural workflow steps in PostgreSQL
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body proceduralStoreRequest true "Procedural store payload"
+// @Success 201 {object} map[string]string "Recorded status"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/procedural/store [post]
 func (h *MemoryHandler) HandleStoreProcedural(c fiber.Ctx) error {
 	var req proceduralStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -304,6 +354,17 @@ type proceduralGetRequest struct {
 	Name string `json:"name,omitempty"`
 }
 
+// @Summary Get procedural memory
+// @Description Retrieve procedural workflow steps by ID or name
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param request body proceduralGetRequest true "Procedural get payload"
+// @Success 200 {object} map[string]interface{} "Procedural memory entry"
+// @Failure 400 {object} map[string]string "Validation error"
+// @Failure 404 {object} map[string]string "Not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/v1/internal/memory/procedural/get [post]
 func (h *MemoryHandler) HandleGetProcedural(c fiber.Ctx) error {
 	var req proceduralGetRequest
 	if err := c.Bind().JSON(&req); err != nil {

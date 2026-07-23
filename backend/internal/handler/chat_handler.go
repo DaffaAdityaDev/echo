@@ -103,6 +103,19 @@ func parseTraceparent(tp string) (trace.SpanContext, bool) {
 	}), true
 }
 
+// @Summary Send chat message & stream response (SSE)
+// @Description Stream LLM response packets (SSE) for user message in a session or mission
+// @Tags Chat
+// @Accept json
+// @Produce text/event-stream
+// @Security BearerAuth
+// @Param request body ChatRequest true "Chat prompt and session parameters"
+// @Success 200 {string} string "Server-Sent Events stream (data: JSON)"
+// @Failure 400 {object} map[string]string "Invalid request body or unknown model/skill"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden / Feature tier requirement"
+// @Failure 404 {object} map[string]string "Session not found"
+// @Router /api/v1/chat [post]
 func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 	var req ChatRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -450,6 +463,14 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 }
 
 // StreamMissionLogs dynamically proxies the stream based on AGENT_RUNTIME_MODE
+// @Summary Stream mission logs (SSE)
+// @Description Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)
+// @Tags Chat
+// @Produce text/event-stream
+// @Param missionId path string true "Mission ID"
+// @Success 200 {string} string "Server-Sent Events log stream"
+// @Failure 400 {object} map[string]string "Missing mission ID"
+// @Router /v1/missions/{missionId}/stream [get]
 func (h *ChatHandler) StreamMissionLogs(c fiber.Ctx) error {
 	missionID := c.Params("missionId")
 	if missionID == "" {
@@ -664,6 +685,13 @@ func (h *ChatHandler) GetSkills(ctx context.Context) ([]map[string]interface{}, 
 }
 
 // HandleGetSkills returns the catalog of skills from the agent.
+// @Summary Get agent skills catalog
+// @Description Fetch available skill definitions from the agent service
+// @Tags Chat
+// @Produce json
+// @Success 200 {array} map[string]interface{} "List of agent skills"
+// @Failure 500 {object} map[string]string "Failed to retrieve skills"
+// @Router /api/v1/skills [get]
 func (h *ChatHandler) HandleGetSkills(c fiber.Ctx) error {
 	ctx := c.Context()
 	skills, err := h.GetSkills(ctx)
@@ -674,6 +702,13 @@ func (h *ChatHandler) HandleGetSkills(c fiber.Ctx) error {
 }
 
 // HandleGetFeatures returns the catalog of features, dynamically locking premium ones depending on user tier.
+// @Summary Get available features catalog
+// @Description Fetch available features and their lock status based on user tier header (X-User-Tier)
+// @Tags Chat
+// @Produce json
+// @Success 200 {array} FeatureResponse "List of features with lock states"
+// @Failure 500 {object} map[string]string "Failed to retrieve features"
+// @Router /api/v1/features [get]
 func (h *ChatHandler) HandleGetFeatures(c fiber.Ctx) error {
 	ctx := c.Context()
 	userTier := c.Get("X-User-Tier")

@@ -4,8 +4,8 @@ import { ENV } from "../../config/env";
 import { AUTH_CONSTANTS } from "../../shared/constants/middleware";
 
 export async function authMiddleware(c: Context, next: Next) {
-  // Allow root health check to bypass authentication
-  if (c.req.path === AUTH_CONSTANTS.BYPASS_PATH) {
+  // Allow root health check and docs to bypass authentication
+  if (c.req.path === AUTH_CONSTANTS.BYPASS_PATH || c.req.path.startsWith("/api/docs") || c.req.path.startsWith("/docs")) {
     return await next();
   }
 
