@@ -12,7 +12,7 @@ services:
       - ENABLE_REDIS=true
       - STATE_BACKEND=backend
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
-      - BACKEND_INTERNAL_URL=${BACKEND_INTERNAL_URL:-http://echo-backend:8080}
+      - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
     depends_on:
       - echo-redis
     restart: unless-stopped

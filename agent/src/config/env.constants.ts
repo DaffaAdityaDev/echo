@@ -4,7 +4,7 @@ export const ENV_DEFAULTS = {
   CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   LANGFUSE_BASE_URL: "http://localhost:3000",
-  BACKEND_INTERNAL_URL: "http://localhost:8080",
+  BACKEND_URL: "http://localhost:8080",
 } as const;
 
 export const ENV_VALUES = {

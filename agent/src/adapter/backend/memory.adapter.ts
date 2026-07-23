@@ -14,7 +14,7 @@ export class MemoryAdapter {
   private connected = false;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || ENV.BACKEND_INTERNAL_URL || 'http://localhost:8080';
+    this.baseUrl = baseUrl || ENV.BACKEND_URL || 'http://localhost:8080';
   }
 
   async connect() {

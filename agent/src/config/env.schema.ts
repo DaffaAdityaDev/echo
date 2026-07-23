@@ -23,7 +23,7 @@ export const envSchema = z.object({
   LANGFUSE_BASE_URL: z.string().default(ENV_DEFAULTS.LANGFUSE_BASE_URL),
   AGENT_RUNTIME_MODE: z.enum(ENV_VALUES.RUNTIME_MODES).default("local"),
   SERVICE_JWT_SECRET: z.string().min(32).default("change-this-to-a-secure-service-jwt-secret-min32chars"),
-  BACKEND_INTERNAL_URL: z.string().url().default(ENV_DEFAULTS.BACKEND_INTERNAL_URL),
+  BACKEND_URL: z.string().url().default(ENV_DEFAULTS.BACKEND_URL),
   MCP_SERVER_URL: z.string().url().optional(),
   ENABLE_MCP: z.coerce.boolean().default(false),
   ENABLE_REST_TOOLS: z.coerce.boolean().default(false),

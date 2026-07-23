@@ -26,7 +26,7 @@ rmSync(join(root, "logs"), { recursive: true, force: true });
 logger.info("Startup cleanup complete (debug/, logs/)");
 
 // Initialize Memory Client
-const memoryProvider = new MemoryAdapter(ENV.BACKEND_INTERNAL_URL);
+const memoryProvider = new MemoryAdapter(ENV.BACKEND_URL);
 logger.info("Memory client initialized (backend)");
 
 // Initialize Credential Manager

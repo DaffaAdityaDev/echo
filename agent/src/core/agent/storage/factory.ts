@@ -6,7 +6,7 @@ import { ENV } from '../../../config/env';
 
 function createStateProvider() {
   if (ENV.STATE_BACKEND === 'backend') {
-    const provider = new MemoryAdapter(ENV.BACKEND_INTERNAL_URL);
+    const provider = new MemoryAdapter(ENV.BACKEND_URL);
     logger.info('🧠 Agent State Channel: BACKEND PERSISTENCE ACTIVE');
     return provider;
   }

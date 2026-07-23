@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { getRequestToken } from '@/lib/get-request-token'
+import { getBackendApiUrl } from '@/constants/api'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+const BASE_URL = getBackendApiUrl()
 
 export async function POST(req: NextRequest) {
   const token = await getRequestToken()
