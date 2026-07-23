@@ -60,7 +60,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-3">
+    <div className="mx-auto w-full max-w-5xl px-4 py-3">
       <div className="glass border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col gap-3 relative overflow-hidden transition-all duration-300">
         {/* Background Glow */}
         <div className="absolute inset-0 bg-accent/5 blur-xl -z-10 rounded-2xl" />

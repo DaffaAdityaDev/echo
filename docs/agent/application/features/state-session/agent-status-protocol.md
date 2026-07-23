@@ -254,7 +254,7 @@ Non-blocking toast, auto-dismiss after 8 seconds.
 
 ```
 nlah/harness.ts:
-  - Compute AgentStatus before every emit()
+  - Compute AgentStatus in sendBase() before every packet
   - Track state transitions vs previous iteration
   - Emit state_change packet on transition
   - Emit progress packet after every checkpoint
@@ -317,11 +317,12 @@ features/chat/components/DegradationToast.tsx:
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                         | Key Lines                                             |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
-| Existing packets         | `harness/nlah/harness.ts:50-60`              | emit() helper — constructs HarnessPacket              |
-| Packet types             | `shared/types/index.ts:17-30`                | AgentPacketType union                                |
-| Heartbeat current        | `app/api/missions/mission.controller.ts:130` | 15s heartbeat ping                                    |
-| Frontend types           | `frontend/web/src/features/chat/types/       | StreamPacket — existing SSE parser                    |
-|                          |   index.ts:62-95`                            |                                                       |
+| Typed emit methods       | `harness/nlah/harness.ts:60-180`             | sendBase() + typed emit*() methods (no generic emit)  |
+| Packet types             | `shared/types/index.ts:17-36`                | AgentPacketType union                               |
+| Packet type shapes       | `shared/types/index.ts:56-80`                | HarnessPacket discriminated union (flat, no meta)   |
+| Heartbeat current        | `app/api/missions/mission.controller.ts:165` | SSE stream creation                                  |
+| Frontend types           | `frontend/web/src/features/chat/types/       | StreamPacket discriminated union                     |
+|                          |   index.ts:102-138`                          |                                                      |
 | Cancel manager           | `harness/cancel_manager.ts`                  | Abort controller for disconnect detection             |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 

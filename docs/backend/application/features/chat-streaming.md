@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Streaming
   Service   : backend
-  Version   : 1.1
-  Updated   : 2026-07-10
+  Version   : 1.2
+  Updated   : 2026-07-23
 ================================================================================
 
 Overview
@@ -34,7 +34,10 @@ File Structure
 | internal/service/consolidation_service.go| ConsolidationService - token threshold &   |
 |                                          |   session summarization                    |
 | internal/repository/session_repository.go| SessionRepository - session CRUD, turn     |
-|                                          |   persistence via SaveTurnMessages         |
+|                                          |   persistence (incremental flush):         |
+|                                          |   InsertMessage, InsertAssistantPlaceholder|
+|                                          |   UpdateMessageContent, UpdateMessageStatus|
+|                                          |   MarkStreamingAsInterrupted              |
 | internal/observability/tracer.go         | OpenTelemetry span creation & propagation  |
 +------------------------------------------+--------------------------------------------+
 
@@ -78,14 +81,24 @@ Flow Diagram - Chat Stream
         │  SSE:text/event-stream                        │                      │
         │◄─────────────────────│ (relay raw bytes)      │                      │
         │  (chunked transfer)  │                        │                      │
-        │                      │  On turn_complete:     │                      │
-        │                      │    SaveTurnMessages    │                      │
-        │                      │    (user, assistant,   │                      │
-        │                      │     thought,           │                      │
-        │                      │     tool_call,         │                      │
-        │                      │     tool_result)       │                      │
-        │                      │    10s timeout ctx     │                      │
-        │                      │                        │                      │
+         │                      │  Before stream:        │                      │
+         │                      │    Auto-create session │                      │
+         │                      │    Save user msg (PG)  │                      │
+         │                      │    Insert assistant    │                      │
+         │                      │      placeholder       │                      │
+         │                      │    (status=streaming)  │                      │
+         │                      │                        │                      │
+         │                      │  During stream:        │                      │
+         │                      │    Flush goroutine     │                      │
+         │                      │    (UPDATE PG content  │                      │
+         │                      │     every 2s)          │                      │
+         │                      │                        │                      │
+         │                      │  On stream end:        │                      │
+         │                      │    Stop flush goroutine│                      │
+         │                      │    UPDATE PG:          │                      │
+         │                      │      content + steps   │                      │
+         │                      │      + status          │                      │
+         │                      │    (complete/interrupted)                       │
 
 Message Flow - HandleChat
 -------------------------
@@ -141,11 +154,23 @@ Message Flow - HandleChat
      │        Strip thought, tool_call, tool_result roles
      │        Track nextTurn = max(existing turn) + 1
      │
-     └─ Fallback (no SessionID):
-          history = req.History (client-provided)
-          nextTurn = 1
-
-     ├─ Build agent payload:
+      │
+      ├─ Auto-create session (when req.SessionID == ""):
+      │     CreateSession(ctx, userID, "New Chat")
+      │     Set req.SessionID = session.ID
+      │     nextTurn = 1
+      │
+      ├─ MarkSessionStreamingInterrupted(sessionID):
+      │     All previous 'streaming' messages → 'interrupted'
+      │
+      ├─ Save user message immediately:
+      │     InsertMessage(ctx, sessionID, "user", content, tokenCount, nextTurn, "complete")
+      │
+      ├─ Insert assistant placeholder:
+      │     InsertAssistantPlaceholder(ctx, sessionID, nextTurn)
+      │     Returns assistantMsgID for later updates
+      │
+      └─ Build agent payload:
      │      user_id, message, model, history, provider_config, missionId,
      │      features (ALWAYS included, guaranteed [] not null),
      │      skills (only when non-empty)
@@ -163,20 +188,32 @@ Message Flow - HandleChat
      │      Transfer-Encoding: chunked
      │      X-Accel-Buffering: no
      │
-     └─ SendStreamWriter -> relay agent response body bytes -> client
+      └─ SendStreamWriter -> relay agent response body bytes -> client
 
-          bufio.NewReader(resp.Body) -> read lines -> w.Write -> w.Flush
+           bufio.NewReader(resp.Body) -> read lines -> w.Write -> w.Flush
 
-          Parse incoming SSE "data: {...}" packets into AgentSSEPacket:
-            type "content"     -> append to assistantBuilder
-            type "reasoning"   -> append to thinkingBuilder
-            type "tool_call"   -> append to toolCalls slice
-            type "tool_result" -> append to toolResults slice
-            type "turn_complete" -> set isComplete = true
+           struct streamContent (sync.RWMutex protected):
+             content, thinking   strings.Builder
+             toolCalls, toolResults []ToolCallCapture, []ToolCallResult
+             isComplete          bool
 
-          On stream end (rErr != nil):
-            if isComplete && req.SessionID != "":
-              commit turn via SaveTurnMessages (see Turn Persistence section)
+           Start flush goroutine (2s ticker, context.WithCancel):
+             ticker -> RLock content -> UPDATE messages SET content WHERE id = assistantMsgID
+
+           Parse incoming SSE "data: {...}" packets, Lock/unlock streamContent:
+             type "content"     -> sc.content.WriteString()
+             type "reasoning"   -> sc.thinking.WriteString()
+             type "tool_call"   -> append to sc.toolCalls
+             type "tool_result" -> append to sc.toolResults
+             type "turn_complete" -> sc.isComplete = true
+
+           On stream end (rErr != nil):
+             1. cancel() -> stop flush goroutine
+             2. RLock streamContent -> read final content + thinking + toolCalls + isComplete
+             3. Build steps JSON from thinking + toolCalls + toolResults
+             4. UpdateMessageContent(assistantMsgID, finalContent, steps, tokenCount)
+             5. UpdateMessageStatus(assistantMsgID, "complete" | "interrupted")
+             6. UpdateSessionTimestamp(sessionID)
 
 Consolidation Trigger
 ---------------------
@@ -225,50 +262,49 @@ Skill Catalog — HandleGetSkills
 
   Route registration (router.go:60): api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 
-Turn Persistence — SaveTurnMessages
-------------------------------------
+Turn Persistence — Incremental PG Flush
+----------------------------------------
 
-After the SSE stream completes and a turn_complete packet is received, if
-SessionID was provided, the handler commits the turn atomically:
+Messages are no longer saved only at turn completion. The new flow saves the
+user message immediately and incrementally flushes assistant content during
+streaming, ensuring data survival on page refresh or disconnect.
 
-  1. Build user message:
-       Role:       "user"
-       Content:    req.Message
-       TokenCount: len(content)/4 (min 1)
-       TurnNumber: nextTurn
+  Before stream starts:
+    1. Auto-create session (if req.SessionID == "")
+    2. Mark all previous 'streaming' messages as 'interrupted'
+    3. INSERT user message:
+         Role: "user", Content: req.Message, status: "complete"
+    4. INSERT assistant placeholder:
+         Role: "assistant", Content: "", status: "streaming"
+         Returns assistantMsgID
 
-  2. Build assistant message:
-       Role:       "assistant"
-       Content:    accumulated assistantBuilder content
-       TokenCount: len(content)/4 (min 1)
-       TurnNumber: nextTurn
+  During stream (flush goroutine):
+    - Background goroutine with context.WithCancel
+    - Ticker every 2 seconds
+    - RLock streamContent -> read accumulated content
+    - UPDATE messages SET content = $2, token_count = $3 WHERE id = assistantMsgID
+    - If content empty, skip (no unnecessary writes)
+    - 5s timeout per flush call
 
-  3. Build auxiliary messages (if present):
-       - thought (if thinkingBuilder.Len() > 0):
-           Role: "thought", Content: reasoning text
-       - tool_call (for each toolCalls entry):
-           Role: "tool_call"
-           Content: JSON {"toolName":"...","toolInput":...}
-       - tool_result (for each toolResults entry):
-           Role: "tool_result"
-           Content: "<toolName> result: <content>"
+  On stream end (rErr != nil || turn_complete received):
+    1. cancel() -> stop flush goroutine (prevents concurrent writes)
+    2. RLock streamContent -> read final state
+    3. Build steps JSON (reasoning + tool_calls + tool_results)
+    4. Determine status:
+         turn_complete received: status = "complete"
+         error/disconnect:       status = "interrupted"
+    5. UPDATE messages:
+         content = finalContent
+         steps   = stepsJSON
+         status  = "complete" | "interrupted"
+    6. UPDATE sessions SET updated_at = NOW()
 
-  4. Commit with timeout:
-       dbCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-       SessionRepo.SaveTurnMessages(dbCtx, sessionID, userMsg, assistantMsg, toolResults)
-
-       SaveTurnMessages runs in a DB transaction:
-         1. INSERT user message
-         2. INSERT assistant message
-         3. INSERT each tool result (thought, tool_call, tool_result)
-         4. UPDATE session set updated_at = now()
-         5. COMMIT
-
-  5. On error: log warning, no client-facing error (stream already closed).
-     On success: log "[CHAT] Successfully persisted turn N for session X"
-
-  Note: The 10s timeout context is separate from the request context — it uses
-  context.Background() so it outlives the HTTP request lifecycle.
+  Key guarantees:
+    - User message is ALWAYS persisted (saved before stream starts)
+    - Partial assistant content is flushed every 2s (survives crash/refresh)
+    - Turn_complete or error both finalize with correct status
+    - No stale 'streaming' messages (marked 'interrupted' before new turn)
+    - Flush goroutine is cancelled before final write (no race condition)
 
 Mission Log Streaming - StreamMissionLogs
 -----------------------------------------
@@ -322,8 +358,15 @@ Entry Points & Exports
 | HandleGetSkills(c)                         | Method     | chat_handler.go:675        |
 | GetFeatures(ctx)                           | Method     | chat_handler.go:569        |
 | GetSkills(ctx)                             | Method     | chat_handler.go:622        |
-| SaveTurnMessages(ctx, sessionID, userMsg,  | Method     | session_repository.go:137  |
-|   assistantMsg, toolResults)               |            |                            |
+| InsertMessage(ctx, sessionID, role,        | Method     | session_repository.go      |
+|   content, tokenCount, turnNumber, status) |            |                            |
+| InsertAssistantPlaceholder(ctx, sessionID, | Method     | session_repository.go      |
+|   turnNumber)                              |            |                            |
+| UpdateMessageContent(ctx, msgID, content,  | Method     | session_repository.go      |
+|   steps, tokenCount)                       |            |                            |
+| UpdateMessageStatus(ctx, msgID, status)    | Method     | session_repository.go      |
+| MarkStreamingAsInterrupted(ctx, sessionID) | Method     | session_repository.go      |
+| UpdateSessionTimestamp(ctx, sessionID)     | Method     | session_repository.go      |
 +--------------------------------------------+------------+----------------------------+
 
 Dependencies
@@ -338,7 +381,9 @@ Dependencies
 | go.opentelemetry.io/otel/trace      | Span creation, traceparent parsing        |
 | service.ModelService                | Resolve model -> provider config          |
 | repository.SessionRepository        | Session CRUD, message persistence,        |
-|                                     |   turn commit via SaveTurnMessages        |
+|                                     |   incremental flush (InsertMessage,       |
+|                                     |   UpdateMessageContent, UpdateMessageStatus|
+|                                     |   MarkStreamingAsInterrupted)             |
 | service.ConsolidationService        | Token threshold check, auto-consolidation |
 |                                     |   via agent summarization                 |
 +-------------------------------------+-------------------------------------------+
@@ -349,9 +394,10 @@ Source References
 - internal/handler/chat_handler.go - All chat, stream, feature, and skill handlers
 - internal/service/model_service.go - Model resolution for provider config
 - internal/service/consolidation_service.go - Token threshold & summarization
-- internal/repository/session_repository.go - Session persistence, SaveTurnMessages
+- internal/repository/session_repository.go - Session persistence, incremental flush
 - internal/observability/tracer.go - Tracer init, TrackAgentTurn helper
 - internal/router/router.go:59-61 - Route registrations
+- internal/constants/db/postgres.go - SQL queries (InsertMessageWithStatus, UpdateMessageContent, etc.)
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

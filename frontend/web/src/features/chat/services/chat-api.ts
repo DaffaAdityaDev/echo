@@ -33,6 +33,9 @@ export const sessionApi = {
   updateTitle: async (id: string, title: string, summary?: string): Promise<void> => {
     return api.patch(SESSION_ENDPOINTS.UPDATE(id), { title, summary });
   },
+  generateTitle: async (id: string, model: string): Promise<{ title: string; summary: string }> => {
+    return api.post(`${SESSION_ENDPOINTS.UPDATE(id)}/generate-title`, { model });
+  },
   delete: async (id: string): Promise<void> => {
     return api.delete(SESSION_ENDPOINTS.DELETE(id));
   }

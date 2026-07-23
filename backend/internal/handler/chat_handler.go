@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models"
 	"echo-backend/internal/repository"
 	"echo-backend/internal/service"
@@ -15,13 +16,39 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var sessionLocks sync.Map // map[string]*sync.Mutex
+
+func acquireSessionLock(sessionID string) func() {
+	if sessionID == "" {
+		return func() {}
+	}
+	actual, _ := sessionLocks.LoadOrStore(sessionID, &sync.Mutex{})
+	mu := actual.(*sync.Mutex)
+	mu.Lock()
+	return func() { mu.Unlock() }
+}
+
+func retryDBOperation(attempts int, delay time.Duration, fn func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		if i < attempts-1 {
+			time.Sleep(delay * time.Duration(1<<i))
+		}
+	}
+	return err
+}
 
 type ChatHandler struct {
 	Cfg              *models.Config
@@ -266,6 +293,32 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		history = req.History
 	}
 
+	// Auto-create session if none provided
+	if req.SessionID == "" {
+		session, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to create session"})
+		}
+		req.SessionID = session.ID
+		req.MissionID = session.ID
+		nextTurn = 1
+	}
+
+	// Acquire session-level lock for isolation across concurrent requests on the same session
+	unlock := acquireSessionLock(req.SessionID)
+	defer unlock()
+
+	// Prepare turn atomically via ACID transaction (Mark interrupted + Save User Msg + Insert Assistant Placeholder)
+	userTokenCount := len(req.Message) / 4
+	if userTokenCount == 0 && len(req.Message) > 0 {
+		userTokenCount = 1
+	}
+	assistantMsgID, err := h.SessionRepo.PrepareTurn(ctx, req.SessionID, req.Message, userTokenCount, nextTurn)
+	if err != nil {
+		log.Printf("[CHAT] Failed to prepare turn for session %s: %v", req.SessionID, err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to prepare chat turn", "details": err.Error()})
+	}
+
 	// Forward the mode to the agent via query param
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
 
@@ -330,8 +383,6 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		reader := bufio.NewReader(resp.Body)
 		defer resp.Body.Close()
 
-		var assistantBuilder strings.Builder
-		var thinkingBuilder strings.Builder
 		type ToolCallResult struct {
 			ToolName string
 			Content  string
@@ -340,17 +391,59 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			ToolName  string
 			ToolInput json.RawMessage
 		}
-		var toolResults []ToolCallResult
-		var toolCalls []ToolCallCapture
-		var isComplete bool
 
 		type AgentSSEPacket struct {
 			Type       string          `json:"type"`
 			Content    string          `json:"content"`
+			Title      string          `json:"title"`
+			Summary    string          `json:"summary"`
 			ToolName   string          `json:"toolName"`
 			ToolInput  json.RawMessage `json:"toolInput"`
 			ToolResult string          `json:"toolResult"`
 		}
+
+		type streamContent struct {
+			mu          sync.RWMutex
+			content     strings.Builder
+			thinking    strings.Builder
+			title       string
+			summary     string
+			toolCalls   []ToolCallCapture
+			toolResults []ToolCallResult
+			isComplete  bool
+		}
+
+		sc := &streamContent{}
+
+		flushCtx, flushCancel := context.WithCancel(context.Background())
+		defer flushCancel()
+
+		// Periodic flush goroutine: flushes partial content to PG every 2s
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-flushCtx.Done():
+					return
+				case <-ticker.C:
+					sc.mu.RLock()
+					content := sc.content.String()
+					sc.mu.RUnlock()
+					if content == "" {
+						continue
+					}
+					err := retryDBOperation(3, 50*time.Millisecond, func() error {
+						dbCtx, dbCancel := context.WithTimeout(context.Background(), 3*time.Second)
+						defer dbCancel()
+						return h.SessionRepo.UpdateMessageContent(dbCtx, assistantMsgID, content, nil, len(content)/4)
+					})
+					if err != nil {
+						log.Printf("[CHAT] Flush error msg %d (after retries): %v", assistantMsgID, err)
+					}
+				}
+			}
+		}()
 
 		buildStepsJSON := func(thinking string, calls []ToolCallCapture, results []ToolCallResult) json.RawMessage {
 			var steps []models.ThoughtStep
@@ -387,30 +480,47 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 
 					var packet AgentSSEPacket
 					if err := json.Unmarshal([]byte(dataStr), &packet); err == nil {
+						sc.mu.Lock()
 						switch packet.Type {
+						case "metadata":
+							if packet.Title != "" {
+								sc.title = packet.Title
+								sc.summary = packet.Summary
+								titleToSave := packet.Title
+								summaryToSave := packet.Summary
+								go func() {
+									dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+									defer dbCancel()
+									err := h.SessionRepo.UpdateTitleAndSummary(dbCtx, req.SessionID, titleToSave, summaryToSave)
+									if err != nil {
+										log.Printf("[CHAT] Error saving title for session %s: %v", req.SessionID, err)
+									} else {
+										log.Printf("[CHAT] Successfully updated title for session %s: '%s'", req.SessionID, titleToSave)
+									}
+								}()
+							}
 						case "content":
-							assistantBuilder.WriteString(packet.Content)
+							sc.content.WriteString(packet.Content)
 						case "reasoning":
-							thinkingBuilder.WriteString(packet.Content)
+							sc.thinking.WriteString(packet.Content)
 						case "tool_call":
-							toolCalls = append(toolCalls, ToolCallCapture{
+							sc.toolCalls = append(sc.toolCalls, ToolCallCapture{
 								ToolName:  packet.ToolName,
 								ToolInput: packet.ToolInput,
 							})
 						case "tool_result":
-							toolResults = append(toolResults, ToolCallResult{
+							sc.toolResults = append(sc.toolResults, ToolCallResult{
 								ToolName: packet.ToolName,
 								Content:  packet.Content,
 							})
 						case "error":
-							// Forward error packets to the client so they surface
-							// instead of silently ending the stream
 							if packet.Content != "" {
-								assistantBuilder.WriteString(packet.Content)
+								sc.content.WriteString(packet.Content)
 							}
 						case "turn_complete":
-							isComplete = true
+							sc.isComplete = true
 						}
+						sc.mu.Unlock()
 					}
 				}
 			}
@@ -419,41 +529,42 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			}
 		}
 
-		// Perform Transactional Commit on successful stream completion
-		if isComplete && req.SessionID != "" {
-			userMsg := &models.Message{
-				Role:       "user",
-				Content:    req.Message,
-				TokenCount: len(req.Message) / 4,
-				TurnNumber: nextTurn,
-			}
-			if userMsg.TokenCount == 0 && len(userMsg.Content) > 0 {
-				userMsg.TokenCount = 1
-			}
+		flushCancel() // stop flush goroutine
 
-			assistantContent := assistantBuilder.String()
-			steps := buildStepsJSON(thinkingBuilder.String(), toolCalls, toolResults)
-			assistantMsg := &models.Message{
-				Role:       "assistant",
-				Content:    assistantContent,
-				TokenCount: len(assistantContent) / 4,
-				TurnNumber: nextTurn,
-				Steps:      steps,
-			}
-			if assistantMsg.TokenCount == 0 && len(assistantMsg.Content) > 0 {
-				assistantMsg.TokenCount = 1
-			}
+		sc.mu.RLock()
+		finalContent := sc.content.String()
+		finalThinking := sc.thinking.String()
+		finalCalls := sc.toolCalls
+		finalResults := sc.toolResults
+		finalTitle := sc.title
+		finalSummary := sc.summary
+		complete := sc.isComplete
+		sc.mu.RUnlock()
 
+		status := "interrupted"
+		if complete {
+			status = "complete"
+		}
+
+		steps := buildStepsJSON(finalThinking, finalCalls, finalResults)
+
+		// Execute CompleteTurn (Update content + status + session timestamp) atomically inside 1 ACID transaction with 3 retries
+		err = retryDBOperation(3, 100*time.Millisecond, func() error {
 			dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer dbCancel()
-
-			err = h.SessionRepo.SaveTurnMessages(dbCtx, req.SessionID, userMsg, assistantMsg, nil)
-			if err != nil {
-				log.Printf("[CHAT] Error committing turn messages: %v", err)
-			} else {
-				log.Printf("[CHAT] Successfully persisted turn %d for session %s", nextTurn, req.SessionID)
-			}
+			return h.SessionRepo.CompleteTurn(dbCtx, assistantMsgID, req.SessionID, finalContent, steps, len(finalContent)/4, status)
+		})
+		if err != nil {
+			log.Printf("[CHAT] Error executing CompleteTurn transaction for msg %d: %v", assistantMsgID, err)
 		}
+
+		if finalTitle != "" {
+			dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = h.SessionRepo.UpdateTitleAndSummary(dbCtx, req.SessionID, finalTitle, finalSummary)
+			dbCancel()
+		}
+
+		log.Printf("[CHAT] Completed turn %d for session %s (status=%s, content_len=%d)", nextTurn, req.SessionID, status, len(finalContent))
 	})
 }
 
@@ -731,111 +842,4 @@ func (h *ChatHandler) HandleGetFeatures(c fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
-}
-
-func (h *ChatHandler) generateSessionMetadata(sessionID string, userPrompt string, providerMap map[string]interface{}) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	baseURL, _ := providerMap["base_url"].(string)
-	apiKey, _ := providerMap["api_key"].(string)
-	modelName, _ := providerMap["model"].(string)
-
-	if baseURL == "" {
-		baseURL = "https://opencode.ai/zen/go/v1"
-	}
-	if modelName == "" {
-		modelName = "deepseek-v4-flash"
-	}
-
-	systemPrompt := `You are an AI session metadata generator. Given the user's initial prompt, generate a concise, human-readable Title (3 to 6 words, Title Case, no quotes, no period) and a 1-sentence Summary describing the main topic or objective.
-Respond ONLY with a valid JSON object in this exact format:
-{"title": "Concise Topic Title", "summary": "Short 1-sentence summary of the conversation topic."}`
-
-	reqBody := map[string]interface{}{
-		"model": modelName,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": userPrompt},
-		},
-		"temperature": 0.3,
-		"max_tokens":  150,
-	}
-
-	jsonBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		log.Printf("[AUTO-TITLE] Failed to marshal request for session %s: %v", sessionID, err)
-		return
-	}
-
-	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		log.Printf("[AUTO-TITLE] Failed to create request for session %s: %v", sessionID, err)
-		return
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	if apiKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	client := &http.Client{Timeout: 12 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		log.Printf("[AUTO-TITLE] HTTP request failed for session %s: %v", sessionID, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s", resp.StatusCode, sessionID)
-		return
-	}
-
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("[AUTO-TITLE] Failed to read response for session %s: %v", sessionID, err)
-		return
-	}
-
-	var chatCompletion struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-
-	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
-		log.Printf("[AUTO-TITLE] Failed to parse chat completion for session %s: %v", sessionID, err)
-		return
-	}
-
-	rawContent := strings.TrimSpace(chatCompletion.Choices[0].Message.Content)
-	rawContent = strings.TrimPrefix(rawContent, "```json")
-	rawContent = strings.TrimPrefix(rawContent, "```")
-	rawContent = strings.TrimSuffix(rawContent, "```")
-	rawContent = strings.TrimSpace(rawContent)
-
-	var metaData struct {
-		Title   string `json:"title"`
-		Summary string `json:"summary"`
-	}
-
-	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
-		log.Printf("[AUTO-TITLE] Failed to unmarshal metadata JSON for session %s: %v (raw: %s)", sessionID, err, rawContent)
-		return
-	}
-
-	title := strings.TrimSpace(metaData.Title)
-	summary := strings.TrimSpace(metaData.Summary)
-
-	if title != "" {
-		if err := h.SessionRepo.UpdateTitleAndSummary(context.Background(), sessionID, title, summary); err != nil {
-			log.Printf("[AUTO-TITLE] Failed to update session %s in DB: %v", sessionID, err)
-		} else {
-			log.Printf("[AUTO-TITLE] Successfully generated title for session %s: '%s'", sessionID, title)
-		}
-	}
 }

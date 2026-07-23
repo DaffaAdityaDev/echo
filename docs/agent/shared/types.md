@@ -97,6 +97,7 @@ type AgentPacketType =
   | 'content'       // Plain text outputs
   | 'tool_call'     // Tool invocation request
   | 'tool_result'   // Tool execution result
+  | 'tool_skip'     // Skipped tool call due to circuit breaker
   | 'error'         // Execution exceptions
   | 'checkpoint'    // State recovery marker
   | 'usage'         // Token usage stats
@@ -104,32 +105,47 @@ type AgentPacketType =
   | 'subagent_call'
   | 'subagent_result'
   | 'swarm_status'
-  | 'debug';
+  | 'debug'
+  | 'state_change'  // Agent state transitions
+  | 'degraded'      // Strategy degradation signal
+  | 'progress'      // Checkpoint progress updates
+  | 'heartbeat'     // Live connection heartbeat with status
+  | 'turn_complete';// Final packet for turn commit
 ```
 
-### HarnessPacket
+### HarnessPacket (Discriminated Union)
+
+`HarnessPacket` is a discriminated union — every type has a well-defined shape
+with FLAT fields (no `meta:` wrapper):
 
 ```typescript
-interface HarnessPacket {
-  type: AgentPacketType;
+interface HarnessPacketBase {
   missionId: string;
   step: number;
-  content?: string;
-  toolName?: string;
-  toolInput?: Record<string, any>;
-  toolResult?: any;
-  meta?: Record<string, any>;
+  seq: number;
   timestamp: number;
-  todos?: Array<{ id: string; description: string; status: string }>;
-  subagent?: {
-    name: string;
-    instruction: string;
-    result?: string;
-    status: 'calling' | 'completed' | 'failed';
-  };
-  swarm?: any;
-  failedUrls?: FailedUrl[];
+  agentStatus?: AgentStatus;
 }
+
+type HarnessPacket =
+  | (HarnessPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; })
+  | (HarnessPacketBase & { type: 'reasoning'; content: string; })
+  | (HarnessPacketBase & { type: 'content'; content: string; })
+  | (HarnessPacketBase & { type: 'tool_call'; toolName: string; toolInput: Record<string, unknown>; })
+  | (HarnessPacketBase & { type: 'tool_result'; toolName: string; content: string; toolResult?: unknown; })
+  | (HarnessPacketBase & { type: 'tool_skip'; toolName: string; })
+  | (HarnessPacketBase & { type: 'todo'; todos: Task[]; })
+  | (HarnessPacketBase & { type: 'subagent_call'; subagent: { name, instruction, status: 'calling' }; })
+  | (HarnessPacketBase & { type: 'subagent_result'; subagent: { name, instruction, result, status }; })
+  | (HarnessPacketBase & { type: 'usage'; usage: TokenUsage; })
+  | (HarnessPacketBase & { type: 'progress'; phase: string; tokensUsed: number; tokensTotal: number; })
+  | (HarnessPacketBase & { type: 'heartbeat'; })
+  | (HarnessPacketBase & { type: 'state_change'; from: string; to: string; reason: string; })
+  | (HarnessPacketBase & { type: 'degraded'; from: string; to: string; reason: string; })
+  | (HarnessPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
+  | (HarnessPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{role, content}>; })
+  | (HarnessPacketBase & { type: 'error'; content: string; code?: string; })
+  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; });
 ```
 
 ### FailedUrl

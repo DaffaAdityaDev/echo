@@ -10,6 +10,7 @@ export const CHAT_MODES = {
 
 export const PACKET_TYPES = {
   METADATA: "metadata",
+  DEBUG: "debug",
   USAGE: "usage",
   CONTENT: "content",
   REASONING: "reasoning",

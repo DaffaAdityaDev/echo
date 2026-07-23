@@ -78,11 +78,12 @@ export class MemoryAdapter {
     }
   }
 
-  async set(missionId: string, state: AgentState, _ttlSeconds?: number): Promise<void> {
+  async set(missionId: string, state: AgentState, ttlSeconds?: number): Promise<void> {
     const serialized = serializeAgentState(state);
     await this.request('POST', ENDPOINTS.store, {
       session_id: missionId,
       content: JSON.stringify(serialized),
+      ttl_seconds: ttlSeconds,
     });
   }
 

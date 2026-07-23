@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ChatPage } from "@/features/chat/components/ChatPage";
-import { AuthGuard } from "@/features/auth/components/AuthGuard";
+import { useChatPage, ChatPage } from "@/features/chat";
+import { AuthGuard } from "@/features/auth";
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const chatProps = useChatPage();
 
   return (
     <AuthGuard>
-      <ChatPage
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((v) => !v)}
-      />
+      <ChatPage {...chatProps} />
     </AuthGuard>
   );
 }

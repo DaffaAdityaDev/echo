@@ -8,6 +8,11 @@ export function useAdminDashboardPage() {
   return {
     stats: statsQuery.data ?? null,
     isLoading: statsQuery.isLoading,
-    error: statsQuery.error,
+    isRefetching: statsQuery.isFetching && !statsQuery.isLoading,
+    error: (statsQuery.error as Error) ?? null,
+    onRefresh: () => {
+      statsQuery.refetch();
+    },
+    dataUpdatedAt: statsQuery.dataUpdatedAt,
   };
 }

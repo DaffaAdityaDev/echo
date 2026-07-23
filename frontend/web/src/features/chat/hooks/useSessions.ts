@@ -14,7 +14,7 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
   const result: Message[] = [];
   for (const [, group] of turnMap) {
     const userMsg = group.find(m => m.role === "user");
-    const assistantMsg = group.find(m => m.role === "assistant" && m.content);
+    const assistantMsg = group.find(m => m.role === "assistant");
     const systemMsg = group.find(m => m.role === "system");
 
     if (systemMsg) {
@@ -47,13 +47,14 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
     }
 
     const hasSteps = steps.length > 0;
-    const hasContent = assistantMsg?.content || hasSteps;
-    if (hasContent || hasSteps) {
+    const hasContent = Boolean(assistantMsg?.content || hasSteps || assistantMsg?.status === "streaming" || assistantMsg?.status === "interrupted");
+    if (hasContent) {
       result.push({
         id: crypto.randomUUID(),
         role: "assistant",
         content: assistantMsg?.content || "",
         steps,
+        status: assistantMsg?.status,
       });
     }
   }
@@ -80,18 +81,21 @@ export function useSessions() {
       setSessions(list);
       
       const storeState = useChatStore.getState();
-      if (!storeState.activeSessionId) {
-        if (list.length > 0) {
-          const mostRecent = list[0].id;
-          setActiveSession(mostRecent);
-          const msgs = await loadSessionMessages(mostRecent);
-          setMessages(msgs);
-        } else {
-          const session = await sessionApi.create();
-          setSessions([session]);
-          setActiveSession(session.id);
-          clearMessages();
-        }
+      const currentActiveId = storeState.activeSessionId;
+      
+      if (currentActiveId && list.some(s => s.id === currentActiveId)) {
+        const msgs = await loadSessionMessages(currentActiveId);
+        setMessages(msgs);
+      } else if (list.length > 0) {
+        const mostRecent = list[0].id;
+        setActiveSession(mostRecent);
+        const msgs = await loadSessionMessages(mostRecent);
+        setMessages(msgs);
+      } else {
+        const session = await sessionApi.create();
+        setSessions([session]);
+        setActiveSession(session.id);
+        clearMessages();
       }
     } catch (e) {
       console.error("Failed to load sessions:", e);

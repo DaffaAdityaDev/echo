@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Endpoints
   Service   : Shared / Contracts
-  Version   : 1.1
-  Updated   : 2026-07-10 (added session CRUD + summarize endpoints)
+  Version   : 1.2
+  Updated   : 2026-07-23 (added generate-title endpoint)
 ================================================================================
 
 ## Description
@@ -67,6 +67,7 @@ Base path: `/api/v1`
 | GET    | /v1/sessions/:id                 | Go      | JWT    | Load session metadata & history  | Active |
 | GET    | /v1/sessions/:id/messages         | Go      | JWT    | Get session messages             | Active |
 | DELETE | /v1/sessions/:id                 | Go      | JWT    | Soft delete session              | Active |
+| POST   | /v1/sessions/:id/generate-title  | Go      | JWT    | Auto-generate session title via LLM | Active |
 | GET    | /v1/settings                     | Go      | JWT    | Get user preferences             | Active |
 | PUT    | /v1/settings                     | Go      | JWT    | Update user preferences          | Active |
 | GET    | /v1/settings/defaults            | Go      | None   | Get system default preferences   | Active |

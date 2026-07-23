@@ -184,25 +184,41 @@ data: { "type": "debug",       ... }
 data: { "type": "ping" }
 ```
 
-### StreamPacket (Frontend type)
+### StreamPacket (Frontend type — Discriminated Union)
+
+All packets share a base envelope, then vary by `type`:
 
 ```typescript
-{
-  type?: 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'metadata'
-       | 'usage' | 'todo' | 'subagent_call' | 'subagent_result'
-        | 'file_operation' | 'debug' | 'checkpoint',
-  missionId?: string,
-  content?: string,
-  toolName?: string,
-  toolInput?: Record<string, unknown>,
-  meta?: MissionMeta | TokenUsage,
-  todos?: Array<{ id, description, status }>,
-  subagent?: { name, instruction, result?, status },
-  fileOp?: { operation, path, preview? },
-  seq?: number,
-  timestamp?: number
+interface StreamPacketBase {
+  missionId: string;
+  step: number;
+  seq: number;
+  timestamp: number;
+  agentStatus?: AgentStatus;
 }
+
+type StreamPacket =
+  | (StreamPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; })
+  | (StreamPacketBase & { type: 'reasoning' | 'content'; content: string; })
+  | (StreamPacketBase & { type: 'tool_call'; toolName: string; toolInput: Record<string, unknown>; })
+  | (StreamPacketBase & { type: 'tool_result'; toolName: string; content: string; toolResult?: unknown; })
+  | (StreamPacketBase & { type: 'tool_skip'; toolName: string; })
+  | (StreamPacketBase & { type: 'todo'; todos: TodoItem[]; })
+  | (StreamPacketBase & { type: 'subagent_call' | 'subagent_result'; subagent: SubagentInfo; })
+  | (StreamPacketBase & { type: 'usage'; usage: TokenUsage; })
+  | (StreamPacketBase & { type: 'progress'; phase: string; tokensUsed: number; tokensTotal: number; })
+  | (StreamPacketBase & { type: 'heartbeat'; })
+  | (StreamPacketBase & { type: 'state_change'; from: string; to: string; reason: string; })
+  | (StreamPacketBase & { type: 'degraded'; from: string; to: string; reason: string; })
+  | (StreamPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
+  | (StreamPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{role, content}>; })
+  | (StreamPacketBase & { type: 'error'; content: string; code?: string; })
+  | (StreamPacketBase & { type: 'swarm_status'; swarm: SwarmData; })
+  | (StreamPacketBase & { type: 'file_operation'; fileOp: FileOp; });
 ```
+
+Fields are **flat** — no `meta:` wrapper. `agentStatus` is present when the
+agent has an active status tracker.
 
 ### Heartbeat
 
@@ -434,7 +450,7 @@ offset-based:
 |                                                       | 92-233|   response                            |
 | agent/src/app/api/missions/mission.schema.ts          | 9-61  | Zod validation with dual naming      |
 | agent/src/app/api/missions/mission.controller.ts      | 20-121| Schema usage, error format           |
-| agent/src/shared/types/index.ts                       | 17-56 | HarnessPacket type (SSE packet shape)|
+| agent/src/shared/types/index.ts                       | 56-80 | HarnessPacket discriminated union    |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy                  |
 | frontend/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket frontend type           |
 | frontend/web/src/features/chat/api/useChatStream.ts   | 48-234| SSE packet handling                  |

@@ -15,25 +15,25 @@ export interface MissionPayload {
 }
 
 export type AgentPacketType = 
-  | 'metadata'        // Lifecycle markers (Engine start, setup steps)
-  | 'reasoning'       // Agent thought stream
-  | 'content'         // Plain text outputs directed to human clients
-  | 'tool_call'       // Requesting execution of an infrastructure tool
-  | 'tool_result'     // Output retrieved from the sandbox run
-  | 'error'           // Execution step exceptions
-  | 'checkpoint'      // Persistent state recovery marker
+  | 'metadata'
+  | 'reasoning'
+  | 'content'
+  | 'tool_call'
+  | 'tool_result'
+  | 'error'
+  | 'checkpoint'
   | 'usage'
   | 'todo'
   | 'subagent_call'
   | 'subagent_result'
   | 'swarm_status'
   | 'debug'
-  | 'tool_skip'       // skipped tool call due to circuit breaker
-  | 'degraded'        // strategy degradation signal
-  | 'state_change'    // agent state transitions
-  | 'progress'        // checkpoint progress updates
-  | 'heartbeat'       // live connection heartbeat with status
-  | 'turn_complete';  // final packet for turn commit
+  | 'tool_skip'
+  | 'degraded'
+  | 'state_change'
+  | 'progress'
+  | 'heartbeat'
+  | 'turn_complete';
 
 export interface FailedUrl {
   url: string;
@@ -45,35 +45,41 @@ export interface AgentStatus {
   step: number;
   maxSteps: number;
   strategy: 'agent' | 'standard' | 'restricted';
-  lastActivity: string;               // ISO 8601 timestamp
-  currentTool?: string;               // tool being executed (if any)
-  currentThought?: string;            // latest reasoning snippet (50 chars)
+  lastActivity: string;
+  currentTool?: string;
+  currentThought?: string;
   consecutiveFailures?: number;
-  activeCircuitBreakers?: string[];   // tool names with open circuit
-  throughput?: number;                // tokens/second (for performance UX)
+  activeCircuitBreakers?: string[];
+  throughput?: number;
 }
 
-export interface HarnessPacket {
-  type: AgentPacketType;
+interface HarnessPacketBase {
   missionId: string;
   step: number;
-  content?: string;
-  toolName?: string;
-  toolInput?: Record<string, any>;
-  toolResult?: any;
-  meta?: Record<string, any>;
+  seq: number;
   timestamp: number;
-  todos?: Array<{ id: string; description: string; status: string }>;
-  subagent?: {
-    name: string;
-    instruction: string;
-    result?: string;
-    status: 'calling' | 'completed' | 'failed';
-  };
-  swarm?: any;
-  failedUrls?: FailedUrl[];
   agentStatus?: AgentStatus;
 }
+
+export type HarnessPacket =
+  | (HarnessPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; title?: string; summary?: string; })
+  | (HarnessPacketBase & { type: 'reasoning'; content: string; })
+  | (HarnessPacketBase & { type: 'content'; content: string; })
+  | (HarnessPacketBase & { type: 'tool_call'; toolName: string; toolInput: Record<string, unknown>; })
+  | (HarnessPacketBase & { type: 'tool_result'; toolName: string; content: string; toolResult?: unknown; })
+  | (HarnessPacketBase & { type: 'tool_skip'; toolName: string; })
+  | (HarnessPacketBase & { type: 'todo'; todos: Array<{ id: string; description: string; status: string }>; })
+  | (HarnessPacketBase & { type: 'subagent_call'; subagent: { name: string; instruction: string; status: 'calling'; }; })
+  | (HarnessPacketBase & { type: 'subagent_result'; subagent: { name: string; instruction: string; result: string; status: 'completed' | 'failed'; }; })
+  | (HarnessPacketBase & { type: 'usage'; usage: { promptTokens: number; completionTokens: number; totalTokens: number; cachedTokens?: number; reasoningTokens?: number; }; })
+  | (HarnessPacketBase & { type: 'progress'; phase: string; tokensUsed: number; tokensTotal: number; })
+  | (HarnessPacketBase & { type: 'heartbeat'; })
+  | (HarnessPacketBase & { type: 'state_change'; from: string; to: string; reason: string; })
+  | (HarnessPacketBase & { type: 'degraded'; from: string; to: string; reason: string; })
+  | (HarnessPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
+  | (HarnessPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{ role: string; content: string }>; })
+  | (HarnessPacketBase & { type: 'error'; content: string; code?: string; })
+  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; });
 
 /**
  * Standardized response from any tool call.

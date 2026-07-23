@@ -667,7 +667,7 @@
       },
       "HarnessPacket": {
         "type": "object",
-        "description": "SSE stream event packet emitted during mission execution. Each line is prefixed with 'data: ' and terminated with '\\n\\n'.",
+        "description": "SSE stream event packet emitted during mission execution. Discriminated by 'type' — each type has its own flat fields (no 'meta' wrapper). Each line is prefixed with 'data: ' and terminated with '\\n\\n'.",
         "properties": {
           "type": {
             "type": "string",
@@ -702,6 +702,17 @@
             "type": "integer",
             "example": 2
           },
+          "seq": {
+            "type": "integer",
+            "example": 14
+          },
+          "timestamp": {
+            "type": "integer",
+            "example": 1700000000000
+          },
+          "agentStatus": {
+            "$ref": "#/components/schemas/AgentStatus"
+          },
           "content": {
             "type": "string",
             "example": "I'll start by creating the project structure with Express and Prisma."
@@ -712,22 +723,82 @@
           },
           "toolInput": {
             "type": "object",
-            "example": {
-              "action": "write",
-              "path": "/app/src/index.js",
-              "content": "const express = require('express');"
-            }
+            "example": { "action": "write", "path": "/app/src/index.js", "content": "..." }
           },
           "toolResult": {},
-          "meta": {
-            "type": "object"
+          "todos": {
+            "type": "array",
+            "items": { "type": "object" }
           },
-          "timestamp": {
+          "subagent": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "instruction": { "type": "string" },
+              "result": { "type": "string" },
+              "status": { "type": "string", "enum": ["calling", "completed", "failed"] }
+            }
+          },
+          "usage": {
+            "type": "object",
+            "description": "Token usage stats (flat, not inside meta)"
+          },
+          "from": {
+            "type": "string",
+            "description": "Previous state (for state_change/degraded)"
+          },
+          "to": {
+            "type": "string",
+            "description": "New state (for state_change/degraded)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Transition reason (for state_change/degraded)"
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Turn completion flag (for turn_complete)"
+          },
+          "totalIterations": {
             "type": "integer",
-            "example": 1700000000000
+            "description": "Total iterations used (for turn_complete)"
           },
-          "agentStatus": {
-            "$ref": "#/components/schemas/AgentStatus"
+          "totalCost": {
+            "type": "number",
+            "description": "Total USD cost (for turn_complete)"
+          },
+          "phase": {
+            "type": "string",
+            "description": "Progress phase (for progress)"
+          },
+          "tokensUsed": {
+            "type": "integer",
+            "description": "Tokens consumed so far (for progress)"
+          },
+          "tokensTotal": {
+            "type": "integer",
+            "description": "Max context tokens (for progress)"
+          },
+          "strategy": {
+            "type": "string",
+            "description": "Execution strategy name (for metadata)"
+          },
+          "historyDepth": {
+            "type": "integer",
+            "description": "Number of history messages (for metadata)"
+          },
+          "toolsAvailable": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names in scope (for metadata)"
+          },
+          "objective": {
+            "type": "string",
+            "description": "Mission objective (for metadata)"
+          },
+          "maxIterations": {
+            "type": "integer",
+            "description": "Maximum allowed iterations (for metadata)"
           }
         }
       },

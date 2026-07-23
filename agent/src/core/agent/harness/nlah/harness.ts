@@ -1,5 +1,5 @@
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
-import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, HarnessPacket, AgentPacketType, AgentStatus } from '../../../../shared/types';
+import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus } from '../../../../shared/types';
 import { toolRegistry } from '../../tools/registry';
 import { StrategyFactory } from '../../strategies/factory';
 import { CircuitBreaker } from './circuit_breaker';
@@ -18,7 +18,6 @@ import {
     HARNESS_CONFIG, 
     DEBUG_CONFIG,
     OPERATION_STATUS, 
-    PACKET_TYPES
 } from "./constants";
 import { SkillRegistry } from '../../skills';
 import { HARNESS_PROMPTS } from "./prompts";
@@ -57,16 +56,77 @@ export class NlahHarness {
         }
     }
 
-    private async emit(onPacket: (p: any) => Promise<void>, type: AgentPacketType, payload: Partial<HarnessPacket>, step: number) {
-        const agentStatus = this.statusTracker ? this.statusTracker.getStatus() : undefined;
-        await onPacket({ 
-            type, 
+    private async sendBase(onPacket: (p: any) => Promise<void>, packet: Record<string, unknown>) {
+        const agentStatus = this.statusTracker?.getStatus();
+        await onPacket({
             missionId: this.missionId,
-            step,
-            timestamp: Date.now(),
-            ...payload,
-            ...(agentStatus ? { agentStatus } : {})
+            ...packet,
+            ...(agentStatus ? { agentStatus } : {}),
         });
+    }
+
+    private async emitMetadata(onPacket: (p: any) => Promise<void>, step: number, fields: { content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; title?: string; summary?: string }) {
+        await this.sendBase(onPacket, { type: 'metadata', step, ...fields });
+    }
+
+    private async emitStateChange(onPacket: (p: any) => Promise<void>, step: number, from: string, to: string, reason: string) {
+        await this.sendBase(onPacket, { type: 'state_change', step, from, to, reason });
+    }
+
+    private async emitDegraded(onPacket: (p: any) => Promise<void>, step: number, from: string, to: string, reason: string) {
+        await this.sendBase(onPacket, { type: 'degraded', step, from, to, reason });
+    }
+
+    private async emitReasoning(onPacket: (p: any) => Promise<void>, step: number, content: string) {
+        await this.sendBase(onPacket, { type: 'reasoning', step, content });
+    }
+
+    private async emitContent(onPacket: (p: any) => Promise<void>, step: number, content: string) {
+        await this.sendBase(onPacket, { type: 'content', step, content });
+    }
+
+    private async emitUsage(onPacket: (p: any) => Promise<void>, step: number, usage: object) {
+        await this.sendBase(onPacket, { type: 'usage', step, usage });
+    }
+
+    private async emitToolCall(onPacket: (p: any) => Promise<void>, step: number, toolName: string, toolInput: Record<string, unknown>) {
+        await this.sendBase(onPacket, { type: 'tool_call', step, toolName, toolInput });
+    }
+
+    private async emitToolResult(onPacket: (p: any) => Promise<void>, step: number, toolName: string, content: string, toolResult?: unknown) {
+        await this.sendBase(onPacket, { type: 'tool_result', step, toolName, content, toolResult });
+    }
+
+    private async emitToolSkip(onPacket: (p: any) => Promise<void>, step: number, toolName: string) {
+        await this.sendBase(onPacket, { type: 'tool_skip', step, toolName });
+    }
+
+    private async emitTodos(onPacket: (p: any) => Promise<void>, step: number, todos: unknown) {
+        await this.sendBase(onPacket, { type: 'todo', step, todos });
+    }
+
+    private async emitSubagentCall(onPacket: (p: any) => Promise<void>, step: number, name: string, instruction: string) {
+        await this.sendBase(onPacket, { type: 'subagent_call', step, subagent: { name, instruction, status: 'calling' } });
+    }
+
+    private async emitSubagentResult(onPacket: (p: any) => Promise<void>, step: number, name: string, instruction: string, result: string, status: 'completed' | 'failed') {
+        await this.sendBase(onPacket, { type: 'subagent_result', step, subagent: { name, instruction, result, status } });
+    }
+
+    private async emitProgress(onPacket: (p: any) => Promise<void>, step: number, phase: string, tokensUsed: number, tokensTotal: number) {
+        await this.sendBase(onPacket, { type: 'progress', step, phase, tokensUsed, tokensTotal });
+    }
+
+    private async emitHeartbeat(onPacket: (p: any) => Promise<void>, step: number) {
+        await this.sendBase(onPacket, { type: 'heartbeat', step });
+    }
+
+    private async emitTurnComplete(onPacket: (p: any) => Promise<void>, step: number, completed: boolean, totalIterations: number, totalCost: number) {
+        await this.sendBase(onPacket, { type: 'turn_complete', step, completed, totalIterations, totalCost });
+    }
+
+    private async emitDebug(onPacket: (p: any) => Promise<void>, step: number, rawSystemPrompt: string, currentHistoryLength: number, rawMessages: Array<{ role: string; content: string }>) {
+        await this.sendBase(onPacket, { type: 'debug', step, rawSystemPrompt, currentHistoryLength, rawMessages });
     }
 
     private async updateStatus(onPacket: (p: any) => Promise<void>, updates: Partial<AgentStatus>, step: number) {
@@ -79,9 +139,7 @@ export class NlahHarness {
             } else if (to === 'looping') {
                 reason = 'cosine_similarity_threshold';
             }
-            await this.emit(onPacket, 'state_change', {
-                meta: { from, to, reason }
-            } as any, step);
+            await this.emitStateChange(onPacket, step, from, to, reason);
         }
     }
 
@@ -169,7 +227,7 @@ export class NlahHarness {
     private async checkCancellation(iteration: number, onPacket: (p: any) => Promise<void>): Promise<boolean> {
         if (cancellationManager.isAborted(this.missionId)) {
             logger.info(`NlahHarness: Mission ${this.missionId} cancelled, aborting harness run.`);
-            await this.emit(onPacket, PACKET_TYPES.METADATA, { content: `Mission execution cancelled.` }, iteration);
+            await this.emitMetadata(onPacket, iteration, { content: `Mission execution cancelled.` });
             return true;
         }
         return false;
@@ -191,7 +249,7 @@ export class NlahHarness {
         const toStr = currentLevel === 'restricted' ? 'restricted' : 'standard';
         const reasonStr = currentLevel === 'restricted' ? 'circuit_breakers_open' : 'consecutive_tool_failures';
 
-        await this.emit(onPacket, 'degraded', { meta: { from: fromStr, to: toStr, reason: reasonStr } }, iteration);
+        await this.emitDegraded(onPacket, iteration, fromStr, toStr, reasonStr);
 
         let systemPrompt = '';
         let toolMap = new Map<string, ToolDefinition>();
@@ -251,9 +309,7 @@ export class NlahHarness {
             state.messages = [anchor, ...summaryMsg, ...droppedLastTurns];
 
             logger.info("Context compaction successfully applied.");
-            await this.emit(onPacket, PACKET_TYPES.REASONING, {
-                content: HARNESS_PROMPTS.LOG_COMPACTED(getHistoryTokens(state.messages))
-            }, iteration);
+            await this.emitReasoning(onPacket, iteration, HARNESS_PROMPTS.LOG_COMPACTED(getHistoryTokens(state.messages)));
         } catch (err: any) {
             logger.langfuse("ERROR", `Context compaction failed: ${err.message}`, { error: err.message });
         }
@@ -264,13 +320,7 @@ export class NlahHarness {
         queuePromptDebug({ state, iteration, strategyName: this.strategy.name, systemPrompt });
         logger.info(`📝 Prompt debug operations queued in background`);
         try {
-            await this.emit(onPacket, PACKET_TYPES.DEBUG, {
-                meta: {
-                    rawSystemPrompt: systemPrompt,
-                    currentHistoryLength: state.messages.length,
-                    rawMessages: state.messages.map(m => ({ role: m._getType(), content: m.content }))
-                }
-            }, iteration);
+            await this.emitDebug(onPacket, iteration, systemPrompt, state.messages.length, state.messages.map(m => ({ role: m._getType(), content: m.content as string })));
         } catch (emitErr) {
             logger.error("Failed to emit debug packet", emitErr);
         }
@@ -297,7 +347,7 @@ export class NlahHarness {
 
         const heartbeatInterval = setInterval(() => {
             if (Date.now() - lastChunkTime >= heartbeatIntervalTime) {
-                this.emit(onPacket, 'heartbeat', {}, iteration).catch(() => {});
+                this.emitHeartbeat(onPacket, iteration).catch(() => {});
             }
         }, heartbeatIntervalTime);
 
@@ -312,7 +362,7 @@ export class NlahHarness {
                         currentThought: (reasoningContent || assistantContent).substring(0, 50),
                         throughput: (Date.now() - streamStart) / 1000 > 0 ? tokenEstimate / ((Date.now() - streamStart) / 1000) : undefined
                     });
-                    await this.emit(onPacket, PACKET_TYPES.REASONING, { content: event.reasoning }, iteration);
+                    await this.emitReasoning(onPacket, iteration, event.reasoning);
                 }
                 if (event.content) {
                     assistantContent += event.content;
@@ -325,10 +375,10 @@ export class NlahHarness {
                 if (event.toolCall) pendingToolCall = event.toolCall;
                 if (event.content && !pendingToolCall) {
                     hasContentEmitted = true;
-                    await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: event.content }, iteration);
+                    await this.emitContent(onPacket, iteration, event.content);
                 }
                 if (event.usage) {
-                    await this.emit(onPacket, PACKET_TYPES.USAGE, { meta: event.usage }, iteration);
+                    await this.emitUsage(onPacket, iteration, event.usage);
                     const elapsed = (Date.now() - streamStart) / 1000;
                     this.statusTracker?.update({ throughput: elapsed > 0 ? (event.usage.completionTokens ?? 0) / elapsed : undefined });
                 }
@@ -355,7 +405,7 @@ export class NlahHarness {
     ): Promise<{ isComplete: boolean }> {
         if (circuit.isOpen(pendingToolCall.name)) {
             logger.warn(`Circuit breaker is open for tool: ${pendingToolCall.name}, skipping execution.`, { missionId: state.missionId });
-            await this.emit(onPacket, 'tool_skip', { toolName: pendingToolCall.name }, iteration);
+            await this.emitToolSkip(onPacket, iteration, pendingToolCall.name);
             degradation.recordToolError();
             state.messages.push(new AIMessage(`Tool ${pendingToolCall.name} is currently unavailable due to repeated failures. It has been skipped.`));
             return { isComplete: false };
@@ -375,18 +425,13 @@ export class NlahHarness {
         logger.info(`Executing tool: ${pendingToolCall.name}`, { missionId: state.missionId });
         this.statusTracker?.update({ currentTool: pendingToolCall.name });
 
-        await this.emit(onPacket, PACKET_TYPES.TOOL_CALL, {
-            toolName: pendingToolCall.name,
-            toolInput: pendingToolCall.args
-        }, iteration);
+        await this.emitToolCall(onPacket, iteration, pendingToolCall.name, pendingToolCall.args);
 
         if (pendingToolCall.name === 'write_todos') {
-            await this.emit(onPacket, PACKET_TYPES.TODO, { todos: pendingToolCall.args.todos as any }, iteration);
+            await this.emitTodos(onPacket, iteration, pendingToolCall.args.todos);
             state.tasks = pendingToolCall.args.todos as any[];
         } else if (pendingToolCall.name === 'delegate_task') {
-            await this.emit(onPacket, PACKET_TYPES.SUBAGENT_CALL, {
-                subagent: { name: pendingToolCall.args.agentName as string, instruction: pendingToolCall.args.instruction as string, status: 'calling' }
-            }, iteration);
+            await this.emitSubagentCall(onPacket, iteration, pendingToolCall.args.agentName as string, pendingToolCall.args.instruction as string);
         }
 
         let observation;
@@ -413,9 +458,7 @@ export class NlahHarness {
         }
 
         if (pendingToolCall.name === 'delegate_task') {
-            await this.emit(onPacket, PACKET_TYPES.SUBAGENT_RESULT, {
-                subagent: { name: pendingToolCall.args.agentName as string, instruction: pendingToolCall.args.instruction as string, result: observation.summary, status: observation.status === 'success' ? 'completed' : 'failed' }
-            }, iteration);
+            await this.emitSubagentResult(onPacket, iteration, pendingToolCall.args.agentName as string, pendingToolCall.args.instruction as string, observation.summary, observation.status === 'success' ? 'completed' : 'failed');
         }
 
         const toolCallId = `tool_${Date.now()}`;
@@ -426,11 +469,9 @@ export class NlahHarness {
         }));
         state.messages.push(new ToolMessage({ tool_call_id: toolCallId, content: observation.summary }));
 
-        await this.emit(onPacket, PACKET_TYPES.TOOL_RESULT, {
-            toolName: pendingToolCall.name, content: observation.summary, toolResult: observation.data
-        }, iteration);
+        await this.emitToolResult(onPacket, iteration, pendingToolCall.name, observation.summary, observation.data);
 
-        await this.emit(onPacket, 'progress', { meta: { phase: 'tool_execution', tokensUsed: totalInputTokensSum, tokensTotal: maxContextTokens } } as any, iteration);
+        await this.emitProgress(onPacket, iteration, 'tool_execution', totalInputTokensSum, maxContextTokens);
         this.statusTracker?.update({ currentTool: undefined });
 
         return { isComplete: false };
@@ -487,25 +528,20 @@ export class NlahHarness {
     ) {
         this.missionId = state.missionId;
 
-        await this.emit(onPacket, PACKET_TYPES.METADATA, {
-            content: `Initializing state registry context.`
-        }, 0);
+        await this.emitMetadata(onPacket, 0, { content: `Initializing state registry context.` });
 
         const { traceId, parentSpanId } = await this.setupMissionParams(state, traceparent);
         const trace = startAgentTrace(traceId, state.missionId, this.tenantId, this.strategy.name, state.objective);
         const { tools, toolMap } = this.selectTools(state);
         const systemPrompt = this.buildSystemPrompt(state, tools);
 
-        await this.emit(onPacket, PACKET_TYPES.METADATA, {
-            meta: {
-                missionId: state.missionId,
-                strategy: this.strategy.name,
-                historyDepth: state.messages.length,
-                toolsAvailable: tools.map(t => t.name),
-                objective: state.objective,
-                maxIterations: HARNESS_CONFIG.MAX_ITERATIONS,
-            }
-        }, state.tasks.length);
+        await this.emitMetadata(onPacket, state.tasks.length, {
+            strategy: this.strategy.name,
+            historyDepth: state.messages.length,
+            toolsAvailable: tools.map(t => t.name),
+            objective: state.objective,
+            maxIterations: HARNESS_CONFIG.MAX_ITERATIONS,
+        });
 
         let isComplete = false;
         let iteration = state.tasks.length;
@@ -610,7 +646,7 @@ export class NlahHarness {
                                 iteration, onPacket, state, circuit, degradation, totalInputTokensSum, maxContextTokens
                             );
                             if (!toolCallResult && !hasContentEmitted && assistantContent) {
-                                await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: assistantContent }, iteration);
+                                await this.emitContent(onPacket, iteration, assistantContent);
                             }
                         } else {
                             const { isComplete: turnComplete, retryWithTool } = await this.handleAutoRecovery(
@@ -624,7 +660,7 @@ export class NlahHarness {
                                 );
                             }
                             if (!isComplete && !hasContentEmitted && assistantContent) {
-                                await this.emit(onPacket, PACKET_TYPES.CONTENT, { content: assistantContent }, iteration);
+                                await this.emitContent(onPacket, iteration, assistantContent);
                             }
                         }
 
@@ -637,7 +673,7 @@ export class NlahHarness {
                             });
                             span.end();
                         }
-                        await stateStorage.set(state.missionId, state);
+                        await stateStorage.set(state.missionId, state, 600);
                     } catch (err: any) {
                         logger.langfuse("ERROR", `Turn execution failed: ${err.message}`, { error: err.stack || err.message });
                         if (span) {
@@ -666,15 +702,9 @@ export class NlahHarness {
             await this.updateStatus(onPacket, { state: 'completed' }, iteration);
         }
 
-        await this.emit(onPacket, 'turn_complete', {
-            meta: {
-                completed: isComplete,
-                totalIterations: iteration,
-                totalCost
-            }
-        }, iteration);
+        await this.emitTurnComplete(onPacket, iteration, isComplete, iteration, totalCost);
 
-        await stateStorage.set(state.missionId, state);
+        await stateStorage.set(state.missionId, state, 600);
 
         // Queue final debug log to ensure the last messages (last AI + Tool response) are captured
         if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {

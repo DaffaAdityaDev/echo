@@ -1,6 +1,10 @@
 package db
 
 const (
+	DefaultSessionTitle = "New Chat"
+)
+
+const (
 	MsgPostgresConnected = "Connected to PostgreSQL successfully"
 	ErrPostgresConfig    = "unable to parse database config"
 	ErrPostgresPool      = "unable to create connection pool"
@@ -69,10 +73,35 @@ const (
 		WHERE id = $1
 	`
 	QueryGetSessionMessages = `
-		SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, created_at
+		SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, status, created_at
 		FROM messages
 		WHERE session_id = $1
 		ORDER BY turn_number ASC, id ASC
+	`
+	QueryInsertMessageWithStatus = `
+		INSERT INTO messages (session_id, role, content, token_count, turn_number, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		RETURNING id
+	`
+	QueryInsertAssistantPlaceholder = `
+		INSERT INTO messages (session_id, role, content, token_count, turn_number, status, created_at)
+		VALUES ($1, 'assistant', '', 0, $2, 'streaming', NOW())
+		RETURNING id
+	`
+	QueryUpdateMessageContent = `
+		UPDATE messages
+		SET content = $2, steps = COALESCE($3, steps), token_count = $4
+		WHERE id = $1
+	`
+	QueryUpdateMessageStatus = `
+		UPDATE messages
+		SET status = $2
+		WHERE id = $1
+	`
+	QueryMarkSessionStreamingInterrupted = `
+		UPDATE messages
+		SET status = 'interrupted'
+		WHERE session_id = $1 AND status = 'streaming'
 	`
 	QueryGetSessionTokenCount = `
 		SELECT COALESCE(SUM(token_count), 0)

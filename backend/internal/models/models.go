@@ -112,5 +112,6 @@ type Message struct {
 	TokenCount int             `json:"token_count" example:"156"`
 	TurnNumber int             `json:"turn_number" example:"3"`
 	Steps      json.RawMessage `json:"steps,omitempty"`
+	Status     string          `json:"status" example:"complete"`
 	CreatedAt  time.Time       `json:"created_at" example:"2026-01-15T10:35:00Z"`
 }

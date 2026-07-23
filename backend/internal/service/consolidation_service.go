@@ -133,15 +133,10 @@ func (s *ConsolidationService) TriggerConsolidation(ctx context.Context, session
 		newSummary = session.ContextSummary + "\n\n" + sumResp.Summary
 	}
 
-	err = s.sessionRepo.UpdateContextSummary(ctx, sessionID, newSummary)
+	// Prune session atomically via 1 ACID transaction (Update summary + Delete messages + Update timestamp)
+	err = s.sessionRepo.PruneSession(ctx, sessionID, newSummary, pruneLimitTurn)
 	if err != nil {
-		return fmt.Errorf("failed to save context summary: %w", err)
-	}
-
-	// Delete pruned messages from database
-	err = s.sessionRepo.DeleteMessagesUpToTurn(ctx, sessionID, pruneLimitTurn)
-	if err != nil {
-		return fmt.Errorf("failed to delete pruned messages: %w", err)
+		return fmt.Errorf("failed to execute prune session transaction: %w", err)
 	}
 
 	log.Printf("[CONSOLIDATION] Pruning successful for session %s. New summary length: %d chars.", sessionID, len(newSummary))

@@ -37,6 +37,7 @@ type episodicStoreRequest struct {
 	SessionID string      `json:"session_id" example:"sess_abc123"`
 	Content   interface{} `json:"content" example:"{\"text\":\"User asked about pricing plans\"}"`
 	Metadata  interface{} `json:"metadata,omitempty"`
+	TTL       int         `json:"ttl_seconds,omitempty" example:"600"`
 }
 
 // @Summary Store episodic memory
@@ -78,7 +79,11 @@ func (h *MemoryHandler) HandleStoreEpisodic(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to store episodic memory"})
 	}
 
-			h.rdb.Expire(ctx, key, 24*time.Hour)
+	ttl := 24 * time.Hour
+	if req.TTL > 0 {
+		ttl = time.Duration(req.TTL) * time.Second
+	}
+	h.rdb.Expire(ctx, key, ttl)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"id":     generateID("mem_ep_"),

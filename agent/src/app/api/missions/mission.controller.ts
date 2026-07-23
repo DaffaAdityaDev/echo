@@ -29,11 +29,15 @@ Respond ONLY with a valid JSON object in this exact format:
       if (chunk.content) content += chunk.content;
     }
     content = content.trim();
-    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
-    const parsed = JSON.parse(content);
-    if (parsed.title && parsed.summary) {
-      logger.info(`[AUTO-TITLE] Generated title: "${parsed.title}"`);
-      return { title: String(parsed.title).trim(), summary: String(parsed.summary).trim() };
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.title) {
+        const title = String(parsed.title).trim();
+        const summary = parsed.summary ? String(parsed.summary).trim() : "";
+        logger.info(`[AUTO-TITLE] Generated title: "${title}"`);
+        return { title, summary };
+      }
     }
     return null;
   } catch (err: any) {
@@ -180,8 +184,11 @@ export class MissionController {
               state.memory.titleGenerated = true;
               await transport.send({
                 type: 'metadata',
+                missionId,
+                step: 0,
                 content: result.title,
-                meta: { title: result.title, summary: result.summary }
+                title: result.title,
+                summary: result.summary
               });
             }
           }
@@ -191,8 +198,10 @@ export class MissionController {
           try {
             await transport.send({
               type: 'error',
+              missionId,
+              step: 0,
               content: streamErr.message,
-              meta: { code: 'STREAM_EXECUTION_ERROR' }
+              code: 'STREAM_EXECUTION_ERROR'
             });
           } catch (sendErr) {
             // Transport already broken — nothing more we can do

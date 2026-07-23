@@ -97,9 +97,7 @@ export const delegate_task: ToolDefinition = {
                         subAgentOutput += packet.content;
                     }
 
-                    // Relay sub-agent streaming packets to parent stream callback to prevent freeze
-                    const RELAY_TYPES = new Set(['reasoning', 'content', 'tool_call', 'tool_result', 'swarm_status']);
-                    if (config?.onPacket && RELAY_TYPES.has(packet.type)) {
+                    if (config?.onPacket) {
                         await config.onPacket({
                             ...packet,
                             missionId: parentMissionId

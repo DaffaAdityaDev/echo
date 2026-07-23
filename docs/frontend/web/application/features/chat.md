@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Feature
   Service   : Web
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-23 (Message.status, DbMessage.status, streaming/interrupted UI)
 ================================================================================
 
 ## Deskripsi
@@ -213,7 +213,10 @@ src/features/chat/
 |                   |                                  | streaming response. Renders step variants:         |
 |                   |                                  | reasoning, tool_call, tool_result, todo,           |
 |                   |                                  | subagent_call/result, file_operation, swarm_status,|
-|                   |                                  | tool_skip, state_change.                           |
+|                   |                                  | tool_skip, state_change. Shows streaming indicator |
+|                   |                                  | (spinner + "Receiving...") when msg.status='streaming'|
+|                   |                                  | and interrupted warning (AlertTriangle) when       |
+|                   |                                  | msg.status='interrupted'.                          |
 +-------------------+----------------------------------+----------------------------------------------------+
 | ChatInput         | components/ChatInput.tsx          | onSend: (msg: string) => void, isLoading: boolean  |
 |                   |                                  | Uses an auto-growing textarea supporting Enter to  |
@@ -316,7 +319,8 @@ src/features/chat/
 +----------------+-------------------------------------------+-----------------------------------+
 | Type           | Key fields                                | Purpose                            |
 +----------------+-------------------------------------------+-----------------------------------+
-| Message        | role, content, steps, meta?, usage?, id  | UI message with thought steps      |
+| Message        | role, content, steps, meta?, usage?, id, | UI message with thought steps      |
+|                | status?                                | status: streaming/complete/interrupted |
 +----------------+-------------------------------------------+-----------------------------------+
 | ThoughtStep    | type, content?, toolName?, toolInput?,    | Individual thought step in         |
 |                | todos?, subagent?, fileOp?, swarm?        | assistant message                  |
@@ -338,24 +342,25 @@ src/features/chat/
 |                | totalIterations, currentTool?,            | AgentProgress component            |
 |                | statusMessage?, swarm?                   |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
-| StreamPacket   | type, content?, toolName?, toolInput?,    | Raw SSE packet (17 types)          |
-|                | meta?, todos?, subagent?, fileOp?,        |                                    |
-|                | swarm?, agentStatus?, turnComplete?,      |                                    |
-|                | step?, choices?                           |                                    |
+| StreamPacket   | type, missionId, step, seq, timestamp,    | Raw SSE packet (19 types)          |
+|                | agentStatus?, content?, toolName?,        | Discriminated union — shape         |
+|                | toolInput?, toolResult?, todos?,          | varies by type (flat, no meta)      |
+|                | subagent?, swarm?, usage?, from?, to?,   |                                    |
+|                | reason?, phase?, completed?,              |                                    |
+|                | totalIterations?, totalCost?             |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
 | MissionMeta    | missionId?, strategy?, historyDepth?,     | Mission metadata from metadata     |
-|                | toolsAvailable?, objective?,              | packet                             |
+|                | toolsAvailable?, objective?,              | packet (flat fields)               |
 |                | maxIterations?                           |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
 | TokenUsage     | promptTokens, completionTokens,           | Token consumption stats            |
 |                | totalTokens, reasoningTokens?            |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
-| TurnComplete   | tokenCount, toolCalls, duration           | Turn completion summary            |
-+----------------+-------------------------------------------+-----------------------------------+
 | HistoryMessage | role, content                             | Lightweight history entry          |
 +----------------+-------------------------------------------+-----------------------------------+
-| DbMessage      | id, session_id, role, content,            | Raw DB message row                 |
-|                | token_count, turn_number, created_at      |                                    |
+| DbMessage      | id, session_id, role, content,            | Raw DB message row with status     |
+|                | token_count, turn_number, status?,        | streaming/complete/interrupted      |
+|                | created_at                                |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
 | FailedUrl      | url, reason                               | Failed scrape URL entry            |
 +----------------+-------------------------------------------+-----------------------------------+
@@ -376,7 +381,7 @@ src/features/chat/
 +----------------+---------------------------------------------------------------------+
 | CHAT_ENDPOINTS | { STREAM: "/chat/stream" }                                          |
 +----------------+---------------------------------------------------------------------+
-| SESSION_ENDPOINTS | { LIST: "/sessions", CREATE: "/sessions", GET, MESSAGES, DELETE } |
+| SESSION_ENDPOINTS | { LIST, CREATE, GET, MESSAGES, DELETE, GENERATE_TITLE }         |
 +----------------+---------------------------------------------------------------------+
 | STORAGE_KEYS   | { ACTIVE_SESSION: "echo_active_session" }                           |
 +----------------+---------------------------------------------------------------------+

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Patterns
   Service   : Shared / Patterns
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-23 (added ACID/SOLID/Clean Code)
 ================================================================================
 
 ## Overview
@@ -28,6 +28,8 @@ error handling.
 |                            |   auth, frontend React Query hooks                |                         |
 | error-handling.md          | Cross-service error taxonomy, consistent JSON     | Completed               |
 |                            |   error format, in-stream error events            |                         |
+| acid-solid-clean-code.md   | ACID transactions, session isolation, SOLID       | Completed               |
+|                            |   patterns, Clean Code conventions                |                         |
 +----------------------------+---------------------------------------------------+-------------------------+
 
 ## Quick Reference
@@ -45,6 +47,10 @@ error handling.
 | Internal service auth                | auth-flow.md                                |
 | Unified error shape                  | error-handling.md                           |
 | Error status codes                   | error-handling.md                           |
+| ACID transaction patterns            | acid-solid-clean-code.md                    |
+| Session-level mutex isolation        | acid-solid-clean-code.md                    |
+| SOLID principles                     | acid-solid-clean-code.md                    |
+| Clean Code conventions               | acid-solid-clean-code.md                    |
 +--------------------------------------+---------------------------------------------+
 
 ================================================================================

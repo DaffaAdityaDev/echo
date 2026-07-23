@@ -33,7 +33,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	// 4. Initialize Handlers
 	authHandler := &handler.AuthHandler{Cfg: cfg, AuthSvc: authSvc}
 	chatHandler := &handler.ChatHandler{Cfg: cfg, RedisClient: rdb, HonoAPIURL: cfg.AgentHTTPURL, ModelSvc: modelSvc, SessionRepo: sessionRepo, ConsolidationSvc: consolidationSvc}
-	sessionHandler := &handler.SessionHandler{Cfg: cfg, SessionRepo: sessionRepo, ConsolidationSvc: consolidationSvc}
+	sessionHandler := &handler.SessionHandler{Cfg: cfg, SessionRepo: sessionRepo, ConsolidationSvc: consolidationSvc, ModelSvc: modelSvc}
 	modelHandler := &handler.ModelHandler{ModelSvc: modelSvc}
 	adminHandler := handler.NewAdminHandler(cfg, apiKeyRepo)
 	memoryHandler := handler.NewMemoryHandler(rdb, pool)
@@ -102,6 +102,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	sessionsGroup.Patch("/:id", sessionHandler.HandleUpdateSession)
 	sessionsGroup.Get("/:id/messages", sessionHandler.HandleGetSessionMessages)
 	sessionsGroup.Delete("/:id", sessionHandler.HandleDeleteSession)
+	sessionsGroup.Post("/:id/generate-title", sessionHandler.HandleGenerateTitle)
 
 	// Admin routes (user JWT or API key required)
 	adminGroup := api.Group(routes.V1AdminGroup, middleware.AuthOrAPIKeyRequired(cfg, apiKeyRepo))

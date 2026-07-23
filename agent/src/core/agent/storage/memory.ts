@@ -10,7 +10,7 @@ export class InMemoryStateProvider {
         return deserializeAgentState(JSON.parse(raw));
     }
 
-    async set(missionId: string, state: AgentState): Promise<void> {
+    async set(missionId: string, state: AgentState, _ttlSeconds?: number): Promise<void> {
         const serialized = serializeAgentState(state);
         this.cache.set(missionId, JSON.stringify(serialized));
     }

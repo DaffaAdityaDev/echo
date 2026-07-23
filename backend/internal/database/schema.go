@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS messages (
     token_count INTEGER DEFAULT 0,
     turn_number INTEGER NOT NULL,
     steps       JSONB,
+    status      TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted')),
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -133,6 +134,12 @@ func Migrate(pool *pgxpool.Pool) error {
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps JSONB"); err != nil {
 		log.Printf("failed to add steps column to messages: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted'))"); err != nil {
+		log.Printf("failed to add status column to messages: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_messages_session_status ON messages(session_id, status)"); err != nil {
+		log.Printf("failed to create idx_messages_session_status: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaUserPreferences); err != nil {

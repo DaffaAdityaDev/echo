@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : Database Schema
   Service   : Shared / Contracts
-  Version   : 2.0
-  Updated   : 2026-07-10 (full audit: existing code + current designs)
+  Version   : 2.1
+  Updated   : 2026-07-23 (added status+steps to messages, 004 migration)
 ===============================================================================
 
 ## Description
@@ -195,10 +195,12 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user_id ON sessions (user_id, updated_at DESC);
 ```
 
-### messages `[Active — schema.go:65]`
+### messages `[Active — schema.go:65, 004 migration]`
 
-Canonical conversation history per session. Written by Go on `turn_complete`.
-Read by Go to build BLOCK 4 (Accumulated History) for LLM requests.
+Canonical conversation history per session. Written by Go incrementally during
+streaming (not just on turn_complete). Read by Go to build BLOCK 4 (Accumulated
+History) for LLM requests. Messages are persisted with a `status` field tracking
+the lifecycle of each assistant message.
 
 ```sql
 CREATE TABLE messages (
@@ -208,9 +210,17 @@ CREATE TABLE messages (
                                CHECK (role IN ('user', 'assistant', 'system', 'tool_result', 'thought', 'tool_call')),
     content      TEXT          NOT NULL,
     token_count  INTEGER       DEFAULT 0,     -- from LLM response metadata
-    turn_number  INTEGER       NOT NULL,       -- sequential per session
+    turn_number  INTEGER       NOT NULL,      -- sequential per session
+    steps        JSONB,                       -- thought process: reasoning, tool_calls, tool_results
+    status       TEXT          NOT NULL       DEFAULT 'complete'
+                               CHECK (status IN ('streaming', 'complete', 'interrupted')),
     created_at   TIMESTAMPTZ   DEFAULT NOW()
 );
+
+-- Migration 004 (2026-07-23):
+--   ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'
+--     CHECK (status IN ('streaming', 'complete', 'interrupted'));
+--   CREATE INDEX idx_messages_session_status ON messages(session_id, status);
 
 -- Role semantics:
 --   user        — user message (stored in history)
@@ -221,7 +231,13 @@ CREATE TABLE messages (
 --   tool_call   — tool invocation details (stripped from LLM context, saved for UI)
 -- Only user + assistant + system are sent to the LLM on turn resume.
 
+-- Status semantics:
+--   streaming   — assistant message is being written (partial content)
+--   complete    — turn completed normally (final content)
+--   interrupted — stream disconnected before turn_complete (partial content saved)
+
 CREATE INDEX idx_messages_session ON messages (session_id, turn_number);
+CREATE INDEX idx_messages_session_status ON messages (session_id, status);
 ```
 
 ---
@@ -500,6 +516,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | tool_catalog | `tool_catalog_hnsw_idx` | hnsw (vector_cosine_ops) | Active |
 | sessions | `idx_sessions_user_id` | btree (user_id, updated_at DESC) | Active |
 | messages | `idx_messages_session` | btree (session_id, turn_number) | Active |
+| messages | `idx_messages_session_status` | btree (session_id, status) | Active |
 | api_keys | `idx_api_keys_user_id` | btree (user_id) | Active |
 | api_keys | `idx_api_keys_key_hash` | btree (key_hash) | Active |
 
@@ -526,6 +543,9 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 - **Sessions + Messages + User Preferences**: Created at startup via
   `schema.go:Migrate()`. Raw SQL migrations also exist in `backend/migrations/`
   for reference and manual use.
+- **Migration 004**: Adds `status` column to `messages` table with CHECK
+  constraint and `idx_messages_session_status` index. Must be run manually or
+  via migration tool after deploy.
 - **K8s**: ConfigMap with init SQL mounted to `/docker-entrypoint-initdb.d/`.
 - **Development**: Docker Compose mounts init scripts directly.
 

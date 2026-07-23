@@ -121,6 +121,7 @@ type AgentPacketType =
   | 'content'         // Final text content to display to user
   | 'tool_call'       // Agent requests tool execution
   | 'tool_result'     // Tool execution result
+  | 'tool_skip'       // Tool skipped due to circuit breaker
   | 'error'           // Execution error
   | 'checkpoint'      // State recovery marker
   | 'usage'           // Token usage stats
@@ -129,6 +130,11 @@ type AgentPacketType =
   | 'subagent_result' // Sub-agent completed
   | 'swarm_status'    // Web swarm crawl progress
   | 'debug'           // Debug information
+  | 'state_change'    // Agent state transition (starting → running → completed)
+  | 'degraded'        // Strategy degradation signal
+  | 'progress'        // Checkpoint progress update
+  | 'heartbeat'       // Live connection keepalive with agent status
+  | 'turn_complete'   // Final packet signalling the turn is done
 ```
 
 ## Stream Packet Enrichment
@@ -137,11 +143,34 @@ In `HttpStreamTransport.send()`, each packet is enriched:
 
 ```typescript
 {
-  ...originalPacket,      // type, content, toolName, etc.
+  ...originalPacket,      // type, missionId, step, type-specific fields, agentStatus?
   seq: number,            // Auto-incrementing sequence number
-  timestamp: number       // Date.now() at send time
+  timestamp: number       // Date.now() at send time (single source of truth)
 }
 ```
+
+## Standard Packet Envelope
+
+Every packet (regardless of type) follows this base shape:
+
+```typescript
+{
+  type: string;              // One of AgentPacketType
+  missionId: string;         // Unique mission identifier
+  step: number;              // Current iteration step
+  seq: number;               // Monotonic sequence number (added by transport)
+  timestamp: number;         // Epoch ms (added by transport)
+  agentStatus?: AgentStatus; // Present when status tracker is active
+  // ... type-specific fields (flat, no 'meta' wrapper)
+}
+```
+
+**Rules:**
+1. All type-specific data is FLAT (not wrapped in `meta:`)
+2. `agentStatus` is included on every packet when the agent has a status tracker
+3. Fields like `from`, `to`, `reason` for `state_change`/`degraded` are top-level
+4. Token usage is in a flat `usage` field, not inside `meta`
+5. `timestamp` is set ONLY by `HttpStreamTransport.send()` — not by the harness
 
 ## SSE Line Format
 
@@ -171,19 +200,29 @@ data: {"type":"reasoning","content":"Let me search for...","seq":3,"timestamp":1
 
 ## Frontend Packet Handler (useChatStream.ts)
 
+All packets are read as a discriminated union — TypeScript narrows the shape
+based on `data.type`. Fields are FLAT (no `meta:` wrapper):
+
 ```typescript
-handlePacket(data) {
+handlePacket(data: StreamPacket) {
   switch (data.type) {
-    case "metadata":   -> set mission meta, maxIterations
-    case "usage":      -> set token usage info
-    case "content":    -> append to assistant message content
-    case "reasoning":  -> append to last thought step
-    case "tool_call":  -> add step, increment iteration, show current tool
-    case "tool_result":-> add step, clear current tool
-    case "todo":       -> add step with todo list
-    case "subagent_call": -> add step with subagent info
-    case "subagent_result": -> add step with result
-    case "swarm_status": -> update swarm progress (activeUrls, counts)
+    case "metadata":      -> set missionId, strategy, historyDepth, toolsAvailable from flat fields
+    case "reasoning":     -> append data.content to last thought step
+    case "content":       -> append data.content to assistant message
+    case "tool_call":     -> add step with data.toolName, data.toolInput
+    case "tool_result":   -> add step with data.toolName, data.content
+    case "tool_skip":     -> add step with data.toolName
+    case "todo":          -> add step with data.todos
+    case "subagent_call"
+         | "subagent_result": -> add step with data.subagent
+    case "usage":         -> set data.usage (flat, not inside meta)
+    case "swarm_status":  -> update AgentProgress with data.swarm
+    case "heartbeat":     -> update agentStatus from data.agentStatus
+    case "state_change":  -> set agentState from data.agentStatus.state
+    case "degraded":      -> set agentState='degraded'
+    case "progress":      -> update iteration from data.step
+    case "turn_complete": -> set agentState='completed'
+    case "error":         -> show error from data.content
   }
 }
 ```

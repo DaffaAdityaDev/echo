@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : Session Management
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-10
+  Version   : 1.1
+  Updated   : 2026-07-23 (incremental PG flush, message status, auto-create session)
 ===============================================================================
 
 ## Description
@@ -131,14 +131,23 @@ CREATE INDEX idx_sessions_user_id ON sessions(user_id, updated_at DESC);
 CREATE TABLE messages (
     id          BIGSERIAL PRIMARY KEY,
     session_id  UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    role        TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool_result')),
+    role        TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool_result', 'thought', 'tool_call')),
     content     TEXT NOT NULL,
     token_count INTEGER DEFAULT 0,          -- accurate token count from LLM response
     turn_number INTEGER NOT NULL,           -- sequential per session
+    steps       JSONB,                      -- thought process: reasoning, tool_calls, tool_results
+    status      TEXT NOT NULL DEFAULT 'complete'
+                CHECK (status IN ('streaming', 'complete', 'interrupted')),
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Status semantics:
+--   streaming   — assistant message being written (partial content in DB)
+--   complete    — turn completed normally
+--   interrupted — stream disconnected; partial content preserved
+
 CREATE INDEX idx_messages_session ON messages(session_id, turn_number);
+CREATE INDEX idx_messages_session_status ON messages(session_id, status);
 ```
 
 **Token Accounting:**
@@ -154,27 +163,26 @@ CREATE INDEX idx_messages_session ON messages(session_id, turn_number);
 ### Intra-Turn Memory Boundary (Critical)
 
 During a single user turn, the Agent may execute a ReAct loop with multiple
-tool calls. These intermediate messages (AIMessage for tool calls, ToolMessage
-for observations) exist ONLY in the Agent's in-memory request lifecycle:
+tool calls. These intermediate messages exist ONLY in the Agent's in-memory
+request lifecycle:
 
 ```
 Turn N starts:
   1. User sends: "Deploy to K8s"
-  2. Agent ReAct loop (in-memory only):
+  2. Go saves user message immediately (status=complete)
+  3. Go inserts assistant placeholder (status=streaming)
+  4. Agent ReAct loop (in-memory only):
      → call web_search     ← AIMessage + ToolMessage (in-memory)
      → call code_execute   ← AIMessage + ToolMessage (in-memory)
      → synthesize answer   ← final response
-  3. Agent emits turn_complete packet to Go:
+  5. Agent streams tokens → Go proxies to frontend + flushes to PG every 2s
+  6. Agent emits turn_complete packet to Go:
      { type: 'turn_complete', content: 'To deploy to K8s...',
-       toolCalls: [{ name: 'web_search', result: '...', tokenCount: 320 }],
-       tokenCount: 580 }
+       toolCalls: [...], tokenCount: 580 }
 
-Go commits ONE turn to DB:
-  INSERT INTO messages (session_id, role, content, token_count, turn_number)
-  VALUES
-    ('...', 'user',    'Deploy to K8s',                 10,   N),
-    ('...', 'assistant', 'To deploy to K8s...',           580, N),
-    ('...', 'tool_result', 'web_search result: ...',      320, N)
+Go finalizes:
+  UPDATE messages SET content=..., steps=..., status='complete' WHERE id=assistantMsgID
+  UPDATE sessions SET updated_at=NOW() WHERE id=sessionID
 ```
 
 **Rules:**
@@ -182,55 +190,65 @@ Go commits ONE turn to DB:
   - Go ONLY receives the final `turn_complete` packet
   - Tool result content is already **compressed** by the circuit breaker
     before being sent to Go (see circuit-breaker-pattern.md in `execution/`)
-  - If the Agent crashes mid-loop, the entire turn is lost — Go has no partial
-    data to roll back. This is acceptable: the user retries.
+  - If the Agent crashes mid-loop, partial content is already flushed to PG
+    (every 2s) and the message status remains 'streaming' (or 'interrupted' on
+    disconnect)
 
-### SSE Transaction/Commit Policy
+### Incremental Persistence Flow
 
-Race condition: Agent streams tokens to Go, Go forwards to frontend.
-If connection drops mid-stream, Go must not commit partial data.
+Messages are saved incrementally during streaming, not only at turn completion.
+This ensures data survival on page refresh or network disconnect.
 
 ```
-1. Agent begins streaming tokens → Go proxies to frontend (real-time)
-2. Agent finishes → sends turn_complete packet as LAST SSE event
-3. Go receives turn_complete → commits to PostgreSQL
-4. If connection drops BEFORE turn_complete:
-   → Go has buffered partial content
-   → Go marks turn as 'interrupted' (optional: save partial buffer)
-   → On next session load, frontend sees interrupted turn
-5. If connection drops AFTER turn_complete:
-   → Go already committed — next session load shows complete turn
+Before stream:
+  1. Auto-create session (if req.SessionID == "")
+  2. MarkStreamingAsInterrupted(sessionID)  — clean up stale streaming msgs
+  3. INSERT user message (status='complete')
+  4. INSERT assistant placeholder (status='streaming') → get assistantMsgID
+
+During stream (flush goroutine):
+  ┌─ Background goroutine with 2s ticker
+  ├─ RLock streamContent → read content
+  ├─ UPDATE messages SET content=..., token_count=... WHERE id=assistantMsgID
+  └─ Ignores empty content (skip if no tokens yet)
+
+On stream end (turn_complete OR error):
+  1. Cancel flush goroutine (prevents races)
+  2. Build final content + steps (reasoning + tool_calls + tool_results)
+  3. Determine status:
+       turn_complete → 'complete'
+       error         → 'interrupted'
+  4. UPDATE messages SET content, steps, status, token_count WHERE id=assistantMsgID
+  5. UPDATE sessions SET updated_at = NOW() WHERE id = sessionID
 ```
 
-Implementation:
+### streamContent — Thread-Safe Accumulation
 
 ```go
-// In ChatHandler.HandleChat (Go)
-pendingTurn := &TurnBuffer{
-    SessionID:    sessionID,
-    TurnNumber:   nextTurn,
-    Content:      strings.Builder{},
-    ToolCalls:    []ToolCall{},
-    TokenCount:   0,
-    IsComplete:   false,
+type streamContent struct {
+    mu          sync.RWMutex
+    content     strings.Builder
+    thinking    strings.Builder
+    toolCalls   []ToolCallCapture
+    toolResults []ToolCallResult
+    isComplete  bool
 }
+```
 
-for packet := range agentSSEStream {
-    switch packet.Type {
-    case "content":
-        pendingTurn.Content.WriteString(packet.Data)
-        c.Write(packet.Raw)  // forward to frontend immediately
-    case "turn_complete":
-        pendingTurn.TokenCount = packet.TokenCount
-        pendingTurn.ToolCalls = packet.ToolCalls
-        pendingTurn.IsComplete = true
-        commitTurn(db, pendingTurn)  // ONLY commit here
-    case "error":
-        if !pendingTurn.IsComplete {
-            saveInterrupted(db, pendingTurn)
-        }
-    }
-}
+The `SendStreamWriter` callback and the flush goroutine share this struct via
+`sync.RWMutex`:
+- Read loop acquires `Lock` to append tokens
+- Flush goroutine acquires `RLock` to read accumulated content
+- No data races, no channel complexity
+
+### Message Status Lifecycle
+
+```
+Before stream:  status='streaming'  (empty placeholder)
+During stream:  status='streaming'  (partial content flushed every 2s)
+Turn complete:  status='complete'   (final content + steps)
+Error/refresh:  status='interrupted' (partial content preserved)
+New turn:       prev 'streaming' → 'interrupted' (cleanup)
 ```
 
 ---
@@ -379,11 +397,15 @@ Not applicable for typical chat (serial by nature), but required for API access.
 
 ### Agent Crash During Turn
 
-- If Agent crashes before `turn_complete`, Go has no assistant response to commit
-- User's `message` is NOT yet committed to DB (Go appends in-memory only)
-- On retry, user resends the same message — Go treats it as new turn
-- No duplicate messages because the user message was never committed
-- Acceptable trade-off: simplicity > resilience for edge case
+- User message is ALREADY committed to DB before the stream starts
+  (status='complete') — guaranteed persistence
+- Assistant partial content is flushed every 2s (status='streaming')
+- On disconnect, Go receives read error → cancel flush goroutine →
+  UPDATE message status='interrupted' with whatever content was flushed
+- On page refresh, frontend loads the partial message (status='interrupted')
+  and shows a subtle warning indicator
+- User can send a new message to continue — the interrupted message remains
+  visible as context
 
 ### Session Migration
 
@@ -415,14 +437,19 @@ SESSION_MANAGEMENT = {
 +-----------------------------+----------------------------------+--------------------------------------------+
 | SessionHandler              | backend/internal/handler/        | Go Fiber handler (CRUD endpoints)          |
 |                             |   session_handler.go             |                                            |
-| SessionRepository           | backend/internal/repository/     | 10 methods: CreateSession, ListByUser,       |
+| SessionRepository           | backend/internal/repository/     | 16 methods: CreateSession, ListByUser,        |
 |                             |   session_repository.go          | GetByID, DeleteSession, UpdateContextSummary,|
 |                             |                                | GetSessionMessages, GetSessionTokenCount,   |
 |                             |                                | GetMaxTurnNumber, DeleteMessagesUpToTurn,   |
-|                             |                                | SaveTurnMessages                            |
-| TurnBuffer (inline vars)    | backend/internal/handler/        | Inline variables in HandleChat:             |
-|                             |   chat_handler.go               | assistantBuilder, toolResults, toolCalls,  |
-|                             |                                | isComplete (no exported struct)            |
+|                             |                                | SaveTurnMessages, InsertMessage,            |
+|                             |                                | InsertAssistantPlaceholder,                 |
+|                             |                                | UpdateMessageContent, UpdateMessageStatus,  |
+|                             |                                | MarkStreamingAsInterrupted,                 |
+|                             |                                | UpdateSessionTimestamp                      |
+| streamContent               | backend/internal/handler/        | struct in HandleChat SendStreamWriter:      |
+|                             |   chat_handler.go               | content, thinking (strings.Builder),       |
+|                             |                                | toolCalls, toolResults slices,             |
+|                             |                                | isComplete bool, sync.RWMutex              |
 | ConsolidationService        | backend/internal/service/        | Orchestrates threshold check → Agent call  |
 |                             |   consolidation_service.go      |                                            |
 | SummarizeEndpoint           | agent/src/app/api/internal/      | Hono endpoint for LLM summarization        |

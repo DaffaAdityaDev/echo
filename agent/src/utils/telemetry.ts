@@ -19,7 +19,13 @@ if (isDummyKey || isExplicitlyDisabled) {
         debug: (message, ...args) => logger.debug(`[OTEL] ${message}`, ...args),
         info: (message, ...args) => logger.info(`[OTEL] ${message}`, ...args),
         warn: (message, ...args) => logger.warn(`[OTEL] ${message}`, ...args),
-        error: (message, ...args) => logger.error(`[OTEL] ${message}`, ...args),
+        error: (message, ...args) => {
+            if (typeof message === 'string' && (message.includes('OTLPExporterError') || message.includes('Export failed'))) {
+                logger.debug(`[OTEL] Export warning (Langfuse server offline/404 at ${baseUrl}): ${message}`);
+            } else {
+                logger.error(`[OTEL] ${message}`, ...args);
+            }
+        },
     };
 
     diag.setLogger(customLogger, DiagLogLevel.DEBUG);

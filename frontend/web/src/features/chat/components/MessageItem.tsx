@@ -1,12 +1,28 @@
 "use client";
 
-import React, { memo } from "react";
-import { Bot, User, Lightbulb, ChevronDown, Search, CheckCircle2, ListTodo, FileText, Terminal, AlertTriangle, Cpu, SkipForward } from "lucide-react";
+import React, { memo, useState } from "react";
+import {
+  Bot,
+  User,
+  Lightbulb,
+  ChevronDown,
+  Search,
+  CheckCircle2,
+  ListTodo,
+  FileText,
+  Terminal,
+  AlertTriangle,
+  Cpu,
+  SkipForward,
+  Copy,
+  Check,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { Markdown } from "@/components/Markdown";
 import { Message, ThoughtStep } from "../types";
-
 import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 
 interface MessageItemProps {
@@ -15,65 +31,84 @@ interface MessageItemProps {
   isLoading: boolean;
 }
 
-export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({
+  msg,
+  isLast,
+  isLoading,
+}: MessageItemProps) {
   const isAssistant = msg.role === CHAT_ROLES.ASSISTANT;
+  const [copied, setCopied] = useState(false);
 
+  const handleCopy = () => {
+    if (!msg.content) return;
+    navigator.clipboard.writeText(msg.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div
       className={cn(
-        "flex gap-4 group animate-in",
+        "flex gap-3 md:gap-4 group animate-in py-2 max-w-5xl mx-auto w-full",
         !isAssistant ? "flex-row-reverse" : "flex-row"
       )}
     >
-      <div className={cn(
-        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm",
-        !isAssistant ? "bg-white/10" : "bg-accent border-glow"
-      )}>
-        {!isAssistant ? <User size={16} aria-hidden="true" /> : <Bot size={16} aria-hidden="true" />}
+      {/* Avatar Icon */}
+      <div
+        className={cn(
+          "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-sm text-white",
+          !isAssistant
+            ? "bg-zinc-800 dark:bg-zinc-700"
+            : "bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-500/20"
+        )}
+      >
+        {!isAssistant ? (
+          <User className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+        )}
       </div>
-      
-      <div className={cn(
-        "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed flex flex-col gap-3",
-        !isAssistant 
-          ? "bg-white/[0.06] text-white border border-white/10" 
-          : "text-white/95"
-      )}>
+
+      {/* Message Card Container */}
+      <div
+        className={cn(
+          "max-w-[90%] sm:max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-sm",
+          !isAssistant
+            ? "bg-purple-600 text-white rounded-tr-xs"
+            : "bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-900 dark:text-zinc-100 rounded-tl-xs backdrop-blur-sm"
+        )}
+      >
         {/* Mission metadata bar */}
         {isAssistant && msg.meta && (
-          <div className="flex flex-wrap items-center gap-2 pb-2 mb-2 border-b border-white/5">
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
-              msg.meta.strategy === 'react'
-                ? "bg-accent/20 text-accent border border-accent/30"
-                : "bg-white/5 text-white/40 border border-white/10"
-            )}>
-              {msg.meta.strategy === 'react' ? '⚡ Agent' : '💬 Chat'}
-            </span>
-            
-            <span className="text-[9px] font-bold text-white/50 uppercase tracking-tight">
-              {msg.meta.historyDepth ?? 0} Depth
+          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-zinc-200/60 dark:border-zinc-800/60">
+            <span
+              className={cn(
+                "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                msg.meta.strategy === "react"
+                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                  : "bg-zinc-200/60 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+              )}
+            >
+              {msg.meta.strategy === "react" ? "⚡ Agent Mode" : "💬 Standard"}
             </span>
 
             {msg.usage && (
-              <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] font-mono text-white/40 flex gap-2">
-                  <span title="Total Tokens" className="text-accent/60">{msg.usage.totalTokens}</span>
-                </span>
-              </div>
+              <span className="text-[10px] font-mono text-zinc-400 ml-auto">
+                {msg.usage.totalTokens} tokens
+              </span>
             )}
           </div>
         )}
 
-        {/* Thought Process */}
+        {/* Thought Process Accordion */}
         {msg.steps.length > 0 && (
           <details className="group/thinking mb-1" open={isLoading && isLast}>
-            <summary className="flex items-center gap-2 text-[10px] font-bold text-muted cursor-pointer list-none hover:text-white/40 transition-colors uppercase tracking-widest">
-              <Lightbulb size={11} className="text-warning/50" aria-hidden="true" />
-              <span>Thought Process</span>
-              <ChevronDown size={11} className="ml-auto group-open/thinking:rotate-180 transition-transform" aria-hidden="true" />
+            <summary className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-purple-500/5 p-2 rounded-xl border border-purple-500/10">
+              <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />
+              <span>Thought Process ({msg.steps.length} steps)</span>
+              <ChevronDown className="h-3 w-3 ml-auto group-open/thinking:rotate-180 transition-transform" />
             </summary>
-            <div className="mt-3 flex flex-col gap-2.5">
+            <div className="mt-2.5 flex flex-col gap-2">
               {msg.steps.map((step, idx) => (
                 <ThoughtStepView key={idx} step={step} />
               ))}
@@ -81,15 +116,52 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
           </details>
         )}
 
-        {/* Content */}
+        {/* Content Body */}
         {msg.content ? (
           <Markdown content={msg.content} />
-        ) : (isLoading && isLast && msg.steps.length === 0 ? (
-          <div className="flex items-center gap-2 py-2" aria-live="polite">
-            <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-            <span className="text-white/20 text-xs italic tracking-wide">Orchestrating response...</span>
+        ) : isLoading && isLast && msg.steps.length === 0 ? (
+          <div className="flex items-center gap-2 py-2 text-zinc-400 text-xs italic">
+            <span className="w-2 h-2 bg-purple-500 rounded-full animate-ping" />
+            <span>Thinking...</span>
           </div>
-        ) : null)}
+        ) : null}
+
+        {/* Streaming/interrupted status indicator */}
+        {isAssistant && msg.status === 'streaming' && (
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-amber-500 italic">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Receiving...
+          </div>
+        )}
+        {isAssistant && msg.status === 'interrupted' && (
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-zinc-400 italic border-t border-dashed border-zinc-300 dark:border-zinc-700 mt-1">
+            <AlertTriangle className="h-3 w-3" />
+            Response was interrupted — send a reply to continue
+          </div>
+        )}
+
+        {/* Floating Action Toolbar on Assistant Messages */}
+        {isAssistant && msg.content && (
+          <div className="flex items-center gap-2 pt-2 border-t border-zinc-200/40 dark:border-zinc-800/40 text-zinc-400 text-xs">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded hover:bg-zinc-200/40 dark:hover:bg-zinc-800 cursor-pointer"
+              title="Copy markdown text"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-[10px] text-emerald-500 font-semibold">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  <span className="text-[10px]">Copy</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -98,7 +170,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
 function ThoughtStepView({ step }: { step: ThoughtStep }) {
   if (step.type === PACKET_TYPES.REASONING) {
     return (
-      <div className="text-[11px] text-white/50 border-l border-white/10 pl-3 py-0.5 leading-relaxed">
+      <div className="text-xs text-zinc-600 dark:text-zinc-400 border-l-2 border-purple-500/30 pl-3 py-1 bg-zinc-50 dark:bg-zinc-950/40 rounded-r-lg">
         <Markdown content={step.content || ""} className="prose-xs" />
       </div>
     );
@@ -106,13 +178,13 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
 
   if (step.type === PACKET_TYPES.TOOL_CALL) {
     return (
-      <div className="flex flex-col gap-1 rounded-lg bg-accent/5 border border-accent/10 px-3 py-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-accent/60 uppercase tracking-wider">
-          <Search size={10} aria-hidden="true" />
-          <span>Action: {step.toolName}</span>
+      <div className="flex flex-col gap-1 rounded-xl bg-purple-500/5 border border-purple-500/10 px-3 py-2">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+          <Search className="h-3 w-3" />
+          <span>Tool Action: {step.toolName}</span>
         </div>
         {step.toolInput && (
-          <pre className="text-[9px] text-white/40 font-mono whitespace-pre-wrap break-all bg-black/20 p-1.5 rounded">
+          <pre className="text-[10px] text-zinc-500 font-mono whitespace-pre-wrap break-all bg-zinc-900/80 text-zinc-200 p-2 rounded-lg">
             {JSON.stringify(step.toolInput, null, 2)}
           </pre>
         )}
@@ -122,12 +194,14 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
 
   if (step.type === PACKET_TYPES.TOOL_RESULT) {
     return (
-      <div className="flex flex-col gap-1 rounded-lg bg-success/5 border border-success/10 px-3 py-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-success/60 uppercase tracking-wider">
-          <CheckCircle2 size={10} aria-hidden="true" />
+      <div className="flex flex-col gap-1 rounded-xl bg-emerald-500/5 border border-emerald-500/10 px-3 py-2">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+          <CheckCircle2 className="h-3 w-3" />
           <span>Observation: {step.toolName}</span>
         </div>
-        <p className="text-[10px] text-white/50 leading-relaxed max-h-32 overflow-y-auto scrollbar-hide">{step.content}</p>
+        <p className="text-[11px] text-zinc-600 dark:text-zinc-300 leading-relaxed max-h-32 overflow-y-auto">
+          {step.content}
+        </p>
       </div>
     );
   }
@@ -142,39 +216,46 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
     if (todosList.length === 0) return null;
 
     return (
-      <div className="flex flex-col gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-accent uppercase tracking-widest border-b border-white/5 pb-2">
-          <ListTodo size={12} className="text-accent" />
-          <span>📋 Active Mission Plan</span>
+      <div className="flex flex-col gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 px-3.5 py-3">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest border-b border-zinc-200 dark:border-zinc-800 pb-2">
+          <ListTodo className="h-3.5 w-3.5" />
+          <span>Active Mission Plan</span>
         </div>
-        <div className="flex flex-col gap-2 mt-1.5">
+        <div className="flex flex-col gap-2 mt-1">
           {todosList.map((todo) => {
-            const isDone = todo.status === 'done';
-            const isProgress = todo.status === 'in_progress';
-            const isFailed = todo.status === 'failed';
+            const isDone = todo.status === "done";
+            const isProgress = todo.status === "in_progress";
+            const isFailed = todo.status === "failed";
 
             return (
-              <div key={todo.id || todo.description} className="flex items-start gap-2.5 text-xs text-white/85">
-                <div className={cn(
-                  "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                  isDone ? "bg-success/20 border-success/50 text-success" :
-                  isProgress ? "bg-accent/20 border-accent/50 text-accent animate-pulse" :
-                  isFailed ? "bg-error/20 border-error/50 text-error" :
-                  "border-white/20 text-transparent"
-                )}>
+              <div
+                key={todo.id || todo.description}
+                className="flex items-start gap-2.5 text-xs text-zinc-800 dark:text-zinc-200"
+              >
+                <div
+                  className={cn(
+                    "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                    isDone
+                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500"
+                      : isProgress
+                      ? "bg-purple-500/20 border-purple-500/50 text-purple-500 animate-pulse"
+                      : isFailed
+                      ? "bg-red-500/20 border-red-500/50 text-red-500"
+                      : "border-zinc-400 text-transparent"
+                  )}
+                >
                   {isDone && <span className="text-[10px]">✓</span>}
                   {isProgress && <span className="text-[10px] animate-spin">⚡</span>}
                   {isFailed && <span className="text-[10px]">!</span>}
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className={cn(
+                <span
+                  className={cn(
                     "font-semibold truncate",
-                    isDone && "line-through text-white/30"
-                  )}>
-                    {todo.description}
-                  </span>
-                  <span className="text-[10px] text-white/30 font-mono truncate">{todo.id}</span>
-                </div>
+                    isDone && "line-through text-zinc-400"
+                  )}
+                >
+                  {todo.description}
+                </span>
               </div>
             );
           })}
@@ -183,180 +264,41 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
     );
   }
 
-  if ((step.type === PACKET_TYPES.SUBAGENT_CALL || step.type === PACKET_TYPES.SUBAGENT_RESULT) && step.subagent) {
+  if (
+    (step.type === PACKET_TYPES.SUBAGENT_CALL ||
+      step.type === PACKET_TYPES.SUBAGENT_RESULT) &&
+    step.subagent
+  ) {
     const s = step.subagent;
-    const isCalling = s.status === 'calling';
-    const isFailed = s.status === 'failed';
+    const isCalling = s.status === "calling";
+    const isFailed = s.status === "failed";
 
     return (
-      <div className={cn(
-        "flex flex-col gap-2 rounded-xl border px-4 py-3 transition-all",
-        isCalling ? "bg-accent/[0.02] border-accent/25" :
-        isFailed ? "bg-error/[0.02] border-error/25" :
-        "bg-success/[0.02] border-success/25"
-      )}>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest border-b border-white/5 pb-2">
-          <Terminal size={12} className={cn(
-            isCalling ? "text-accent animate-pulse" :
-            isFailed ? "text-error" :
-            "text-success"
-          )} />
-          <span>🤖 Sub-Agent Delegation: {s.name}</span>
-          <span className={cn(
-            "ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase",
-            isCalling ? "bg-accent/20 text-accent animate-pulse" :
-            isFailed ? "bg-error/20 text-error" :
-            "bg-success/20 text-success"
-          )}>
+      <div
+        className={cn(
+          "flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all",
+          isCalling
+            ? "bg-purple-500/5 border-purple-500/20"
+            : isFailed
+            ? "bg-red-500/5 border-red-500/20"
+            : "bg-emerald-500/5 border-emerald-500/20"
+        )}
+      >
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest border-b border-zinc-200 dark:border-zinc-800 pb-2">
+          <Terminal className="h-3.5 w-3.5 text-purple-500" />
+          <span>Sub-Agent Delegation: {s.name}</span>
+          <span className="ml-auto text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase bg-purple-500/10 text-purple-500">
             {s.status}
           </span>
         </div>
-        <div className="text-xs text-white/80 mt-1.5">
-          <div className="font-semibold text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Instruction</div>
-          <p className="bg-black/25 px-2.5 py-2 rounded border border-white/5 text-white/70 italic">{s.instruction}</p>
-        </div>
+        <p className="text-xs text-zinc-700 dark:text-zinc-300 italic bg-zinc-100 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          {s.instruction}
+        </p>
         {s.result && (
-          <div className="text-xs text-white/80 mt-2">
-            <div className="font-semibold text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Findings & Summary</div>
-            <div className="bg-black/40 px-2.5 py-2 rounded border border-white/5 max-h-48 overflow-y-auto scrollbar-hide text-white/60 font-mono text-[10px]">
-              <Markdown content={s.result} />
-            </div>
+          <div className="bg-zinc-950 text-zinc-200 p-2.5 rounded-lg text-xs font-mono max-h-36 overflow-y-auto">
+            <Markdown content={s.result} />
           </div>
         )}
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.FILE_OPERATION && step.fileOp) {
-    const f = step.fileOp;
-    const isOffload = f.operation === 'offload';
-
-    return (
-      <div className={cn(
-        "flex flex-col gap-2 rounded-xl border px-3 py-2.5",
-        isOffload ? "bg-warning/[0.02] border-warning/20" : "bg-white/[0.01] border-white/5"
-      )}>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
-          {isOffload ? (
-            <AlertTriangle size={11} className="text-warning animate-bounce" />
-          ) : (
-            <FileText size={11} className="text-muted" />
-          )}
-          <span>
-            {isOffload ? "📦 Context Offloaded" : f.operation === 'write' ? "💾 File Written" : "📖 File Read"}
-          </span>
-          <span className="ml-auto font-mono text-[9px] text-white/40 break-all">{f.path}</span>
-        </div>
-        {f.preview && (
-          <div className="mt-1">
-            <div className="text-[9px] text-white/30 uppercase tracking-wider font-semibold mb-0.5">Preview (First 10 lines)</div>
-            <pre className="text-[9px] text-white/40 font-mono bg-black/30 p-2 rounded border border-white/5 whitespace-pre-wrap break-all">
-              {f.preview}
-            </pre>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.SWARM_STATUS && step.swarm) {
-    const s = step.swarm;
-    const isFailed = s.status === 'critic_failed' || s.status === 'scrape_failed';
-    const isPassed = s.status === 'critic_passed';
-
-    return (
-      <div className={cn(
-        "flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all duration-300",
-        isFailed ? "bg-error/[0.02] border-error/20" :
-        isPassed ? "bg-success/[0.02] border-success/20" :
-        "bg-accent/[0.02] border-accent/15"
-      )}>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border-b border-white/5 pb-2">
-          <Cpu size={12} className={cn(
-            isFailed ? "text-error" :
-            isPassed ? "text-success" :
-            "text-accent animate-pulse"
-          )} />
-          <span>Swarm Researcher (Depth {s.depth})</span>
-          <span className={cn(
-            "ml-auto text-[8px] font-mono px-2 py-0.5 rounded-full uppercase tracking-tighter",
-            isFailed ? "bg-error/10 text-error border border-error/20" :
-            isPassed ? "bg-success/10 text-success border border-success/20" :
-            "bg-accent/10 text-accent border border-accent/20"
-          )}>
-            {s.status.replace('_', ' ')}
-          </span>
-        </div>
-
-        {s.message && (
-          <p className="text-[11px] text-white/70 leading-relaxed font-semibold italic mt-0.5">{s.message}</p>
-        )}
-
-        {s.url && (
-          <div className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded border border-white/5 text-[10px] text-white/50 break-all font-mono">
-            <span className="text-accent/60">URL:</span>
-            <span>{s.url}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
-          {s.activeAgents !== undefined && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
-              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Active Agents</span>
-              <span className="text-xs font-bold text-white/80">{s.activeAgents}</span>
-            </div>
-          )}
-          {s.estTime !== undefined && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
-              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Est. Wait</span>
-              <span className="text-xs font-bold text-white/80">{s.estTime}</span>
-            </div>
-          )}
-          {s.dataSize !== undefined && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
-              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Cleaned Size</span>
-              <span className="text-xs font-bold text-white/80">{s.dataSize} chars</span>
-            </div>
-          )}
-          {s.discoveredLinks !== undefined && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col">
-              <span className="text-[8px] text-white/30 uppercase tracking-wider font-bold">Discovered Links</span>
-              <span className="text-xs font-bold text-white/80">{s.discoveredLinks}</span>
-            </div>
-          )}
-        </div>
-
-        {s.factsCount !== undefined && s.factsCount > 0 && (
-          <div className="text-[10px] text-success/80 font-semibold bg-success/5 border border-success/10 px-2.5 py-1.5 rounded-lg mt-1 flex items-center gap-1.5">
-            <CheckCircle2 size={10} className="text-success" />
-            <span>Successfully extracted {s.factsCount} key facts.</span>
-          </div>
-        )}
-
-        {s.feedback && (
-          <div className="text-[10px] text-warning/80 font-mono bg-warning/5 border border-warning/10 px-2.5 py-1.5 rounded-lg mt-1 whitespace-pre-wrap break-all">
-            <span className="font-bold uppercase tracking-wider text-[8px] block mb-0.5 text-warning/60">Critic Feedback:</span>
-            {s.feedback}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.TOOL_SKIP) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-white/40 italic bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1.5">
-        <SkipForward size={10} className="text-white/30 shrink-0" aria-hidden="true" />
-        <span>Skipped: {step.toolName} (circuit open)</span>
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.STATE_CHANGE) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-orange-400/80 italic bg-orange-500/5 border border-orange-500/10 rounded-lg px-2.5 py-1.5">
-        <AlertTriangle size={10} className="text-orange-400/60 shrink-0" aria-hidden="true" />
-        <span>{step.content}</span>
       </div>
     );
   }

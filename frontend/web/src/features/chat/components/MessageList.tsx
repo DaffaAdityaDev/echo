@@ -68,7 +68,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scrollbar-hide relative"
     >
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in">
               <div className="relative">
