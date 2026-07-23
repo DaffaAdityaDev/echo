@@ -77,6 +77,12 @@ services:
       - ENABLE_REDIS=${ENABLE_REDIS:-true}
       - STATE_BACKEND=${STATE_BACKEND:-backend}
       - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
+      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
+      - BACKEND_INTERNAL_URL=${BACKEND_INTERNAL_URL:-http://echo-backend:8080}
+      - CHROMA_URL=${CHROMA_URL:-http://localhost:8000}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-pk-lf-dummy}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-sk-lf-dummy}
+      - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-http://localhost:3000}
     depends_on:
       - echo-redis
     restart: on-failure
@@ -110,12 +116,16 @@ services:
       - REDIS_ADDR=${REDIS_ADDR:-echo-redis:6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - JWT_SECRET=${JWT_SECRET:-replace-this-with-a-secure-secret}
+      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - CORS_ORIGIN=${CORS_ORIGIN:-${ALLOW_ORIGINS:-http://localhost:3000}}
       - ALLOW_ORIGINS=${ALLOW_ORIGINS:-http://localhost:3000}
       - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - ENABLE_OTEL=false
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
+      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
+      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-gpt-4o}
     depends_on:
       - echo-postgres
