@@ -5,18 +5,18 @@ services:
     container_name: echo_agent
     command: ["bun", "run", "dev"]
     ports:
-      - "3001:3001"
+      - "${AGENT_PORT:-3001}:3001"
     volumes:
       - ./agent:/app
       - /app/node_modules
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - PORT=3001
-      - REDIS_URL=redis://echo-redis:6379
-      - LLM_MODEL_API_URL=http://host.docker.internal:1234/v1
-      - ENABLE_REDIS=true
-      - STATE_BACKEND=backend
+      - PORT=${AGENT_PORT:-3001}
+      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
+      - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
+      - ENABLE_REDIS=${ENABLE_REDIS:-true}
+      - STATE_BACKEND=${STATE_BACKEND:-backend}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
     depends_on:
@@ -32,19 +32,19 @@ services:
       - ./backend:/app
     working_dir: /app
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
-      - PORT=8080
-      - AGENT_HTTP_URL=http://echo-agent:3001
-      - DB_HOST=echo-postgres
-      - DB_PORT=5432
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - DB_NAME=echo_db
-      - REDIS_ADDR=echo-redis:6379
-      - INTERNAL_AUTH_TOKEN=default-internal-token-secret
+      - PORT=${BACKEND_PORT:-8080}
+      - AGENT_HTTP_URL=${AGENT_HTTP_URL:-http://echo-agent:3001}
+      - DB_HOST=${DB_HOST:-echo-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-echo_db}
+      - REDIS_ADDR=${REDIS_ADDR:-echo-redis:6379}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
-      - ENABLE_OTEL=false
+      - ENABLE_OTEL=${ENABLE_OTEL:-false}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
@@ -62,15 +62,15 @@ services:
       context: ./frontend/web
       target: runner
       args:
-        - BACKEND_URL=http://echo-backend:8080
+        - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     container_name: echo_frontend
     ports:
       - "3002:3000"
     environment:
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - BACKEND_URL=http://echo-backend:8080
+      - PORT=${FRONTEND_PORT:-3000}
+      - HOSTNAME=${HOSTNAME:-0.0.0.0}
+      - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       - echo-backend
