@@ -19,8 +19,17 @@ export function useChatPage() {
   const setSelectedFeatures = useChatStore((s) => s.setSelectedFeatures);
 
   useEffect(() => {
-    const initialModel = settingsConfig.defaultModel || (models.length > 0 ? models[0].id : "");
-    setSelectedModel(initialModel);
+    const defaultModel = settingsConfig.defaultModel;
+    const isAvailable = models.some((m) => m.id === defaultModel);
+    const initialModel = isAvailable
+      ? defaultModel
+      : models.length > 0
+      ? (models.find((m) => m.id.includes("deepseek") || m.id.includes("flash"))?.id || models[0].id)
+      : defaultModel || "";
+
+    if (initialModel) {
+      setSelectedModel(initialModel);
+    }
     setMode(settingsConfig.defaultMode || CHAT_MODES.STANDARD);
     const defaultFeatures = settingsConfig.defaultFeatures.length > 0
       ? settingsConfig.defaultFeatures

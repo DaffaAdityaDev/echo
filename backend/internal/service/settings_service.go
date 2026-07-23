@@ -37,6 +37,9 @@ func (s *SettingsService) GetSettings(ctx context.Context, userID int) (*models.
 	if prefs == nil {
 		return s.GetDefaults(), nil
 	}
+	if prefs.DefaultModel == "" {
+		prefs.DefaultModel = s.cfg.DefaultModel
+	}
 	return prefs, nil
 }
 
