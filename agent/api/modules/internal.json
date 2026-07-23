@@ -1,0 +1,190 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT Bearer token for authenticated API access"
+      }
+    },
+    "schemas": {
+      "SummarizeRequest": {
+        "type": "object",
+        "required": [
+          "messages",
+          "provider_config"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Optional session identifier for logging",
+            "example": "sess_abc123"
+          },
+          "messages": {
+            "type": "array",
+            "description": "Array of conversation messages to summarize",
+            "items": {
+              "$ref": "#/components/schemas/HistoryMessage"
+            }
+          },
+          "provider_config": {
+            "$ref": "#/components/schemas/ProviderConfig"
+          },
+          "max_summary_tokens": {
+            "type": "integer",
+            "default": 500,
+            "description": "Maximum tokens for the generated summary",
+            "example": 500
+          }
+        }
+      },
+      "SummarizeResponse": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "example": "The user, a software engineer, asked the AI agent to build a REST API for a todo application using Express.js and Prisma ORM. The agent scaffolded the project, configured the database schema with User and Todo models, implemented JWT-based authentication, and created CRUD endpoints for todo items with proper error handling."
+          },
+          "token_count": {
+            "type": "integer",
+            "example": 142
+          },
+          "messages_summarized": {
+            "type": "integer",
+            "example": 12
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/internal/sessions/summarize": {
+      "post": {
+        "summary": "Summarize chat session history",
+        "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",
+        "security": [
+          {
+            "InternalTokenAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummarizeRequest"
+              },
+              "example": {
+                "session_id": "sess_abc123",
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "Build a REST API for a todo app with Express and Prisma"
+                  },
+                  {
+                    "role": "assistant",
+                    "content": "I'll help you build that. Let me start by scaffolding the project."
+                  },
+                  {
+                    "role": "tool_call",
+                    "content": "file_system: mkdir /app/todo-api"
+                  },
+                  {
+                    "role": "tool_result",
+                    "content": "Directory created successfully"
+                  },
+                  {
+                    "role": "assistant",
+                    "content": "I've created the project directory. Let me now set up the dependencies."
+                  }
+                ],
+                "provider_config": {
+                  "type": "openai",
+                  "base_url": "https://api.openai.com/v1",
+                  "api_key": "sk-proj-xxxxxxxxxxxxxx",
+                  "model": "gpt-4o"
+                },
+                "max_summary_tokens": 500
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session summary result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummarizeResponse"
+                },
+                "example": {
+                  "summary": "The user, a software engineer, asked the AI agent to build a REST API for a todo application using Express.js and Prisma ORM. The agent scaffolded the project, configured the database schema with User and Todo models, implemented JWT-based authentication, and created CRUD endpoints for todo items with proper error handling.",
+                  "token_count": 142,
+                  "messages_summarized": 5
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input - missing messages or provider_config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "error",
+                  "error_type": "BAD_REQUEST",
+                  "message": "Missing or invalid 'messages' array"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Summarization error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "error",
+                  "error_type": "INTERNAL_SERVER_ERROR",
+                  "message": "Summarization failed",
+                  "details": "Provider returned 429 Too Many Requests"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

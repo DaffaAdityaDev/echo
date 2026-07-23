@@ -1,0 +1,119 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT Bearer token for authenticated API access"
+      }
+    },
+    "schemas": {
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "web-browsing"
+          },
+          "name": {
+            "type": "string",
+            "example": "Web Browsing"
+          },
+          "description": {
+            "type": "string",
+            "example": "Browse the web in real-time to fetch up-to-date information"
+          },
+          "tier_requirement": {
+            "type": "string",
+            "enum": [
+              "free",
+              "pro"
+            ],
+            "example": "free"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/features": {
+      "get": {
+        "summary": "List available agent features",
+        "description": "Fetch list of active system tools and their tier requirements. Features marked with tier_requirement 'pro' are locked for free-tier users.",
+        "security": [
+          {
+            "InternalTokenAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feature catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Feature"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "web-browsing",
+                    "name": "Web Browsing",
+                    "description": "Browse the web in real-time to fetch up-to-date information",
+                    "tier_requirement": "free"
+                  },
+                  {
+                    "id": "code-interpreter",
+                    "name": "Code Interpreter",
+                    "description": "Execute and analyze code in a sandboxed environment",
+                    "tier_requirement": "pro"
+                  },
+                  {
+                    "id": "file-system",
+                    "name": "File System",
+                    "description": "Read, write, and manage files in the workspace",
+                    "tier_requirement": "free"
+                  },
+                  {
+                    "id": "image-generation",
+                    "name": "Image Generation",
+                    "description": "Generate images using DALL-E or similar models",
+                    "tier_requirement": "pro"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

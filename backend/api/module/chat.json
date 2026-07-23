@@ -1,0 +1,338 @@
+{
+    "basePath": "/",
+    "definitions": {
+        "internal_handler.ChatRequest": {
+            "type": "object",
+            "properties": {
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handler.HistoryMessage"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Explain how the Echo agent works"
+                },
+                "missionId": {
+                    "type": "string",
+                    "example": "mission_xyz789"
+                },
+                "mode": {
+                    "type": "string",
+                    "example": "agent"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-4o"
+                },
+                "sessionId": {
+                    "type": "string",
+                    "example": "sess_abc123"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
+                }
+            }
+        },
+        "internal_handler.FeatureResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Browse the web in real-time to fetch up-to-date information"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "web-browsing"
+                },
+                "locked": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Web Browsing"
+                }
+            }
+        }
+    },
+    "host": "localhost:8080",
+    "info": {
+        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+        "title": "Echo Backend API",
+        "termsOfService": "https://echo.app/terms",
+        "contact": {
+            "name": "Echo API Support",
+            "url": "https://echo.app/support",
+            "email": "support@echo.app"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/v1/chat": {
+            "post": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Send chat message \u0026 stream response (SSE)",
+                "description": "Stream LLM response packets (SSE) for user message in a session or mission",
+                "parameters": [
+                    {
+                        "description": "Chat prompt and session parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ChatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server-Sent Events stream (data: JSON). Each event is a JSON object with type, content, toolName, toolInput, toolResult fields.",
+                        "schema": {
+                            "type": "string",
+                            "example": "data: {\"type\":\"reasoning\",\"content\":\"Let me analyze the request...\"}\n\ndata: {\"type\":\"content\",\"content\":\"Echo is an AI agent platform...\"}\n\ndata: {\"type\":\"tool_call\",\"toolName\":\"file_system\",\"toolInput\":{\"path\":\"/src\"}}\n\ndata: {\"type\":\"tool_result\",\"toolName\":\"file_system\",\"content\":\"Directory listing...\"}\n\ndata: {\"type\":\"turn_complete\",\"content\":\"\"}\n\n"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or unknown model/skill",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Unknown model 'unknown-model-v1'"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Unauthorized"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden / Feature tier requirement",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Feature 'code-interpreter' requires a Pro subscription."
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Session not found"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ]
+            }
+        },
+        "/api/v1/features": {
+            "get": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Get available features catalog",
+                "description": "Fetch available features and their lock status based on user tier header (X-User-Tier)",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "List of features with lock states",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_handler.FeatureResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve features",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to retrieve features"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/skills": {
+            "get": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Get agent skills catalog",
+                "description": "Fetch available skill definitions from the agent service",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "List of agent skills",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "python"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Python development and scripting"
+                                    },
+                                    "preferredTools": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "example": "file_system,terminal"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve skills",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to retrieve skills"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/v1/missions/{missionId}/stream": {
+            "get": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Stream mission logs (SSE)",
+                "description": "Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "missionId",
+                        "in": "path",
+                        "required": true,
+                        "example": "mission_xyz789"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server-Sent Events log stream. Events are JSON data lines prefixed with 'data: '.",
+                        "schema": {
+                            "type": "string",
+                            "example": "data: {\"type\":\"progress\",\"step\":1,\"content\":\"Starting mission execution...\"}\n\ndata: {\"type\":\"heartbeat\",\"content\":\"\"}\n\n"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing mission ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "missionId is required"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": null,
+                "produces": [
+                    "text/event-stream"
+                ]
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models.ApiKey",
+        "echo-backend_internal_models.Message",
+        "echo-backend_internal_models.ModelInfo",
+        "echo-backend_internal_models.Session",
+        "echo-backend_internal_models.User",
+        "echo-backend_internal_models.UserPreferences"
+    ]
+}

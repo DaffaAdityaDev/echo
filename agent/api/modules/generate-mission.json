@@ -32,108 +32,6 @@
       }
     },
     "schemas": {
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "example": "error"
-          },
-          "error_type": {
-            "type": "string",
-            "enum": [
-              "APPLICATION_ERROR",
-              "RATE_LIMIT_ERROR",
-              "TIMEOUT_ERROR",
-              "BAD_REQUEST",
-              "INTERNAL_SERVER_ERROR"
-            ],
-            "example": "BAD_REQUEST"
-          },
-          "message": {
-            "type": "string",
-            "example": "Validation failed: prompt is required"
-          },
-          "details": {}
-        }
-      },
-      "HistoryMessage": {
-        "type": "object",
-        "properties": {
-          "role": {
-            "type": "string",
-            "description": "Message role: user, assistant, or system",
-            "example": "user"
-          },
-          "content": {
-            "type": "string",
-            "description": "Message content text",
-            "example": "Build a REST API for a todo app with Express and Prisma"
-          }
-        }
-      },
-      "ProviderConfig": {
-        "type": "object",
-        "required": [
-          "type",
-          "base_url",
-          "model"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "openai",
-              "anthropic",
-              "lm-studio",
-              "opencode-go"
-            ],
-            "description": "LLM provider type",
-            "example": "openai"
-          },
-          "base_url": {
-            "type": "string",
-            "description": "Provider API base URL",
-            "example": "https://api.openai.com/v1"
-          },
-          "api_key": {
-            "type": "string",
-            "nullable": true,
-            "description": "Provider API key (omit for local/LM Studio)",
-            "example": "sk-proj-xxxxxxxxxxxxxxxx"
-          },
-          "model": {
-            "type": "string",
-            "description": "Model identifier from the provider",
-            "example": "gpt-4o"
-          }
-        }
-      },
-      "Feature": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "web-browsing"
-          },
-          "name": {
-            "type": "string",
-            "example": "Web Browsing"
-          },
-          "description": {
-            "type": "string",
-            "example": "Browse the web in real-time to fetch up-to-date information"
-          },
-          "tier_requirement": {
-            "type": "string",
-            "enum": [
-              "free",
-              "pro"
-            ],
-            "example": "free"
-          }
-        }
-      },
       "AgentConfig": {
         "type": "object",
         "description": "Full agent configuration with all sub-configs. All fields have sensible defaults.",
@@ -395,9 +293,9 @@
           },
           "costCap": {
             "type": "number",
-            "default": 1,
+            "default": 1.0,
             "description": "Maximum USD cost before termination",
-            "example": 1
+            "example": 1.0
           }
         }
       },
@@ -607,32 +505,14 @@
         "properties": {
           "state": {
             "type": "string",
-            "enum": [
-              "starting",
-              "running",
-              "stalled",
-              "looping",
-              "degraded",
-              "completed",
-              "aborted"
-            ],
+            "enum": ["starting", "running", "stalled", "looping", "degraded", "completed", "aborted"],
             "example": "running"
           },
-          "step": {
-            "type": "integer",
-            "example": 3
-          },
-          "maxSteps": {
-            "type": "integer",
-            "example": 15
-          },
+          "step": {"type": "integer", "example": 3},
+          "maxSteps": {"type": "integer", "example": 15},
           "strategy": {
             "type": "string",
-            "enum": [
-              "agent",
-              "standard",
-              "restricted"
-            ],
+            "enum": ["agent", "standard", "restricted"],
             "example": "agent"
           },
           "lastActivity": {
@@ -640,29 +520,15 @@
             "format": "date-time",
             "example": "2026-01-15T10:35:00.000Z"
           },
-          "currentTool": {
-            "type": "string",
-            "example": "file_system"
-          },
-          "currentThought": {
-            "type": "string",
-            "example": "Need to create the Express server file..."
-          },
-          "consecutiveFailures": {
-            "type": "integer",
-            "example": 0
-          },
+          "currentTool": {"type": "string", "example": "file_system"},
+          "currentThought": {"type": "string", "example": "Need to create the Express server file..."},
+          "consecutiveFailures": {"type": "integer", "example": 0},
           "activeCircuitBreakers": {
             "type": "array",
-            "items": {
-              "type": "string"
-            },
+            "items": {"type": "string"},
             "example": []
           },
-          "throughput": {
-            "type": "number",
-            "example": 142.5
-          }
+          "throughput": {"type": "number", "example": 142.5}
         }
       },
       "HarnessPacket": {
@@ -672,216 +538,33 @@
           "type": {
             "type": "string",
             "enum": [
-              "metadata",
-              "reasoning",
-              "content",
-              "tool_call",
-              "tool_result",
-              "error",
-              "checkpoint",
-              "usage",
-              "todo",
-              "subagent_call",
-              "subagent_result",
-              "swarm_status",
-              "debug",
-              "tool_skip",
-              "degraded",
-              "state_change",
-              "progress",
-              "heartbeat",
-              "turn_complete"
+              "metadata", "reasoning", "content", "tool_call", "tool_result",
+              "error", "checkpoint", "usage", "todo", "subagent_call",
+              "subagent_result", "swarm_status", "debug", "tool_skip",
+              "degraded", "state_change", "progress", "heartbeat", "turn_complete"
             ],
             "example": "content"
           },
-          "missionId": {
-            "type": "string",
-            "example": "mission_a1b2c3d4"
-          },
-          "step": {
-            "type": "integer",
-            "example": 2
-          },
+          "missionId": {"type": "string", "example": "mission_a1b2c3d4"},
+          "step": {"type": "integer", "example": 2},
           "content": {
             "type": "string",
             "example": "I'll start by creating the project structure with Express and Prisma."
           },
-          "toolName": {
-            "type": "string",
-            "example": "file_system"
-          },
+          "toolName": {"type": "string", "example": "file_system"},
           "toolInput": {
             "type": "object",
-            "example": {
-              "action": "write",
-              "path": "/app/src/index.js",
-              "content": "const express = require('express');"
-            }
+            "example": {"action": "write", "path": "/app/src/index.js", "content": "const express = require('express');"}
           },
           "toolResult": {},
-          "meta": {
-            "type": "object"
-          },
-          "timestamp": {
-            "type": "integer",
-            "example": 1700000000000
-          },
-          "agentStatus": {
-            "$ref": "#/components/schemas/AgentStatus"
-          }
-        }
-      },
-      "SummarizeRequest": {
-        "type": "object",
-        "required": [
-          "messages",
-          "provider_config"
-        ],
-        "properties": {
-          "session_id": {
-            "type": "string",
-            "description": "Optional session identifier for logging",
-            "example": "sess_abc123"
-          },
-          "messages": {
-            "type": "array",
-            "description": "Array of conversation messages to summarize",
-            "items": {
-              "$ref": "#/components/schemas/HistoryMessage"
-            }
-          },
-          "provider_config": {
-            "$ref": "#/components/schemas/ProviderConfig"
-          },
-          "max_summary_tokens": {
-            "type": "integer",
-            "default": 500,
-            "description": "Maximum tokens for the generated summary",
-            "example": 500
-          }
-        }
-      },
-      "SummarizeResponse": {
-        "type": "object",
-        "properties": {
-          "summary": {
-            "type": "string",
-            "example": "The user, a software engineer, asked the AI agent to build a REST API for a todo application using Express.js and Prisma ORM. The agent scaffolded the project, configured the database schema with User and Todo models, implemented JWT-based authentication, and created CRUD endpoints for todo items with proper error handling."
-          },
-          "token_count": {
-            "type": "integer",
-            "example": 142
-          },
-          "messages_summarized": {
-            "type": "integer",
-            "example": 12
-          }
-        }
-      },
-      "ModelInfo": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "gpt-4o"
-          },
-          "name": {
-            "type": "string",
-            "example": "GPT-4o"
-          }
-        }
-      },
-      "Skill": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "python"
-          },
-          "description": {
-            "type": "string",
-            "example": "Python development and scripting with package management"
-          },
-          "preferredTools": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "example": [
-              "file_system",
-              "terminal",
-              "code_interpreter"
-            ]
-          },
-          "modifiers": {
-            "type": "object",
-            "example": {
-              "extensions": [
-                ".py"
-              ],
-              "linter": "ruff"
-            }
-          }
+          "meta": {"type": "object"},
+          "timestamp": {"type": "integer", "example": 1700000000000},
+          "agentStatus": {"$ref": "#/components/schemas/AgentStatus"}
         }
       }
     }
   },
   "paths": {
-    "/api/features": {
-      "get": {
-        "summary": "List available agent features",
-        "description": "Fetch list of active system tools and their tier requirements. Features marked with tier_requirement 'pro' are locked for free-tier users.",
-        "security": [
-          {
-            "InternalTokenAuth": []
-          },
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Feature catalog",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Feature"
-                  }
-                },
-                "example": [
-                  {
-                    "id": "web-browsing",
-                    "name": "Web Browsing",
-                    "description": "Browse the web in real-time to fetch up-to-date information",
-                    "tier_requirement": "free"
-                  },
-                  {
-                    "id": "code-interpreter",
-                    "name": "Code Interpreter",
-                    "description": "Execute and analyze code in a sandboxed environment",
-                    "tier_requirement": "pro"
-                  },
-                  {
-                    "id": "file-system",
-                    "name": "File System",
-                    "description": "Read, write, and manage files in the workspace",
-                    "tier_requirement": "free"
-                  },
-                  {
-                    "id": "image-generation",
-                    "name": "Image Generation",
-                    "description": "Generate images using DALL-E or similar models",
-                    "tier_requirement": "pro"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/generate-mission": {
       "post": {
         "summary": "Execute agent mission (SSE Stream)",
@@ -945,7 +628,7 @@
                       "similarityThreshold": 0.92
                     },
                     "maxIterations": 15,
-                    "costCap": 1
+                    "costCap": 1.0
                   },
                   "harnessConfig": {
                     "circuitBreaker": {
@@ -1025,21 +708,6 @@
               }
             }
           },
-          "500": {
-            "description": "Execution failure - internal agent error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "status": "error",
-                  "error_type": "INTERNAL_SERVER_ERROR",
-                  "message": "Mission execution failed: unexpected error in tool execution loop"
-                }
-              }
-            }
-          },
           "502": {
             "description": "Provider unreachable - pre-validation failed",
             "content": {
@@ -1055,117 +723,9 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/": {
-      "get": {
-        "summary": "Health check",
-        "description": "Returns agent platform health status",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Agent healthy",
-            "content": {
-              "application/json": {
-                "example": {
-                  "status": "ok",
-                  "service": "agent-platform"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/internal/sessions/summarize": {
-      "post": {
-        "summary": "Summarize chat session history",
-        "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",
-        "security": [
-          {
-            "InternalTokenAuth": []
-          },
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SummarizeRequest"
-              },
-              "example": {
-                "session_id": "sess_abc123",
-                "messages": [
-                  {
-                    "role": "user",
-                    "content": "Build a REST API for a todo app with Express and Prisma"
-                  },
-                  {
-                    "role": "assistant",
-                    "content": "I'll help you build that. Let me start by scaffolding the project."
-                  },
-                  {
-                    "role": "tool_call",
-                    "content": "file_system: mkdir /app/todo-api"
-                  },
-                  {
-                    "role": "tool_result",
-                    "content": "Directory created successfully"
-                  },
-                  {
-                    "role": "assistant",
-                    "content": "I've created the project directory. Let me now set up the dependencies."
-                  }
-                ],
-                "provider_config": {
-                  "type": "openai",
-                  "base_url": "https://api.openai.com/v1",
-                  "api_key": "sk-proj-xxxxxxxxxxxxxx",
-                  "model": "gpt-4o"
-                },
-                "max_summary_tokens": 500
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Session summary result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SummarizeResponse"
-                },
-                "example": {
-                  "summary": "The user, a software engineer, asked the AI agent to build a REST API for a todo application using Express.js and Prisma ORM. The agent scaffolded the project, configured the database schema with User and Todo models, implemented JWT-based authentication, and created CRUD endpoints for todo items with proper error handling.",
-                  "token_count": 142,
-                  "messages_summarized": 5
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input - missing messages or provider_config",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "status": "error",
-                  "error_type": "BAD_REQUEST",
-                  "message": "Missing or invalid 'messages' array"
-                }
-              }
-            }
           },
           "500": {
-            "description": "Summarization error",
+            "description": "Execution failure - internal agent error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1174,136 +734,8 @@
                 "example": {
                   "status": "error",
                   "error_type": "INTERNAL_SERVER_ERROR",
-                  "message": "Summarization failed",
-                  "details": "Provider returned 429 Too Many Requests"
+                  "message": "Mission execution failed: unexpected error in tool execution loop"
                 }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/models": {
-      "get": {
-        "summary": "List agent provider models",
-        "description": "Fetch supported LLM provider model catalog",
-        "security": [
-          {
-            "InternalTokenAuth": []
-          },
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Model catalog",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "models": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/ModelInfo"
-                      }
-                    }
-                  }
-                },
-                "example": {
-                  "models": [
-                    {
-                      "id": "gpt-4o",
-                      "name": "GPT-4o"
-                    },
-                    {
-                      "id": "gpt-4o-mini",
-                      "name": "GPT-4o Mini"
-                    },
-                    {
-                      "id": "claude-sonnet-4-20250514",
-                      "name": "Claude Sonnet 4"
-                    },
-                    {
-                      "id": "deepseek-v4-flash",
-                      "name": "DeepSeek V4 Flash"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/skills": {
-      "get": {
-        "summary": "List available agent skills",
-        "description": "Fetch catalog of specialized skill definitions available for activation during missions.",
-        "security": [
-          {
-            "InternalTokenAuth": []
-          },
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Skill catalog",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Skill"
-                  }
-                },
-                "example": [
-                  {
-                    "name": "python",
-                    "description": "Python development and scripting with package management",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "code_interpreter"
-                    ],
-                    "modifiers": {
-                      "extensions": [
-                        ".py"
-                      ],
-                      "linter": "ruff"
-                    }
-                  },
-                  {
-                    "name": "nodejs",
-                    "description": "Node.js and npm package ecosystem",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "npm"
-                    ],
-                    "modifiers": {
-                      "extensions": [
-                        ".js",
-                        ".ts",
-                        ".json"
-                      ]
-                    }
-                  },
-                  {
-                    "name": "research",
-                    "description": "Web research and information synthesis",
-                    "preferredTools": [
-                      "web-browsing",
-                      "file_system"
-                    ],
-                    "modifiers": {
-                      "max_sources": 10
-                    }
-                  }
-                ]
               }
             }
           }

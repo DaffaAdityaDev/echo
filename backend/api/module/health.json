@@ -1,0 +1,72 @@
+{
+    "basePath": "/",
+    "definitions": {},
+    "host": "localhost:8080",
+    "info": {
+        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+        "title": "Echo Backend API",
+        "termsOfService": "https://echo.app/terms",
+        "contact": {
+            "name": "Echo API Support",
+            "url": "https://echo.app/support",
+            "email": "support@echo.app"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/health": {
+            "get": {
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check",
+                "description": "Returns the health status of the backend API",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "Health status",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "status": {
+                                    "type": "string",
+                                    "example": "ok"
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Echo Backend API is running"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models.ApiKey",
+        "echo-backend_internal_models.Message",
+        "echo-backend_internal_models.ModelInfo",
+        "echo-backend_internal_models.Session",
+        "echo-backend_internal_models.User",
+        "echo-backend_internal_models.UserPreferences"
+    ]
+}

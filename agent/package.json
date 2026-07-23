@@ -4,7 +4,8 @@
   "description": "Node.js Agent for Echo",
   "main": "dist/index.js",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "docs": "node api/merge.mjs",
+    "build": "npm run docs && bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "node dist/index.js",
     "dev": "bun --watch src/index.ts"
   },

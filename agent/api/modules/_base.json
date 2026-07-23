@@ -1,0 +1,35 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT Bearer token for authenticated API access"
+      }
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT Bearer token for authenticated API access"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "error"
+          },
+          "error_type": {
+            "type": "string",
+            "enum": [
+              "APPLICATION_ERROR",
+              "RATE_LIMIT_ERROR",
+              "TIMEOUT_ERROR",
+              "BAD_REQUEST",
+              "INTERNAL_SERVER_ERROR"
+            ],
+            "example": "BAD_REQUEST"
+          },
+          "message": {
+            "type": "string",
+            "example": "Validation failed: prompt is required"
+          },
+          "details": {}
+        }
+      },
+      "HistoryMessage": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "Message role: user, assistant, or system",
+            "example": "user"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content text",
+            "example": "Build a REST API for a todo app with Express and Prisma"
+          }
+        }
+      },
+      "ProviderConfig": {
+        "type": "object",
+        "required": [
+          "type",
+          "base_url",
+          "model"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "lm-studio",
+              "opencode-go"
+            ],
+            "description": "LLM provider type",
+            "example": "openai"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "Provider API base URL",
+            "example": "https://api.openai.com/v1"
+          },
+          "api_key": {
+            "type": "string",
+            "nullable": true,
+            "description": "Provider API key (omit for local/LM Studio)",
+            "example": "sk-proj-xxxxxxxxxxxxxxxx"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model identifier from the provider",
+            "example": "gpt-4o"
+          }
+        }
+      }
+    }
+  },
+  "paths": {}
+}

@@ -1,0 +1,220 @@
+{
+    "basePath": "/",
+    "definitions": {
+        "internal_handler.UpdateSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "default_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "web-browsing",
+                        "code-interpreter"
+                    ]
+                },
+                "default_mode": {
+                    "type": "string",
+                    "example": "agent"
+                },
+                "default_model": {
+                    "type": "string",
+                    "example": "gpt-4o"
+                },
+                "default_skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "python",
+                        "research"
+                    ]
+                }
+            }
+        }
+    },
+    "host": "localhost:8080",
+    "info": {
+        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+        "title": "Echo Backend API",
+        "termsOfService": "https://echo.app/terms",
+        "contact": {
+            "name": "Echo API Support",
+            "url": "https://echo.app/support",
+            "email": "support@echo.app"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/v1/settings": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Get user settings",
+                "description": "Retrieve current user preference settings",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Unauthorized"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get settings",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to get settings"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Update user settings",
+                "description": "Save modified user preference settings",
+                "parameters": [
+                    {
+                        "description": "Settings payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.UpdateSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Invalid request body"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Unauthorized"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update settings",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to update settings"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/settings/defaults": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Get system default settings",
+                "description": "Retrieve baseline application defaults for modes, models, and features",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models.ApiKey",
+        "echo-backend_internal_models.Message",
+        "echo-backend_internal_models.ModelInfo",
+        "echo-backend_internal_models.Session",
+        "echo-backend_internal_models.User",
+        "echo-backend_internal_models.UserPreferences"
+    ]
+}

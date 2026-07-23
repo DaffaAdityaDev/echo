@@ -1,0 +1,312 @@
+{
+    "basePath": "/",
+    "definitions": {
+        "internal_handler.createAPIKeyRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Production Key"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "read",
+                        "write"
+                    ]
+                }
+            }
+        }
+    },
+    "host": "localhost:8080",
+    "info": {
+        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+        "title": "Echo Backend API",
+        "termsOfService": "https://echo.app/terms",
+        "contact": {
+            "name": "Echo API Support",
+            "url": "https://echo.app/support",
+            "email": "support@echo.app"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/v1/admin/api-keys": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List API keys",
+                "description": "Retrieve all system API keys",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to list keys",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to list keys"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create API key",
+                "description": "Generate a new API key with specific scopes",
+                "parameters": [
+                    {
+                        "description": "API Key creation parameters (name, scopes)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Generated full key and record",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "key": {
+                                    "type": "string",
+                                    "example": "sk_a1b2c3d4e5f6g7h8i9j0k1l2"
+                                },
+                                "api_key": {
+                                    "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing name",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "name is required"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Unauthorized"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to generate/store key",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to generate key"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/admin/api-keys/{id}": {
+            "delete": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Revoke API key",
+                "description": "Change an API key status to revoked",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "API Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "example": "key_a1b2c3d4e5f6"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Key revoked",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "Key revoked"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing key ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "id is required"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Key not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Key not found"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to revoke key",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to revoke key"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/admin/stats": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get admin API key statistics",
+                "description": "Count total and active API keys in the system",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "Total and active key counts",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "total_keys": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                    "example": 5
+                                },
+                                "active_keys": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                    "example": 3
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to get stats",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Failed to get stats"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models.ApiKey",
+        "echo-backend_internal_models.Message",
+        "echo-backend_internal_models.ModelInfo",
+        "echo-backend_internal_models.Session",
+        "echo-backend_internal_models.User",
+        "echo-backend_internal_models.UserPreferences"
+    ]
+}

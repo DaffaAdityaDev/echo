@@ -1,0 +1,145 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT Bearer token for authenticated API access"
+      }
+    },
+    "schemas": {
+      "Skill": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "python"
+          },
+          "description": {
+            "type": "string",
+            "example": "Python development and scripting with package management"
+          },
+          "preferredTools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "file_system",
+              "terminal",
+              "code_interpreter"
+            ]
+          },
+          "modifiers": {
+            "type": "object",
+            "example": {
+              "extensions": [
+                ".py"
+              ],
+              "linter": "ruff"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/skills": {
+      "get": {
+        "summary": "List available agent skills",
+        "description": "Fetch catalog of specialized skill definitions available for activation during missions.",
+        "security": [
+          {
+            "InternalTokenAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Skill catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Skill"
+                  }
+                },
+                "example": [
+                  {
+                    "name": "python",
+                    "description": "Python development and scripting with package management",
+                    "preferredTools": [
+                      "file_system",
+                      "terminal",
+                      "code_interpreter"
+                    ],
+                    "modifiers": {
+                      "extensions": [
+                        ".py"
+                      ],
+                      "linter": "ruff"
+                    }
+                  },
+                  {
+                    "name": "nodejs",
+                    "description": "Node.js and npm package ecosystem",
+                    "preferredTools": [
+                      "file_system",
+                      "terminal",
+                      "npm"
+                    ],
+                    "modifiers": {
+                      "extensions": [
+                        ".js",
+                        ".ts",
+                        ".json"
+                      ]
+                    }
+                  },
+                  {
+                    "name": "research",
+                    "description": "Web research and information synthesis",
+                    "preferredTools": [
+                      "web-browsing",
+                      "file_system"
+                    ],
+                    "modifiers": {
+                      "max_sources": 10
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
