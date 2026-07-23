@@ -133,6 +133,14 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
   }
 
   if (step.type === PACKET_TYPES.TODO && step.todos) {
+    const todosList = Array.isArray(step.todos)
+      ? step.todos
+      : typeof step.todos === "object" && step.todos !== null
+      ? [step.todos]
+      : [];
+
+    if (todosList.length === 0) return null;
+
     return (
       <div className="flex flex-col gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3">
         <div className="flex items-center gap-2 text-[10px] font-bold text-accent uppercase tracking-widest border-b border-white/5 pb-2">
@@ -140,13 +148,13 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           <span>📋 Active Mission Plan</span>
         </div>
         <div className="flex flex-col gap-2 mt-1.5">
-          {step.todos.map((todo) => {
+          {todosList.map((todo) => {
             const isDone = todo.status === 'done';
             const isProgress = todo.status === 'in_progress';
             const isFailed = todo.status === 'failed';
 
             return (
-              <div key={todo.id} className="flex items-start gap-2.5 text-xs text-white/85">
+              <div key={todo.id || todo.description} className="flex items-start gap-2.5 text-xs text-white/85">
                 <div className={cn(
                   "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
                   isDone ? "bg-success/20 border-success/50 text-success" :

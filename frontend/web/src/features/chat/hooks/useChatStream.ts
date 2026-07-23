@@ -144,9 +144,14 @@ export function useChatStream() {
             content: data.content
           });
         } else if (data.type === PACKET_TYPES.TODO) {
+          const todosArray = Array.isArray(data.todos)
+            ? data.todos
+            : data.todos
+            ? [data.todos]
+            : [];
           lastMessage.steps.push({
             type: PACKET_TYPES.TODO,
-            todos: data.todos
+            todos: todosArray
           });
         } else if (data.type === PACKET_TYPES.SUBAGENT_CALL) {
           lastMessage.steps.push({
