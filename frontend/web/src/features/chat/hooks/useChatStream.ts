@@ -5,6 +5,7 @@ import { api } from "@/lib/api-client";
 import { Message, StreamPacket, HistoryMessage, MissionMeta, TokenUsage, FailedUrl } from "../types";
 import { CHAT_ROLES, PACKET_TYPES, CHAT_ENDPOINTS } from "../constants";
 import { useChatStore } from "../stores/chatStore";
+import { sessionApi } from "../services/chat-api";
 
 export function useChatStream() {
   const { isLoading, setMessages, setIsLoading, setAgentProgress, clearMessages } = useChatStore();
@@ -302,6 +303,7 @@ export function useChatStream() {
     } finally {
       setIsLoading(false);
       setAgentProgress(null);
+      sessionApi.list().then(sessions => useChatStore.getState().setSessions(sessions)).catch(() => {});
     }
   };
 

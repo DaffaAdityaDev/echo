@@ -236,6 +236,11 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session history", "details": err.Error()})
 		}
 
+		// Trigger background auto-title & summary generation on first user prompt if title is default
+		if (len(dbMessages) == 0 || session.Title == "New Chat" || session.Title == "") && req.Message != "" {
+			go h.generateSessionMetadata(req.SessionID, req.Message, providerMap)
+		}
+
 		// Prepend context summary as system message if it exists
 		if session.ContextSummary != "" {
 			history = append(history, HistoryMessage{
@@ -736,4 +741,111 @@ func (h *ChatHandler) HandleGetFeatures(c fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+func (h *ChatHandler) generateSessionMetadata(sessionID string, userPrompt string, providerMap map[string]interface{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	baseURL, _ := providerMap["base_url"].(string)
+	apiKey, _ := providerMap["api_key"].(string)
+	modelName, _ := providerMap["model"].(string)
+
+	if baseURL == "" {
+		baseURL = "https://opencode.ai/zen/go/v1"
+	}
+	if modelName == "" {
+		modelName = "deepseek-v4-flash"
+	}
+
+	systemPrompt := `You are an AI session metadata generator. Given the user's initial prompt, generate a concise, human-readable Title (3 to 6 words, Title Case, no quotes, no period) and a 1-sentence Summary describing the main topic or objective.
+Respond ONLY with a valid JSON object in this exact format:
+{"title": "Concise Topic Title", "summary": "Short 1-sentence summary of the conversation topic."}`
+
+	reqBody := map[string]interface{}{
+		"model": modelName,
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
+		},
+		"temperature": 0.3,
+		"max_tokens":  150,
+	}
+
+	jsonBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		log.Printf("[AUTO-TITLE] Failed to marshal request for session %s: %v", sessionID, err)
+		return
+	}
+
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Printf("[AUTO-TITLE] Failed to create request for session %s: %v", sessionID, err)
+		return
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		log.Printf("[AUTO-TITLE] HTTP request failed for session %s: %v", sessionID, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s", resp.StatusCode, sessionID)
+		return
+	}
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("[AUTO-TITLE] Failed to read response for session %s: %v", sessionID, err)
+		return
+	}
+
+	var chatCompletion struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
+		log.Printf("[AUTO-TITLE] Failed to parse chat completion for session %s: %v", sessionID, err)
+		return
+	}
+
+	rawContent := strings.TrimSpace(chatCompletion.Choices[0].Message.Content)
+	rawContent = strings.TrimPrefix(rawContent, "```json")
+	rawContent = strings.TrimPrefix(rawContent, "```")
+	rawContent = strings.TrimSuffix(rawContent, "```")
+	rawContent = strings.TrimSpace(rawContent)
+
+	var metaData struct {
+		Title   string `json:"title"`
+		Summary string `json:"summary"`
+	}
+
+	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
+		log.Printf("[AUTO-TITLE] Failed to unmarshal metadata JSON for session %s: %v (raw: %s)", sessionID, err, rawContent)
+		return
+	}
+
+	title := strings.TrimSpace(metaData.Title)
+	summary := strings.TrimSpace(metaData.Summary)
+
+	if title != "" {
+		if err := h.SessionRepo.UpdateTitleAndSummary(context.Background(), sessionID, title, summary); err != nil {
+			log.Printf("[AUTO-TITLE] Failed to update session %s in DB: %v", sessionID, err)
+		} else {
+			log.Printf("[AUTO-TITLE] Successfully generated title for session %s: '%s'", sessionID, title)
+		}
+	}
 }

@@ -63,6 +63,11 @@ const (
 		SET context_summary = $2, updated_at = NOW()
 		WHERE id = $1
 	`
+	QueryUpdateSessionTitleAndSummary = `
+		UPDATE sessions
+		SET title = $2, context_summary = $3, updated_at = NOW()
+		WHERE id = $1
+	`
 	QueryGetSessionMessages = `
 		SELECT id, session_id, role, content, token_count, turn_number, created_at
 		FROM messages

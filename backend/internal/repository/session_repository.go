@@ -76,6 +76,14 @@ func (r *SessionRepository) UpdateContextSummary(ctx context.Context, sessionID 
 	return nil
 }
 
+func (r *SessionRepository) UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error {
+	_, err := r.pool.Exec(ctx, db.QueryUpdateSessionTitleAndSummary, sessionID, title, summary)
+	if err != nil {
+		return fmt.Errorf("failed to update session title and summary: %w", err)
+	}
+	return nil
+}
+
 func (r *SessionRepository) GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error) {
 	rows, err := 	r.pool.Query(ctx, db.QueryGetSessionMessages, sessionID)
 	if err != nil {
