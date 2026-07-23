@@ -37,6 +37,7 @@ export const SESSION_ENDPOINTS = {
   LIST: "/sessions",
   CREATE: "/sessions",
   GET: (id: string) => `/sessions/${id}`,
+  UPDATE: (id: string) => `/sessions/${id}`,
   MESSAGES: (id: string) => `/sessions/${id}/messages`,
   DELETE: (id: string) => `/sessions/${id}`,
 } as const;

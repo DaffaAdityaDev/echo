@@ -68,6 +68,7 @@ export interface DbMessage {
   content: string;
   token_count: number;
   turn_number: number;
+  steps?: ThoughtStep[] | null;
   created_at: string;
 }
 

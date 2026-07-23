@@ -99,6 +99,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	sessionsGroup.Post("", sessionHandler.HandleCreateSession)
 	sessionsGroup.Get("", sessionHandler.HandleListSessions)
 	sessionsGroup.Get("/:id", sessionHandler.HandleGetSession)
+	sessionsGroup.Patch("/:id", sessionHandler.HandleUpdateSession)
 	sessionsGroup.Get("/:id/messages", sessionHandler.HandleGetSessionMessages)
 	sessionsGroup.Delete("/:id", sessionHandler.HandleDeleteSession)
 

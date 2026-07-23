@@ -27,6 +27,7 @@ export const envSchema = z.object({
   MCP_SERVER_URL: z.string().url().optional(),
   ENABLE_MCP: z.coerce.boolean().default(false),
   ENABLE_REST_TOOLS: z.coerce.boolean().default(false),
+  ENABLE_TELEMETRY: z.string().default("true"),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

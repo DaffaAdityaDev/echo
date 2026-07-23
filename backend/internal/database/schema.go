@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS messages (
     content     TEXT NOT NULL,
     token_count INTEGER DEFAULT 0,
     turn_number INTEGER NOT NULL,
+    steps       JSONB,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -129,6 +130,9 @@ func Migrate(pool *pgxpool.Pool) error {
 
 	if _, err := pool.Exec(ctx, schemaMessages); err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps JSONB"); err != nil {
+		log.Printf("failed to add steps column to messages: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaUserPreferences); err != nil {

@@ -236,11 +236,6 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session history", "details": err.Error()})
 		}
 
-		// Trigger background auto-title & summary generation on first user prompt if title is default
-		if (len(dbMessages) == 0 || session.Title == "New Chat" || session.Title == "") && req.Message != "" {
-			go h.generateSessionMetadata(req.SessionID, req.Message, providerMap)
-		}
-
 		// Prepend context summary as system message if it exists
 		if session.ContextSummary != "" {
 			history = append(history, HistoryMessage{
@@ -357,6 +352,24 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			ToolResult string          `json:"toolResult"`
 		}
 
+		buildStepsJSON := func(thinking string, calls []ToolCallCapture, results []ToolCallResult) json.RawMessage {
+			var steps []models.ThoughtStep
+			if thinking != "" {
+				steps = append(steps, models.ThoughtStep{Type: "reasoning", Content: thinking})
+			}
+			for _, tc := range calls {
+				steps = append(steps, models.ThoughtStep{Type: "tool_call", ToolName: tc.ToolName, ToolInput: tc.ToolInput})
+			}
+			for _, tr := range results {
+				steps = append(steps, models.ThoughtStep{Type: "tool_result", ToolName: tr.ToolName, Content: tr.Content})
+			}
+			if len(steps) == 0 {
+				return nil
+			}
+			b, _ := json.Marshal(steps)
+			return b
+		}
+
 		for {
 			line, rErr := reader.ReadBytes('\n')
 			if len(line) > 0 {
@@ -419,51 +432,22 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 			}
 
 			assistantContent := assistantBuilder.String()
+			steps := buildStepsJSON(thinkingBuilder.String(), toolCalls, toolResults)
 			assistantMsg := &models.Message{
 				Role:       "assistant",
 				Content:    assistantContent,
 				TokenCount: len(assistantContent) / 4,
 				TurnNumber: nextTurn,
+				Steps:      steps,
 			}
 			if assistantMsg.TokenCount == 0 && len(assistantMsg.Content) > 0 {
 				assistantMsg.TokenCount = 1
 			}
 
-			var dbToolResults []*models.Message
-
-			if thinkingBuilder.Len() > 0 {
-				dbToolResults = append(dbToolResults, &models.Message{
-					Role:       "thought",
-					Content:    thinkingBuilder.String(),
-					TokenCount: thinkingBuilder.Len() / 4,
-					TurnNumber: nextTurn,
-				})
-			}
-
-			for _, tc := range toolCalls {
-				inputJSON, _ := json.Marshal(tc.ToolInput)
-				content := fmt.Sprintf(`{"toolName":"%s","toolInput":%s}`, tc.ToolName, string(inputJSON))
-				dbToolResults = append(dbToolResults, &models.Message{
-					Role:       "tool_call",
-					Content:    content,
-					TokenCount: 0,
-					TurnNumber: nextTurn,
-				})
-			}
-
-			for _, tr := range toolResults {
-				dbToolResults = append(dbToolResults, &models.Message{
-					Role:       "tool_result",
-					Content:    fmt.Sprintf("%s result: %s", tr.ToolName, tr.Content),
-					TokenCount: len(tr.Content) / 4,
-					TurnNumber: nextTurn,
-				})
-			}
-
 			dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer dbCancel()
 
-			err = h.SessionRepo.SaveTurnMessages(dbCtx, req.SessionID, userMsg, assistantMsg, dbToolResults)
+			err = h.SessionRepo.SaveTurnMessages(dbCtx, req.SessionID, userMsg, assistantMsg, nil)
 			if err != nil {
 				log.Printf("[CHAT] Error committing turn messages: %v", err)
 			} else {

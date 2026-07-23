@@ -4,6 +4,7 @@ import (
 	"context"
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -94,9 +95,13 @@ func (r *SessionRepository) GetSessionMessages(ctx context.Context, sessionID st
 	var messages []*models.Message
 	for rows.Next() {
 		var m models.Message
-		err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.TokenCount, &m.TurnNumber, &m.CreatedAt)
+		var stepsBytes []byte
+		err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.TokenCount, &m.TurnNumber, &stepsBytes, &m.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan message row: %w", err)
+		}
+		if len(stepsBytes) > 0 && string(stepsBytes) != "null" {
+			m.Steps = json.RawMessage(stepsBytes)
 		}
 		messages = append(messages, &m)
 	}
@@ -129,6 +134,13 @@ func (r *SessionRepository) DeleteMessagesUpToTurn(ctx context.Context, sessionI
 	return nil
 }
 
+func stepsOrNull(m *models.Message) json.RawMessage {
+	if len(m.Steps) > 0 {
+		return m.Steps
+	}
+	return json.RawMessage("null")
+}
+
 func (r *SessionRepository) SaveTurnMessages(ctx context.Context, sessionID string, userMsg *models.Message, assistantMsg *models.Message, toolResults []*models.Message) error {
 	tx, err := 	r.pool.Begin(ctx)
 	if err != nil {
@@ -137,20 +149,20 @@ func (r *SessionRepository) SaveTurnMessages(ctx context.Context, sessionID stri
 	defer tx.Rollback(ctx)
 
 	// 1. Insert user message
-	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, userMsg.Role, userMsg.Content, userMsg.TokenCount, userMsg.TurnNumber)
+	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, userMsg.Role, userMsg.Content, userMsg.TokenCount, userMsg.TurnNumber, stepsOrNull(userMsg))
 	if err != nil {
 		return fmt.Errorf("failed to insert user message: %w", err)
 	}
 
 	// 2. Insert assistant message
-	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, assistantMsg.Role, assistantMsg.Content, assistantMsg.TokenCount, assistantMsg.TurnNumber)
+	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, assistantMsg.Role, assistantMsg.Content, assistantMsg.TokenCount, assistantMsg.TurnNumber, stepsOrNull(assistantMsg))
 	if err != nil {
 		return fmt.Errorf("failed to insert assistant message: %w", err)
 	}
 
 	// 3. Insert tool results
 	for _, tr := range toolResults {
-		_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, tr.Role, tr.Content, tr.TokenCount, tr.TurnNumber)
+		_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, tr.Role, tr.Content, tr.TokenCount, tr.TurnNumber, stepsOrNull(tr))
 		if err != nil {
 			return fmt.Errorf("failed to insert tool result message: %w", err)
 		}

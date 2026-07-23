@@ -1,45 +1,64 @@
 import { useCallback } from "react";
 import { useChatStore } from "../stores/chatStore";
 import { sessionApi } from "../services/chat-api";
-import type { DbMessage, Message } from "../types";
+import type { DbMessage, Message, ThoughtStep } from "../types";
 
-function dbMessageToMessage(dbm: DbMessage): Message {
-  if (dbm.role === "thought") {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "",
-      steps: [{ type: "reasoning", content: dbm.content }],
-    };
+function groupMessagesByTurn(messages: DbMessage[]): Message[] {
+  const turnMap = new Map<number, DbMessage[]>();
+  for (const msg of messages) {
+    const group = turnMap.get(msg.turn_number) || [];
+    group.push(msg);
+    turnMap.set(msg.turn_number, group);
   }
-  if (dbm.role === "tool_call") {
-    let parsed = { toolName: "", toolInput: {} };
-    try { parsed = JSON.parse(dbm.content) } catch {}
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "",
-      steps: [{ type: "tool_call", toolName: parsed.toolName, toolInput: parsed.toolInput }],
-    };
+
+  const result: Message[] = [];
+  for (const [, group] of turnMap) {
+    const userMsg = group.find(m => m.role === "user");
+    const assistantMsg = group.find(m => m.role === "assistant" && m.content);
+    const systemMsg = group.find(m => m.role === "system");
+
+    if (systemMsg) {
+      result.push({ id: crypto.randomUUID(), role: "assistant", content: `[System]: ${systemMsg.content}`, steps: [] });
+      continue;
+    }
+
+    if (userMsg) {
+      result.push({ id: crypto.randomUUID(), role: "user", content: userMsg.content, steps: [] });
+    }
+
+    let steps: ThoughtStep[] = [];
+    if (assistantMsg?.steps && assistantMsg.steps.length > 0) {
+      steps = assistantMsg.steps;
+    } else {
+      for (const m of group) {
+        if (m.role === "thought") {
+          steps.push({ type: "reasoning", content: m.content });
+        } else if (m.role === "tool_call") {
+          let parsed = { toolName: "", toolInput: {} };
+          try { parsed = JSON.parse(m.content) } catch {}
+          steps.push({ type: "tool_call", toolName: parsed.toolName, toolInput: parsed.toolInput });
+        } else if (m.role === "tool_result") {
+          const colonIdx = m.content.indexOf(" result: ");
+          const toolName = colonIdx > 0 ? m.content.substring(0, colonIdx) : "";
+          const content = colonIdx > 0 ? m.content.substring(colonIdx + 9) : m.content;
+          steps.push({ type: "tool_result", toolName, content });
+        }
+      }
+    }
+
+    const hasSteps = steps.length > 0;
+    const hasContent = assistantMsg?.content || hasSteps;
+    if (hasContent || hasSteps) {
+      result.push({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: assistantMsg?.content || "",
+        steps,
+      });
+    }
   }
-  if (dbm.role === "system") {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: `[System]: ${dbm.content}`,
-      steps: [],
-    };
-  }
-  if (dbm.role === "tool_result") {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "",
-      steps: [{ type: "tool_result", content: dbm.content }],
-    };
-  }
-  const role = dbm.role === "user" ? "user" : "assistant";
-  return { id: crypto.randomUUID(), role, content: dbm.content, steps: [] };
+
+  return result;
 }
 
 export function useSessions() {
@@ -48,8 +67,7 @@ export function useSessions() {
   const loadSessionMessages = useCallback(async (id: string) => {
     try {
       const dbMessages = await sessionApi.getMessages(id);
-      const formatted = dbMessages.map(dbMessageToMessage);
-      return formatted;
+      return groupMessagesByTurn(dbMessages);
     } catch (e) {
       console.error("Failed to load session messages:", e);
       return [];

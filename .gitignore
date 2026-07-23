@@ -208,6 +208,7 @@ dist
 # Agent runtime data
 agent/debug/
 agent/logs/
+agent/sa-output/
 
 # Assistant state
 .agents/

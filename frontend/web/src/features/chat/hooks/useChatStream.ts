@@ -88,6 +88,15 @@ export function useChatStream() {
             if (typeof maxIter === 'number') {
               store.setAgentProgress(prev => prev ? { ...prev, totalIterations: maxIter } : { iteration: 1, totalIterations: maxIter });
             }
+            const title = metaObj?.title as string | undefined;
+            const summary = metaObj?.summary as string | undefined;
+            if (title && store.activeSessionId) {
+              const sessions = store.sessions.map(s =>
+                s.id === store.activeSessionId ? { ...s, title, contextSummary: summary || s.contextSummary } : s
+              );
+              store.setSessions(sessions);
+              sessionApi.updateTitle(store.activeSessionId, title, summary).catch(() => {});
+            }
           }
           if (data.content) {
             store.setAgentProgress(prev => {

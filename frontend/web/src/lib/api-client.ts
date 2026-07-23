@@ -150,6 +150,8 @@ export const api = {
     request<T>(url, { ...opts, method: 'POST', data: body }),
   put: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
     request<T>(url, { ...opts, method: 'PUT', data: body }),
+  patch: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+    request<T>(url, { ...opts, method: 'PATCH', data: body }),
   delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: 'DELETE' }),
   stream,
 }

@@ -1,11 +1,11 @@
 import { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { MissionPayload, ToolDefinition } from '../../../shared/types';
+import { MissionPayload, ToolDefinition, LLMProvider } from '../../../shared/types';
 import { NlahHarness } from '../../../core/agent/harness';
 import { ProviderFactory } from '../../../infrastructure/providers/factory';
 import { StrategyFactory } from '../../../core/agent/strategies/factory';
 import { logger } from '../../../shared/utils/logger';
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, BaseMessage } from "@langchain/core/messages";
 import { stateStorage } from '../../../core/agent/storage/factory';
 import { randomUUID } from 'node:crypto';
 import { createMissionSchema } from './mission.schema';
@@ -16,6 +16,31 @@ import { toolRegistry } from '../../../core/agent/tools/registry';
 import { SkillRegistry } from '../../../core/agent/skills';
 import { HttpStreamTransport } from './stream.transport';
 import { cancellationManager } from '../../../core/agent/harness/cancel_manager';
+
+async function generateSessionTitle(provider: LLMProvider, messages: BaseMessage[]): Promise<{ title: string; summary: string } | null> {
+  const systemPrompt = `You are an AI session metadata generator. Given the conversation so far, generate a concise, human-readable Title (3 to 6 words, Title Case, no quotes, no period) and a 1-sentence Summary describing the main topic or objective.
+Respond ONLY with a valid JSON object in this exact format:
+{"title": "Concise Topic Title", "summary": "Short 1-sentence summary of the conversation topic."}`;
+
+  try {
+    const stream = provider.stream(messages, [], systemPrompt);
+    let content = "";
+    for await (const chunk of stream) {
+      if (chunk.content) content += chunk.content;
+    }
+    content = content.trim();
+    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+    const parsed = JSON.parse(content);
+    if (parsed.title && parsed.summary) {
+      logger.info(`[AUTO-TITLE] Generated title: "${parsed.title}"`);
+      return { title: String(parsed.title).trim(), summary: String(parsed.summary).trim() };
+    }
+    return null;
+  } catch (err: any) {
+    logger.error(`[AUTO-TITLE] Generation failed: ${err.message}`);
+    return null;
+  }
+}
 
 export class MissionController {
   public async createMission(c: Context) {
@@ -147,6 +172,19 @@ export class MissionController {
               await transport.send(packet);
             }
           );
+
+          if (!state.memory?.titleGenerated && state.messages.length > 0) {
+            state.memory = state.memory || {};
+            const result = await generateSessionTitle(llmProvider, state.messages);
+            if (result) {
+              state.memory.titleGenerated = true;
+              await transport.send({
+                type: 'metadata',
+                content: result.title,
+                meta: { title: result.title, summary: result.summary }
+              });
+            }
+          }
         } catch (streamErr: any) {
           // Send error as SSE event instead of returning JSON (headers already set)
           logger.error(`Stream execution failed: ${streamErr.message}`);

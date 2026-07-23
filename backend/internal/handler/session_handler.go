@@ -171,6 +171,61 @@ func (h *SessionHandler) HandleGetSessionMessages(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"messages": messages})
 }
 
+// @Summary Update session metadata
+// @Description Update session title and/or summary
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Param request body object true "Title and summary fields"
+// @Success 200 {object} map[string]string "Session updated"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden: ownership mismatch"
+// @Failure 404 {object} map[string]string "Session not found"
+// @Router /api/v1/sessions/{id} [patch]
+func (h *SessionHandler) HandleUpdateSession(c fiber.Ctx) error {
+	userID, err := getUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	sessionID := c.Params("id")
+	if sessionID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+	}
+
+	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+	}
+	if session == nil || session.Status == "deleted" {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+	}
+	if session.UserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+	}
+
+	var req struct {
+		Title   string `json:"title"`
+		Summary string `json:"summary"`
+	}
+	if err := c.Bind().JSON(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	if req.Title == "" && req.Summary == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "At least one of 'title' or 'summary' is required"})
+	}
+
+	if err := h.SessionRepo.UpdateTitleAndSummary(c.Context(), sessionID, req.Title, req.Summary); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update session"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Session updated"})
+}
+
 // @Summary Delete session
 // @Description Soft-delete a chat session
 // @Tags Sessions

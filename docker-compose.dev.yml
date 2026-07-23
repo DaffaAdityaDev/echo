@@ -1,117 +1,74 @@
 services:
-  echo-agent:
-    build:
-      context: ./agent
-    container_name: echo_agent
-    command: ["bun", "run", "dev"]
-    ports:
-      - "${AGENT_PORT:-3001}:3001"
-    volumes:
-      - ./agent:/app
-      - /app/node_modules
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+  echo-postgres:
+    image: ankane/pgvector:latest
+    container_name: echo_postgres
     environment:
-      - PORT=${AGENT_PORT:-3001}
-      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
-      - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
-      - ENABLE_REDIS=${ENABLE_REDIS:-true}
-      - STATE_BACKEND=${STATE_BACKEND:-backend}
-      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
-      - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
-    depends_on:
-      - echo-redis
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-echo_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
+      - ./backend/scripts/init-nuq.sql:/docker-entrypoint-initdb.d/init-nuq.sql
+    ports:
+      - "${DB_PORT:-5432}:5432"
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
-  echo-backend:
+  echo-redis:
+    image: redis:7-alpine
+    container_name: echo_redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
+  echo-migrate:
     build:
       context: ./backend
       target: builder
-    container_name: echo_backend
-    volumes:
-      - ./backend:/app
-    working_dir: /app
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
+    container_name: echo_backend_migrate
+    command: ["./migrate"]
     environment:
-      - PORT=${BACKEND_PORT:-8080}
-      - AGENT_HTTP_URL=${AGENT_HTTP_URL:-http://echo-agent:3001}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
       - DB_HOST=${DB_HOST:-echo-postgres}
       - DB_PORT=${DB_PORT:-5432}
       - DB_USER=${DB_USER:-user}
       - DB_PASSWORD=${DB_PASSWORD:-password}
       - DB_NAME=${DB_NAME:-echo_db}
-      - REDIS_ADDR=${REDIS_ADDR:-echo-redis:6379}
-      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
-      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
-      - ENABLE_OTEL=${ENABLE_OTEL:-false}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
-      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
-      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
-    command: go run cmd/server/main.go
     depends_on:
       - echo-postgres
-      - echo-agent
-    restart: unless-stopped
+    restart: on-failure
+    networks:
+      - dokploy-network
 
-  echo-frontend:
+  echo-seed:
     build:
-      context: ./frontend/web
-      target: runner
-      args:
-        - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
-    container_name: echo_frontend
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      context: ./backend
+      target: builder
+    container_name: echo_backend_seed
+    command: ["./seed"]
     environment:
-      - PORT=${FRONTEND_PORT:-3000}
-      - HOSTNAME=${HOSTNAME:-0.0.0.0}
-      - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
+      - DB_HOST=${DB_HOST:-echo-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-echo_db}
     depends_on:
-      - echo-backend
-    restart: unless-stopped
+      - echo-migrate
+    restart: on-failure
+    networks:
+      - dokploy-network
 
-  # --- OBSERVABILITY INFRASTRUCTURE (Uncomment if needed for metrics/tracing) ---
-  # echo-otel-collector:
-  #   image: otel/opentelemetry-collector-contrib:latest
-  #   container_name: echo_otel_collector
-  #   command: ["--config=/etc/otel-collector-config.yaml"]
-  #   volumes:
-  #     - ./infra/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-  #   restart: unless-stopped
-  #   networks:
-  #     - dokploy-network
-  #
-  # echo-jaeger:
-  #   image: jaegertracing/all-in-one:latest
-  #   container_name: echo_jaeger
-  #   restart: unless-stopped
-  #   networks:
-  #     - dokploy-network
-  #
-  # echo-prometheus:
-  #   image: prom/prometheus:latest
-  #   container_name: echo_prometheus
-  #   command: ["--config.file=/etc/prometheus/prometheus.yml"]
-  #   volumes:
-  #     - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
-  #   restart: unless-stopped
-  #   networks:
-  #     - dokploy-network
-  #
-  # echo-grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: echo_grafana
-  #   volumes:
-  #     - ./infra/grafana/provisioning:/etc/grafana/provisioning
-  #   depends_on:
-  #     - echo-prometheus
-  #   restart: unless-stopped
-  #   networks:
-  #     - dokploy-network
+volumes:
+  postgres_data:
+  redis_data:
 
+networks:
+  dokploy-network:
+    external: true

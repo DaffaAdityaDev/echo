@@ -69,7 +69,7 @@ const (
 		WHERE id = $1
 	`
 	QueryGetSessionMessages = `
-		SELECT id, session_id, role, content, token_count, turn_number, created_at
+		SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, created_at
 		FROM messages
 		WHERE session_id = $1
 		ORDER BY turn_number ASC, id ASC
@@ -89,8 +89,8 @@ const (
 		WHERE session_id = $1 AND turn_number <= $2
 	`
 	QueryInsertMessage = `
-		INSERT INTO messages (session_id, role, content, token_count, turn_number, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
+		INSERT INTO messages (session_id, role, content, token_count, turn_number, steps, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 	`
 	QueryUpdateSessionUpdatedAt = `
 		UPDATE sessions

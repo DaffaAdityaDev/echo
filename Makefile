@@ -9,6 +9,7 @@ help:
 	@echo "======================================================================="
 	@echo "Development Stack:"
 	@echo "  make dev-up       - Start the development stack (with hot-reloading)"
+	@echo "  make dev-infra    - Start infrastructure only (postgres + redis)"
 	@echo "  make dev-down     - Stop the development stack and remove volumes"
 	@echo "  make dev-logs     - Follow development stack logs"
 	@echo ""
@@ -34,7 +35,10 @@ swagger-gen:
 
 # Development
 dev-up:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+	docker compose -f docker-compose.dev.yml up -d --build
+
+dev-infra:
+	docker compose -f docker-compose.dev.yml up -d
 
 dev-down:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
