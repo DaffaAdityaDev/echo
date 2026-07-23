@@ -23,7 +23,8 @@ go.work
 
 # Go build artifacts
 bin/
-server
+/server
+/backend/server
 
 ### NextJS ###
 # dependencies
