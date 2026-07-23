@@ -45,6 +45,12 @@ services:
       - INTERNAL_AUTH_TOKEN=default-internal-token-secret
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - ENABLE_OTEL=false
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
+      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
+      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-pro}
     command: go run cmd/server/main.go
     depends_on:
       - echo-postgres

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"echo-backend/internal/models"
 	"echo-backend/internal/service"
 	"github.com/gofiber/fiber/v3"
 )
@@ -21,9 +22,12 @@ func NewModelHandler(modelSvc *service.ModelService) *ModelHandler {
 // @Failure 500 {object} map[string]string "Failed to retrieve models"
 // @Router /api/v1/models [get]
 func (h *ModelHandler) HandleGetModels(c fiber.Ctx) error {
-	models, err := h.ModelSvc.GetModels(c.Context())
+	modelsList, err := h.ModelSvc.GetModels(c.Context())
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve models", "details": err.Error()})
 	}
-	return c.JSON(fiber.Map{"models": models})
+	if modelsList == nil {
+		modelsList = []models.ModelInfo{}
+	}
+	return c.JSON(fiber.Map{"models": modelsList})
 }
