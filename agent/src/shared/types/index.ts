@@ -162,6 +162,7 @@ export interface LLMProvider {
     modelName?: string;
     baseURL?: string;
     maxContextTokens?: number;
+    supportsMultimodal?: boolean;
     stream(
         messages: BaseMessage[],
         tools: ToolDefinition[],

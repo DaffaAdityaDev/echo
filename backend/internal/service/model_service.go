@@ -33,16 +33,36 @@ func NewModelService(cfg *models.Config) *ModelService {
 	return &ModelService{cfg: cfg}
 }
 
+func isMultimodalModel(id string) bool {
+	lower := strings.ToLower(id)
+	return strings.Contains(lower, "4o") ||
+		strings.Contains(lower, "4.1") ||
+		strings.Contains(lower, "4.5") ||
+		strings.Contains(lower, "vision") ||
+		strings.Contains(lower, "gpt-4-turbo") ||
+		strings.Contains(lower, "claude-3") ||
+		strings.Contains(lower, "claude-4") ||
+		strings.Contains(lower, "claude-sonnet") ||
+		strings.Contains(lower, "claude-opus") ||
+		strings.Contains(lower, "o1") ||
+		strings.Contains(lower, "o3") ||
+		strings.Contains(lower, "o4") ||
+		strings.Contains(lower, "-vl") ||
+		strings.Contains(lower, "llava") ||
+		strings.Contains(lower, "gemini")
+}
+
 func (s *ModelService) GetModels(ctx context.Context) ([]models.ModelInfo, error) {
 	var result []models.ModelInfo
 
 	if s.cfg.OpenAIAPIKey != "" {
 		for _, m := range s.cfg.OpenAIModels {
 			result = append(result, models.ModelInfo{
-				ID:           m,
-				Name:         m,
-				ProviderType: models.ProviderOpenAI,
-				ProviderName: "OpenAI",
+				ID:                 m,
+				Name:               m,
+				ProviderType:       models.ProviderOpenAI,
+				ProviderName:       "OpenAI",
+				SupportsMultimodal: isMultimodalModel(m),
 			})
 		}
 	}
@@ -50,10 +70,11 @@ func (s *ModelService) GetModels(ctx context.Context) ([]models.ModelInfo, error
 	if s.cfg.AnthropicAPIKey != "" {
 		for _, m := range s.cfg.AnthropicModels {
 			result = append(result, models.ModelInfo{
-				ID:           m,
-				Name:         m,
-				ProviderType: models.ProviderAnthropic,
-				ProviderName: "Anthropic",
+				ID:                 m,
+				Name:               m,
+				ProviderType:       models.ProviderAnthropic,
+				ProviderName:       "Anthropic",
+				SupportsMultimodal: isMultimodalModel(m),
 			})
 		}
 	}
@@ -217,10 +238,11 @@ func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, tran
 func (s *ModelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.ModelInfo, error) {
 	return s.fetchModels(ctx, "https://opencode.ai/zen/go/v1/models", s.cfg.OpenCodeGoAPIKey, func(id string) models.ModelInfo {
 		return models.ModelInfo{
-			ID:           openCodeGoPrefix + id,
-			Name:         id,
-			ProviderType: models.ProviderOpenCode,
-			ProviderName: "OpenCode Go",
+			ID:                 openCodeGoPrefix + id,
+			Name:               id,
+			ProviderType:       models.ProviderOpenCode,
+			ProviderName:       "OpenCode Go",
+			SupportsMultimodal: isMultimodalModel(id),
 		}
 	})
 }
@@ -228,10 +250,11 @@ func (s *ModelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.Mode
 func (s *ModelService) fetchLMStudioModels(ctx context.Context) ([]models.ModelInfo, error) {
 	return s.fetchModels(ctx, fmt.Sprintf("%s/v1/models", s.cfg.LMStudioBaseURL), "", func(id string) models.ModelInfo {
 		return models.ModelInfo{
-			ID:           id,
-			Name:         id,
-			ProviderType: models.ProviderLMStudio,
-			ProviderName: "LM Studio",
+			ID:                 id,
+			Name:               id,
+			ProviderType:       models.ProviderLMStudio,
+			ProviderName:       "LM Studio",
+			SupportsMultimodal: isMultimodalModel(id),
 		}
 	})
 }

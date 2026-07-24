@@ -130,8 +130,9 @@ func (h *DiscordHandler) OnInteractionCreate(s *discordgo.Session, i *discordgo.
 
 // ModelInfo defines the structure of each model item returned by the backend.
 type ModelInfo struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	SupportsMultimodal bool   `json:"supports_multimodal"`
 }
 
 // ModelsResponse defines the JSON schema returned by the backend models endpoint.
