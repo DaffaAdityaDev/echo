@@ -175,7 +175,7 @@ Uses the same `golang-jwt/v5` library as User JWT, but with a different
 secret and stricter claim validation:
 
 ```go
-// backend/internal/middleware/service_auth.go
+// backend/internal/middleware/internal_auth.go
 package middleware
 
 import (
@@ -185,7 +185,7 @@ import (
     "github.com/golang-jwt/jwt/v5"
 )
 
-func ServiceAuthRequired(secret string) fiber.Handler {
+func InternalAuthRequired(secret string) fiber.Handler {
     return func(c fiber.Ctx) error {
         authHeader := c.Get("Authorization")
         if !strings.HasPrefix(authHeader, "Bearer ") {
@@ -230,13 +230,15 @@ func ServiceAuthRequired(secret string) fiber.Handler {
 ```go
 // backend/internal/router/router.go
 internalGroup := api.Group("/v1/internal")
-internalGroup.Use(middleware.ServiceAuthRequired(cfg.ServiceJWTSecret))
+internalGroup.Use(middleware.InternalAuthRequired(cfg.ServiceJWTSecret))
 
-internalGroup.Post("/memory/episodic", memoryHandler.HandleStoreEpisodic)
-internalGroup.Post("/memory/semantic", memoryHandler.HandleStoreSemantic)
-internalGroup.Post("/memory/procedural", memoryHandler.HandleStoreProcedural)
-internalGroup.Post("/state/:key", memoryHandler.HandleSetState)
-internalGroup.Post("/config/session", memoryHandler.HandleUpdateSessionConfig)
+internalGroup.Post("/memory/episodic/store", memoryHandler.HandleStoreEpisodic)
+internalGroup.Post("/memory/episodic/recall", memoryHandler.HandleRecallEpisodic)
+internalGroup.Post("/memory/semantic/store", memoryHandler.HandleStoreSemantic)
+internalGroup.Post("/memory/semantic/search", memoryHandler.HandleSearchSemantic)
+internalGroup.Post("/memory/procedural/store", memoryHandler.HandleStoreProcedural)
+internalGroup.Post("/memory/procedural/get", memoryHandler.HandleGetProcedural)
+internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 ```
 
 ## Environment Variables
@@ -260,7 +262,7 @@ internalGroup.Post("/config/session", memoryHandler.HandleUpdateSessionConfig)
 | Subject (sub)      | User ID (variable)          | "agent" (fixed)                  |
 | Lifetime           | 72 hours                    | 60 seconds                       |
 | Extraction         | Cookie or Authorization     | Authorization header only        |
-| Middleware         | AuthRequired                | ServiceAuthRequired              |
+| Middleware         | AuthRequired                | InternalAuthRequired              |
 | Rotation           | Planned refresh flow        | Freshly signed per request       |
 | Audience           | Public API routes           | Internal /api/v1/internal/*      |
 | Clock skew tolerance| None (long-lived)          | ≤ 30 seconds                     |
@@ -268,7 +270,7 @@ internalGroup.Post("/config/session", memoryHandler.HandleUpdateSessionConfig)
 ## Entry Points & Exports
 
 - **Agent signing**: `agent/src/adapter/backend/memory.adapter.ts`
-- **Backend verification**: `backend/internal/middleware/service_auth.go`
+- **Backend verification**: `backend/internal/middleware/internal_auth.go`
 - **Route wiring**: `backend/internal/router/router.go`
 - **Secret config**: `backend/internal/models/models.go` (ServiceJWTSecret field)
 - **Agent env**: `agent/src/config/env.schema.ts` (SERVICE_JWT_SECRET,
@@ -279,7 +281,7 @@ internalGroup.Post("/config/session", memoryHandler.HandleUpdateSessionConfig)
 +---------------------------------------------------------------+-------+------------------------------+
 | File                                                          | Lines | Role                         |
 +---------------------------------------------------------------+-------+------------------------------+
-| backend/internal/middleware/service_auth.go                   | 1-52  | Service JWT verification MW  |
+| backend/internal/middleware/internal_auth.go                   | 1-52  | Service JWT verification MW  |
 | backend/internal/router/router.go                             | 40-52 | Internal route wiring        |
 | agent/src/adapter/backend/memory.adapter.ts                  | 1-35  | Service JWT signing + fetch  |
 | agent/src/config/env.schema.ts                                | 18-20 | SERVICE_JWT_SECRET,          |

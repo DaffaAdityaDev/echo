@@ -95,11 +95,14 @@ src/lib/
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-> **Note:** URL construction: `API_CONFIG.BASE_URL` defaults to `http://localhost:8080/api`,
-> `API_VERSION` = `v1`, so the full URL becomes `http://localhost:8080/api/v1/chat`.
+> **Note:** The actual `api-client.ts` uses a hardcoded `baseURL: '/api'` (not
+> `API_CONFIG.BASE_URL` + `API_VERSION`). The Go gateway routes are mounted under
+> `/api/v1`, so requests to `/api/v1/chat` resolve correctly. The doc below
+> describes the design intent; the code uses the simpler hardcoded approach.
 >
-> **Note:** The `x-agent-session-id` header is injected by the axios request interceptor
+> **Note:** The `x-agent-session-id` header is injected by the fetch interceptor
 > when the request config or body contains a `missionId` or `sessionId` field.
+> A 401 response triggers a redirect to `/login`.
 
 ## API Client Export (`api-client.ts`)
 
@@ -133,7 +136,7 @@ type ApiRequestOptions = AxiosRequestConfig & {
 
 | Option     | Value                                         | Description                     |
 |------------|-----------------------------------------------|---------------------------------|
-| baseURL    | `${API_CONFIG.BASE_URL}/${API_VERSION}`       | Default API base path           |
+| baseURL    | `'/api'` (hardcoded)                          | Default API base path           |
 | timeout    | 30000                                         | Request timeout in ms           |
 | headers    | `{ 'Content-Type': 'application/json' }`      | Default request headers         |
 

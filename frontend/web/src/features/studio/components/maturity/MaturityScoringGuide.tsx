@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { CheckSquare, Square, Building2, AlertTriangle, Save, HelpCircle, ArrowRight } from "lucide-react"
+import { CheckSquare, Square, Building2, AlertTriangle, Save, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import type {
   ScoringQuestion,

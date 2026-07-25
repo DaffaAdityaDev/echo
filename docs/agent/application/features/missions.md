@@ -45,12 +45,10 @@ missions/
 │                       mission.controller.ts                               │
 │                       createMission(c: Context)                           │
 │                                                                           │
-│  Creates adapters via ConnectionManager:                                  │
-│    → adapter/llm/       (LLM provider from provider_config)              │
-│    → adapter/backend/   (session, memory, context via Go backend)        │
-│    → adapter/mcp/       (MCP server tools, if configured)                │
-│    → adapter/rest/      (REST API tools, if configured)                  │
-│  Injects adapters into harness as interfaces                              │
+│  Creates LLM provider via ProviderFactory.fromConfig():                    │
+│    → infrastructure/providers/  (based on provider_config)                │
+│  Resolves tools via toolRegistry.resolveTools(features)                   │
+│  Uses stateStorage for state persistence                                   │
 └────────────────────────────────────┬─────────────────────────────────────┘
                                      │
                    ┌─────────────────┴─────────────────┐
@@ -59,7 +57,7 @@ missions/
 ┌──────────────────────────────────┐  ┌──────────────────────────────────────┐
 │  Parse body + query params       │  │  MissionPayload Construction         │
 │                                  │  │                                      │
-│  createMissionSchema.safeParse() │  │  AdapterFactory.create(config)       │
+│  createMissionSchema.safeParse() │  │  ProviderFactory.fromConfig(config)  │
 │                                  │  │  StrategyFactory.create(strategy)    │
 │  Zod preprocessing:              │  │  stateStorage.get(missionId)         │
 │  - strategy alias normalization  │  │  toolRegistry.resolveTools(features) │
@@ -67,9 +65,9 @@ missions/
 │  - snake_case ID fallbacks      │  │    resolveTools(features)            │
 │                                  │  │    skills do NOT add tools          │
 │                                  │  │  If features undefined + skills:     │
-│                                  │  │    resolveTools(skills'preferred)    │
+│                                  │  │    resolveTools(skills.preferredTools)│
 │                                  │  │  If neither: harness → ToolRetriever │
-│                                  │  │  AnchorFactory.build()               │
+│                                  │  │  StandardContextAnchor.build()       │
 └──────────────┬───────────────────┘  └──────────────────┬───────────────────┘
                │                                         │
                └─────────────────┬───────────────────────┘
@@ -84,13 +82,12 @@ missions/
                                  │
                                  ▼
           ┌─────────────────────────────────────────────────────┐
-           │  AgentHarness({ adapters, strategy, tools })         │
+           │  NlahHarness({ strategy, tools })              │
            │  harness.runMission(state, onPacket)                │
            │                                                     │
-           │  Harness uses adapters via interfaces:              │
-           │    → adapter/llm/      (LLMProvider)                │
-           │    → adapter/backend/  (IStateStore + context)      │
-           │    → adapter/mcp/rest/ (ToolDefinition.execute)    │
+           │  Harness uses provider and tools via interfaces:    │
+           │    → infrastructure/providers/ (LLMProvider)        │
+           │    → toolRegistry + retriever (ToolDefinition)     │
            │                                                     │
            │  for each packet:                                   │
            │    HttpStreamTransport.send(packet)                 │
@@ -100,7 +97,7 @@ missions/
                                  │
                                  ▼
           ┌─────────────────────────────────────────────────────┐
-           │  Cleanup: ConnectionManager.disconnectAll()         │
+           │  Cleanup: stateStorage cleanup                      │
            │  clearInterval                                      │
            │  cancellationManager.unregister(missionId)          │
           └─────────────────────────────────────────────────────┘
@@ -130,14 +127,13 @@ missions/
 +------------------------+--------------------------------------------------------------+
 | `hono`                 | HTTP framework, `streamSSE`                                  |
 | `zod`                  | Schema validation                                            |
-| `AdapterFactory`       | Adapter creation (adapter/factory.ts)                        |
-| `ConnectionManager`    | Adapter lifecycle, health checks, disconnectAll()            |
+| `ProviderFactory`      | LLM provider creation (infrastructure/providers/factory.ts)  |
 | `StrategyFactory`      | Strategy selection (core/agent/strategies/factory.ts)        |
-| `AgentHarness`         | Execution harness (core/agent/harness/index.ts)              |
+| `NlahHarness`          | Execution harness (core/agent/harness/nlah/harness.ts)       |
 | `toolRegistry`         | Conditional tool resolution — only when features explicitly set |
 | `stateStorage`         | State persistence (core/agent/storage/factory.ts)            |
-| `AnchorFactory`        | Context anchor builder                                       |
-| `cancellationManager`  | Abort signal management                                      |
+| `StandardContextAnchor`| Context anchor builder (core/agent/anchors/standard.ts)      |
+| `cancellationManager`  | Abort signal management (core/agent/harness/cancel_manager.ts)|
 | `mapHistoryToMessages` | LangChain message reconstruction                             |
 | `@langchain/core/messages` | Message types (`HumanMessage`)                           |
 +------------------------+--------------------------------------------------------------+
@@ -159,8 +155,7 @@ missions/
 | Cancellation             | `mission.controller.ts:92,113-114`     | Registers `AbortSignal` on start         |
 | State reconstruction     | `mission.controller.ts:62-82`          | Loads prior state or creates fresh       |
 | Provider config          | `mission.schema.ts:48-53`              | `provider_config` with type, URL, key    |
-| Adapter creation         | `adapter/factory.ts`                   | `AdapterFactory.create()`               |
-| Adapter lifecycle        | `adapter/manager.ts`                   | `ConnectionManager` lifecycle           |
+| Provider init            | `infrastructure/providers/factory.ts`  | `ProviderFactory.fromConfig()`          |
 +--------------------------+----------------------------------------+------------------------------------------+
 
 ================================================================================

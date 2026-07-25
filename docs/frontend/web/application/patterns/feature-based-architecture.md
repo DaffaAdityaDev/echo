@@ -30,24 +30,32 @@ src/features/
     ├── index.ts           # Barrel — public exports
     ├── types/
     │   └── index.ts       # Message, StreamPacket, ThoughtStep, etc.
-    ├── api/               # Data-fetching hooks (TanStack / fetch)
+    ├── hooks/             # Orchestrator + data-fetching hooks
+    │   ├── useChatPage.ts
     │   ├── useChatStream.ts
     │   ├── useFeatures.ts
-    │   └── useModels.ts
+    │   ├── useModels.ts
+    │   ├── useSessions.ts
+    │   └── useSkills.ts
     ├── components/        # UI components
-    │   ├── ChatInterface.tsx
+    │   ├── ChatPage.tsx
     │   ├── ChatInput.tsx
     │   ├── MessageList.tsx
     │   ├── MessageItem.tsx
-    │   ├── Sidebar.tsx
-    │   └── AgentProgress.tsx
+    │   ├── SessionSidebar.tsx
+    │   ├── ToolCallTimeline.tsx
+    │   ├── AgentProgress.tsx
+    │   ├── AgentStatusBadge.tsx
+    │   ├── DegradationToast.tsx
+    │   ├── ModelSelectorModal.tsx
+    │   └── DebugDrawer.tsx
+    ├── stores/
+    │   └── chatStore.ts   # Zustand store for conversation state
     └── services/
-        └── chat-api.ts    # chatApi HTTP/SSE methods
+        └── chat-api.ts    # chatApi HTTP methods
 ```
 
-## Flow Diagram
-
-### Feature Module Structure
+## Feature Module Structure
 
 ```
 ┌───────────────────────────────────────────────────┐
@@ -56,28 +64,30 @@ src/features/
 ├───────────────────────────────────────────────────┤
 │                                                    │
 │   constants.ts  ────→  Named constants,            │
-│                         enum-like objects,         │
-│                         endpoint paths             │
+│                         endpoint paths,            │
+│                         query key factories        │
 │                                                    │
 │   types/        ────→  TypeScript interfaces       │
 │                         and type aliases            │
 │                                                    │
-│   hooks/        ────→  React hooks (stateful       │
-│                         logic, TanStack Query      │
-│                         wrappers)                  │
-│                                                    │
-│   api/          ────→  Data-fetching hooks         │
-│                         (TanStack Query wrappers,  │
-│                         SSE stream hooks)          │
+│   hooks/        ────→  React hooks (orchestrator,  │
+│                         TanStack Query wrappers)   │
 │                                                    │
 │   services/     ────→  Thin wrappers around        │
 │                         api-client calls           │
+│                                                    │
+│   api/          ────→  TanStack Query hooks        │
+│                         (optional — admin, studio) │
+│                                                    │
+│   stores/       ────→  Zustand stores for          │
+│                         local client state         │
 │                                                    │
 │   components/   ────→  UI components scoped        │
 │                         to the feature             │
 │                                                    │
 │   index.ts      ────→  Barrel — re-exports         │
 │                         public surface area        │
+│                         (components + hooks + types)│
 │                                                    │
 └───────────────────────────────────────────────────┘
 ```
@@ -86,12 +96,12 @@ src/features/
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│                         app/page.tsx                              │
+│                      app/(main)/page.tsx                          │
 │                              │                                    │
 │              ┌───────────────┴───────────────┐                    │
 │              v                               v                    │
 │ ┌──────────────────────────┐   ┌──────────────────────────────┐   │
-│ │ import { ChatInterface } │   │ import { useAuth }           │   │
+│ │ import { ChatPage }      │   │ import { useAuth }           │   │
 │ │ from "@/features/chat"   │   │ from "@/features/auth"       │   │
 │ └──────────────────────────┘   └──────────────────────────────┘   │
 └───────────────────────────────────────────────────────────────────┘
@@ -106,19 +116,32 @@ Each feature's `index.ts` selectively re-exports the **public API surface**. Int
 **auth/index.ts**
 
 ```typescript
+export * from "./components/LoginForm";
+export * from "./components/AuthGuard";
 export * from "./hooks/useAuth";
-export * from "./services/auth-api";
 export * from "./types";
-// export * from "./components/LoginForm"; // Placeholder
 ```
+
+> Note: Constants, services, and stores are **not** re-exported from the barrel.
+> They are internal implementation details consumed by the feature's own hooks.
 
 **chat/index.ts**
 
 ```typescript
-export * from "./components/ChatInterface";
-export * from "./types";
-export * from "./api/useModels";
-export * from "./api/useChatStream";
+// Components
+export * from "./components/ChatPage";
+export * from "./components/ChatInput";
+export * from "./components/MessageList";
+// ... other components
+
+// Hooks
+export * from "./hooks/useChatPage";
+export * from "./hooks/useChatStream";
+export * from "./hooks/useModels";
+export * from "./hooks/useSessions";
+
+// Types (named)
+export type { Message, StreamPacket, ... } from "./types";
 ```
 
 ## Naming Conventions
@@ -133,7 +156,7 @@ export * from "./api/useChatStream";
 +-----------+---------------------+------------------------------------------+
 | Services  | camelCase object    | authApi, chatApi                         |
 +-----------+---------------------+------------------------------------------+
-| Components| PascalCase functions | ChatInterface, MessageItem               |
+| Components| PascalCase functions | ChatPage, MessageItem                      |
 +-----------+---------------------+------------------------------------------+
 | Constants | UPPER_SNAKE for     | AUTH_ENDPOINTS, CHAT_ROLES               |
 |           | endpoint/query-key  |                                          |
@@ -146,7 +169,9 @@ export * from "./api/useChatStream";
 ### Internal
 
 - Feature modules depend on `@/lib/api-client`, `@/lib/queries`, `@/utils/cn`, `@/constants`
-- Feature modules **do not** import from other features (avoid cross-feature coupling)
+- Feature modules **should not** import from other features to avoid cross-feature coupling.
+  Exceptions exist where sharing is necessary (settings module imports chat hooks for
+  feature/skill/model lists).
 
 ### External
 

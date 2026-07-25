@@ -1,8 +1,15 @@
 "use client"
 
-import { useStudioDashboard, StudioDashboard } from "@/features/studio"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function StudioRoute() {
-  const dashboard = useStudioDashboard()
-  return <StudioDashboard {...dashboard} />
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace("/")
+  }, [router])
+
+  return null
 }
+

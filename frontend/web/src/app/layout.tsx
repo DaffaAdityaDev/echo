@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { cn } from "@/utils/cn";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const ibmPlexMono = IBM_Plex_Mono({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-ibm-plex-mono",
+});
 
 export const metadata: Metadata = {
-  title: "ECHO Brain | Enterprise AI Orchestrator",
-  description: "Next-generation AI agent orchestration platform.",
+  title: "ECHO Brain | Guardbase Enterprise AI Orchestrator",
+  description: "Security-first AI agent orchestration platform.",
 };
 
 export default function RootLayout({
@@ -18,13 +21,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full" style={{ colorScheme: 'dark' }}>
+    <html lang="en" className="h-full">
       <body className={cn(
-        inter.variable,
-        outfit.variable,
-        "font-sans antialiased bg-background text-foreground selection:bg-accent/30 h-full flex flex-col overflow-hidden"
+        ibmPlexMono.variable,
+        "font-mono antialiased bg-white text--foreground selection:bg--gb-blue/20 h-full flex flex-col overflow-hidden"
       )}>
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-sm">
           Skip to content
         </a>
         <Providers>{children}</Providers>
@@ -32,3 +34,4 @@ export default function RootLayout({
     </html>
   );
 }
+

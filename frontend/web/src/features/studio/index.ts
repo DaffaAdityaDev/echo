@@ -1,9 +1,4 @@
-export * from './types'
-export * from './constants'
-export * from './services/studio-api'
-
 export * from './components/dashboard/StudioDashboard'
-export * from './components/shared/StudioSidebar'
 export * from './components/shared/EmptyState'
 export * from './components/shared/JsonViewer'
 
@@ -34,16 +29,33 @@ export * from './components/audit/AuditTrailTable'
 
 export * from './hooks/useStudioDashboard'
 export * from './hooks/useMaturityModel'
+export * from './hooks/useMaturityPage'
 export * from './hooks/usePlayground'
 export * from './hooks/useEvalSuite'
 export * from './hooks/usePromptLibrary'
 export * from './hooks/useShadowTest'
+export * from './hooks/useShadowPage'
 export * from './hooks/useAuditTrail'
 
-export * from './api/useMaturity'
-export * from './api/usePrompts'
-export * from './api/useEvals'
-export * from './api/useShadow'
-export * from './api/useAudit'
-
-export * from './stores/studioStore'
+export type {
+  VersionStatus,
+  PromptTemplate,
+  PromptVersion,
+  TestCase,
+  EvalDataset,
+  EvalRun,
+  EvalRunDetail,
+  ShadowRun,
+  AuditLog,
+  PlaygroundResult,
+  MaturityLevel,
+  MaturityDimensionKey,
+  MaturityLevelInfo,
+  MaturityDimensionLevelMapping,
+  MaturityDimension,
+  SystemMaturityAssessment,
+  RoadmapItem,
+  ScoringQuestion,
+  ClientAssessmentScore,
+  ClientCompanyAssessment,
+} from './types'

@@ -90,15 +90,15 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-3 transition-all focus-within:border-purple-500/40 focus-within:ring-2 focus-within:ring-purple-500/10"
+        className="bg-white border border--border rounded-xs p-4 shadow-md space-y-3 transition-all focus-within:border--gb-blue focus-within:ring-1 focus-within:ring--gb-blue font-mono"
       >
         {attachedFileName && (
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs font-medium text-purple-600 dark:text-purple-400">
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-xs bg--blue-50 border border--gb-bright-blue/30 text-xs font-bold text--gb-blue">
             <span>Attached: {attachedFileName}</span>
             <button
               type="button"
               onClick={() => setAttachedFileName(null)}
-              className="p-0.5 hover:bg-purple-500/20 rounded"
+              className="p-0.5 hover:bg-blue-500/20 rounded-xs"
             >
               <X className="h-3 w-3" />
             </button>
@@ -114,11 +114,11 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
           placeholder="Ask me anything..."
           autoComplete="off"
           spellCheck={false}
-          className="w-full bg-transparent border-none outline-none text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
+          className="w-full bg-transparent border-none outline-none text-sm text--foreground font-mono placeholder:text--slate-400 focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
         />
 
         {/* Input Bar Action Controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/60 flex-wrap gap-2">
+        <div className="flex items-center justify-between pt-2 border-t border--border flex-wrap gap-2">
           <div className="flex items-center gap-2">
             {/* Mode Toggle Pill */}
             <button
@@ -129,10 +129,10 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
                 )
               }
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider",
                 mode === CHAT_MODES.AGENT
-                  ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-sm"
-                  : "bg-zinc-100 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  ? "bg--blue-50 border--gb-bright-blue text--gb-blue shadow-xs"
+                  : "bg--slate-50 border--border text--slate-600 hover:text--foreground hover:bg--surface-hover"
               )}
             >
               <Sparkles className="h-3.5 w-3.5" />

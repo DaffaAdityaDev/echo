@@ -54,7 +54,7 @@ All internal routes are under:
 
 ## Endpoints
 
-### 1. POST /api/v1/internal/memory/episodic
+### 1. POST /api/v1/internal/memory/episodic/store
 
 Store episodic memory (conversation turn / event).
 
@@ -105,46 +105,71 @@ Store episodic memory (conversation turn / event).
 
 ---
 
-### 2. POST /api/v1/internal/memory/semantic
+### 2. POST /api/v1/internal/memory/episodic/recall
 
-Store semantic memory (facts, knowledge extracted from context).
+Recall episodic memories for a session.
 
 #### Request
 
 ```json
 {
   "session_id": "session-abc-123",
-  "fact": "The capital of France is Paris.",
-  "source": "conversation",
-  "confidence": 0.95,
-  "tags": ["geography", "capital", "france"],
-  "metadata": {
-    "mission_id": "mission-xyz-456"
-  }
+  "limit": 20
 }
 ```
 
-| Field      | Type    | Required | Description                    |
-|------------+---------+----------+--------------------------------|
-| session_id | string  | Yes      | Unique session identifier      |
-| fact       | string  | Yes      | Extracted fact / knowledge     |
-| source     | string  | Yes      | Origin of the fact             |
-| confidence | number  | Yes      | Confidence score (0.0 - 1.0)  |
-| tags       | string[]| No       | Categorization tags            |
-| metadata   | object  | No       | Optional metadata              |
+| Field      | Type   | Required | Description                    |
+|------------+--------+----------+--------------------------------|
+| session_id | string | Yes      | Unique session identifier      |
+| limit      | number | No       | Max memories to return (default 50) |
 
-#### Response (201)
+#### Response (200)
 
 ```json
 {
   "success": true,
-  "id": "mem-sm-456"
+  "episodes": [
+    { "role": "assistant", "message": "The capital of France is Paris.", "timestamp": "2026-07-09T12:00:00Z" }
+  ]
 }
 ```
 
 ---
 
-### 3. POST /api/v1/internal/memory/procedural
+### 4. POST /api/v1/internal/memory/semantic/search
+
+Search semantic memories by query.
+
+#### Request
+
+```json
+{
+  "session_id": "session-abc-123",
+  "query": "capital of France",
+  "limit": 10
+}
+```
+
+| Field      | Type   | Required | Description                    |
+|------------+--------+----------+--------------------------------|
+| session_id | string | Yes      | Unique session identifier      |
+| query      | string | Yes      | Search query text              |
+| limit      | number | No       | Max results (default 10)       |
+
+#### Response (200)
+
+```json
+{
+  "success": true,
+  "results": [
+    { "fact": "The capital of France is Paris.", "confidence": 0.95, "source": "conversation" }
+  ]
+}
+```
+
+---
+
+### 5. POST /api/v1/internal/memory/procedural/store
 
 Store procedural memory (learned skills, tool usage patterns).
 
@@ -185,71 +210,64 @@ Store procedural memory (learned skills, tool usage patterns).
 
 ---
 
-### 4. POST /api/v1/internal/state/:key
+### 6. POST /api/v1/internal/memory/procedural/get
 
-Set or get agent state for a given key.
-
-#### Set State
-
-```json
-{
-  "session_id": "session-abc-123",
-  "value": { "current_step": 3, "subtask": "research" }
-}
-```
-
-| Field      | Type   | Required | Description                    |
-|------------+--------+----------+--------------------------------|
-| session_id | string | Yes      | Unique session identifier      |
-| value      | any    | Yes      | Arbitrary JSON value to store  |
-
-#### Response (200)
-
-```json
-{
-  "success": true,
-  "key": "current_task",
-  "session_id": "session-abc-123"
-}
-```
-
----
-
-### 5. POST /api/v1/internal/config/session
-
-Update session configuration (model, features, mode overrides).
+Retrieve procedural instructions by name.
 
 #### Request
 
 ```json
 {
-  "session_id": "session-abc-123",
-  "config": {
-    "model": "gpt-4o",
-    "features": ["web_search", "code_execute"],
-    "mode": "standard",
-    "ttl_seconds": 3600
-  }
+  "name": "web_search"
 }
 ```
 
-| Field         | Type    | Required | Description                     |
-|---------------+---------+----------+---------------------------------|
-| session_id    | string  | Yes      | Unique session identifier       |
-| config        | object  | Yes      | Configuration payload           |
-| config.model  | string  | No       | Model override                  |
-| config.features| string[]| No      | Feature set override            |
-| config.mode   | string  | No       | "standard" | "agent"  |
-| config.ttl_seconds| number| No     | Session TTL in seconds          |
+| Field | Type   | Required | Description                    |
+|-------+--------+----------+--------------------------------|
+| name  | string | Yes      | Procedural skill name          |
 
 #### Response (200)
 
 ```json
 {
   "success": true,
-  "session_id": "session-abc-123"
+  "procedure": {
+    "name": "web_search",
+    "content": "...",
+    "metadata": {}
+  }
 }
 ```
+
+### 7. POST /api/v1/internal/sessions/:id/prune
+
+Trigger manual session pruning — removes old messages beyond the threshold.
+
+#### Request
+
+```json
+{
+  "threshold": 100000,
+  "keep_latest_turns": 10
+}
+```
+
+| Field             | Type   | Required | Description                         |
+|-------------------+--------+----------+-------------------------------------|
+| threshold         | number | No       | Token threshold (default from config)|
+| keep_latest_turns | number | No       | Turns to retain (default from config)|
+
+#### Response (200)
+
+```json
+{
+  "success": true,
+  "session_id": "session-abc-123",
+  "pruned_count": 25
+}
+```
+
+---
 
 ## Error Response Format (All Internal Endpoints)
 
@@ -270,7 +288,6 @@ All errors follow a consistent format:
 | 401         | invalid_token           | JWT parse failure or wrong secret        |
 | 401         | token_expired           | JWT exp claim is in the past             |
 | 403         | invalid_subject         | sub claim is not "agent"                 |
-| 404         | not_found               | Resource not found (e.g. state key)      |
 | 500         | internal_error          | Unexpected server error                  |
 +-------------+-------------------------+------------------------------------------+
 
@@ -286,7 +303,7 @@ JWT=$(echo '{"sub":"agent","iat":'$(date +%s)',"exp":'$(($(date +%s)+60))'}' | \
 
 # The agent uses a proper JWT library in practice — this is a conceptual example.
 
-curl -X POST http://localhost:8080/api/v1/internal/memory/episodic \
+curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -305,7 +322,7 @@ curl -X POST http://localhost:8080/api/v1/internal/memory/episodic \
 ### Backend rejects invalid service JWT
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/internal/memory/episodic \
+curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
   -H "Authorization: Bearer invalid-token" \
   -H "Content-Type: application/json" \
   -d '{"session_id":"test","content":{"role":"user","message":"hello","timestamp":"2026-01-01T00:00:00Z"}}'

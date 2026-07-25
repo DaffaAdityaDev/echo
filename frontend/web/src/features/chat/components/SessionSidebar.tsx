@@ -2,55 +2,74 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
-  Compass,
-  Library,
-  Folder,
-  History,
   LogOut,
-  User,
   Trash2,
   X,
-  Sparkles,
-  Command,
-  PanelLeftClose,
   Settings,
-  LayoutDashboard,
   Layers,
   FlaskConical,
   ScrollText,
   ClipboardCheck,
   Eye,
   ShieldAlert,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChatStore } from "../stores/chatStore";
+import { useSessions } from "../hooks/useSessions";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 interface SessionSidebarProps {
-  createSession: () => void;
-  deleteSession: (id: string) => void;
-  selectSession: (id: string) => void;
+  createSession?: () => void;
+  deleteSession?: (id: string) => void;
+  selectSession?: (id: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
   onOpenSettings?: () => void;
 }
 
 export function SessionSidebar({
-  createSession,
-  deleteSession,
-  selectSession,
+  createSession: createSessionProp,
+  deleteSession: deleteSessionProp,
+  selectSession: selectSessionProp,
   isOpen = false,
   onClose,
   onOpenSettings,
 }: SessionSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const { sessions, activeSessionId } = useChatStore();
+  const { createSession: storeCreateSession, deleteSession: storeDeleteSession, selectSession: storeSelectSession } = useSessions();
   const { user, logout } = useAuth();
+
+  const handleCreateSession = async () => {
+    if (createSessionProp) {
+      await createSessionProp();
+    } else {
+      await storeCreateSession();
+    }
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  };
+
+  const handleDeleteSession = deleteSessionProp || storeDeleteSession;
+
+  const handleSelectSession = async (id: string) => {
+    if (selectSessionProp) {
+      await selectSessionProp(id);
+    } else {
+      await storeSelectSession(id);
+    }
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  };
 
   // Filter sessions by search term
   const filteredSessions = sessions.filter((s) =>
@@ -69,7 +88,7 @@ export function SessionSidebar({
   });
 
   const navItems = [
-    { label: "Studio Overview", icon: LayoutDashboard, href: "/studio" },
+    { label: "Chat", icon: MessageSquare, href: "/" },
     { label: "AI Maturity", icon: Layers, href: "/maturity" },
     { label: "Playground", icon: FlaskConical, href: "/playground" },
     { label: "Prompts", icon: ScrollText, href: "/prompts" },
@@ -98,24 +117,20 @@ export function SessionSidebar({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0">
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
             <div className="p-1.5 rounded-xl bg-purple-600/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
               <Plus className="h-5 w-5" />
             </div>
             <span className="font-display font-extrabold text-lg tracking-tight text-zinc-900 dark:text-white">
               Echo
             </span>
-          </div>
-          {onClose ? (
+          </Link>
+          {onClose && (
             <button
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white p-1 rounded-lg transition-colors"
             >
               <X className="h-4 w-4" />
-            </button>
-          ) : (
-            <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors">
-              <PanelLeftClose className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -123,7 +138,7 @@ export function SessionSidebar({
         {/* Primary Action Button: + New chat */}
         <div className="px-4 mb-3">
           <button
-            onClick={createSession}
+            onClick={handleCreateSession}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white transition-all text-xs font-semibold shadow-md active:scale-98 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
@@ -186,7 +201,7 @@ export function SessionSidebar({
                     {todaySessions.map((session) => (
                       <div
                         key={session.id}
-                        onClick={() => selectSession(session.id)}
+                        onClick={() => handleSelectSession(session.id)}
                         className={cn(
                           "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
                           session.id === activeSessionId
@@ -198,7 +213,7 @@ export function SessionSidebar({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteSession(session.id);
+                            handleDeleteSession(session.id);
                           }}
                           className="p-1 rounded-md text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                         >
@@ -219,7 +234,7 @@ export function SessionSidebar({
                     {olderSessions.map((session) => (
                       <div
                         key={session.id}
-                        onClick={() => selectSession(session.id)}
+                        onClick={() => handleSelectSession(session.id)}
                         className={cn(
                           "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
                           session.id === activeSessionId
@@ -231,7 +246,7 @@ export function SessionSidebar({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteSession(session.id);
+                            handleDeleteSession(session.id);
                           }}
                           className="p-1 rounded-md text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                         >

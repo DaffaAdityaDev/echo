@@ -9,10 +9,10 @@
 
 ## Description
 
-The Docker Compose stack defines the entire Echo application runtime: three data
-stores (Postgres, Redis, ChromaDB), a message broker (RabbitMQ), a full
-observability pipeline (OTel Collector → Prometheus/Grafana/Jaeger), and the
-three application services (agent, backend, frontend). Base composition
+The Docker Compose stack defines the Echo application runtime: two data stores
+(Postgres, Redis), a full observability pipeline (OTel Collector → Prometheus/
+Grafana/Jaeger — currently commented out and disabled by default), and three
+application services (agent, backend, frontend). Base composition
 (`docker-compose.yml`) provides infrastructure-only. Dev and Prod overrides
 layer on the application services with different build, volume, and environment
 strategies.
@@ -47,8 +47,8 @@ strategies.
 │                  └──────────────┘    └──────────────┘    └──────────────┘             │
 │                                                                                       │
 │                  ┌──────────────┐    ┌──────────────┐                                 │
-│                  │   ChromaDB   │    │   RabbitMQ   │                                 │
-│                  │    :8000     │    │    :5672     │                                 │
+│                  │  (not in     │    │  (not in     │                                 │
+│                  │   compose)   │    │   compose)   │                                 │
 │                  └──────────────┘    └──────────────┘                                 │
 │                                                                                       │
 │  ┌──────────────┐    ┌──────────────────────┐    ┌──────────────┐                    │
@@ -72,22 +72,20 @@ strategies.
 | Service          | Internal Port  | Exposed Port (Dev) | Exposed Port (Prod) |
 +------------------+----------------+--------------------+---------------------+
 | Postgres         | 5432           | 5432               | 5432                |
-| ChromaDB         | 8000           | 8000               | 8000                |
 | Redis            | 6379           | 6379               | 6379                |
-| RabbitMQ         | 5672           | 5672               | 5672                |
-| OTel Collector   | 4317, 4318     | 4317, 4318         | 4317, 4318          |
-| Jaeger           | 16686          | 16686              | 16686               |
-| Prometheus       | 9090           | 9090               | 9090                |
-| Grafana          | 3000           | **3100**           | 3000                |
+| OTel Collector   | 4317, 4318     | ── commented out   | ── commented out    |
+| Jaeger           | 16686          | ── commented out   | ── commented out    |
+| Prometheus       | 9090           | ── commented out   | ── commented out    |
+| Grafana          | 3000           | ── commented out   | ── commented out    |
 | Agent            | 3001           | 3001               | 3001                |
 | Backend          | 8080           | 8080               | 8080                |
 | Frontend         | 3000           | **3002** (dev)     | **3000** (prod)     |
 +------------------+----------------+--------------------+---------------------+
 
-> **Note:** Infrastructure services (ChromaDB, Redis, RabbitMQ, OTel Collector,
->   Jaeger, Prometheus, Grafana) inherit their port mappings from the base
->   `docker-compose.yml`. In production deployments, these ports should be
->   restricted by firewall or removed by overriding the base compose file.
+> **Note:** ChromaDB and RabbitMQ are documented in the architecture but are
+> not currently present in any Docker Compose file. The observability stack
+> (OTel Collector, Jaeger, Prometheus, Grafana) is defined but commented out
+> in all compose files — enable by uncommenting and setting `ENABLE_OTEL=true`.
 
 ## Dependencies
 
@@ -96,31 +94,33 @@ strategies.
 ```yaml
 services:
   postgres:       image: ankane/pgvector:latest
-  chroma:         image: chromadb/chroma:latest
   redis:          image: redis:7-alpine
-  rabbitmq:       image: rabbitmq:3-alpine
-  otel-collector: image: otel/opentelemetry-collector-contrib:latest
-  jaeger:         image: jaegertracing/all-in-one:latest
-  prometheus:     image: prom/prometheus:latest
-  grafana:        image: grafana/grafana:latest  # depends_on: prometheus
+  # chroma:       not present in any compose file
+  # rabbitmq:     not present in any compose file
+  # otel-collector: commented out
+  # jaeger:       commented out
+  # prometheus:   commented out
+  # grafana:      commented out
 ```
 
 ### Dev Overrides (`docker-compose.dev.yml`)
 
 Builds application images from source with **bind-mount volumes** for hot-reload:
 
-+-----------+----------------------+----------------------------------+------------------------------------------+
-| Service   | Build Context        | Command                          | Volumes                                  |
-+-----------+----------------------+----------------------------------+------------------------------------------+
-| agent     | ./agent              | bun run dev                      | ./agent:/app (anon node_modules)         |
-| backend   | golang:alpine (image)| go run cmd/server/main.go        | ./backend:/app                           |
-| frontend  | ./frontend/web       | bun run dev                      | ./frontend/web:/app (anon node_modules,  |
-|           |                      |                                  |   .next)                                 |
-+-----------+----------------------+----------------------------------+------------------------------------------+
++------------------+----------------------+----------------------------------+------------------------------------------+
+| Service          | Build Context        | Command                          | Volumes                                  |
++------------------+----------------------+----------------------------------+------------------------------------------+
+| migrate          | ./backend            | go run cmd/db/migrate/main.go    | ./backend:/app                           |
+| seed             | ./backend            | go run cmd/db/seed/main.go       | ./backend:/app                           |
++------------------+----------------------+----------------------------------+------------------------------------------+
+
+> **Note:** Application services (agent, backend, frontend) are not defined in
+> `docker-compose.dev.yml` — they run directly on the host machine during
+> development for faster hot-reload. Only infrastructure (postgres, redis) and
+> migration/seed scripts are in the dev overlay.
 
 **Environment differences from prod:**
 - Backend: `ENABLE_OTEL=false` (disables tracing in dev)
-- Agent: `OTEL_COLLECTOR_ADDR=otel-collector:4317` (still sends traces)
 - Frontend: `NEXT_PUBLIC_API_URL=http://localhost:8080`
 - Backend uses raw `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
   variables (not `DATABASE_URL`)
@@ -150,7 +150,6 @@ Builds application images from **Dockerfiles** with no bind-mounts:
 | Volume                           | Driver | Mounts                            | Used By     |
 +----------------------------------+--------+-----------------------------------+-------------+
 | postgres_data                    | local  | /var/lib/postgresql/data          | postgres    |
-| chroma_data                      | local  | /chroma/chroma                    | chroma      |
 | ./infra/otel-collector-config.yaml | bind | /etc/otel-collector-config.yaml   | otel-       |
 |                                  |        |                                   | collector   |
 | ./infra/prometheus.yml           | bind   | /etc/prometheus/prometheus.yml    | prometheus  |
@@ -179,12 +178,9 @@ Environment variables flow through three mechanisms:
 +---------------------------------------------+------------------------------------------------------+
 | File                                        | Purpose                                              |
 +---------------------------------------------+------------------------------------------------------+
-| docker-compose.yml                          | Infrastructure base — databases, message broker,     |
-|                                             |   observability                                      |
-| docker-compose.dev.yml                      | Dev overlay — hot-reload, source mounts              |
+| docker-compose.yml                          | Infrastructure base — databases, Redis               |
+| docker-compose.dev.yml                      | Dev overlay — migrate/seed scripts                   |
 | docker-compose.prod.yml                     | Prod overlay — pre-built Docker images               |
-| Makefile                                    | Targets: dev-up, dev-down, prod-up, prod-down,       |
-|                                             |   deploy, status, clean                              |
 | backend/Dockerfile                          | Multi-stage Go build → scratch deploy                |
 | agent/Dockerfile                            | Bun runtime + Chromium for Playwright                |
 | frontend/web/Dockerfile                     | Bun build → static export or Next.js server          |

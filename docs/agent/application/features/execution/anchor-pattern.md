@@ -19,9 +19,7 @@ locational grounding to the LLM.
 
 ```
 anchors/
-  types.ts       # IContextAnchor interface
   constants.ts   # Version names, defaults, templates
-  factory.ts     # AnchorFactory.create()
   standard.ts    # StandardContextAnchor implementation
 ```
 
@@ -36,10 +34,9 @@ anchors/
                                    │
                                    ▼
     ┌─────────────────────────────────────────────────────────────────┐
-    │  AnchorFactory.create()                                          │
-    │    → default  (future versions → extensible)                    │
-    │    → new StandardContextAnchor()                                 │
-    │    → anchor.build(options?)                                      │
+│  StandardContextAnchor()                                          │
+│    → new StandardContextAnchor()                                 │
+│    → anchor.build(options?)                                      │
     │                                                                  │
     │  options.location || 'South Jakarta' (default)                   │
     │  options.year    || new Date().getFullYear()                     │
@@ -68,8 +65,7 @@ anchors/
 +--------------------------+-----------------------------+---------------------------------------------+
 | Export                   | Source                      | Type                                        |
 +--------------------------+-----------------------------+---------------------------------------------+
-| `AnchorFactory`          | `factory.ts`                | Static factory with `create(version?)`      |
-| `IContextAnchor`         | `types.ts`                  | `build(options?)` interface                 |
+| `StandardContextAnchor`  | `standard.ts`                | Default implementation with `build(options?)`|
 | `StandardContextAnchor`  | `standard.ts`               | Default implementation                      |
 | `ANCHOR_VERSIONS`        | `constants.ts`              | Version constants                           |
 +--------------------------+-----------------------------+---------------------------------------------+
@@ -92,12 +88,10 @@ anchors/
 +----------------------------+----------------------------------------+----------------------------------------------------+
 | Ref                        | File                                   | Key Lines                                          |
 +----------------------------+----------------------------------------+----------------------------------------------------+
-| Factory                    | `factory.ts:6-12`                      | Switch on version (defaults to `standard`)         |
-| Interface                  | `types.ts:3-5`                         | `IContextAnchor.build(options?)` returns SysMsg    |
 | Standard anchor            | `standard.ts:6-12`                     | Builds with location/year                          |
 | Template                   | `constants.ts:10-11`                   | `<context_anchor>Current_Year...` format           |
 | Defaults                   | `constants.ts:6-7`                     | Location: 'South Jakarta'                          |
-| Usage in controller        | `mission.controller.ts:77`             | `AnchorFactory.create().build()` prepended         |
+| Usage in controller        | `mission.controller.ts`                | `new StandardContextAnchor().build()` prepended    |
 | Usage in delegation        | `delegation/index.ts:74`               | Same pattern for sub-agent state initialization    |
 +----------------------------+----------------------------------------+----------------------------------------------------+
 

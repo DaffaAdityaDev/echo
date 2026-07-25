@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { CheckCircle2, Clock, Circle, ArrowUpRight, ShieldCheck, Flame } from "lucide-react"
+import { CheckCircle2, Clock, Circle, ArrowUpRight, ShieldCheck } from "lucide-react"
 import type { RoadmapItem } from "../../types"
 
 export interface MaturityRoadmapProps {
@@ -14,27 +14,27 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
   const progressPercent = Math.round((completedCount / items.length) * 100)
 
   return (
-    <div className="space-y-6">
-      <div className="border border-zinc-800/80 bg-zinc-900/40 rounded-2xl p-6">
+    <div className="space-y-6 font-mono text--foreground">
+      <div className="border border--border bg-white rounded-xs p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+            <h3 className="text-base font-bold text--foreground flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text--emerald-700" />
               Echo Self-Assessment Roadmap (L3 → L4 Validated)
             </h3>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text--slate-600 mt-1">
               Priority plan to transition Echo from L3 (Structured) to L4 (Validated) across all 7 dimensions.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="text-sm font-bold text-zinc-100">{progressPercent}% Completed</div>
-              <div className="text-[10px] text-zinc-500">{completedCount} of {items.length} milestones</div>
+              <div className="text-sm font-bold text--foreground">{progressPercent}% Completed</div>
+              <div className="text-[10px] text--slate-600">{completedCount} of {items.length} milestones</div>
             </div>
-            <div className="h-10 w-24 bg-zinc-950 rounded-lg p-1 border border-zinc-800 flex items-center">
+            <div className="h-9 w-24 bg--surface rounded-xs p-1 border border--border flex items-center">
               <div
-                className="h-full bg-emerald-500 rounded-md transition-all duration-300"
+                className="h-full bg--success rounded-[1px] transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -51,41 +51,41 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
               <div
                 key={item.id}
                 onClick={() => onToggleStatus?.(item.id)}
-                className={`border rounded-xl p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                className={`border rounded-xs p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                   isCompleted
-                    ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10"
+                    ? "border--success bg--emerald-50 text--emerald-700"
                     : isInProgress
-                    ? "border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10"
-                    : "border-zinc-800/80 bg-zinc-950/40 hover:bg-zinc-800/40"
+                    ? "border--gb-bright-blue bg--blue-50 text--gb-dark-blue"
+                    : "border--border bg--surface hover:bg-white text--foreground"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 shrink-0">
                     {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      <CheckCircle2 className="h-5 w-5 text--emerald-700" />
                     ) : isInProgress ? (
-                      <Clock className="h-5 w-5 text-blue-400 animate-spin" />
+                      <Clock className="h-5 w-5 text--gb-blue animate-spin" />
                     ) : (
-                      <Circle className="h-5 w-5 text-zinc-600" />
+                      <Circle className="h-5 w-5 text--slate-400" />
                     )}
                   </div>
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-zinc-100">{item.title}</span>
+                      <span className="text-sm font-bold text--foreground">{item.title}</span>
                       <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase ${
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-xs border uppercase font-bold ${
                           item.priority === "high"
-                            ? "bg-red-500/10 text-red-400 border-red-500/20"
+                            ? "bg-rose-100 text-rose-800 border-rose-300"
                             : item.priority === "medium"
-                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                            : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                            ? "bg-amber-100 text-amber-900 border-amber-300"
+                            : "bg-slate-100 text--slate-600 border-slate-300"
                         }`}
                       >
                         {item.priority}
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+                    <p className="text-xs text--slate-600 mt-1 max-w-2xl leading-relaxed">
                       {item.description}
                     </p>
                   </div>
@@ -93,17 +93,17 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
 
                 <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                   <span
-                    className={`text-xs font-mono px-2.5 py-1 rounded-md font-semibold ${
+                    className={`text-xs font-mono px-2.5 py-1 rounded-xs font-bold ${
                       isCompleted
-                        ? "bg-emerald-500/20 text-emerald-300"
+                        ? "bg--success text-white"
                         : isInProgress
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "bg-zinc-800 text-zinc-400"
+                        ? "bg--gb-blue text-white"
+                        : "bg--border text--foreground"
                     }`}
                   >
                     Target: {item.targetLevel}
                   </span>
-                  <ArrowUpRight className="h-4 w-4 text-zinc-500" />
+                  <ArrowUpRight className="h-4 w-4 text--slate-400" />
                 </div>
               </div>
             )
@@ -113,3 +113,4 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
     </div>
   )
 }
+

@@ -67,6 +67,10 @@ REDIS_PASSWORD=
 ENABLE_OTEL=false
 INTERNAL_AUTH_TOKEN=default-internal-token-secret
 
+EVALUATOR_ENDPOINT=
+EVALUATOR_API_KEY=
+EVALUATOR_MODEL=gpt-4o-mini
+
 OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODELS=gpt-4o,gpt-4o-mini
@@ -113,6 +117,9 @@ type Config struct {
     LMStudioAPIKey    string
     OpenCodeGoAPIKey  string
     DefaultModel      string
+    EvaluatorEndpoint string
+    EvaluatorAPIKey   string
+    EvaluatorModel    string
     PRUNE_THRESHOLD         int
     PRUNE_KEEP_LATEST_TURNS int
     SUMMARIZE_MAX_TOKENS    int
@@ -151,7 +158,7 @@ CHROMA_URL=http://localhost:8000
 STATE_BACKEND=memory
 INTERNAL_AUTH_TOKEN=default-internal-token-secret
 SERVICE_JWT_SECRET=replace-this-with-a-different-secret
-BACKEND_INTERNAL_URL=http://localhost:8080
+BACKEND_URL=http://localhost:8080
 
 # LLM_MODEL_API_URL=http://localhost:1234
 # MCP_SERVER_URL=http://localhost:3002/sse
@@ -171,7 +178,7 @@ NODE_ENV:                z.enum(["development","production","test"]).default("de
 DEBUG_PROMPT:            z.boolean().default(false)
 INTERNAL_AUTH_TOKEN:     z.string()              // REQUIRED
 SERVICE_JWT_SECRET:      z.string().min(32)      // REQUIRED, min 32 chars
-BACKEND_INTERNAL_URL:    z.string().default("http://localhost:8080")
+BACKEND_URL:    z.string().default("http://localhost:8080")
 MCP_SERVER_URL:          z.string().optional()   // MCP SSE endpoint
 ENABLE_MCP:              z.coerce.boolean().default(false)
 ENABLE_REST_TOOLS:       z.coerce.boolean().default(false)
@@ -262,15 +269,10 @@ OTEL_COLLECTOR_ADDR=otel-collector:4317
 +-------------------------------------------+-------+--------------------------------------+
 | File                                      | Lines | Role                                 |
 +-------------------------------------------+-------+--------------------------------------+
-| backend/internal/models/models.go         | 32-60 | Config struct definition             |
-| backend/internal/constants/config/        | 1-24  | Default values                       |
+| backend/internal/models/models.go         | 32-78 | Config struct + ApiKey struct          |
+| backend/internal/constants/config/        | 1-27  | Default values                       |
 |   defaults.go                             |       |                                      |
-| backend/.env.example                      | 1-34  | All backend env vars                 |
-| agent/src/config/env.schema.ts            | 8-31  | Zod validation                       |
-| agent/src/config/env.constants.ts         | 1-19  | Defaults and enum values             |
-| agent/.env.example                        | 1-11  | Agent env vars                       |
-| docker-compose.dev.yml                    | 27-50 | Backend env in dev                   |
-| infra/k8s/backend.yaml                    | 29-47 | K8s env map                          |
+| backend/.env.example                      | 1-38  | All backend env vars (incl. Evaluator)|
 +-------------------------------------------+-------+--------------------------------------+
 
 ================================================================================

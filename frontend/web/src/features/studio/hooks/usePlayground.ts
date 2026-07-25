@@ -1,6 +1,7 @@
 "use client"
 
 import { api } from "@/lib/api-client"
+import { STUDIO_ENDPOINTS } from "../constants"
 import { useStudioStore } from "../stores/studioStore"
 import type { PlaygroundResult } from "../types"
 
@@ -25,7 +26,7 @@ export function usePlayground() {
     setResults([])
 
     try {
-      const data = await api.post<{ results: PlaygroundResult[] }>("/studio/playground", {
+      const data = await api.post<{ results: PlaygroundResult[] }>(STUDIO_ENDPOINTS.PLAYGROUND, {
         prompt,
         variables,
         models: selectedModels,

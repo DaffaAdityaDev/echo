@@ -2,18 +2,14 @@
 
 import React, { memo, useState } from "react";
 import {
-  Bot,
   User,
   Lightbulb,
   ChevronDown,
   Search,
   CheckCircle2,
   ListTodo,
-  FileText,
   Terminal,
   AlertTriangle,
-  Cpu,
-  SkipForward,
   Copy,
   Check,
   Sparkles,
@@ -56,10 +52,10 @@ export const MessageItem = memo(function MessageItem({
       {/* Avatar Icon */}
       <div
         className={cn(
-          "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-sm text-white",
+          "w-8 h-8 rounded-xs flex items-center justify-center shrink-0 shadow-xs border font-mono font-bold text-xs",
           !isAssistant
-            ? "bg-zinc-800 dark:bg-zinc-700"
-            : "bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-500/20"
+            ? "bg--foreground text-white border--foreground"
+            : "bg--blue-50 text--gb-blue border--gb-bright-blue/30"
         )}
       >
         {!isAssistant ? (
@@ -72,28 +68,28 @@ export const MessageItem = memo(function MessageItem({
       {/* Message Card Container */}
       <div
         className={cn(
-          "max-w-[90%] sm:max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-sm",
+          "max-w-[90%] sm:max-w-[85%] rounded-xs px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-xs border font-mono",
           !isAssistant
-            ? "bg-purple-600 text-white rounded-tr-xs"
-            : "bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-900 dark:text-zinc-100 rounded-tl-xs backdrop-blur-sm"
+            ? "bg--slate-50 text--foreground border--slate-300"
+            : "bg-white border--border text--foreground"
         )}
       >
         {/* Mission metadata bar */}
         {isAssistant && msg.meta && (
-          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-zinc-200/60 dark:border-zinc-800/60">
+          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border--border">
             <span
               className={cn(
-                "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                "px-2 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider",
                 msg.meta.strategy === "react"
-                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
-                  : "bg-zinc-200/60 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                  ? "bg--blue-50 text--gb-blue border border--gb-bright-blue/30"
+                  : "bg--surface-hover text--slate-600 border border--border"
               )}
             >
               {msg.meta.strategy === "react" ? "⚡ Agent Mode" : "💬 Standard"}
             </span>
 
             {msg.usage && (
-              <span className="text-[10px] font-mono text-zinc-400 ml-auto">
+              <span className="text-[10px] font-mono text--muted ml-auto">
                 {msg.usage.totalTokens} tokens
               </span>
             )}
@@ -103,7 +99,7 @@ export const MessageItem = memo(function MessageItem({
         {/* Thought Process Accordion */}
         {msg.steps.length > 0 && (
           <details className="group/thinking mb-1" open={isLoading && isLast}>
-            <summary className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-purple-500/5 p-2 rounded-xl border border-purple-500/10">
+            <summary className="flex items-center gap-2 text-[10px] font-bold text--gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg--blue-50 p-2 rounded-xs border border--gb-bright-blue/30">
               <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />
               <span>Thought Process ({msg.steps.length} steps)</span>
               <ChevronDown className="h-3 w-3 ml-auto group-open/thinking:rotate-180 transition-transform" />
@@ -120,21 +116,21 @@ export const MessageItem = memo(function MessageItem({
         {msg.content ? (
           <Markdown content={msg.content} />
         ) : isLoading && isLast && msg.steps.length === 0 ? (
-          <div className="flex items-center gap-2 py-2 text-zinc-400 text-xs italic">
-            <span className="w-2 h-2 bg-purple-500 rounded-full animate-ping" />
+          <div className="flex items-center gap-2 py-2 text--muted text-xs italic font-mono">
+            <span className="w-2 h-2 bg--gb-blue rounded-full animate-ping" />
             <span>Thinking...</span>
           </div>
         ) : null}
 
         {/* Streaming/interrupted status indicator */}
         {isAssistant && msg.status === 'streaming' && (
-          <div className="flex items-center gap-1.5 py-1 text-[10px] text-amber-500 italic">
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-amber-600 italic font-mono">
             <Loader2 className="h-3 w-3 animate-spin" />
             Receiving...
           </div>
         )}
         {isAssistant && msg.status === 'interrupted' && (
-          <div className="flex items-center gap-1.5 py-1 text-[10px] text-zinc-400 italic border-t border-dashed border-zinc-300 dark:border-zinc-700 mt-1">
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text--muted italic border-t border-dashed border--slate-300 mt-1 font-mono">
             <AlertTriangle className="h-3 w-3" />
             Response was interrupted — send a reply to continue
           </div>
@@ -142,16 +138,16 @@ export const MessageItem = memo(function MessageItem({
 
         {/* Floating Action Toolbar on Assistant Messages */}
         {isAssistant && msg.content && (
-          <div className="flex items-center gap-2 pt-2 border-t border-zinc-200/40 dark:border-zinc-800/40 text-zinc-400 text-xs">
+          <div className="flex items-center gap-2 pt-2 border-t border--border text--muted text-xs font-mono">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded hover:bg-zinc-200/40 dark:hover:bg-zinc-800 cursor-pointer"
+              className="flex items-center gap-1 hover:text--foreground transition-colors p-1 rounded-xs hover:bg--surface-hover cursor-pointer"
               title="Copy markdown text"
             >
               {copied ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-[10px] text-emerald-500 font-semibold">Copied</span>
+                  <Check className="h-3.5 w-3.5 text--success" />
+                  <span className="text-[10px] text--success font-bold">Copied</span>
                 </>
               ) : (
                 <>

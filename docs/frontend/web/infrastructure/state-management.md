@@ -45,22 +45,20 @@ src/
 │   │
 │   ├── auth/
 │   │   ├── stores/authStore.ts         ← Zustand: user, token
-│   │   ├── hooks/useLoginPage.ts       ← Bridge: wraps authStore + useAuth
 │   │   ├── hooks/useAuth.ts            ← RQ queries + mutations
 │   │   └── services/auth-api.ts
 │   │
 │   ├── settings/
 │   │   ├── stores/settingsStore.ts     ← Zustand: config, loaded
-│   │   ├── hooks/useSettingsPage.ts    ← Bridge: wraps settingsStore + useSettings
-│   │   ├── hooks/useSettings.ts        ← RQ queries + mutations
+│   │   ├── hooks/useSettingsPage.ts    ← Bridge: wraps settingsStore + settingsApi
 │   │   └── services/settings-api.ts
 │   │
-│   └── admin/
-│       ├── stores/adminStore.ts        ← Zustand (minimal, mostly RQ)
-│       ├── hooks/useAdminDashPage.ts   ← Bridge
-│       ├── hooks/useAdminStats.ts      ← RQ
-│       ├── hooks/useApiKeys.ts         ← RQ
-│       └── services/admin-api.ts
+│   └── admin/                          ← No services/ or stores/ directories
+│       ├── api/
+│       │   ├── useAdminStats.ts        ← RQ query (10s polling)
+│       │   └── useApiKeys.ts           ← RQ query + mutations
+│       ├── hooks/useAdminDashboardPage.ts  ← Bridge: wraps api/ hooks
+│       └── hooks/useAdminApiKeysPage.ts    ← Bridge: wraps api/ + modal state
 │
 ├── lib/
 │   ├── api-client.ts          ← Axios → baseURL: "/api/..." (Next.js API routes)
@@ -77,23 +75,37 @@ src/
 
 ```typescript
 interface ChatState {
-  selectedModel: string;
-  mode: ChatMode; // 'standard' | 'agent'
-  selectedFeatures: string[];
-  sidebarOpen: boolean;
   messages: Message[];
   isLoading: boolean;
   agentProgress: AgentProgress | null;
+  sessions: Session[];
+  activeSessionId: string | null;
+  agentState: AgentState;
+  selectedModel: string;
+  mode: string;
+  selectedFeatures: string[];
+  packetLogs: LoggedPacket[];
+  maxPacketLogSize: number;
+  cumulativeUsage: TokenUsage | null;
+  debugPacketHistory: DebugInfo[];
+  missionMeta: MissionMeta | null;
 
-  setSelectedModel: (model: string) => void;
-  setMode: (mode: ChatMode) => void; // 'standard' | 'agent'
-  setSelectedFeatures: (features: string[]) => void;
-  toggleSidebar: () => void;
-  setMessages: (messages: Message[]) => void;
-  addMessage: (message: Message) => void;
-  setLoading: (loading: boolean) => void;
-  setAgentProgress: (progress: AgentProgress | null) => void;
+  setMessages: (updater: Message[] | ((prev: Message[]) => Message[])) => void;
+  setIsLoading: (loading: boolean) => void;
+  setAgentProgress: (updater: AgentProgress | null | ((prev: AgentProgress | null) => AgentProgress | null)) => void;
+  setSessions: (sessions: Session[]) => void;
+  setActiveSession: (id: string | null) => void;
+  setAgentState: (state: AgentState) => void;
   clearMessages: () => void;
+  setSelectedModel: (model: string) => void;
+  setMode: (mode: string) => void;
+  setSelectedFeatures: (updater: string[] | ((prev: string[]) => string[])) => void;
+  appendPacketLog: (packet: StreamPacket) => void;
+  clearPacketLogs: () => void;
+  setMaxPacketLogSize: (size: number) => void;
+  setCumulativeUsage: (usage: TokenUsage) => void;
+  appendDebugInfo: (info: DebugInfo) => void;
+  setMissionMeta: (meta: MissionMeta | null) => void;
 }
 ```
 
@@ -103,11 +115,10 @@ interface ChatState {
 interface AuthState {
   user: User | null;
   token: string | null;
-  isAuthenticated: boolean;
 
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
-  logout: () => void;
+  clearAuth: () => void;
 }
 ```
 
@@ -123,13 +134,8 @@ interface SettingsState {
 }
 ```
 
-### adminStore
-
-```typescript
-interface AdminState {
-  // Minimal — mostly managed by React Query
-}
-```
+<!-- adminStore does not exist — admin/stores/ directory is empty.
+     Admin uses api/ (TanStack Query hooks) wrapped by page hooks. -->
 
 ## Flow Diagrams
 
@@ -309,8 +315,7 @@ export default function ChatPageRoute() {
 +------------------------------------------+---------+--------------------------------------------+
 | src/features/chat/hooks/useChatPage.ts   | 1-50    | Bridge hook — gabungin store + RQ + stream |
 +------------------------------------------+---------+--------------------------------------------+
-| src/features/auth/hooks/useLoginPage.ts  | 1-30    | Bridge hook — login page logic             |
-+------------------------------------------+---------+--------------------------------------------+
+<!-- useLoginPage.ts does not exist — login page uses useAuth() directly -->
 | src/features/settings/hooks/             | 1-40    | Bridge hook — settings page logic          |
 | useSettingsPage.ts                       |         |                                            |
 +------------------------------------------+---------+--------------------------------------------+

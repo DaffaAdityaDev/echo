@@ -15,9 +15,9 @@ strategies and tools — they influence prompt compilation by injecting
 role-specific instructions, reasoning protocols, and preferred tool sets
 into the system prompt.
 
-There is no template system — `systemPrompt` is a plain string. Compilation is
-a simple concatenation of all active skills' prompts with a `[skillName mode]`
-header prefix.
+`systemPrompt` is a plain string with optional `{varName}` template variables
+resolved by `SkillCompiler.compile()`. Compilation concatenates all active
+skills' prompts with a `[skillName mode]` header prefix.
 
 ---
 
@@ -181,9 +181,9 @@ Always follow these protocols:
 interface SkillDefinition {
   name: string;
   description: string;
-  systemPrompt: string;              // Static string (NOT a template)
+  systemPrompt: string;              // Static string with optional {varName} template variables
   preferredTools?: string[];         // Tools used when features are not explicitly set
-  allowedTools?: string[];           // Defined in interface but dead at runtime — never enforced
+  allowedTools?: string[];           // Used by getToolFilter() to compute tool intersections
   modifiers?: {
     temperature?: number;            // Ready for LLM provider call (not yet consumed)
     maxTokens?: number;              // Ready for LLM provider call (not yet consumed)
@@ -201,11 +201,12 @@ interface SkillRegistry {
 }
 ```
 
-There is no `SkillCompiler` class. Prompt compilation is done by
-`SkillRegistryImpl.compileSkillPrompts()` which simply concatenates:
+Prompt compilation is done by `SkillRegistry.compileSkillPrompts()` which
+delegates to `SkillCompiler.compile()` for template variable substitution,
+then concatenates:
 
 ```
-"[skillName mode]" + systemPrompt
+"[skillName mode]" + resolvedPrompt
 ```
 
 for each active skill, separated by double newlines.
@@ -236,7 +237,7 @@ for each active skill, separated by double newlines.
 
 ## Modifiers (compileModifiers)
 
-`SkillRegistryImpl.compileModifiers(activeSkills)` merges each skill's
+`SkillRegistry.compileModifiers(activeSkills)` merges each skill's
 `modifiers` object into a single record, then applies them in harness:
 
 | Modifier        | Type      | Effect                                                   |
@@ -258,17 +259,9 @@ if (modifiers.loopDetection === false) this.loopDetectionEnabled = false;
 
 ## Dual SkillRegistryImpl Instances
 
-There are two separate `SkillRegistryImpl` instances in the codebase:
-
-| Instance         | Location                                          | Purpose                         |
-|------------------|---------------------------------------------------|---------------------------------|
-| Controller-local | `mission.controller.ts:95`                        | Tool resolution (preferredTools)|
-| Harness-static   | `harness.ts:44` `private static skillRegistry`    | Prompt + modifier compilation   |
-
-They are **not shared** — each is constructed independently.
-The controller instance is ephemeral (created per-request at line 95).
-The harness instance is a static field on `NlahHarness`, persistent for
-the class lifetime.
+`SkillRegistry` is a singleton accessed via `SkillRegistry.getInstance()`
+used by both the controller and harness for prompt compilation and modifier
+resolution.
 
 ---
 
@@ -288,7 +281,6 @@ standardSkills.map(s => ({
 
 The following fields are **excluded** from the API response:
 - `systemPrompt` — internal prompt text, not exposed externally
-- `allowedTools` — dead field, has no runtime effect
 
 Backend fetches this **only when** `skills[]` is present in the chat
 request — if not sent, the fetch is skipped, avoiding unnecessary HTTP
@@ -321,15 +313,16 @@ Backend receives skills: ["research"]
 +----------------------------+------------------------------------------+------------------------------------------+
 | Ref                        | File                                      | Key Lines                                |
 +----------------------------+------------------------------------------+------------------------------------------+
-| SkillRegistryImpl          | `core/agent/skills/registry.ts`           | `getSkill()`, `registerSkill()`,         |
-|                            |                                          | `registerCustomSkill()`                  |
+| SkillRegistry             | `core/agent/skills/registry.ts`           | Singleton — getSkill(), registerSkill(),  |
+|                            |                                          | getToolFilter(), compileModifiers()       |
+| SkillCompiler             | `core/agent/skills/compiler.ts`           | Template variable substitution            |
 | Standard library           | `core/agent/skills/library.ts`            | 5 predefined skills with systemPrompt,   |
 |                            |                                          | preferredTools, modifiers                |
-| compileSkillPrompts()      | `core/agent/skills/registry.ts:30`        | Concatenates static systemPrompt strings |
-| compileModifiers()         | `core/agent/skills/registry.ts:42`        | Merges modifier flags from skills        |
-| Harness integration        | `core/agent/harness/nlah/harness.ts`      | Static skillRegistry instance,           |
+| compileSkillPrompts()      | `core/agent/skills/registry.ts:30`        | Delegates to SkillCompiler for templates  |
+| compileModifiers()         | `core/agent/skills/registry.ts:42`        | Merges modifier flags from skills         |
+| Harness integration        | `core/agent/harness/nlah/harness.ts`      | Singleton SkillRegistry (getInstance),   |
 |                            |                                          | compileSkillPrompts + compileModifiers   |
-| Controller instance        | `app/api/missions/mission.controller.ts`  | Ephemeral SkillRegistryImpl at line 95   |
+| Controller usage           | `app/api/missions/mission.controller.ts`  | SkillRegistry.getInstance() singleton    |
 | Controller tool resolution | `app/api/missions/mission.controller.ts`  | features XOR preferredTools (lines 88-110)|
 | Mission schema             | `app/api/missions/mission.schema.ts`      | `skills` array + `features` array        |
 | Skills API endpoint        | `app/api/skills/skills.routes.ts`         | Filters response to 4 fields (line 8-13) |

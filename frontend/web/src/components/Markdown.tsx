@@ -30,12 +30,12 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
 
   return (
     <div className={cn(
-      "prose prose-invert max-w-none",
-      "prose-p:leading-relaxed prose-p:text-foreground/90",
-      "prose-headings:font-display prose-headings:tracking-tight",
-      "prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
-      "prose-code:text-accent/80 prose-code:bg-accent/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none",
-      "prose-blockquote:border-l-accent/30 prose-blockquote:bg-accent/5 prose-blockquote:py-1 prose-blockquote:rounded-r-lg prose-blockquote:italic",
+      "prose max-w-none text-inherit font-mono",
+      "prose-p:leading-relaxed prose-p:text-inherit",
+      "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-inherit",
+      "prose-a:text--gb-blue prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
+      "prose-code:text--gb-blue prose-code:bg--surface-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-xs prose-code:border prose-code:border--border prose-code:before:content-none prose-code:after:content-none",
+      "prose-blockquote:border-l--gb-blue prose-blockquote:bg--slate-50 prose-blockquote:py-1 prose-blockquote:rounded-r-[2px] prose-blockquote:text--slate-600 prose-blockquote:italic",
       "prose-sm md:prose-base",
       className
     )}>
@@ -55,26 +55,26 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
             }
 
             return (
-              <code className={cn("bg-white/5 rounded px-1.5 py-0.5 text-accent font-mono text-[0.9em]", className)} translate="no" {...props}>
+              <code className={cn("bg--surface-hover text--gb-blue border border--border rounded-xs px-1.5 py-0.5 font-mono text-[0.9em]", className)} translate="no" {...props}>
                 {children}
               </code>
             );
           },
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-6 border border-white/5 rounded-xl glass">
+              <div className="overflow-x-auto my-6 border border--border rounded-xs bg-white">
                 <table className="w-full text-left border-collapse">{children}</table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg-white/5 border-b border-white/5">{children}</thead>;
+            return <thead className="bg--slate-50 border-b border--border">{children}</thead>;
           },
           th({ children }) {
-            return <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted">{children}</th>;
+            return <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-inherit">{children}</th>;
           },
           td({ children }) {
-            return <td className="px-4 py-3 text-sm border-t border-white/5 text-foreground/70">{children}</td>;
+            return <td className="px-4 py-3 text-sm border-t border--border text-inherit">{children}</td>;
           },
         }}
       >

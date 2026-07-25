@@ -203,12 +203,12 @@ return <ChatPage messages={messages} isLoading={isLoading} />;
 +------------------------------------------+---------+------------------------------------+
 | src/features/chat/hooks/useChatPage.ts   | 1-50    | Page hook — bridge for chat        |
 +------------------------------------------+---------+------------------------------------+
-| src/features/auth/hooks/useLoginPage.ts  | 1-30    | Page hook — bridge for login       |
+<!-- useLoginPage.ts does not exist — login page uses useAuth() directly -->
 +------------------------------------------+---------+------------------------------------+
 | src/features/settings/hooks/             | 1-40    | Page hook — bridge for settings    |
 | useSettingsPage.ts                       |         |                                    |
 +------------------------------------------+---------+------------------------------------+
-| src/app/(chat)/page.tsx                  | 1-10    | Page — pure orchestrator           |
+| src/app/(main)/page.tsx                  | 1-10    | Page — pure orchestrator           |
 +------------------------------------------+---------+------------------------------------+
 | src/app/login/page.tsx                   | 1-10    | Page — pure orchestrator           |
 +------------------------------------------+---------+------------------------------------+
@@ -217,9 +217,11 @@ return <ChatPage messages={messages} isLoading={isLoading} />;
 | src/features/chat/components/            | 1-80    | Component — stateless, pure UI     |
 | ChatPage.tsx                             |         |                                    |
 +------------------------------------------+---------+------------------------------------+
-| src/infrastructure/state-management.md   | 1-250   | Detailed state management pattern  |
+| docs/frontend/web/infrastructure/        | 1-330   | Detailed state management pattern  |
+| state-management.md                      |         |                                    |
 +------------------------------------------+---------+------------------------------------+
-| src/infrastructure/routing.md            | 1-200   | Detailed routing page pattern      |
+| docs/frontend/web/infrastructure/        | 1-290   | Detailed routing page pattern      |
+| routing.md                               |         |                                    |
 +------------------------------------------+---------+------------------------------------+
 
 ================================================================================

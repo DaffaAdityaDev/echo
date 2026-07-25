@@ -196,7 +196,7 @@ months") that the system decomposes into a skill DAG (milestones).
 **HaaS (Harness as a Service)**
 Architecture pattern where the Go Gateway frontends all client requests and the
 Hono Agent Engine executes missions as a headless compute layer.
-*Source: `docs/headless-haas-architecture.md`*
+*Source: `docs/shared/architecture/headless-haas.md`*
 
 **HarnessPacket**
 Typed packet emitted during mission execution. Contains type, missionId, step
@@ -322,7 +322,7 @@ with HNSW index on 384-dimension embeddings.
 Prompt optimization technique: static instructions first (cache hit), then
 sorted tool definitions (partial hit), then dynamic objective at end (always
 fresh). Maximizes LLM KV cache utilization.
-*Source: `docs/headless-haas-architecture.md:57-84`*
+*Source: `docs/shared/architecture/headless-haas.md:57-84`*
 
 **ProviderConfig**
 Configuration for an LLM provider: type, base_url, api_key, model. Resolved by

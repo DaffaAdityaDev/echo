@@ -25,27 +25,33 @@ Page TIDAK boleh berisi:
 
 ```
 src/app/
-├── (chat)/
-│   ├── layout.tsx          ← Chat layout shell
-│   └── page.tsx            ← useChatPage() → <ChatPage>
+├── (main)/                  ← Main app shell (includes studio sub-pages)
+│   ├── layout.tsx           ← Main layout shell
+│   ├── page.tsx             ← Chat route — useChatPage() → <ChatPage>
+│   ├── studio/page.tsx      ← Studio dashboard
+│   ├── prompts/page.tsx     ← Prompt library
+│   ├── playground/page.tsx  ← Playground
+│   ├── evals/page.tsx       ← Evaluation dashboard
+│   ├── shadow/page.tsx      ← Shadow testing
+│   ├── maturity/page.tsx    ← Maturity assessment
+│   └── audit/page.tsx       ← Audit trail
 │
 ├── login/
-│   └── page.tsx            ← useLoginPage() → <LoginPage>
+│   └── page.tsx             ← useAuth().loginAsync → <LoginForm>
 │
 ├── settings/
-│   └── page.tsx            ← useSettingsPage() → <SettingsPage>
+│   └── page.tsx             ← useSettingsPage() → <SettingsPage>
 │
 ├── admin/
-│   ├── layout.tsx          ← Admin sidebar layout
-│   ├── page.tsx            ← useAdminDashPage() → <AdminDashboard>
+│   ├── layout.tsx           ← Admin sidebar layout
+│   ├── page.tsx             ← useAdminDashboardPage() → <AdminDashboardPage>
 │   └── api-keys/
-│       └── page.tsx        ← useAdminApiKeysPage() → <AdminApiKeys>
+│       └── page.tsx         ← useAdminApiKeysPage() → <AdminApiKeysPage>
 │
 ├── docs/
-│   ├── layout.tsx          ← Docs layout with TOC sidebar
-│   └── page.tsx            ← Static content (no custom hooks needed)
+│   └── page.tsx             ← API documentation viewer
 │
-├── api/                    ← Next.js API routes (proxy ke Go backend)
+├── api/                     ← Next.js API routes (proxy ke Go backend)
 │   ├── auth/
 │   │   ├── me/route.ts
 │   │   ├── login/route.ts
@@ -57,19 +63,38 @@ src/app/
 │   ├── models/route.ts
 │   ├── features/route.ts
 │   ├── skills/route.ts
+│   ├── sessions/
+│   │   ├── route.ts
+│   │   └── [id]/
+│   │       ├── route.ts
+│   │       ├── messages/route.ts
+│   │       └── generate-title/route.ts
 │   ├── settings/
 │   │   ├── route.ts
 │   │   └── defaults/route.ts
-│   └── admin/
-│       ├── stats/route.ts
-│       └── api-keys/
-│           ├── route.ts
-│           └── [id]/route.ts
+│   ├── admin/
+│   │   ├── stats/route.ts
+│   │   └── api-keys/
+│   │       ├── route.ts
+│   │       └── [id]/route.ts
+│   └── studio/
+│       ├── prompts/
+│       │   ├── route.ts
+│       │   ├── active/route.ts
+│       │   └── [id]/
+│       │       ├── versions/route.ts
+│       │       └── versions/[v]/route.ts
+│       ├── evals/
+│       │   ├── datasets/route.ts
+│       │   ├── run/route.ts
+│       │   └── runs/[id]/route.ts
+│       ├── shadow/history/[id]/route.ts
+│       ├── audit/route.ts
+│       └── playground/route.ts
 │
 ├── globals.css
 ├── layout.tsx
 ├── providers.tsx
-├── loading.tsx
 └── error.tsx
 ```
 
@@ -191,12 +216,12 @@ export default function SettingsRoute() {
 
 ```typescript
 "use client";
-import { useLoginPage } from "@/features/auth/hooks/useLoginPage";
-import { LoginPage } from "@/features/auth/components/LoginPage";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LoginForm } from "@/features/auth/components/LoginForm";
 
 export default function LoginRoute() {
-  const login = useLoginPage();
-  return <LoginPage {...login} />;
+  const { loginAsync, isLoggingIn, loginError } = useAuth();
+  return <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />;
 }
 ```
 
@@ -241,9 +266,9 @@ Browser                  Next.js API Route                Go Backend
 +--------------------------------------+---------+----------------------------------------+
 | File                                 | Lines   | Description                            |
 +--------------------------------------+---------+----------------------------------------+
-| src/app/(chat)/page.tsx              | 1-10    | Chat route — hooks → props → component |
+| src/app/(main)/page.tsx              | 1-10    | Chat route — hooks → props → component |
 +--------------------------------------+---------+----------------------------------------+
-| src/app/login/page.tsx               | 1-10    | Login route — hooks → props → component|
+| src/app/login/page.tsx               | 1-10    | Login route - useAuth + LoginForm — hooks → props → component|
 +--------------------------------------+---------+----------------------------------------+
 | src/app/settings/page.tsx            | 1-10    | Settings route — hooks → props → comp  |
 +--------------------------------------+---------+----------------------------------------+
@@ -251,7 +276,7 @@ Browser                  Next.js API Route                Go Backend
 +--------------------------------------+---------+----------------------------------------+
 | src/app/error.tsx                    | 1-36    | Error boundary with retry              |
 +--------------------------------------+---------+----------------------------------------+
-| src/app/loading.tsx                  | 1-10    | Loading spinner                        |
+
 +--------------------------------------+---------+----------------------------------------+
 | src/app/layout.tsx                   | 1-34    | Root layout — HTML, fonts, Providers   |
 +--------------------------------------+---------+----------------------------------------+

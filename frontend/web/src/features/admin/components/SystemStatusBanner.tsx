@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, RefreshCw, Server, Cpu, Activity } from "lucide-react";
+import { ShieldCheck, RefreshCw, Server, Activity } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/utils/cn";

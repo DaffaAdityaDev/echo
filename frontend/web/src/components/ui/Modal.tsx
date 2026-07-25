@@ -41,38 +41,39 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
         onClick={onClose}
       />
 
       {/* Modal Dialog Content */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900/95 p-6 text-zinc-100 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in zoom-in-95",
+          "relative z-10 w-full max-w-lg rounded-xs border border--border bg-white p-6 text--foreground shadow-2xl transition-all duration-300 animate-in zoom-in-95 font-mono crosshair-container",
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-zinc-800/80">
+        <div className="flex items-start justify-between pb-4 border-b border--border">
           <div>
             {title && (
-              <h3 className="text-lg font-bold font-display tracking-tight text-zinc-100">
+              <h3 className="text-base font-bold tracking-tight text--foreground uppercase">
                 {title}
               </h3>
             )}
             {description && (
-              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+              <p className="text-xs text--muted mt-1 leading-relaxed">
                 {description}
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors"
+            className="p-1.5 rounded-xs text--muted hover:text--foreground hover:bg--surface transition-colors border border-transparent hover:border--border"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
+
 
         {/* Body */}
         <div className="pt-4">{children}</div>
@@ -80,3 +81,4 @@ export function Modal({
     </div>
   );
 }
+

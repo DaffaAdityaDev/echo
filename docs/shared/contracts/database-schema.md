@@ -43,23 +43,28 @@ and legacy planned tables (goals, spaced repetition).
 
 ```
 PostgreSQL                              Redis
-┌─────────────────────────┐             ┌─────────────────────────┐
-│  users (Active)         │             │  memory:episodic:<sid>  │
-│  api_keys (Active)      │             │  features cache (TTL)   │
-│  memory_semantic (Active)│            │  skills cache (TTL)     │
-│  memory_procedural(Active)│           │  mission state (TTL)    │
-│  tool_catalog (Active)  │             │                         │
-│  user_preferences (Active)│            └─────────────────────────┘
-│  sessions (Active)      │
-│  messages (Active)      │
-│  goals (Planned)        │
-│  skill_nodes (Planned)  │             NUQ (PostgreSQL schema)
-│  topics (Planned)       │             ┌─────────────────────────┐
-│  cards (Planned)        │             │  queue_scrape (Active)  │
-│  missions (Planned)     │             │  queue_scrape_backlog   │
-│  answers (Planned)      │             │  queue_crawl_finished   │
-└─────────────────────────┘             │  group_crawl (Active)   │
-                                        └─────────────────────────┘
+┌──────────────────────────────┐        ┌─────────────────────────┐
+│  users (Active)              │        │  memory:episodic:<sid>  │
+│  api_keys (Active)           │        │  features cache (TTL)   │
+│  memory_semantic (Active)    │        │  skills cache (TTL)     │
+│  memory_procedural (Active)  │        │  mission state (TTL)    │
+│  tool_catalog (Active)       │        │                         │
+│  user_preferences (Active)   │        └─────────────────────────┘
+│  sessions (Active)           │
+│  messages (Active)           │
+│  prompt_templates (Active)   │        NUQ (PostgreSQL schema)
+│  prompt_versions (Active)    │        ┌─────────────────────────┐
+│  eval_datasets (Active)      │        │  queue_scrape (Active)  │
+│  eval_runs (Active)          │        │  queue_scrape_backlog   │
+│  shadow_runs (Active)        │        │  queue_crawl_finished   │
+│  audit_logs (Active)         │        │  group_crawl (Active)   │
+│  goals (Planned)             │        └─────────────────────────┘
+│  skill_nodes (Planned)       │
+│  topics (Planned)            │
+│  cards (Planned)             │
+│  missions (Planned)          │
+│  answers (Planned)           │
+└──────────────────────────────┘
 ```
 
 ---
@@ -238,6 +243,129 @@ CREATE TABLE messages (
 
 CREATE INDEX idx_messages_session ON messages (session_id, turn_number);
 CREATE INDEX idx_messages_session_status ON messages (session_id, status);
+```
+
+---
+
+## LLMOps Studio Tables `[Active — schema.go:111, migration 20260725_001]`
+
+Six tables supporting prompt engineering, evaluation, shadow testing, and audit.
+Created by auto-migration (`schema.go:Migrate()`) and migration `20260725_001_llmops_studio`.
+
+### prompt_templates `[Active — schema.go:111]`
+
+Top-level prompt template container. Each template has a name, description, and
+tracks the currently active version number.
+
+```sql
+CREATE TABLE IF NOT EXISTS prompt_templates (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id      UUID NOT NULL,
+    name           TEXT NOT NULL,
+    description    TEXT NOT NULL DEFAULT '',
+    active_version INTEGER NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(tenant_id, name)
+);
+```
+
+### prompt_versions `[Active — schema.go:125]`
+
+Versioned snapshots of a prompt template with status lifecycle.
+Each version stores the system prompt, bound tool list, and variable schema.
+
+```sql
+CREATE TABLE IF NOT EXISTS prompt_versions (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_id    UUID NOT NULL REFERENCES prompt_templates(id) ON DELETE CASCADE,
+    version        INTEGER NOT NULL,
+    system_prompt  TEXT NOT NULL,
+    bound_tools    TEXT[] DEFAULT '{}',
+    variables      TEXT[] DEFAULT '{}',
+    status         TEXT NOT NULL DEFAULT 'draft'
+                   CHECK (status IN ('draft', 'in_review', 'shadow', 'approved', 'production', 'rolled_back')),
+    created_by     TEXT NOT NULL DEFAULT '',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(template_id, version)
+);
+```
+
+### eval_datasets `[Active — schema.go:143]`
+
+Test case collections used for evaluating prompt versions. Each dataset contains
+an array of test cases (input/expected_output pairs).
+
+```sql
+CREATE TABLE IF NOT EXISTS eval_datasets (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id      UUID NOT NULL,
+    name           TEXT NOT NULL,
+    description    TEXT NOT NULL DEFAULT '',
+    test_cases     JSONB NOT NULL DEFAULT '[]',
+    created_by     TEXT NOT NULL DEFAULT '',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### eval_runs `[Active — schema.go:157]`
+
+Evaluation execution results. Records pass rate and per-dimension scores
+(accuracy, format, tools) along with detailed per-case breakdown.
+
+```sql
+CREATE TABLE IF NOT EXISTS eval_runs (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prompt_version_id  UUID NOT NULL,
+    dataset_id         UUID,
+    pass_rate          REAL NOT NULL DEFAULT 0,
+    score_accuracy     REAL NOT NULL DEFAULT 0,
+    score_format       REAL NOT NULL DEFAULT 0,
+    score_tools        REAL NOT NULL DEFAULT 0,
+    details            JSONB NOT NULL DEFAULT '[]',
+    executed_by        TEXT NOT NULL DEFAULT '',
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### shadow_runs `[Active — schema.go:175]`
+
+A/B comparison records: live vs candidate prompt version outputs.
+Captures cost and latency differences for the same user query.
+
+```sql
+CREATE TABLE IF NOT EXISTS shadow_runs (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_id         UUID NOT NULL,
+    live_version_id     UUID NOT NULL,
+    candidate_version_id UUID NOT NULL,
+    user_query          TEXT NOT NULL,
+    live_output         TEXT NOT NULL,
+    shadow_output       TEXT NOT NULL,
+    live_cost_usd       REAL NOT NULL DEFAULT 0,
+    shadow_cost_usd     REAL NOT NULL DEFAULT 0,
+    live_latency_ms     INTEGER NOT NULL DEFAULT 0,
+    shadow_latency_ms   INTEGER NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### audit_logs `[Active — schema.go:191]`
+
+Operational audit trail for all LLMOps actions (create, promote, rollback, etc.).
+
+```sql
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id      UUID NOT NULL,
+    actor          TEXT NOT NULL,
+    action         TEXT NOT NULL,
+    resource       TEXT NOT NULL,
+    payload        JSONB DEFAULT '{}',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs (tenant_id, created_at DESC);
 ```
 
 ---
@@ -519,6 +647,9 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | messages | `idx_messages_session_status` | btree (session_id, status) | Active |
 | api_keys | `idx_api_keys_user_id` | btree (user_id) | Active |
 | api_keys | `idx_api_keys_key_hash` | btree (key_hash) | Active |
+| audit_logs | `idx_audit_logs_tenant` | btree (tenant_id, created_at DESC) | Active |
+| prompt_templates | (unique constraint) | btree (tenant_id, name) | Active |
+| prompt_versions | (unique constraint) | btree (template_id, version) | Active |
 
 ### NUQ (Scrape Pipeline)
 
@@ -546,6 +677,9 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 - **Migration 004**: Adds `status` column to `messages` table with CHECK
   constraint and `idx_messages_session_status` index. Must be run manually or
   via migration tool after deploy.
+- **Migration 20260725_001**: Creates all 6 LLMOps Studio tables
+  (`prompt_templates`, `prompt_versions`, `eval_datasets`, `eval_runs`,
+  `shadow_runs`, `audit_logs`). Run via migration tool.
 - **K8s**: ConfigMap with init SQL mounted to `/docker-entrypoint-initdb.d/`.
 - **Development**: Docker Compose mounts init scripts directly.
 
@@ -567,14 +701,20 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | File                                           | Lines     | Role                              |
 +------------------------------------------------+-----------+-----------------------------------+
 | backend/internal/database/schema.go            | 9-53      | users, memory_semantic,           |
-|                                                |           | memory_procedural, user_preferences DDL |
+|                                                |           |   memory_procedural, api_keys DDL |
+| backend/internal/database/schema.go            | 60-108    | sessions, messages,               |
+|                                                |           |   user_preferences DDL            |
+| backend/internal/database/schema.go            | 111-191   | LLMOps Studio tables DDL          |
+|                                                |           |   (prompt_templates, prompt_versions, |
+|                                                |           |   eval_datasets, eval_runs,        |
+|                                                |           |   shadow_runs, audit_logs)         |
 | backend/internal/database/postgres.go          | 1-48      | pgx pool + Migrate() call         |
 | backend/scripts/init-pgvector.sql              | 1-16      | tool_catalog DDL + HNSW index     |
 | backend/scripts/init-nuq.sql                   | 1-332     | NUQ: 4 tables, 30+ indexes,       |
-|                                                |           | enums, pg_cron jobs               |
-| backend/internal/database/schema.go            | (api_keys DDL) | API key PostgreSQL storage        |
+|                                                |           |   enums, pg_cron jobs             |
 | backend/internal/handler/memory_handler.go     | 34-131    | Episodic (Redis) storage          |
-| backend/internal/models/models.go              | 65-73     | ApiKey struct definition          |
+| backend/internal/models/models.go              | 32-78     | Config struct + ApiKey struct     |
+| backend/migrations/20260725_001_llmops_studio   | 1-120     | LLMOps Studio migration SQL       |
 | docs/agent/application/features/state-session/ |           | sessions + messages table design  |
 |   session-management.md                        |           |                                   |
 | docs/architecture-plan.md                      |           | Legacy planned table definitions  |

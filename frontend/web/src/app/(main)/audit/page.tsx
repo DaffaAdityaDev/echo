@@ -7,8 +7,8 @@ export default function AuditRoute() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Audit Trail</h1>
-        <p className="text-sm text-zinc-400 mt-1">Every governance action recorded — version promotions, rollbacks, and approvals.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Audit Trail</h1>
+        <p className="text-sm text-zinc-600 mt-1">Every governance action recorded — version promotions, rollbacks, and approvals.</p>
       </div>
       <AuditTrailTable auditLogs={props.auditLogs} isLoading={props.isLoading} />
     </div>

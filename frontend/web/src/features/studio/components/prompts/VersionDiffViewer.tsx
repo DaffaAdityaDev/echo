@@ -58,14 +58,14 @@ export function VersionDiffViewer({ oldText, newText, oldLabel, newLabel }: Vers
   const removedCount = diff.filter(d => d.type === "removed").length
 
   return (
-    <div className="border border-zinc-800/60 bg-zinc-950/60 rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60 bg-zinc-900/40">
-        <div className="text-xs font-semibold text-zinc-300">
+    <div className="border border-zinc-200 bg-zinc-50 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 bg-zinc-100/60">
+        <div className="text-xs font-semibold text-zinc-900">
           {oldLabel} → {newLabel}
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-emerald-400">+{addedCount}</span>
-          <span className="text-red-400">−{removedCount}</span>
+        <div className="flex items-center gap-3 text-xs font-bold">
+          <span className="text-emerald-600">+{addedCount}</span>
+          <span className="text-red-600">−{removedCount}</span>
         </div>
       </div>
       <div className="max-h-[500px] overflow-y-auto font-mono text-xs">
@@ -74,12 +74,12 @@ export function VersionDiffViewer({ oldText, newText, oldLabel, newLabel }: Vers
             key={idx}
             className={cn(
               "px-4 py-1 whitespace-pre-wrap break-all",
-              line.type === "added" && "bg-emerald-500/10 text-emerald-300",
-              line.type === "removed" && "bg-red-500/10 text-red-300",
-              line.type === "same" && "text-zinc-500"
+              line.type === "added" && "bg-emerald-50/70 text-emerald-800 font-medium",
+              line.type === "removed" && "bg-red-50/70 text-red-700 font-medium",
+              line.type === "same" && "text-zinc-700"
             )}
           >
-            <span className="inline-block w-5 select-none text-zinc-600">
+            <span className="inline-block w-5 select-none text-zinc-500">
               {line.type === "added" ? "+" : line.type === "removed" ? "−" : " "}
             </span>
             {line.content || " "}

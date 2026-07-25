@@ -6,7 +6,7 @@ import {
   MATURITY_LEVELS,
   ECHO_SELF_ASSESSMENT_ROADMAP,
   SCORING_QUESTIONS,
-} from "../constants"
+} from "../data/maturity-data"
 import type {
   MaturityLevel,
   MaturityDimensionKey,

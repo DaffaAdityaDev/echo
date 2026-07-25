@@ -19,11 +19,9 @@ src/features/auth/
 ├── index.ts
 ├── components/
 │   ├── AuthGuard.tsx
-│   ├── LoginForm.tsx
-│   └── LoginPage.tsx
+│   └── LoginForm.tsx
 ├── hooks/
-│   ├── useAuth.ts
-│   └── useLoginPage.ts
+│   └── useAuth.ts
 ├── services/
 │   └── auth-api.ts
 ├── stores/
@@ -42,21 +40,16 @@ src/features/auth/
 │  (139 lines,    │
 │ form + validasi)│
 └────────┬────────┘
-         │ calls loginAsync(credentials) — injected via props
-         v
-┌──────────────────────┐
-│  useLoginPage hook   │
-│  (bridge: merges     │
-│  useAuth +           │
-│  useAuthStore)       │
-└──────────┬───────────┘
-           │ delegates to loginMutation.mutateAsync(creds)
-           v
-┌──────────────────────┐
-│   useAuth hook       │
-│   (loginMutation)    │
-└──────────┬───────────┘
-           │ mutationFn: authApi.login(creds)
+          │ calls loginAsync(credentials) — injected via props
+          v
+┌──────────────────────────────┐
+│  useAuth hook (loginMutation)│
+│  delegates to                │
+│  loginMutation.              │
+│  mutateAsync(creds)          │
+│  mutationFn: authApi.login() │
+└──────────┬───────────────────┘
+           │ api.post("/auth/login", creds)
            v
 ┌──────────────────────────┐
 │ authApi.login(credentials)│
@@ -171,14 +164,13 @@ src/features/auth/
 ### Barrel export (`src/features/auth/index.ts`)
 
 ```typescript
-export * from "./hooks/useAuth";
-export * from "./services/auth-api";
-export * from "./types";
 export * from "./components/LoginForm";
 export * from "./components/AuthGuard";
+export * from "./hooks/useAuth";
+export * from "./types";
 ```
 
-> `LoginPage` and `useLoginPage` are internal-only — used within the feature, not re-exported from the barrel.
+> Note: `constants`, `services`, and `stores` are **not** re-exported from the barrel. They are internal implementation details.
 
 ### Components
 
@@ -189,9 +181,7 @@ export * from "./components/AuthGuard";
 |            |        | loading state, show/hide password toggle, error banner.   |
 |            |        | Props: loginAsync, isLoggingIn, loginError.               |
 +------------+--------+-----------------------------------------------------------+
-| LoginPage  | No     | Full-screen layout wrapper — centers LoginForm with       |
-|            |        | branding header ("Sign in / Welcome back to Echo").       |
-|            |        | Source: components/LoginPage.tsx.                         |
+<!-- LoginPage component does not exist — login page uses LoginForm directly -->
 +------------+--------+-----------------------------------------------------------+
 | AuthGuard  | Yes    | Route guard — redirects unauthenticated users to          |
 |            |        | `/login?redirect=<path>`. Shows loading spinner while     |
@@ -209,9 +199,7 @@ export * from "./components/AuthGuard";
 |              |        | isLoggingOut. Uses TanStack Query for session +          |
 |              |        | mutations, integrates with authStore for token.          |
 +--------------+--------+----------------------------------------------------------+
-| useLoginPage | No     | Bridge hook — merges useAuth + useAuthStore to expose    |
-|              |        | auth state and raw token in a single interface for       |
-|              |        | the login page. Source: hooks/useLoginPage.ts.           |
+<!-- useLoginPage hook does not exist — login page uses useAuth() directly -->
 +--------------+--------+----------------------------------------------------------+
 
 ### Store
@@ -252,8 +240,7 @@ export * from "./components/AuthGuard";
 | src/features/auth/hooks/useAuth.ts      | 8-52    | useAuth hook — query for user, mutations for          |
 |                                         |         | login and logout, authStore integration               |
 +-----------------------------------------+---------+-------------------------------------------------------+
-| src/features/auth/hooks/useLoginPage.ts | 1-12    | Bridge hook merging useAuth + useAuthStore            |
-+-----------------------------------------+---------+-------------------------------------------------------+
+<!-- useLoginPage.ts does not exist -->
 | src/features/auth/stores/authStore.ts   | 1-29    | Zustand store — token persistence, setToken,          |
 |                                         |         | clearAuth                                             |
 +-----------------------------------------+---------+-------------------------------------------------------+
@@ -263,8 +250,7 @@ export * from "./components/AuthGuard";
 | src/features/auth/components/AuthGuard  | 1-50    | Route guard — redirects unauthenticated, loading      |
 | .tsx                                    |         | spinner                                               |
 +-----------------------------------------+---------+-------------------------------------------------------+
-| src/features/auth/components/LoginPage  | 1-19    | Login page layout wrapper                             |
-| .tsx                                    |         |                                                       |
+<!-- LoginPage.tsx does not exist -->
 +-----------------------------------------+---------+-------------------------------------------------------+
 | src/features/auth/index.ts              | 1-5     | Barrel re-exports                                     |
 +-----------------------------------------+---------+-------------------------------------------------------+

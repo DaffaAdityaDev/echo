@@ -32,8 +32,8 @@ backend -> agent -> database.
 |   index.ts                  | MissionPayload, HarnessPacket, etc.         |
 | agent/src/core/agent/       |                                             |
 |   strategies/prompts.ts      | Prompt templates                            |
-| frontend/web/src/features/  |                                             |
-|   auth/api/useChatStream.ts | Chat stream hook                            |
+| frontend/web/src/features/              |                                             |
+|   chat/hooks/useChatStream.ts | Chat stream hook                           |
 +-----------------------------+---------------------------------------------+
 
 ## User
@@ -77,6 +77,11 @@ backend -> agent -> database.
 **Fields**: id, email, password_hash, name, role, created_at, updated_at
 **Service**: Go Backend only. No agent involvement.
 **Storage**: PostgreSQL `users` table.
+
+> **Status:** The Goal, SkillNode/SkillEdge, Topic, Card, Mission, and Answer
+> entities described below are **PLANNED** — they have no corresponding database
+> tables, handlers, or services in the current codebase. Sequence diagrams show
+> the intended architecture for future implementation.
 
 ## Goal
 
@@ -276,11 +281,11 @@ repetitions, last_score, priority, created_at
 **Mission Flow (Planned MVP)**:
 ```
 1. User requests mission OR completes card -> triggers Go service
-2. Go calls Agent via gRPC: GenerateMission(user_id)
+2. Go calls Agent via HTTP: POST /api/generate-mission
 3. Agent fetches user context (cards, weak topics) from Go API
 4. Agent queries Chroma for relevant content (RAG)
 5. Agent uses LLM to generate mission prompt
-6. Agent returns mission via gRPC
+6. Agent returns mission via HTTP SSE stream
 7. Go stores mission in missions table
 ```
 

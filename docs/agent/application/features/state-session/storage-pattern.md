@@ -21,7 +21,6 @@ External persistence (backend-backed storage) is handled by the
 
 ```
 storage/                     ← Agent-local state cache
-  types.ts                   # IStateProvider interface
   constants.ts               # Backend identifiers, TTL defaults
   factory.ts                 # Singleton stateStorage instance
   memory.ts                  # InMemoryStateProvider implementation
@@ -29,7 +28,6 @@ storage/                     ← Agent-local state cache
 
 adapter/backend/             ← External persistence (via adapter layer)
   memory.adapter.ts          # BackendStateProvider — calls Go backend API
-  serializer.ts              # Shared serialization for backend API calls
 ```
 
 ---
@@ -102,7 +100,7 @@ adapter/backend/             ← External persistence (via adapter layer)
 | Export                    | Source                      | Type                                           |
 +---------------------------+-----------------------------+------------------------------------------------+
 | `stateStorage`            | `factory.ts`                | `IStateProvider` instance                      |
-| `IStateProvider`          | `types.ts`                  | Interface (get, set, delete)                   |
+| `IStateProvider`          | (inlined in factory.ts)       | Interface (get, set, delete)                   |
 | `InMemoryStateProvider`   | `memory.ts`                 | Implementation                                 |
 | `serializeAgentState`     | `serializer.ts`             | State → JSON                                   |
 | `deserializeAgentState`   | `serializer.ts`             | JSON → State                                   |
@@ -120,7 +118,7 @@ adapter/backend/             ← External persistence (via adapter layer)
 | `shared/utils/logger`            | Startup log                                                  |
 | `@langchain/core/messages`       | `HumanMessage`, `AIMessage`, `SystemMessage`, `ToolMessage`  |
 | `storage/serializer`             | Serialization utilities (local cache)                        |
-| `adapter/backend/serializer`     | Serialization for backend API calls                          |
+| `storage/serializer`             | Shared serialization utilities                                |
 +----------------------------------+--------------------------------------------------------------+
 
 ---
@@ -134,7 +132,7 @@ adapter/backend/             ← External persistence (via adapter layer)
 | Memory backend             | `memory.ts:6-22`                       | `Map<string, string>` with get/set/delete          |
 | Serialize                  | `serializer.ts:4-18`                   | Maps each message to `{ type, content, ... }`     |
 | Deserialize                | `serializer.ts:20-70`                  | Switch on `msg.type`, reconstructs LangChain class |
-| Interface                  | `types.ts:3-7`                         | `get()`, `set()` with optional TTL, `delete()`     |
+| Interface                  | `factory.ts`                           | `IStateProvider` with get/set/delete               |
 | Controller usage           | `mission.controller.ts:62`             | `stateStorage.get(missionId)` on mission start     |
 | Harness persistence        | `nlah/harness.ts:528`                  | `stateStorage.set()` after each turn               |
 | Final save                 | `nlah/harness.ts:554`                  | `stateStorage.set()` after loop ends               |

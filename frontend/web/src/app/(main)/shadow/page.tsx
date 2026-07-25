@@ -1,7 +1,8 @@
 "use client"
 
-import { ShadowDashboard } from "@/features/studio"
+import { useShadowPage, ShadowDashboard } from "@/features/studio"
 
 export default function ShadowRoute() {
-  return <ShadowDashboard />
+  const props = useShadowPage()
+  return <ShadowDashboard {...props} />
 }

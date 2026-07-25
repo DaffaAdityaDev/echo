@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useChatStore } from "../stores/chatStore";
 import { useModels } from "./useModels";
 import { useChatStream } from "./useChatStream";
@@ -10,7 +10,6 @@ import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { CHAT_MODES } from "../constants";
 
 export function useChatPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { loadSessions, createSession, deleteSession, selectSession } = useSessions();
   const { models } = useModels();
   const { isAuthenticated } = useAuth();
@@ -59,8 +58,6 @@ export function useChatPage() {
   }, [isAuthenticated, loadSessions]);
 
   return {
-    sidebarOpen,
-    onToggleSidebar: () => setSidebarOpen((v) => !v),
     sendMessage,
     clearMessages,
     createSession,

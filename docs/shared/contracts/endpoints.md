@@ -109,6 +109,31 @@ Auth: User JWT (admin role) or valid admin `X-API-Key`.
 | GET    | /v1/admin/stats                  | Go      | JWT / API Key      | Retrieve system usage statistics | Active |
 +--------+----------------------------------+---------+--------------------+----------------------------------+--------+
 
+## Studio API Routes (Go Gateway — LLMOps)
+
+Base path: `/api/v1/studio`
+
+Role-gated endpoints for prompt engineering, evaluation, shadow testing, playground, and audit.
+
++--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
+| Method | Path                                        | Service | Auth                 | Description                      | Status |
++--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
+| GET    | /v1/studio/prompts                          | Go      | User JWT             | List all prompt templates        | Active |
+| POST   | /v1/studio/prompts                          | Go      | User JWT + Role      | Create template (role-gated)     | Active |
+| GET    | /v1/studio/prompts/active                   | Go      | User JWT             | Get active prompt by name        | Active |
+| GET    | /v1/studio/prompts/:id/versions             | Go      | User JWT             | List versions for a template     | Active |
+| GET    | /v1/studio/prompts/:id/versions/:v          | Go      | User JWT             | Get specific version             | Active |
+| POST   | /v1/studio/prompts/:id/versions             | Go      | User JWT + Role      | Create version (role-gated)      | Active |
+| POST   | /v1/studio/prompts/:id/promote/:version     | Go      | User JWT + Role      | Promote version (role-gated)     | Active |
+| POST   | /v1/studio/prompts/:id/rollback/:version    | Go      | User JWT + Role      | Rollback version (role-gated)    | Active |
+| POST   | /v1/studio/evals/datasets                   | Go      | User JWT + Role      | Upload eval dataset (role-gated) | Active |
+| POST   | /v1/studio/evals/run                        | Go      | User JWT + Role      | Run evaluation (role-gated)      | Active |
+| GET    | /v1/studio/evals/runs/:id                   | Go      | User JWT             | Get eval run result              | Active |
+| GET    | /v1/studio/shadow/history/:id               | Go      | User JWT             | Get shadow run history           | Active |
+| POST   | /v1/studio/playground                       | Go      | User JWT             | Run playground prompt            | Active |
+| GET    | /v1/studio/audit                            | Go      | User JWT             | Query audit logs                 | Active |
++--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
+
 ## Internal Routes (Go Gateway — Memory & Session Authority)
 
 Base path: `/api/v1/internal`
@@ -163,11 +188,31 @@ CHAT_ENDPOINTS = {
   STREAM: "/chat/stream",
 }
 
-// auth/constants (implied)
+// auth/constants.ts
 AUTH_ENDPOINTS = {
   LOGIN: "/auth/login",
   LOGOUT: "/auth/logout",
   ME: "/auth/me",
+}
+
+// studio/constants.ts
+STUDIO_ENDPOINTS = {
+  PROMPTS: "/studio/prompts",
+  PROMPTS_ACTIVE: (name) => `/studio/prompts/active?name=${encodeURIComponent(name)}`,
+  PROMPT_VERSIONS: (id) => `/studio/prompts/${id}/versions`,
+  PROMPT_VERSION: (id, v) => `/studio/prompts/${id}/versions/${v}`,
+  PROMPT_PROMOTE: (id, v) => `/studio/prompts/${id}/promote/${v}`,
+  PROMPT_ROLLBACK: (id, v) => `/studio/prompts/${id}/rollback/${v}`,
+  EVAL_DATASETS: "/studio/evals/datasets",
+  EVAL_RUN: "/studio/evals/run",
+  EVAL_RUNS: "/studio/evals/runs",
+  EVAL_RESULT: (id) => `/studio/evals/runs/${id}`,
+  SHADOW: "/studio/shadow",
+  SHADOW_HISTORY: (id) => `/studio/shadow/history/${id}`,
+  AUDIT: "/studio/audit",
+  MATURITY: "/studio/maturity",
+  MATURITY_CLIENT: "/studio/maturity/client",
+  PLAYGROUND: "/studio/playground",
 }
 ```
 
@@ -256,15 +301,20 @@ From `docs/architecture-plan.md` — not yet implemented:
 +-------------------------------------------------+-------+----------------------------------+
 | File                                            | Lines | Role                             |
 +-------------------------------------------------+-------+----------------------------------+
-| backend/internal/constants/routes/v1.go         | 1-16  | All path constants               |
-| backend/internal/router/router.go               | 15-52 | Route wiring with handler        |
+| backend/internal/constants/routes/v1.go         | 1-16  | Route path constants              |
+| backend/internal/router/router.go               | 15-180| Route wiring with handler        |
 |                                                 |       |   injection                      |
-| backend/api/split/main.go                      | 1-295  | Modular spec split tool          |
-| backend/internal/middleware/service_auth.go     | 1-52  | Service JWT verification MW      |
+| backend/api/split/main.go                      | 1-295 | Modular spec split tool          |
+| backend/internal/middleware/internal_auth.go     | 1-52  | Service JWT verification MW      |
 | agent/src/app/middleware/auth.ts                | 6-32  | Agent auth bypass for /          |
-| frontend/web/src/features/chat/constants.ts     | 31-34 | Frontend endpoint constants      |
+| frontend/web/src/features/chat/constants.ts     | 31-34 | Frontend chat endpoint constants |
+| frontend/web/src/features/studio/constants.ts   | 1-25  | Frontend studio endpoint constants|
 | frontend/web/src/lib/api-client.ts              | 14-51 | Base URL construction,           |
 |                                                 |       |   traceparent propagation        |
+| backend/internal/handler/llmops/                | 1-450 | Studio handler group             |
+| backend/internal/service/llmops/                | 1-350 | Studio service layer (prompts,   |
+|                                                 |       |   evals, shadow, audit, maturity)|
+| backend/internal/repository/llmops/             | 1-200 | Studio repository layer          |
 +-------------------------------------------------+-------+----------------------------------+
 
 ================================================================================

@@ -19,7 +19,9 @@ src/components/ui/
 ├── Button.tsx
 ├── Card.tsx
 ├── Input.tsx
-└── Skeleton.tsx
+├── Modal.tsx
+├── Skeleton.tsx
+└── Toast.tsx
 ```
 
 ## Flow Diagram
@@ -56,8 +58,8 @@ src/components/ui/
 +-------------+------------------------------------------+-----------------+----------------------------------+
 | Prop        | Type                                     | Default         | Description                      |
 +-------------+------------------------------------------+-----------------+----------------------------------+
-| variant     | 'primary' | 'secondary' | 'ghost'       | 'primary'       | Visual style                     |
-|             | | 'danger'                               |                 |                                  |
+| variant     | 'primary' | 'secondary' | 'ghost' | 'danger' | 'primary'       | Visual style                     |
+|             | | 'outline'                              |                 |                                  |
 +-------------+------------------------------------------+-----------------+----------------------------------+
 | size        | 'sm' | 'md' | 'lg'                         | 'md'            | Size preset                      |
 +-------------+------------------------------------------+-----------------+----------------------------------+
@@ -126,6 +128,56 @@ Variant styling:
 - `warning`: `bg-amber-500/10 text-amber-500 border border-amber-500/20`
 - `danger`: `bg-red-500/10 text-red-500 border border-red-500/20`
 
+### Modal
+
+A controlled dialog component with backdrop blur, Escape-key dismiss, and
+scroll-lock. Requires `"use client"`.
+
++-------------+----------+------------------------------------------+
+| Prop        | Type     | Description                              |
++-------------+----------+------------------------------------------+
+| isOpen      | boolean  | Controls visibility                      |
++-------------+----------+------------------------------------------+
+| onClose     | () => void | Callback to close the modal             |
++-------------+----------+------------------------------------------+
+| title       | string   | Optional heading text                    |
++-------------+----------+------------------------------------------+
+| description | string   | Optional subtitle text                   |
++-------------+----------+------------------------------------------+
+| children    | ReactNode | Modal body content                      |
++-------------+----------+------------------------------------------+
+| className   | string   | Additional classes                       |
++-------------+----------+------------------------------------------+
+
+Behavior:
+- Escape key closes the modal
+- Clicking backdrop closes the modal
+- Body scroll is locked while open (`overflow: hidden`)
+- Animated entry: `animate-in zoom-in-95`
+
+### Toast
+
+A fixed-position notification component. Requires `"use client"`.
+
++-------------+-------------------------------------+-----------+-----------------------------+
+| Prop        | Type                                | Default   | Description                 |
++-------------+-------------------------------------+-----------+-----------------------------+
+| show        | boolean                             | —         | Controls visibility         |
++-------------+-------------------------------------+-----------+-----------------------------+
+| message     | string                              | —         | Notification text           |
++-------------+-------------------------------------+-----------+-----------------------------+
+| type        | 'success' | 'error' | 'info'          | 'success'  | Color variant               |
++-------------+-------------------------------------+-----------+-----------------------------+
+| onClose     | () => void                          | —         | Optional close callback     |
++-------------+-------------------------------------+-----------+-----------------------------+
+
+Type styling:
+- `success`: `border-emerald-500/30 bg-emerald-950/80 text-emerald-100`
+- `error`:   `border-red-500/30 bg-red-950/80 text-red-100`
+- `info`:    `border-blue-500/30 bg-blue-950/80 text-blue-100`
+
+Position: `fixed bottom-5 right-5 z-50`
+
 ### Skeleton
 
 +-----------+--------+------------------------------------------------------+
@@ -143,6 +195,7 @@ Styling: `animate-pulse rounded-md bg-zinc-800/50`
 ### Internal
 
 - `@/utils/cn` — `cn()` for className merging
+- `lucide-react` — Icons (X, CheckCircle2, AlertCircle, Info)
 
 ### External
 
@@ -165,6 +218,10 @@ Styling: `animate-pulse rounded-md bg-zinc-800/50`
 | src/components/ui/Badge.tsx       | 1-29    | Badge with 5 color variants                 |
 +-----------------------------------+---------+---------------------------------------------+
 | src/components/ui/Skeleton.tsx    | 1-15    | Skeleton loading placeholder                |
++-----------------------------------+---------+---------------------------------------------+
+| src/components/ui/Modal.tsx       | 1-82    | Modal with backdrop, Escape dismiss         |
++-----------------------------------+---------+---------------------------------------------+
+| src/components/ui/Toast.tsx       | 1-48    | Toast notification with 3 types             |
 +-----------------------------------+---------+---------------------------------------------+
 
 ================================================================================

@@ -20,7 +20,6 @@ import {
   Wrench,
   Target,
 } from "lucide-react";
-import { SessionSidebar } from "./SessionSidebar";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { DegradationToast } from "./DegradationToast";
 import { ToolCallTimeline } from "./ToolCallTimeline";
@@ -36,17 +35,14 @@ import { useChatStore } from "../stores/chatStore";
 import { useChatPage } from "../hooks/useChatPage";
 import { useModels } from "../hooks/useModels";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useSidebar } from "@/lib/sidebar-context";
 
-interface ChatPageProps {
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
-}
-
-export function ChatPage({ sidebarOpen, onToggleSidebar }: ChatPageProps) {
+export function ChatPage() {
   const { sendMessage, clearMessages, createSession, deleteSession, selectSession } =
     useChatPage();
   const { user } = useAuth();
   const { models } = useModels();
+  const { toggleSidebar } = useSidebar();
   const messages = useChatStore((s) => s.messages);
   const isLoading = useChatStore((s) => s.isLoading);
   const selectedModel = useChatStore((s) => s.selectedModel);
@@ -120,7 +116,7 @@ export function ChatPage({ sidebarOpen, onToggleSidebar }: ChatPageProps) {
   const activeModelObj = models.find((m) => m.id === selectedModel);
 
   return (
-    <div className="h-screen w-screen bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden flex relative">
+    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
       {/* Toast Feedback */}
       <Toast
         show={!!toastMessage}
@@ -178,22 +174,13 @@ export function ChatPage({ sidebarOpen, onToggleSidebar }: ChatPageProps) {
         </div>
       </Modal>
 
-      <SessionSidebar
-        createSession={createSession}
-        deleteSession={deleteSession}
-        selectSession={selectSession}
-        isOpen={sidebarOpen}
-        onClose={onToggleSidebar}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-      />
-
-      <main className="flex-1 flex flex-col h-full relative min-w-0" id="main-content">
+      <main className="flex-1 flex flex-col min-h-0 relative" id="main-content">
         {/* Top Header Bar */}
         <header className="h-16 border-b border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-between px-6 shrink-0 z-20 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button
               className="md:hidden text-zinc-500 hover:text-zinc-900 dark:hover:text-white p-1.5 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              onClick={onToggleSidebar}
+              onClick={toggleSidebar}
               aria-label="Open sidebar"
             >
               <Menu className="h-5 w-5" />
@@ -216,14 +203,7 @@ export function ChatPage({ sidebarOpen, onToggleSidebar }: ChatPageProps) {
 
           {/* Header Right Actions */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/studio"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all cursor-pointer"
-              title="Open LLMOps User Studio"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Studio</span>
-            </Link>
+
 
             {/* Debug Drawer Toggle Button */}
             <button

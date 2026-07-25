@@ -10,23 +10,24 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, ...props }, ref) => {
     const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/25 border border-blue-500/30',
-      secondary: 'bg-zinc-800/90 text-zinc-100 hover:bg-zinc-700/90 border border-zinc-700/80 shadow-sm',
-      ghost: 'bg-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100',
-      danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white shadow-lg shadow-red-500/10',
-      outline: 'border border-zinc-700/80 text-zinc-300 hover:bg-zinc-800/50 hover:text-white',
+      primary: 'bg-gradient-to-b from--gb-bright-blue to--gb-blue hover:from--gb-dark-blue hover:to--gb-dark-blue text-white border border--gb-blue/50 shadow-xs',
+      secondary: 'bg-white text--foreground hover:bg--surface border border--border shadow-xs',
+      ghost: 'bg-transparent text--muted hover:bg--surface hover:text--foreground',
+      danger: 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white shadow-xs',
+      outline: 'border border--border bg-white text--foreground hover:border--gb-bright-blue hover:bg--blue-50 hover:text--gb-blue',
     }
 
+
     const sizes = {
-      sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg',
-      md: 'h-10 px-4 text-sm gap-2 rounded-xl',
-      lg: 'h-12 px-6 text-base gap-2.5 rounded-xl',
+      sm: 'h-7 px-3 text-[10px] gap-1.5 rounded-xs',
+      md: 'h-9 px-4 text-[11px] gap-2 rounded-xs',
+      lg: 'h-11 px-5 text-xs gap-2.5 rounded-xs',
     }
 
     return (
       <button
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] select-none cursor-pointer',
+          'inline-flex items-center justify-center font-mono font-semibold tracking-[0.06em] uppercase transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] select-none cursor-pointer',
           variants[variant],
           sizes[size],
           className
@@ -36,7 +37,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent shrink-0" />
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent shrink-0" />
         ) : null}
         {children}
       </button>
@@ -46,3 +47,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button }
+

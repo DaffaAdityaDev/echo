@@ -15,7 +15,6 @@ import {
   Copy,
   Check,
   Search,
-  Filter,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChatStore, LoggedPacket } from "../stores/chatStore";

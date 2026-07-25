@@ -158,18 +158,27 @@ src/features/chat/
 ### Barrel (`src/features/chat/index.ts`)
 
 +-------------+-------------+------------------------------------------+
-| Export      | Kind        | Source                                   |
-+-------------+-------------+------------------------------------------+
-| ChatPage    | Component   | components/ChatPage.tsx                  |
-+-------------+-------------+------------------------------------------+
-| Message     | Type        | types/index.ts                           |
-+-------------+-------------+------------------------------------------+
-| useModels   | Hook        | hooks/useModels.ts                       |
-+-------------+-------------+------------------------------------------+
-| useChatStream | Hook      | hooks/useChatStream.ts                   |
-+-------------+-------------+------------------------------------------+
-| useSkills   | Hook        | hooks/useSkills.ts                       |
-+-------------+-------------+------------------------------------------+
+| Export        | Kind        | Source                                   |
++---------------+-------------+------------------------------------------+
+| ChatPage      | Component   | components/ChatPage.tsx                  |
+| ChatInput     | Component   | components/ChatInput.tsx                 |
+| MessageList   | Component   | components/MessageList.tsx               |
+| MessageItem   | Component   | components/MessageItem.tsx               |
+| SessionSidebar| Component   | components/SessionSidebar.tsx            |
+| AgentProgress | Component   | components/AgentProgress.tsx             |
+| ToolCallTimeline| Component | components/ToolCallTimeline.tsx          |
+| ModelSelectorModal| Component| components/ModelSelectorModal.tsx        |
+| DebugDrawer   | Component   | components/DebugDrawer.tsx               |
++---------------+-------------+------------------------------------------+
+| useChatPage   | Hook        | hooks/useChatPage.ts                     |
+| useChatStream | Hook        | hooks/useChatStream.ts                   |
+| useModels     | Hook        | hooks/useModels.ts                       |
+| useSessions   | Hook        | hooks/useSessions.ts                     |
+| useFeatures   | Hook        | hooks/useFeatures.ts                     |
+| useSkills     | Hook        | hooks/useSkills.ts                       |
++---------------+-------------+------------------------------------------+
+| (all types)   | Type        | types/index.ts                           |
++---------------+-------------+------------------------------------------+
 
 ### Components (not barrel-exported, used internally)
 
@@ -374,10 +383,10 @@ src/features/chat/
 +----------------+---------------------------------------------------------------------+
 | CHAT_MODES     | { STANDARD: "standard", AGENT: "agent" }                            |
 +----------------+---------------------------------------------------------------------+
-| PACKET_TYPES   | 17 types: metadata, usage, content, reasoning, tool_call,           |
+| PACKET_TYPES   | 18 types: metadata, usage, content, reasoning, tool_call,           |
 |                | tool_result, todo, subagent_call, subagent_result,                  |
 |                | file_operation, swarm_status, tool_skip, heartbeat,                 |
-|                | state_change, degraded, progress, turn_complete                     |
+|                | state_change, degraded, progress, turn_complete, error              |
 +----------------+---------------------------------------------------------------------+
 | CHAT_ENDPOINTS | { STREAM: "/chat/stream" }                                          |
 +----------------+---------------------------------------------------------------------+
@@ -462,8 +471,7 @@ src/features/chat/
 +---------------------------------------------------+-------+----------------------------------------------------+
 | src/features/chat/components/DegradationToast.tsx | 1–44  | Fixed toast on degraded state, auto-dismiss 8s     |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/index.ts                        | 1–5   | Barrel exports: ChatPage, Message, useModels,      |
-|                                                   |       | useChatStream, useSkills                           |
+| src/features/chat/index.ts                        | 1–14  | Barrel exports: components, hooks, types            |
 +---------------------------------------------------+-------+----------------------------------------------------+
 
 ================================================================================

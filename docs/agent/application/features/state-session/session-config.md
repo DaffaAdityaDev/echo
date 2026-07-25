@@ -71,29 +71,24 @@ config provides defaults that sessions can override.
 
 ## Zod Schema
 
+The mission request schema is defined in `app/api/missions/mission.schema.ts`
+and validated per-request at the controller level.
+
 ```typescript
 import { z } from 'zod';
 
-export const SessionConfigSchema = z.object({
-  // ── Mission ──
+export const createMissionSchema = z.object({
   prompt: z.string().min(1),
   strategy: z.enum(['standard', 'agent']).default('agent'),
-  skill: z.string().optional(),
-  skill_variables: z.record(z.string()).optional(),
-
-  // ── Provider ──
+  model: z.string().optional(),
+  features: z.array(z.string()).optional(),
+  skills: z.array(z.string()).optional(),
   provider_config: z.object({
     type: z.enum(['openai', 'anthropic', 'lm-studio', 'opencode-go']),
     base_url: z.string().url(),
     api_key: z.string().optional(),
     model: z.string(),
-  }),
-
-  // ── Tools / Features (string IDs from ACTIVE_FEATURES) ──
-  features: z.array(z.string()).optional(),
-  skills: z.array(z.string()).optional(),
-
-  // ── MCP Transports ──
+  }).optional(),
   mcp_servers: z.array(z.object({
     name: z.string(),
     transport: z.enum(['sse', 'stdio']),
@@ -103,8 +98,6 @@ export const SessionConfigSchema = z.object({
     credentials: z.record(z.string()).optional(),
     timeout: z.number().positive().optional(),
   })).optional(),
-
-  // ── REST Transports ──
   rest_tools: z.array(z.object({
     name: z.string(),
     description: z.string(),
@@ -121,25 +114,13 @@ export const SessionConfigSchema = z.object({
       required: z.array(z.string()).optional(),
     }).optional(),
   })).optional(),
-
-  // ── Memory / History ──
   history: z.array(z.object({
     role: z.enum(['user', 'assistant', 'system']),
     content: z.string(),
   })).optional(),
+  message: z.string().optional(),
   missionId: z.string().optional(),
-
-  // ── Harness Overrides ──
-  harness: z.object({
-    max_iterations: z.number().int().positive().optional(),
-    cost_threshold: z.number().positive().optional(),
-    compaction_ratio: z.number().min(0).max(1).optional(),
-    pacing_threshold: z.number().int().positive().optional(),
-    similarity_threshold: z.number().min(0).max(1).optional(),
-    keep_last_turns: z.number().int().positive().optional(),
-  }).optional(),
-
-  // ── Tenant ──
+  mode: z.string().optional(),
   tenantId: z.string().default('local'),
   userId: z.string().default('anonymous'),
   orgId: z.string().default('local'),
@@ -324,12 +305,10 @@ export const SessionConfigSchema = z.object({
 ## Entry Points & Exports
 
 +----------------------------+------------------------------------------+--------------------------------------------+
-| Export                     | Source (planned)                          | Type                                       |
+| Export                     | Source                                   | Type                                       |
 +----------------------------+------------------------------------------+--------------------------------------------+
-| `SessionConfigSchema`      | `shared/schemas/session-config.ts`        | Zod validation schema                      |
-| `SessionConfig`            | `shared/schemas/session-config.ts`        | TypeScript type (inferred from Zod)        |
+| `createMissionSchema`      | `app/api/missions/mission.schema.ts`      | Zod validation schema                      |
 | `HarnessOverrides`         | `core/agent/harness/types.ts`             | Partial harness parameters                 |
-| `configValidator`          | `shared/schemas/session-config.ts`        | Schema parse + defaults                    |
 +----------------------------+------------------------------------------+--------------------------------------------+
 
 ---
@@ -353,7 +332,7 @@ export const SessionConfigSchema = z.object({
 | Ref                        | File                                     | Key Lines                                   |
 +----------------------------+------------------------------------------+---------------------------------------------+
 | Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*    |
-| Mission schema (current)   | `app/api/missions/mission.schema.ts:9-56`| Partial session config (subset)             |
+| Mission schema             | `app/api/missions/mission.schema.ts`     | Full mission request validation            |
 | Provider config dispatch   | `infrastructure/providers/factory.ts:15-27`| `fromConfig()` reads session provider config|
 | Harness defaults           | `harness/nlah/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |
 | Stream transport           | `app/api/missions/stream.transport.ts`   | Packet serialization                        |

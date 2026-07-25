@@ -24,12 +24,6 @@ src/shared/constants/
   index.ts               # LLM API versions, model config, paths
   errors.ts              # Error type tags and user-facing messages
   middleware.ts          # Auth and monitor header/key constants
-  memory.ts              # Memory client endpoints and headers
-  jwt.ts                 # Service JWT constants
-  mcp.ts                 # MCP client config and defaults
-  session.ts             # Session configuration defaults
-  skills.ts              # Skills library constants
-  credentials.ts         # Credential manager constants
 
 src/infrastructure/providers/constants/
   index.ts               # Pricing models, local URL detection
@@ -121,216 +115,15 @@ MONITOR_CONSTANTS = {
 
 ---
 
-## Memory Client Constants (shared/constants/memory.ts)
-
-Defines endpoints and headers for the memory client, which communicates with
-the Go backend via `BACKEND_INTERNAL_URL` to store and retrieve agent sessions.
-
-```typescript
-MEMORY_ENDPOINTS = {
-  SESSION_CREATE:   "/api/v1/memory/sessions",
-  SESSION_GET:      "/api/v1/memory/sessions/:id",
-  SESSION_UPDATE:   "/api/v1/memory/sessions/:id",
-  SESSION_DELETE:   "/api/v1/memory/sessions/:id",
-  SESSION_LIST:     "/api/v1/memory/sessions",
-  STORE_PUT:        "/api/v1/memory/store/:key",
-  STORE_GET:        "/api/v1/memory/store/:key",
-  STORE_DELETE:     "/api/v1/memory/store/:key",
-};
-
-MEMORY_HEADERS = {
-  CONTENT_TYPE: "application/json",
-  AUTHORIZATION_PREFIX: "Bearer ",
-};
-
-MEMORY_DEFAULTS = {
-  TIMEOUT_MS: 5000,
-  MAX_RETRIES: 3,
-  RETRY_BACKOFF_MS: 1000,
-};
-```
-
-+-----------------------------------+--------------------------------------------------+
-| Constant                          | Value/Purpose                                    |
-+-----------------------------------+--------------------------------------------------+
-| `MEMORY_ENDPOINTS.SESSION_CREATE` | `POST /api/v1/memory/sessions`                  |
-| `MEMORY_ENDPOINTS.STORE_PUT`      | `PUT /api/v1/memory/store/:key`                 |
-| `MEMORY_DEFAULTS.TIMEOUT_MS`      | `5000` — HTTP request timeout                    |
-| `MEMORY_DEFAULTS.MAX_RETRIES`     | `3` — Retry count on transient failures          |
-+-----------------------------------+--------------------------------------------------+
-
----
-
-## Service JWT Constants (shared/constants/jwt.ts)
-
-Used by the auth middleware and memory client to sign/verify inter-service
-communication tokens with `SERVICE_JWT_SECRET`.
-
-```typescript
-JWT_CONSTANTS = {
-  ALGORITHM: "HS256",
-  ISSUER: "echo-agent",
-  EXPIRATION_SECONDS: 300,        // 5 minutes
-  HEADER_NAME: "X-Service-JWT",
-  BEARER_PREFIX: "Bearer ",
-};
-
-JWT_CLAIMS = {
-  SERVICE_ROLE: "agent-service",
-  VERSION: "1",
-};
-```
-
-+----------------------------+---------------------------------------------------+
-| Constant                   | Value                                             |
-+----------------------------+---------------------------------------------------+
-| `JWT_CONSTANTS.ALGORITHM`  | `"HS256"`                                         |
-| `JWT_CONSTANTS.EXPIRATION_SECONDS`| `300` (5 min TTL for inter-service tokens)   |
-| `JWT_CONSTANTS.HEADER_NAME`| `"X-Service-JWT"`                                 |
-+----------------------------+---------------------------------------------------+
-
----
-
-## MCP Constants (shared/constants/mcp.ts)
-
-Configuration for the Model Context Protocol client that connects to external
-MCP servers to discover and invoke tools at runtime.
-
-```typescript
-MCP_CONSTANTS = {
-  DEFAULT_TRANSPORT: "stdio",       // stdio | sse | streamable-http
-  DEFAULT_TIMEOUT_MS: 10000,
-  DEFAULT_MAX_TOOLS: 50,
-  RECONNECT_DELAY_MS: 2000,
-  MAX_RECONNECT_ATTEMPTS: 3,
-};
-
-MCP_PROTOCOL = {
-  JSON_RPC_VERSION: "2.0",
-  METHODS: {
-    TOOLS_LIST: "tools/list",
-    TOOLS_CALL: "tools/call",
-    RESOURCES_LIST: "resources/list",
-    RESOURCES_READ: "resources/read",
-  },
-};
-
-MCP_ERROR_CODES = {
-  TOOL_NOT_FOUND: -32001,
-  INVALID_PARAMS: -32002,
-  INTERNAL_ERROR: -32003,
-};
-```
-
-+----------------------------------+---------------------------------------------+
-| Constant                         | Value                                       |
-+----------------------------------+---------------------------------------------+
-| `MCP_CONSTANTS.DEFAULT_TRANSPORT`| `"stdio"` — default MCP transport           |
-| `MCP_CONSTANTS.DEFAULT_TIMEOUT` | `10000` ms — tool call timeout              |
-| `MCP_PROTOCOL.METHODS.TOOLS_LIST`| `"tools/list"` — MCP JSON-RPC method       |
-+----------------------------------+---------------------------------------------+
-
----
-
-## Session Config Defaults (shared/constants/session.ts)
-
-Default values for agent session parameters applied when a session is created
-without explicit configuration.
-
-```typescript
-SESSION_DEFAULTS = {
-  MAX_HISTORY_MESSAGES: 50,
-  MAX_HISTORY_TOKENS: 8000,
-  IDLE_TIMEOUT_MINUTES: 30,
-  MAX_TOOL_CALLS_PER_STEP: 10,
-  ALLOWED_TRANSPORTS: ["built-in", "mcp", "rest"],
-  DEFAULT_STRATEGY: "nlah", // internal strategy when user selects "agent" mode
-};
-
-SESSION_LIMITS = {
-  MAX_MISSION_DURATION_MINUTES: 60,
-  MAX_CONCURRENT_MISSIONS: 5,
-  MAX_TOOLS_PER_SESSION: 100,
-};
-```
-
-+-----------------------------------+---------------------------------------------------+
-| Constant                          | Value                                             |
-+-----------------------------------+---------------------------------------------------+
-| `SESSION_DEFAULTS.MAX_HISTORY_MESSAGES`| `50`                                          |
-| `SESSION_DEFAULTS.IDLE_TIMEOUT_MINUTES`| `30`                                          |
-| `SESSION_DEFAULTS.DEFAULT_STRATEGY`    | `"nlah"`                                     |
-| `SESSION_LIMITS.MAX_MISSION_DURATION_MINUTES`| `60`                                        |
-+-----------------------------------+---------------------------------------------------+
-
----
-
-## Skills Library Constants (shared/constants/skills.ts)
-
-Constants for the skills library that provides reusable capability bundles
-for the agent.
-
-```typescript
-SKILLS_CONSTANTS = {
-  SKILLS_DIR: "skills",
-  MANIFEST_FILE: "SKILL.md",
-  DEFAULT_SKILLS_PATH: join(SA_OUTPUT_PATH || cwd(), "skills"),
-  MAX_SKILLS_PER_SESSION: 10,
-  SKILL_REGISTRY_KEY: "skills:registry",
-};
-
-SKILL_LOAD_PHASES = {
-  BOOT: "boot",
-  SESSION_INIT: "session_init",
-  DEFERRED: "deferred",
-};
-```
-
-+------------------------------------+---------------------------------------------------+
-| Constant                           | Value                                             |
-+------------------------------------+---------------------------------------------------+
-| `SKILLS_CONSTANTS.MANIFEST_FILE`   | `"SKILL.md"` — per-skill manifest                 |
-| `SKILL_LOAD_PHASES.BOOT`           | `"boot"` — skills loaded at startup               |
-| `SKILL_LOAD_PHASES.SESSION_INIT`   | `"session_init"` — skills loaded per session      |
-+------------------------------------+---------------------------------------------------+
-
----
-
-## Credential Manager Constants (shared/constants/credentials.ts)
-
-Constants for the credential manager that securely stores and retrieves
-API keys and secrets used by tools and providers.
-
-```typescript
-CREDENTIAL_CONSTANTS = {
-  STORAGE_PREFIX: "cred:",
-  KEY_SEPARATOR: ":",
-  DEFAULT_TTL_HOURS: 24,
-  MAX_CREDENTIAL_SIZE_BYTES: 4096,
-  ENCRYPTION_ALGORITHM: "aes-256-gcm",
-};
-
-CREDENTIAL_NAMESPACES = {
-  LLM_PROVIDER: "llm",
-  MCP_SERVER: "mcp",
-  REST_ENDPOINT: "rest",
-  EXTERNAL_API: "external",
-};
-
-CREDENTIAL_ERRORS = {
-  NOT_FOUND: "Credential not found",
-  EXPIRED: "Credential has expired",
-  DECRYPT_FAILED: "Failed to decrypt credential",
-};
-```
-
-+----------------------------------+---------------------------------------------------+
-| Constant                         | Value                                             |
-+----------------------------------+---------------------------------------------------+
-| `CREDENTIAL_CONSTANTS.DEFAULT_TTL_HOURS`| `24`                                         |
-| `CREDENTIAL_CONSTANTS.ENCRYPTION_ALGORITHM`| `"aes-256-gcm"`                           |
-| `CREDENTIAL_NAMESPACES.LLM_PROVIDER`| `"llm"`                                       |
-+----------------------------------+---------------------------------------------------+
+> **Note:** The following constant files were described in a previous version of this document but do not currently exist in code:
+> - `shared/constants/memory.ts`
+> - `shared/constants/jwt.ts`
+> - `shared/constants/mcp.ts`
+> - `shared/constants/session.ts`
+> - `shared/constants/skills.ts`
+> - `shared/constants/credentials.ts`
+>
+> JWT-related constants are in `config/env.constants.ts` (SERVICE_JWT_ALGORITHM), MCP transport constants are in `infrastructure/transports/mcp/client.ts`, and retriever constants are in `core/agent/services/retriever.constants.ts`. These may be consolidated in the future.
 
 ---
 
@@ -392,12 +185,6 @@ RETRIEVER_FALLBACK_TOOLS = ['web_search'] as const;
 | `shared/constants/index.ts`                      | 6-19                        | LLM versions, temperature, paths                  |
 | `shared/constants/errors.ts`                     | 1-14                        | Error types and messages                          |
 | `shared/constants/middleware.ts`                  | 1-20                        | Auth and monitor constants                        |
-| `shared/constants/memory.ts`                     | 1-45                        | Memory client endpoints, defaults                 |
-| `shared/constants/jwt.ts`                        | 1-18                        | Service JWT algorithm, expiry, headers            |
-| `shared/constants/mcp.ts`                        | 1-40                        | MCP transport, protocol, error codes              |
-| `shared/constants/session.ts`                    | 1-20                        | Session config defaults and limits                |
-| `shared/constants/skills.ts`                     | 1-20                        | Skills library paths, load phases                 |
-| `shared/constants/credentials.ts`                | 1-30                        | Credential storage, encryption, namespaces        |
 | `infrastructure/providers/constants/index.ts`    | 1-34                        | Local URL detection, pricing models               |
 | `core/agent/services/retriever.constants.ts`     | 1-12                        | Retriever config, weights, fallback               |
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+

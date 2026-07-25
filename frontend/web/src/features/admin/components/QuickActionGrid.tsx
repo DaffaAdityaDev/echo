@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Key, Terminal, ArrowUpRight, Cpu, ShieldCheck } from "lucide-react";
+import { Key, Terminal, ArrowUpRight, Cpu } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 
 export function QuickActionGrid() {

@@ -31,8 +31,8 @@ export function PromptsPage(props: Props) {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Prompt Library</h1>
-        <p className="text-sm text-zinc-400 mt-1">Version, diff, and govern your prompt templates.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Prompt Library</h1>
+        <p className="text-sm text-zinc-500 mt-1">Version, diff, and govern your prompt templates.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -48,7 +48,7 @@ export function PromptsPage(props: Props) {
           />
 
           {selectedTemplateId && versions.length > 0 && (
-            <div className="border border-zinc-800/60 bg-zinc-900/20 rounded-2xl p-4">
+            <div className="border border-zinc-200 bg-zinc-50/50 rounded-2xl p-4">
               <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Version History</h3>
               <PromptVersionTimeline
                 versions={versions}
@@ -66,10 +66,10 @@ export function PromptsPage(props: Props) {
             <>
               {/* Selected version viewer */}
               {activeVersionData && (
-                <div className="border border-zinc-800/60 bg-zinc-900/20 rounded-2xl p-5 space-y-4">
+                <div className="border border-zinc-200 bg-zinc-50/50 rounded-2xl p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-semibold text-zinc-200">Version {activeVersionData.version}</h3>
+                      <h3 className="text-sm font-semibold text-zinc-900">Version {activeVersionData.version}</h3>
                       <VersionStatusBadge status={activeVersionData.status} />
                     </div>
                     <div className="flex items-center gap-2">
@@ -105,7 +105,7 @@ export function PromptsPage(props: Props) {
                       )}
                     </div>
                   </div>
-                  <pre className="p-4 bg-zinc-950/60 border border-zinc-800/60 rounded-xl text-xs text-zinc-300 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  <pre className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-800 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {activeVersionData.system_prompt}
                   </pre>
 
@@ -121,14 +121,14 @@ export function PromptsPage(props: Props) {
               )}
 
               {/* New draft editor */}
-              <div className="border border-zinc-800/60 bg-zinc-900/20 rounded-2xl p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-zinc-200">New Version Draft</h3>
+              <div className="border border-zinc-200 bg-zinc-50/50 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-900">New Version Draft</h3>
                 <textarea
                   value={draftPrompt}
                   onChange={(e) => setDraftPrompt(e.target.value)}
                   placeholder="Write your new system prompt here... Use {{variable_name}} for dynamic slots."
                   rows={8}
-                  className="w-full p-4 bg-zinc-950/60 border border-zinc-800/80 rounded-xl text-sm text-zinc-200 placeholder:text-zinc-600 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                  className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-800 placeholder:text-zinc-500 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/10 resize-y"
                 />
                 <div className="flex justify-end">
                   <Button
@@ -144,10 +144,10 @@ export function PromptsPage(props: Props) {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 border border-zinc-800/60 bg-zinc-900/20 rounded-2xl text-center space-y-3">
-              <AlertCircle className="h-8 w-8 text-zinc-600" />
+            <div className="flex flex-col items-center justify-center h-64 border border-zinc-200 bg-zinc-50/50 rounded-2xl text-center space-y-3">
+              <AlertCircle className="h-8 w-8 text-zinc-500" />
               <div>
-                <h3 className="text-sm font-semibold text-zinc-300">Select a template</h3>
+                <h3 className="text-sm font-semibold text-zinc-900">Select a template</h3>
                 <p className="text-xs text-zinc-500 mt-1">Choose a prompt template from the library to view and edit its versions.</p>
               </div>
             </div>
@@ -158,12 +158,12 @@ export function PromptsPage(props: Props) {
       {/* Confirmation modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
-          <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-zinc-100">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmAction(null)} />
+          <div className="relative w-full max-w-md bg-white border border-zinc-200 shadow-xl rounded-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">
               {confirmAction.type === "promote" ? "Promote to Production?" : "Rollback Version?"}
             </h3>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-zinc-500">
               {confirmAction.type === "promote"
                 ? `This will make version ${confirmAction.version} the live production prompt. All live traffic will use this version immediately.`
                 : `This will revert the live prompt to version ${confirmAction.version}. The current production version will be marked as rolled back.`}

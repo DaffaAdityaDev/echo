@@ -4,12 +4,9 @@ import React, { useState } from "react";
 import {
   X,
   Sliders,
-  Cpu,
   Zap,
-  Code,
   Save,
   RotateCcw,
-  ShieldCheck,
   User,
   Key,
   LogOut,

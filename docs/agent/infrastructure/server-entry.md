@@ -71,7 +71,7 @@ LANGFUSE_SECRET_KEY:   z.string()          // REQUIRED
 LANGFUSE_BASE_URL:     z.string().default("http://localhost:3000")
 AGENT_RUNTIME_MODE:    z.enum(["local","saas"]).default("local")
 SERVICE_JWT_SECRET:    z.string()          // REQUIRED — inter-service JWT signing key
-BACKEND_INTERNAL_URL:  z.string().default("http://localhost:8080")  // Go backend internal URL
+BACKEND_URL:           z.string().default("http://localhost:8080")  // Go backend internal URL
 MCP_SERVER_URL:        z.string().url().optional()
 ENABLE_MCP:            z.coerce.boolean().default(false)
 ENABLE_REST_TOOLS:     z.coerce.boolean().default(false)
@@ -83,7 +83,7 @@ ENABLE_REST_TOOLS:     z.coerce.boolean().default(false)
 ENV_DEFAULTS = {
   PORT: "3001", GRPC_PORT: "50051", CHROMA_URL: "http://localhost:8000", ...
   SERVICE_JWT_SECRET: "",               // No default — must be configured in production
-  BACKEND_INTERNAL_URL: "http://localhost:8080",
+  BACKEND_URL: "http://localhost:8080",
 }
 ENV_VALUES = {
   STATE_BACKENDS: ["memory", "backend"],
@@ -98,13 +98,13 @@ ENV_VALIDATION_MESSAGES = {
 }
 ```
 
-### New Environment Variables
+### Key Environment Variables
 
 +------------------------+-------------------------------+---------------------------------------------+
 | Variable               | Default                       | Purpose                                     |
 +------------------------+-------------------------------+---------------------------------------------+
 | `SERVICE_JWT_SECRET`   | _(required)_                  | HMAC secret for signing inter-service JWTs  |
-| `BACKEND_INTERNAL_URL` | `http://localhost:8080`        | Base URL for the Go backend (memory client, |
+| `BACKEND_URL`          | `http://localhost:8080`        | Base URL for the Go backend (memory client, |
 |                        |                               | credential manager, skills library)         |
 | `MCP_SERVER_URL`       | _(optional)_                  | MCP SSE endpoint for tool discovery         |
 | `ENABLE_MCP`           | `false`                       | Enable MCP client on startup                |
@@ -192,7 +192,7 @@ export default ENV;
 
 The `EnvConfig` type now includes:
 - `SERVICE_JWT_SECRET: string`
-- `BACKEND_INTERNAL_URL: string`
+- `BACKEND_URL: string`
 - `MCP_SERVER_URL: string | undefined`
 - `ENABLE_MCP: boolean`
 - `ENABLE_REST_TOOLS: boolean`
@@ -207,7 +207,7 @@ See the Environment Configuration section above for the complete schema.
 ENV_DEFAULTS = {
   PORT: "3001", GRPC_PORT: "50051", CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234", LANGFUSE_BASE_URL: "http://localhost:3000",
-  BACKEND_INTERNAL_URL: "http://localhost:8080",           // NEW
+    BACKEND_URL: "http://localhost:8080",
   ...
 }
 ENV_VALUES = {
@@ -234,10 +234,10 @@ import "./utils/telemetry";
 await toolRegistry.autoload();
 
 // Step 4: Initialize state provider and credential manager
-import { BackendStateProvider } from "./core/agent/storage/backend";
+import { MemoryAdapter } from "./adapter/backend/memory.adapter";
 import { CredentialManager } from "./core/agent/credentials/manager";
 
-const memoryProvider = new BackendStateProvider(ENV.BACKEND_INTERNAL_URL);
+const memoryProvider = new MemoryAdapter(ENV.BACKEND_URL);
 const credentialManager = new CredentialManager();
 
 // Conditional MCP client setup
@@ -254,10 +254,7 @@ export default {
 
 ### Backend Storage Provider
 
-> [!NOTE]
-> **Planned Refactoring**: The target architecture documents define a unified adapter directory (`adapter/backend/memory.adapter.ts` and `adapter/manager.ts`). In the current implementation, the connection and storage provider is located in `src/core/agent/storage/backend.ts` and initialized directly in `src/index.ts`.
-
-The storage provider (`core/agent/storage/backend.ts`) communicates with the Go backend via the internal network using `BACKEND_INTERNAL_URL` as the base URL. It is used by the agent harness to persist and retrieve session state, conversation history, and key-value store entries.
+The storage provider (`adapter/backend/memory.adapter.ts`) communicates with the Go backend via the internal network using `BACKEND_URL` as the base URL. It is used by the agent harness to persist and retrieve session state, conversation history, and key-value store entries.
 
 ---
 
@@ -270,7 +267,7 @@ The storage provider (`core/agent/storage/backend.ts`) communicates with the Go 
 | `@hono/node-server`       | ^2.0.1      | Node.js server adapter                            |
 | `zod`                     | ^4.4.3      | Environment variable schema parsing               |
 | `@opentelemetry/sdk-node` | ^0.218.0    | Telemetry initialization                          |
-| `core/agent/storage/backend` | src/     | BackendStateProvider for session & message store |
+| `adapter/backend/memory.adapter` | src/  | MemoryAdapter for session & message store       |
 | `core/agent/credentials/manager` | src/ | CredentialManager for dynamic credentials         |
 | `node:fs`                 | built-in    | Startup cleanup (rmSync)                          |
 | `node:path`               | built-in    | Path resolution                                   |
@@ -293,9 +290,9 @@ The storage provider (`core/agent/storage/backend.ts`) communicates with the Go 
 | `src/index.ts`                   | 61-65                       | Default export (port, fetch, idleTimeout)         |
 | `src/config/env.ts`              | 1-19                        | Zod safeParse, error output, ENV export           |
 | `src/config/env.schema.ts`       | 8-33                        | Zod schema with SERVICE_JWT_SECRET,               |
-|                                 |                             |   BACKEND_INTERNAL_URL                            |
+|                                 |                             |   BACKEND_URL                                     |
 | `src/config/env.constants.ts`    | 1-22                        | Defaults, valid values, validation messages       |
-| `src/core/agent/storage/backend.ts` | 1-100                    | BackendStateProvider network API calls            |
+| `src/adapter/backend/memory.adapter.ts` | 1-60                   | MemoryAdapter network API calls                   |
 | `src/core/agent/credentials/manager.ts` | 1-50                 | CredentialManager store implementation             |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 

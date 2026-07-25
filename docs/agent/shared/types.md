@@ -44,7 +44,7 @@ interface MissionPayload {
   missionId: string;
   tenant: TenantContext;
   prompt: string;
-  strategy: 'react' | 'nlah' | 'standard' | 'sequential'; // internal type — frontend sends 'agent' which maps to 'nlah'
+  strategy: 'standard' | 'agent'; // frontend sends 'agent'; preprocessor maps 'react'|'nlah'|'deep-research'|'sequential' to 'agent'
 }
 ```
 
@@ -72,17 +72,7 @@ interface Task {
 }
 ```
 
-### Action
-
-```typescript
-interface Action {
-  type: 'tool_call' | 'finish' | 'plan_update' | 'complete';
-  toolName?: string;
-  toolInput?: Record<string, unknown>;
-  content?: string;
-  result?: string;
-}
-```
+<!-- Action interface removed — not present in actual shared/types/index.ts -->
 
 ---
 
@@ -171,21 +161,7 @@ interface IStateStore {
 }
 ```
 
-### ITaskQueue
-
-```typescript
-interface ITaskQueue {
-  enqueue(payload: MissionPayload): Promise<void>;
-}
-```
-
-### ISandboxExecutor
-
-```typescript
-interface ISandboxExecutor {
-  execute(command: string, tenantId: string): Promise<{ stdout: string; stderr: string; code: number }>;
-}
-```
+<!-- ITaskQueue and ISandboxExecutor removed — not present in actual shared/types/index.ts -->
 
 ---
 
@@ -295,9 +271,8 @@ interface Observation<T = unknown> {
 | `shared/types/index.ts`          | 10-16                       | `MissionPayload`                                  |
 | `shared/types/index.ts`          | 17-30                       | `AgentPacketType` union                            |
 | `shared/types/index.ts`          | 37-56                       | `HarnessPacket`                                   |
-| `shared/types/index.ts`          | 59-71                       | Infrastructure contracts: IStateStore, ITaskQueue |
-| `shared/types/index.ts`          | 76-82                       | `Observation`                                     |
-| `shared/types/index.ts`          | 88-94                       | `Action`                                          |
+| `shared/types/index.ts`          | 55-65                       | `IStateStore` interface                           |
+| `shared/types/index.ts`          | 70-76                       | `Observation`                                     |
 | `shared/types/index.ts`          | 99-106                      | `AgentState`                                      |
 | `shared/types/index.ts`          | 108-113                     | `Task`                                            |
 | `shared/types/index.ts`          | 119-122                     | `AgentStrategy`                                   |

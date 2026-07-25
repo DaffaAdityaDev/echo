@@ -56,7 +56,7 @@ export function DatasetUploader({ onUpload, isUploading }: DatasetUploaderProps)
           const file = e.dataTransfer.files[0]
           if (file) handleFile(file)
         }}
-        className="border-2 border-dashed border-zinc-800/80 rounded-2xl p-6 text-center hover:border-blue-500/30 transition-colors cursor-pointer"
+        className="border-2 border-dashed border-zinc-300 rounded-2xl p-6 text-center hover:border-blue-500 transition-colors cursor-pointer"
       >
         <input
           type="file"
@@ -70,17 +70,17 @@ export function DatasetUploader({ onUpload, isUploading }: DatasetUploaderProps)
         />
         <label htmlFor="csv-upload" className="cursor-pointer space-y-2 block">
           <Upload className="h-6 w-6 text-zinc-500 mx-auto" />
-          <div className="text-sm text-zinc-400">
-            Drop a CSV file here or <span className="text-blue-400">browse</span>
+          <div className="text-sm text-zinc-700">
+            Drop a CSV file here or <span className="text-blue-600 font-semibold">browse</span>
           </div>
-          <div className="text-xs text-zinc-600">
+          <div className="text-xs text-zinc-500">
             Must have columns: input, expected_output
           </div>
         </label>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           {error}
           <button onClick={() => setError(null)} className="ml-auto"><X className="h-3.5 w-3.5" /></button>
@@ -90,7 +90,7 @@ export function DatasetUploader({ onUpload, isUploading }: DatasetUploaderProps)
       <a
         href="/studio/evals/dataset-template.csv"
         download
-        className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 transition-colors"
       >
         <FileDown className="h-3.5 w-3.5" /> Download template CSV
       </a>
