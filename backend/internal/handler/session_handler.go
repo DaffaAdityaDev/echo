@@ -405,7 +405,9 @@ Respond ONLY with a valid JSON object in this exact format:
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s: %s", resp.StatusCode, sessionID, string(respBody))
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "LLM provider returned error"})
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error": fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)),
+		})
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)

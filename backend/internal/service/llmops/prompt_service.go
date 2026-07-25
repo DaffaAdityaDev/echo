@@ -1,0 +1,113 @@
+package llmops
+
+import (
+	"context"
+	"fmt"
+
+	"echo-backend/internal/models"
+	"echo-backend/internal/repository/llmops"
+)
+
+type PromptService interface {
+	CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error)
+	CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*models.PromptVersion, error)
+	GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error)
+	GetActivePrompt(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error)
+	PromoteToProduction(ctx context.Context, templateID string, version int, actor string) error
+	RollbackToVersion(ctx context.Context, templateID string, targetVersion int, actor string) error
+	GetVersionHistory(ctx context.Context, templateID string) ([]models.PromptVersion, error)
+}
+
+type promptService struct {
+	repo     llmops.PromptRepository
+	auditSvc AuditService
+}
+
+func NewPromptService(repo llmops.PromptRepository, auditSvc AuditService) PromptService {
+	return &promptService{repo: repo, auditSvc: auditSvc}
+}
+
+func (s *promptService) ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error) {
+	return s.repo.ListTemplates(ctx, tenantID)
+}
+
+func (s *promptService) CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error) {
+	if name == "" {
+		return nil, fmt.Errorf("template name cannot be empty")
+	}
+	tmpl, err := s.repo.CreateTemplate(ctx, tenantID, name, desc)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.auditSvc.Record(ctx, tenantID, "SYSTEM", "CREATE_TEMPLATE", fmt.Sprintf("prompt_template:%s", tmpl.ID), map[string]any{"name": name})
+	return tmpl, nil
+}
+
+func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*models.PromptVersion, error) {
+	versions, err := s.repo.ListVersions(ctx, templateID)
+	if err != nil {
+		return nil, err
+	}
+
+	nextVersion := 1
+	if len(versions) > 0 {
+		nextVersion = versions[0].Version + 1
+	}
+
+	pv := &models.PromptVersion{
+		TemplateID:   templateID,
+		Version:      nextVersion,
+		SystemPrompt: prompt,
+		BoundTools:   tools,
+		Variables:    vars,
+		Status:       "draft",
+		CreatedBy:    actor,
+	}
+
+	created, err := s.repo.CreateVersion(ctx, pv)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.auditSvc.Record(ctx, "local", actor, "CREATE_VERSION", fmt.Sprintf("prompt_version:%s:v%d", templateID, nextVersion), map[string]any{"version": nextVersion})
+	return created, nil
+}
+
+func (s *promptService) GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error) {
+	v, err := s.repo.GetVersion(ctx, templateID, version)
+	if err != nil || v == nil {
+		return nil, fmt.Errorf("prompt version not found: %w", err)
+	}
+	return v, nil
+}
+
+func (s *promptService) GetActivePrompt(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error) {
+	v, err := s.repo.GetActiveVersionByName(ctx, tenantID, templateName)
+	if err != nil || v == nil {
+		return nil, fmt.Errorf("active prompt version not found: %w", err)
+	}
+	return v, nil
+}
+
+func (s *promptService) PromoteToProduction(ctx context.Context, templateID string, version int, actor string) error {
+	err := s.repo.PromoteVersion(ctx, templateID, version, actor)
+	if err != nil {
+		return err
+	}
+	_ = s.auditSvc.Record(ctx, "local", actor, "PROMOTE_VERSION", fmt.Sprintf("prompt_template:%s", templateID), map[string]any{"promoted_version": version})
+	return nil
+}
+
+func (s *promptService) RollbackToVersion(ctx context.Context, templateID string, targetVersion int, actor string) error {
+	err := s.repo.RollbackVersion(ctx, templateID, targetVersion, actor)
+	if err != nil {
+		return err
+	}
+	_ = s.auditSvc.Record(ctx, "local", actor, "ROLLBACK_VERSION", fmt.Sprintf("prompt_template:%s", templateID), map[string]any{"rolled_back_to": targetVersion})
+	return nil
+}
+
+func (s *promptService) GetVersionHistory(ctx context.Context, templateID string) ([]models.PromptVersion, error) {
+	return s.repo.ListVersions(ctx, templateID)
+}

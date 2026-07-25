@@ -216,6 +216,15 @@ export function ChatPage({ sidebarOpen, onToggleSidebar }: ChatPageProps) {
 
           {/* Header Right Actions */}
           <div className="flex items-center gap-2">
+            <Link
+              href="/studio"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all cursor-pointer"
+              title="Open LLMOps User Studio"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+              <span className="hidden sm:inline">Studio</span>
+            </Link>
+
             {/* Debug Drawer Toggle Button */}
             <button
               onClick={() => setIsDebugDrawerOpen((v) => !v)}

@@ -1,5 +1,5 @@
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
-import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus } from '../../../../shared/types';
+import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus, HarnessPacket } from '../../../../shared/types';
 import { toolRegistry } from '../../tools/registry';
 import { StrategyFactory } from '../../strategies/factory';
 import { CircuitBreaker } from './circuit_breaker';

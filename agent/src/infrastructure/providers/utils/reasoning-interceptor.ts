@@ -1,3 +1,5 @@
+import { logger } from "../../../shared/utils/logger";
+
 /**
  * Shared Reasoning Interceptor Utility for LLM Providers.
  * Captures thinking / reasoning tokens from raw SSE streams across providers (OpenAI, LM Studio, Anthropic).
@@ -12,7 +14,18 @@ export class ReasoningInterceptor {
     public async interceptFetch(url: any, options: any): Promise<Response> {
         const response = await fetch(url, options);
 
-        if (response.ok && response.body) {
+        if (!response.ok) {
+            try {
+                const cloned = response.clone();
+                const errBody = await cloned.text();
+                logger.error(`❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`);
+            } catch (e) {
+                logger.error(`❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
+            }
+            return response;
+        }
+
+        if (response.body) {
             const urlStr = url.toString();
             if (urlStr.includes('/chat/completions') || urlStr.includes('/messages')) {
                 const [stream1, stream2] = response.body.tee();

@@ -18,12 +18,6 @@ func getUserID(c fiber.Ctx) (int, error) {
 	return strconv.Atoi(userIDStr)
 }
 
-func nonilSlice[T any](s []T) []T {
-	if s == nil {
-		return []T{}
-	}
-	return s
-}
 
 var httpClient = &http.Client{}
 

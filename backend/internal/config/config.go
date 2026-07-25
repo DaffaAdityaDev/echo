@@ -35,6 +35,9 @@ func Load() *models.Config {
 	c.PRUNE_THRESHOLD = envInt("PRUNE_THRESHOLD", 100000)
 	c.PRUNE_KEEP_LATEST_TURNS = envInt("PRUNE_KEEP_LATEST_TURNS", 10)
 	c.SUMMARIZE_MAX_TOKENS = envInt("SUMMARIZE_MAX_TOKENS", 500)
+	c.EvaluatorEndpoint = envStr("EVALUATOR_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+	c.EvaluatorAPIKey = os.Getenv("EVALUATOR_API_KEY")
+	c.EvaluatorModel = envStr("EVALUATOR_MODEL", "gpt-4o")
 	return c
 }
 

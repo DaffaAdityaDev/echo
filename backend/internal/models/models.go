@@ -55,6 +55,9 @@ type Config struct {
 	PRUNE_THRESHOLD         int
 	PRUNE_KEEP_LATEST_TURNS int
 	SUMMARIZE_MAX_TOKENS    int
+	EvaluatorEndpoint string
+	EvaluatorAPIKey   string
+	EvaluatorModel    string
 }
 
 type ApiKey struct {

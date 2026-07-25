@@ -116,7 +116,7 @@ func (s *ModelService) ResolveModel(modelID string) (*models.ProviderConfig, err
 		}
 	}
 
-	if s.cfg.OpenCodeGoAPIKey != "" && strings.HasPrefix(modelID, openCodeGoPrefix) {
+	if strings.HasPrefix(modelID, openCodeGoPrefix) {
 		suffix := strings.TrimPrefix(modelID, openCodeGoPrefix)
 		return &models.ProviderConfig{
 			Type:    models.ProviderOpenCode,

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Plus,
   Search,
@@ -17,6 +18,13 @@ import {
   Command,
   PanelLeftClose,
   Settings,
+  LayoutDashboard,
+  Layers,
+  FlaskConical,
+  ScrollText,
+  ClipboardCheck,
+  Eye,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChatStore } from "../stores/chatStore";
@@ -39,6 +47,7 @@ export function SessionSidebar({
   onClose,
   onOpenSettings,
 }: SessionSidebarProps) {
+  const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState("");
   const { sessions, activeSessionId } = useChatStore();
   const { user, logout } = useAuth();
@@ -60,10 +69,13 @@ export function SessionSidebar({
   });
 
   const navItems = [
-    { label: "Explore", icon: Compass, href: "#" },
-    { label: "Library", icon: Library, href: "#" },
-    { label: "Files", icon: Folder, href: "#" },
-    { label: "History", icon: History, href: "#" },
+    { label: "Studio Overview", icon: LayoutDashboard, href: "/studio" },
+    { label: "AI Maturity", icon: Layers, href: "/maturity" },
+    { label: "Playground", icon: FlaskConical, href: "/playground" },
+    { label: "Prompts", icon: ScrollText, href: "/prompts" },
+    { label: "Evals", icon: ClipboardCheck, href: "/evals" },
+    { label: "Shadow", icon: Eye, href: "/shadow" },
+    { label: "Audit", icon: ShieldAlert, href: "/audit" },
   ];
 
   return (
@@ -140,15 +152,21 @@ export function SessionSidebar({
         <div className="px-3 mb-4 space-y-0.5">
           {navItems.map((item, idx) => {
             const Icon = item.icon;
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
-              <a
+              <Link
                 key={idx}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50 transition-colors"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold shadow-sm"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50"
+                )}
               >
-                <Icon className="h-4 w-4 shrink-0 text-zinc-500" />
+                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-purple-500" : "text-zinc-500")} />
                 <span>{item.label}</span>
-              </a>
+              </Link>
             );
           })}
         </div>

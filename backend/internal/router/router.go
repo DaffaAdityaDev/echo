@@ -1,14 +1,19 @@
 package router
 
 import (
+	"log"
+
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/constants/routes"
 	"echo-backend/internal/database"
 	"echo-backend/internal/handler"
+	llmopsHandler "echo-backend/internal/handler/llmops"
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models"
 	"echo-backend/internal/repository"
+	llmopsRepo "echo-backend/internal/repository/llmops"
 	"echo-backend/internal/service"
+	llmopsSvc "echo-backend/internal/service/llmops"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -17,6 +22,12 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	// 1. Initialize Infrastructure
 	pool := database.NewPostgresPool(cfg)
 	rdb := database.NewRedisClient(cfg)
+
+	if pool != nil {
+		if err := database.Migrate(pool); err != nil {
+			log.Printf("⚠️ Warning: Database auto-migration error: %v", err)
+		}
+	}
 
 	// 2. Initialize Repositories
 	userRepo := repository.NewUserRepository(pool)
@@ -38,6 +49,22 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	adminHandler := handler.NewAdminHandler(cfg, apiKeyRepo)
 	memoryHandler := handler.NewMemoryHandler(rdb, pool)
 	settingsHandler := &handler.SettingsHandler{Cfg: cfg, SettingsSvc: settingsSvc}
+
+	// 5. Initialize LLMOps Module
+	llmopsPromptRepo := llmopsRepo.NewPromptRepository(pool)
+	llmopsEvalRepo := llmopsRepo.NewEvalRepository(pool)
+	llmopsShadowRepo := llmopsRepo.NewShadowRepository(pool)
+	llmopsAuditRepo := llmopsRepo.NewAuditRepository(pool)
+
+	llmopsAuditSvc := llmopsSvc.NewAuditService(llmopsAuditRepo)
+	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo, llmopsAuditSvc)
+	llmopsEvalSvc := llmopsSvc.NewEvalService(llmopsEvalRepo, llmopsPromptRepo, cfg.AgentHTTPURL, cfg.EvaluatorEndpoint, cfg.EvaluatorAPIKey, cfg.EvaluatorModel, cfg.InternalAuthToken)
+	llmopsShadowSvc := llmopsSvc.NewShadowService(llmopsShadowRepo, cfg.AgentHTTPURL, cfg.InternalAuthToken)
+
+	llmopsPromptHandler := llmopsHandler.NewPromptHandler(llmopsPromptSvc)
+	llmopsEvalHandler := llmopsHandler.NewEvalHandler(llmopsEvalSvc)
+	llmopsShadowHandler := llmopsHandler.NewShadowHandler(llmopsShadowSvc)
+	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsAuditSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {
@@ -85,7 +112,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	// Feature routes
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
-	api.Get("/v1/missions/:missionId/stream", chatHandler.StreamMissionLogs)
+	api.Get("/missions/:missionId/stream", chatHandler.StreamMissionLogs)
 	api.Get(routes.V1PathModels, modelHandler.HandleGetModels)
 	api.Get(routes.V1PathFeatures, chatHandler.HandleGetFeatures)
 
@@ -110,6 +137,32 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	adminGroup.Post("/api-keys", adminHandler.HandleCreateKey)
 	adminGroup.Delete("/api-keys/:id", adminHandler.HandleRevokeKey)
 	adminGroup.Get("/stats", adminHandler.HandleStats)
+
+	// LLMOps Studio Routes
+	studio := api.Group("/studio")
+
+	prompts := studio.Group("/prompts")
+	prompts.Get("", llmopsPromptHandler.HandleListTemplates)
+	prompts.Get("/", llmopsPromptHandler.HandleListTemplates)
+	prompts.Post("", middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Post("/", middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Get("/active", llmopsPromptHandler.HandleGetActivePrompt)
+	prompts.Get("/:id/versions", llmopsPromptHandler.HandleListVersions)
+	prompts.Get("/:id/versions/:v", llmopsPromptHandler.HandleGetVersion)
+	prompts.Post("/:id/versions", middleware.RequireRoles("admin", "prompt_engineer"), llmopsPromptHandler.HandleCreateVersion)
+	prompts.Post("/:id/promote/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandlePromote)
+	prompts.Post("/:id/rollback/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandleRollback)
+
+	evals := studio.Group("/evals")
+	evals.Post("/datasets", middleware.RequireRoles("admin", "domain_expert", "prompt_engineer"), llmopsEvalHandler.HandleUploadDataset)
+	evals.Post("/run", middleware.RequireRoles("admin", "prompt_engineer", "domain_expert"), llmopsEvalHandler.HandleRunEval)
+	evals.Get("/runs/:id", llmopsEvalHandler.HandleGetEvalRun)
+
+	shadow := studio.Group("/shadow")
+	shadow.Get("/history/:id", llmopsShadowHandler.HandleGetShadowHistory)
+
+	studio.Post("/playground", llmopsStudioHandler.HandleRunPlayground)
+	studio.Get("/audit", llmopsStudioHandler.HandleQueryAuditLogs)
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))

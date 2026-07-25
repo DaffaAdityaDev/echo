@@ -5,6 +5,8 @@ import { LLMProvider, ToolDefinition, ProviderEvent } from "../../../shared/type
 import { ReasoningInterceptor } from "../utils";
 import { langfuseStorage } from "../../../utils/langfuse";
 
+import { logger } from "../../../shared/utils/logger";
+
 function contentToString(content: unknown): string {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
@@ -92,17 +94,25 @@ export class OpenCodeGoProvider implements LLMProvider {
         let finalUsageEvent: ProviderEvent | null = null;
         let isEnded = false;
 
+        const targetModel = this.modelName.replace(/^opencode-go\//i, "");
+
         try {
             let responseStream;
             try {
                 responseStream = await this.client.chat.completions.create({
-                    model: this.modelName,
+                    model: targetModel,
                     messages: apiMessages,
                     tools: apiTools as any,
                     stream: true,
                     stream_options: { include_usage: true }
                 });
             } catch (err: any) {
+                logger.error(`❌ [OpenCodeGoProvider] Stream request failed for model '${this.modelName}' at '${this.baseURL}': ${err?.message}`, {
+                    status: err?.status,
+                    code: err?.code,
+                    type: err?.type,
+                    error: err
+                });
                 const errMsg = (err?.message || "").toLowerCase();
                 if (errMsg.includes("multimodal") || errMsg.includes("image")) {
                     if (generation) {

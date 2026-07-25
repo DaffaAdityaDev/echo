@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Patterns
   Service   : Shared / Patterns
-  Version   : 1.1
-  Updated   : 2026-07-23 (added ACID/SOLID/Clean Code)
+  Version   : 1.2
+  Updated   : 2026-07-25 (added AI-Ready Maturity Model)
 ================================================================================
 
 ## Overview
@@ -30,6 +30,8 @@ error handling.
 |                            |   error format, in-stream error events            |                         |
 | acid-solid-clean-code.md   | ACID transactions, session isolation, SOLID       | Completed               |
 |                            |   patterns, Clean Code conventions                |                         |
+| ai-ready-maturity.md       | Abstract 5-level maturity model for AI readiness  | Completed               |
+|                            |   — internal + external, decoupled from patterns  |                         |
 +----------------------------+---------------------------------------------------+-------------------------+
 
 ## Quick Reference
@@ -51,6 +53,9 @@ error handling.
 | Session-level mutex isolation        | acid-solid-clean-code.md                    |
 | SOLID principles                     | acid-solid-clean-code.md                    |
 | Clean Code conventions               | acid-solid-clean-code.md                    |
+| AI readiness self-assessment         | ai-ready-maturity.md                        |
+| Client maturity assessment           | ai-ready-maturity.md                        |
+| Agentic system maturity levels       | ai-ready-maturity.md                        |
 +--------------------------------------+---------------------------------------------+
 
 ================================================================================
