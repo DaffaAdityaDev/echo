@@ -1,4 +1,4 @@
-package llmops
+package shadow
 
 import (
 	"context"
@@ -11,21 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type ShadowRepository interface {
+type Repository interface {
 	InsertShadowRun(ctx context.Context, sr *models.ShadowRun) error
 	GetCandidateVersionByName(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error)
 	ListShadowRuns(ctx context.Context, templateID string, limit int) ([]models.ShadowRun, error)
 }
 
-type shadowRepository struct {
+type repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewShadowRepository(pool *pgxpool.Pool) ShadowRepository {
-	return &shadowRepository{pool: pool}
+func NewRepository(pool *pgxpool.Pool) Repository {
+	return &repository{pool: pool}
 }
 
-func (r *shadowRepository) InsertShadowRun(ctx context.Context, sr *models.ShadowRun) error {
+func (r *repository) InsertShadowRun(ctx context.Context, sr *models.ShadowRun) error {
 	query := `
 		INSERT INTO shadow_runs (template_id, live_version_id, candidate_version_id, user_query,
 			live_output, shadow_output, live_cost_usd, shadow_cost_usd, live_latency_ms, shadow_latency_ms)
@@ -43,7 +43,7 @@ func (r *shadowRepository) InsertShadowRun(ctx context.Context, sr *models.Shado
 	return nil
 }
 
-func (r *shadowRepository) GetCandidateVersionByName(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error) {
+func (r *repository) GetCandidateVersionByName(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error) {
 	query := `
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
@@ -67,7 +67,7 @@ func (r *shadowRepository) GetCandidateVersionByName(ctx context.Context, tenant
 	return v, nil
 }
 
-func (r *shadowRepository) ListShadowRuns(ctx context.Context, templateID string, limit int) ([]models.ShadowRun, error) {
+func (r *repository) ListShadowRuns(ctx context.Context, templateID string, limit int) ([]models.ShadowRun, error) {
 	if limit <= 0 {
 		limit = 20
 	}

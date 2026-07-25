@@ -11,7 +11,10 @@ import (
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models"
 	"echo-backend/internal/repository"
-	llmopsRepo "echo-backend/internal/repository/llmops"
+	auditrepo "echo-backend/internal/repository/llmops/module/audit"
+	evalrepo "echo-backend/internal/repository/llmops/module/eval"
+	propsrepo "echo-backend/internal/repository/llmops/module/props"
+	shadowrepo "echo-backend/internal/repository/llmops/module/shadow"
 	"echo-backend/internal/service"
 	llmopsSvc "echo-backend/internal/service/llmops"
 
@@ -51,20 +54,22 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	settingsHandler := &handler.SettingsHandler{Cfg: cfg, SettingsSvc: settingsSvc}
 
 	// 5. Initialize LLMOps Module
-	llmopsPromptRepo := llmopsRepo.NewPromptRepository(pool)
-	llmopsEvalRepo := llmopsRepo.NewEvalRepository(pool)
-	llmopsShadowRepo := llmopsRepo.NewShadowRepository(pool)
-	llmopsAuditRepo := llmopsRepo.NewAuditRepository(pool)
+	llmopsPromptRepo := propsrepo.NewRepository(pool)
+	llmopsEvalRepo := evalrepo.NewRepository(pool)
+	llmopsShadowRepo := shadowrepo.NewRepository(pool)
+	llmopsAuditRepo := auditrepo.NewRepository(pool)
 
 	llmopsAuditSvc := llmopsSvc.NewAuditService(llmopsAuditRepo)
 	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo, llmopsAuditSvc)
 	llmopsEvalSvc := llmopsSvc.NewEvalService(llmopsEvalRepo, llmopsPromptRepo, cfg.AgentHTTPURL, cfg.EvaluatorEndpoint, cfg.EvaluatorAPIKey, cfg.EvaluatorModel, cfg.InternalAuthToken)
 	llmopsShadowSvc := llmopsSvc.NewShadowService(llmopsShadowRepo, cfg.AgentHTTPURL, cfg.InternalAuthToken)
 
+	llmopsPlaygroundSvc := llmopsSvc.NewPlaygroundService(modelSvc, cfg.AgentHTTPURL, cfg.InternalAuthToken)
+
 	llmopsPromptHandler := llmopsHandler.NewPromptHandler(llmopsPromptSvc)
 	llmopsEvalHandler := llmopsHandler.NewEvalHandler(llmopsEvalSvc)
 	llmopsShadowHandler := llmopsHandler.NewShadowHandler(llmopsShadowSvc)
-	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsAuditSvc)
+	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsPlaygroundSvc, llmopsAuditSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {

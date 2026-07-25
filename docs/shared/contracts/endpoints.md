@@ -314,7 +314,8 @@ From `docs/architecture-plan.md` — not yet implemented:
 | backend/internal/handler/llmops/                | 1-450 | Studio handler group             |
 | backend/internal/service/llmops/                | 1-350 | Studio service layer (prompts,   |
 |                                                 |       |   evals, shadow, audit, maturity)|
-| backend/internal/repository/llmops/             | 1-200 | Studio repository layer          |
+| backend/internal/repository/llmops/module/      | 1-500 | Studio repository layer (audit,  |
+|                                                 |       |   eval, props, shadow sub-pkgs)  |
 +-------------------------------------------------+-------+----------------------------------+
 
 ================================================================================

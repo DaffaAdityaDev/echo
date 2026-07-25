@@ -56,7 +56,7 @@ export function PromptEditor({
         onChange={(e) => onPromptChange(e.target.value)}
         placeholder="Write your system prompt here... Use {{variable_name}} for dynamic slots."
         rows={10}
-        className="w-full p-4 bg-zinc-950/60 border border-zinc-800/80 rounded-xl text-sm text-zinc-200 placeholder:text-zinc-600 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+        className="w-full p-4 bg-white border border-zinc-200 rounded-xl text-sm text-zinc-800 placeholder:text-zinc-400 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/10 resize-y"
       />
 
       {/* Variables */}
@@ -65,42 +65,42 @@ export function PromptEditor({
           <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Mock Variables</h4>
           {variables.map((v, idx) => (
             <div key={idx} className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 w-4">{`{{`}</span>
+              <span className="text-xs text-zinc-500 w-4">{'\u007B\u007B'}</span>
               <input
                 value={v.key}
                 onChange={(e) => handleVariableChange(idx, "key", e.target.value)}
                 placeholder="variable_name"
-                className="flex-1 h-8 px-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="flex-1 h-8 px-3 rounded-lg bg-white border border-zinc-200 text-xs text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               />
               <span className="text-xs text-zinc-500">→</span>
               <input
                 value={v.value}
                 onChange={(e) => handleVariableChange(idx, "value", e.target.value)}
                 placeholder="mock value"
-                className="flex-[2] h-8 px-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="flex-[2] h-8 px-3 rounded-lg bg-white border border-zinc-200 text-xs text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               />
-              <button onClick={() => handleRemoveVariable(idx)} className="text-zinc-600 hover:text-red-400 transition-colors">
+              <button onClick={() => handleRemoveVariable(idx)} className="text-zinc-500 hover:text-red-600 transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ))}
         </div>
       )}
-      <button onClick={handleAddVariable} className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1">
+      <button onClick={handleAddVariable} className="text-xs text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
         <Plus className="h-3.5 w-3.5" /> Add Variable
       </button>
 
       {/* Model selection */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold text-zinc-400 mr-1">Models:</span>
+        <span className="text-xs font-semibold text-zinc-500 mr-1">Models:</span>
         {(availableModels.length > 0 ? availableModels : DEFAULT_MODELS).map((model) => (
           <button
             key={model}
             onClick={() => toggleModel(model)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               selectedModels.includes(model)
-                ? "bg-blue-600/15 text-blue-400 border-blue-500/30"
-                : "bg-zinc-800/40 text-zinc-500 border-zinc-800 hover:border-zinc-700"
+                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                : "bg-zinc-100 text-zinc-700 border-zinc-300 hover:bg-zinc-200 hover:border-zinc-400"
             }`}
           >
             {model}
@@ -113,7 +113,9 @@ export function PromptEditor({
           onClick={onRun}
           isLoading={isRunning}
           disabled={!prompt.trim() || selectedModels.length === 0}
-          className="gap-2"
+          variant="primary"
+          size="lg"
+          className="!bg-blue-600 !text-white !border-blue-600 hover:!bg-blue-700"
         >
           <Play className="h-4 w-4" /> Run Test
         </Button>

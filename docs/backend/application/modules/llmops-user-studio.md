@@ -42,7 +42,13 @@ interface for non-developers to own their AI behaviour.
 |   governance/                        | Approval flow, audit ledger              |
 | backend/internal/handler/llmops/     | HTTP handlers per pillar                 |
 | backend/internal/service/llmops/     | Business logic, orchestration            |
-| backend/internal/repository/llmops/  | Data access — prompt_versions, eval_runs |
+| backend/internal/repository/llmops/  | Module dispatcher (empty — delegates     |
+|                                     |   to sub-modules below)                 |
+| backend/internal/repository/llmops/  | Data access per domain:                  |
+|   module/audit/                      |   audit_logs table                      |
+|   module/eval/                       |   eval_datasets, eval_runs tables       |
+|   module/props/                      |   prompt_templates, prompt_versions     |
+|   module/shadow/                     |   shadow_runs table                     |
 +--------------------------------------+------------------------------------------+
 
 ---

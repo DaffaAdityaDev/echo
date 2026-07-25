@@ -1,4 +1,4 @@
-package llmops
+package eval
 
 import (
 	"context"
@@ -9,22 +9,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type EvalRepository interface {
+type Repository interface {
 	CreateDataset(ctx context.Context, dataset *models.EvalDataset) (*models.EvalDataset, error)
 	GetDataset(ctx context.Context, id string) (*models.EvalDataset, error)
 	InsertEvalRun(ctx context.Context, run *models.EvalRun) (*models.EvalRun, error)
 	GetEvalRun(ctx context.Context, id string) (*models.EvalRun, error)
 }
 
-type evalRepository struct {
+type repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewEvalRepository(pool *pgxpool.Pool) EvalRepository {
-	return &evalRepository{pool: pool}
+func NewRepository(pool *pgxpool.Pool) Repository {
+	return &repository{pool: pool}
 }
 
-func (r *evalRepository) CreateDataset(ctx context.Context, dataset *models.EvalDataset) (*models.EvalDataset, error) {
+func (r *repository) CreateDataset(ctx context.Context, dataset *models.EvalDataset) (*models.EvalDataset, error) {
 	casesJSON, _ := json.Marshal(dataset.TestCases)
 	query := `
 		INSERT INTO eval_datasets (tenant_id, name, description, test_cases, created_by)
@@ -39,7 +39,7 @@ func (r *evalRepository) CreateDataset(ctx context.Context, dataset *models.Eval
 	return dataset, nil
 }
 
-func (r *evalRepository) GetDataset(ctx context.Context, id string) (*models.EvalDataset, error) {
+func (r *repository) GetDataset(ctx context.Context, id string) (*models.EvalDataset, error) {
 	query := `SELECT id, tenant_id, name, description, test_cases, created_by, created_at FROM eval_datasets WHERE id = $1`
 	d := &models.EvalDataset{}
 	var casesBytes []byte
@@ -51,7 +51,7 @@ func (r *evalRepository) GetDataset(ctx context.Context, id string) (*models.Eva
 	return d, nil
 }
 
-func (r *evalRepository) InsertEvalRun(ctx context.Context, run *models.EvalRun) (*models.EvalRun, error) {
+func (r *repository) InsertEvalRun(ctx context.Context, run *models.EvalRun) (*models.EvalRun, error) {
 	detailsJSON, _ := json.Marshal(run.Details)
 	query := `
 		INSERT INTO eval_runs (prompt_version_id, dataset_id, pass_rate, score_accuracy, score_format, score_tools, details, executed_by)
@@ -69,7 +69,7 @@ func (r *evalRepository) InsertEvalRun(ctx context.Context, run *models.EvalRun)
 	return run, nil
 }
 
-func (r *evalRepository) GetEvalRun(ctx context.Context, id string) (*models.EvalRun, error) {
+func (r *repository) GetEvalRun(ctx context.Context, id string) (*models.EvalRun, error) {
 	query := `SELECT id, prompt_version_id, dataset_id, pass_rate, score_accuracy, score_format, score_tools, details, executed_by, created_at FROM eval_runs WHERE id = $1`
 	run := &models.EvalRun{}
 	var detailsBytes []byte

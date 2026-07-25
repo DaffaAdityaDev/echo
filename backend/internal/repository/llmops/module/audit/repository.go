@@ -1,4 +1,4 @@
-package llmops
+package audit
 
 import (
 	"context"
@@ -9,20 +9,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type AuditRepository interface {
+type Repository interface {
 	InsertAuditLog(ctx context.Context, log *models.AuditLog) error
 	QueryAuditLogs(ctx context.Context, tenantID string, limit int) ([]models.AuditLog, error)
 }
 
-type auditRepository struct {
+type repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewAuditRepository(pool *pgxpool.Pool) AuditRepository {
-	return &auditRepository{pool: pool}
+func NewRepository(pool *pgxpool.Pool) Repository {
+	return &repository{pool: pool}
 }
 
-func (r *auditRepository) InsertAuditLog(ctx context.Context, log *models.AuditLog) error {
+func (r *repository) InsertAuditLog(ctx context.Context, log *models.AuditLog) error {
 	payloadJSON, _ := json.Marshal(log.Payload)
 	query := `
 		INSERT INTO audit_logs (tenant_id, actor, action, resource, payload)
@@ -37,7 +37,7 @@ func (r *auditRepository) InsertAuditLog(ctx context.Context, log *models.AuditL
 	return nil
 }
 
-func (r *auditRepository) QueryAuditLogs(ctx context.Context, tenantID string, limit int) ([]models.AuditLog, error) {
+func (r *repository) QueryAuditLogs(ctx context.Context, tenantID string, limit int) ([]models.AuditLog, error) {
 	if limit <= 0 {
 		limit = 50
 	}

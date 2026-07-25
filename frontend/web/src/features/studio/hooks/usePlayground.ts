@@ -12,11 +12,13 @@ export function usePlayground() {
     selectedModels,
     playgroundResults: results,
     isPlaygroundRunning: isRunning,
+    playgroundError: error,
     setPlaygroundPrompt: setPrompt,
     setPlaygroundVariables: setVariables,
     setSelectedModels,
     setPlaygroundResults: setResults,
     setIsPlaygroundRunning: setIsRunning,
+    setPlaygroundError: setError,
   } = useStudioStore()
 
   const handleRun = async () => {
@@ -24,6 +26,7 @@ export function usePlayground() {
 
     setIsRunning(true)
     setResults([])
+    setError(null)
 
     try {
       const data = await api.post<{ results: PlaygroundResult[] }>(STUDIO_ENDPOINTS.PLAYGROUND, {
@@ -33,15 +36,7 @@ export function usePlayground() {
       })
       setResults(data.results ?? null)
     } catch (err) {
-      setResults([
-        {
-          model: "Error",
-          content: "",
-          latency_ms: 0,
-          tokens: 0,
-          error: err instanceof Error ? err.message : "Request failed",
-        },
-      ])
+      setError(err instanceof Error ? err.message : "Request failed")
     } finally {
       setIsRunning(false)
     }
@@ -56,7 +51,7 @@ export function usePlayground() {
     setSelectedModels,
     results,
     isRunning,
-    error: null,
+    error,
     handleRun,
   }
 }

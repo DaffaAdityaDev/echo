@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository/llmops"
+	auditrepo "echo-backend/internal/repository/llmops/module/audit"
 )
 
 type AuditService interface {
@@ -13,10 +13,10 @@ type AuditService interface {
 }
 
 type auditService struct {
-	repo llmops.AuditRepository
+	repo auditrepo.Repository
 }
 
-func NewAuditService(repo llmops.AuditRepository) AuditService {
+func NewAuditService(repo auditrepo.Repository) AuditService {
 	return &auditService{repo: repo}
 }
 

@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository/llmops"
+	evalrepo "echo-backend/internal/repository/llmops/module/eval"
+	propsrepo "echo-backend/internal/repository/llmops/module/props"
 )
 
 type EvalService interface {
@@ -20,8 +21,8 @@ type EvalService interface {
 }
 
 type evalService struct {
-	repo              llmops.EvalRepository
-	promptRepo        llmops.PromptRepository
+	repo              evalrepo.Repository
+	promptRepo        propsrepo.Repository
 	agentServerURL    string
 	evaluatorEndpoint string
 	evaluatorAPIKey   string
@@ -31,8 +32,8 @@ type evalService struct {
 }
 
 func NewEvalService(
-	repo llmops.EvalRepository,
-	promptRepo llmops.PromptRepository,
+	repo evalrepo.Repository,
+	promptRepo propsrepo.Repository,
 	agentServerURL string,
 	evaluatorEndpoint string,
 	evaluatorAPIKey string,

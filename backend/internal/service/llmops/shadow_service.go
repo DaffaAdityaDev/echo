@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository/llmops"
+	shadowrepo "echo-backend/internal/repository/llmops/module/shadow"
 )
 
 type ShadowService interface {
@@ -19,13 +19,13 @@ type ShadowService interface {
 }
 
 type shadowService struct {
-	repo              llmops.ShadowRepository
+	repo              shadowrepo.Repository
 	agentClient       *http.Client
 	agentServerURL    string
 	internalAuthToken string
 }
 
-func NewShadowService(repo llmops.ShadowRepository, agentServerURL string, internalAuthToken string) ShadowService {
+func NewShadowService(repo shadowrepo.Repository, agentServerURL string, internalAuthToken string) ShadowService {
 	if internalAuthToken == "" {
 		internalAuthToken = "default-internal-token-secret"
 	}

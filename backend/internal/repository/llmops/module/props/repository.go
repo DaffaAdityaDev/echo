@@ -1,4 +1,4 @@
-package llmops
+package props
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PromptRepository interface {
+type Repository interface {
 	CreateTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error)
 	GetTemplateByName(ctx context.Context, tenantID, name string) (*models.PromptTemplate, error)
 	ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error)
@@ -24,15 +24,15 @@ type PromptRepository interface {
 	RollbackVersion(ctx context.Context, templateID string, targetVersion int, actor string) error
 }
 
-type promptRepository struct {
+type repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewPromptRepository(pool *pgxpool.Pool) PromptRepository {
-	return &promptRepository{pool: pool}
+func NewRepository(pool *pgxpool.Pool) Repository {
+	return &repository{pool: pool}
 }
 
-func (r *promptRepository) ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error) {
+func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error) {
 	query := `
 		SELECT id, tenant_id, name, COALESCE(description, ''), COALESCE(active_version, 1), created_at, updated_at
 		FROM prompt_templates WHERE tenant_id = $1 ORDER BY updated_at DESC
@@ -54,7 +54,7 @@ func (r *promptRepository) ListTemplates(ctx context.Context, tenantID string) (
 	return templates, nil
 }
 
-func (r *promptRepository) CreateTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error) {
+func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error) {
 	query := `
 		INSERT INTO prompt_templates (tenant_id, name, description)
 		VALUES ($1, $2, $3)
@@ -70,7 +70,7 @@ func (r *promptRepository) CreateTemplate(ctx context.Context, tenantID, name, d
 	return t, nil
 }
 
-func (r *promptRepository) GetTemplateByName(ctx context.Context, tenantID, name string) (*models.PromptTemplate, error) {
+func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name string) (*models.PromptTemplate, error) {
 	query := `
 		SELECT id, tenant_id, name, description, active_version, created_at, updated_at
 		FROM prompt_templates WHERE tenant_id = $1 AND name = $2
@@ -88,7 +88,7 @@ func (r *promptRepository) GetTemplateByName(ctx context.Context, tenantID, name
 	return t, nil
 }
 
-func (r *promptRepository) CreateVersion(ctx context.Context, v *models.PromptVersion) (*models.PromptVersion, error) {
+func (r *repository) CreateVersion(ctx context.Context, v *models.PromptVersion) (*models.PromptVersion, error) {
 	toolsJSON, _ := json.Marshal(v.BoundTools)
 	varsJSON, _ := json.Marshal(v.Variables)
 
@@ -105,7 +105,7 @@ func (r *promptRepository) CreateVersion(ctx context.Context, v *models.PromptVe
 	return v, nil
 }
 
-func (r *promptRepository) GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error) {
+func (r *repository) GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error) {
 	query := `
 		SELECT id, template_id, version, system_prompt, bound_tools, variables, status, created_by, created_at
 		FROM prompt_versions WHERE template_id = $1 AND version = $2
@@ -126,7 +126,7 @@ func (r *promptRepository) GetVersion(ctx context.Context, templateID string, ve
 	return v, nil
 }
 
-func (r *promptRepository) GetActiveVersion(ctx context.Context, templateID string) (*models.PromptVersion, error) {
+func (r *repository) GetActiveVersion(ctx context.Context, templateID string) (*models.PromptVersion, error) {
 	query := `
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
@@ -149,7 +149,7 @@ func (r *promptRepository) GetActiveVersion(ctx context.Context, templateID stri
 	return v, nil
 }
 
-func (r *promptRepository) GetActiveVersionByName(ctx context.Context, tenantID, name string) (*models.PromptVersion, error) {
+func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name string) (*models.PromptVersion, error) {
 	query := `
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
@@ -172,7 +172,7 @@ func (r *promptRepository) GetActiveVersionByName(ctx context.Context, tenantID,
 	return v, nil
 }
 
-func (r *promptRepository) ListVersions(ctx context.Context, templateID string) ([]models.PromptVersion, error) {
+func (r *repository) ListVersions(ctx context.Context, templateID string) ([]models.PromptVersion, error) {
 	query := `SELECT id, template_id, version, system_prompt, bound_tools, variables, status, created_by, created_at FROM prompt_versions WHERE template_id = $1 ORDER BY version DESC`
 	rows, err := r.pool.Query(ctx, query, templateID)
 	if err != nil {
@@ -194,7 +194,7 @@ func (r *promptRepository) ListVersions(ctx context.Context, templateID string) 
 	return versions, nil
 }
 
-func (r *promptRepository) PromoteVersion(ctx context.Context, templateID string, version int, actor string) error {
+func (r *repository) PromoteVersion(ctx context.Context, templateID string, version int, actor string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("tx begin: %w", err)
@@ -214,7 +214,7 @@ func (r *promptRepository) PromoteVersion(ctx context.Context, templateID string
 	return tx.Commit(ctx)
 }
 
-func (r *promptRepository) RollbackVersion(ctx context.Context, templateID string, targetVersion int, actor string) error {
+func (r *repository) RollbackVersion(ctx context.Context, templateID string, targetVersion int, actor string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("tx begin: %w", err)

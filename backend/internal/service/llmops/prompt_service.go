@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository/llmops"
+	propsrepo "echo-backend/internal/repository/llmops/module/props"
 )
 
 type PromptService interface {
@@ -20,11 +20,11 @@ type PromptService interface {
 }
 
 type promptService struct {
-	repo     llmops.PromptRepository
+	repo     propsrepo.Repository
 	auditSvc AuditService
 }
 
-func NewPromptService(repo llmops.PromptRepository, auditSvc AuditService) PromptService {
+func NewPromptService(repo propsrepo.Repository, auditSvc AuditService) PromptService {
 	return &promptService{repo: repo, auditSvc: auditSvc}
 }
 

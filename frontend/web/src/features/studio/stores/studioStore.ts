@@ -10,12 +10,14 @@ interface StudioState {
   playgroundPrompt: string
   playgroundVariables: Record<string, string>
   selectedModels: string[]
+  playgroundError: string | null
   setPlaygroundResults: (results: PlaygroundResult[] | null) => void
   setIsPlaygroundRunning: (running: boolean) => void
   setActivePromptId: (id: string | null) => void
   setPlaygroundPrompt: (prompt: string) => void
   setPlaygroundVariables: (vars: Record<string, string>) => void
   setSelectedModels: (models: string[]) => void
+  setPlaygroundError: (error: string | null) => void
 }
 
 export const useStudioStore = create<StudioState>((set) => ({
@@ -24,11 +26,13 @@ export const useStudioStore = create<StudioState>((set) => ({
   activePromptId: null,
   playgroundPrompt: '',
   playgroundVariables: {},
-  selectedModels: ['gpt-4o'],
+  selectedModels: [],
+  playgroundError: null,
   setPlaygroundResults: (results) => set({ playgroundResults: results }),
   setIsPlaygroundRunning: (running) => set({ isPlaygroundRunning: running }),
   setActivePromptId: (id) => set({ activePromptId: id }),
   setPlaygroundPrompt: (prompt) => set({ playgroundPrompt: prompt }),
   setPlaygroundVariables: (vars) => set({ playgroundVariables: vars }),
   setSelectedModels: (models) => set({ selectedModels: models }),
+  setPlaygroundError: (error) => set({ playgroundError: error }),
 }))
