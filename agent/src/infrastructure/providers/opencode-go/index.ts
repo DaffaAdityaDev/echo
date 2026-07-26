@@ -80,6 +80,17 @@ export class OpenCodeGoProvider implements LLMProvider {
             }
         })) : undefined;
 
+        logger.info(`[OpenCodeGoProvider.stream] model=${this.modelName} targetModel=${this.modelName.replace(/^opencode-go\//i, "")} toolsProvided=${tools.length} hasApiTools=${!!apiTools}`);
+        if (tools.length > 0) {
+            logger.info(`[OpenCodeGoProvider.stream] Tool names: ${tools.map(t => t.name).join(', ')}`);
+            try {
+                const schemaSample = JSON.stringify(apiTools![0].function.parameters).substring(0, 300);
+                logger.info(`[OpenCodeGoProvider.stream] First tool schema (truncated): ${schemaSample}`);
+            } catch (e) {}
+        } else {
+            logger.info(`[OpenCodeGoProvider.stream] No tools provided — sending request without tools parameter`);
+        }
+
         const storeContext = langfuseStorage.getStore();
         const trace = storeContext?.trace;
         const generation = trace?.generation ? trace.generation({
@@ -99,6 +110,7 @@ export class OpenCodeGoProvider implements LLMProvider {
         try {
             let responseStream;
             try {
+                logger.info(`[OpenCodeGoProvider.stream] Calling API: model=${targetModel} messages=${apiMessages.length} tools=${apiTools?.length ?? 0}`);
                 responseStream = await this.client.chat.completions.create({
                     model: targetModel,
                     messages: apiMessages,
@@ -148,6 +160,7 @@ export class OpenCodeGoProvider implements LLMProvider {
                     }
 
                     if (delta.tool_calls && delta.tool_calls.length > 0) {
+                        logger.info(`[OpenCodeGoProvider.stream] Received tool_calls delta: ${JSON.stringify(delta.tool_calls.map(tc => ({ index: tc.index, name: tc.function?.name, argsLen: tc.function?.arguments?.length })))}`);
                         for (const tcDelta of delta.tool_calls) {
                             const index = tcDelta.index ?? 0;
                             const existing = accumulatedToolCalls.get(index) || { name: "", argsStr: "" };
@@ -193,20 +206,25 @@ export class OpenCodeGoProvider implements LLMProvider {
             }
 
             // Emit all accumulated tool calls (supports parallel tool calling)
+            logger.info(`[OpenCodeGoProvider.stream] Emitting ${accumulatedToolCalls.size} accumulated tool calls`);
             for (const [_, tc] of accumulatedToolCalls) {
                 if (tc.name) {
                     let parsedArgs: Record<string, unknown> = {};
                     try {
                         parsedArgs = JSON.parse(tc.argsStr);
                     } catch (e) {
+                        logger.warn(`[OpenCodeGoProvider.stream] Failed to parse tool args JSON: ${e}`);
                         parsedArgs = { raw: tc.argsStr };
                     }
+                    logger.info(`[OpenCodeGoProvider.stream] Yielding toolCall: ${tc.name} args=${JSON.stringify(parsedArgs)}`);
                     yield {
                         toolCall: {
                             name: tc.name,
                             args: parsedArgs
                         }
                     };
+                } else {
+                    logger.warn(`[OpenCodeGoProvider.stream] Accumulated tool call has no name, skipping: ${JSON.stringify(tc)}`);
                 }
             }
 

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -16,23 +17,26 @@ import (
 	"echo-backend/internal/service"
 )
 
-type PlaygroundResult struct {
+type StreamResult struct {
 	Model     string `json:"model"`
-	Content   string `json:"content"`
-	LatencyMS int    `json:"latency_ms"`
-	Tokens    int    `json:"tokens"`
-	Status    string `json:"status"`
+	Content   string `json:"content,omitempty"`
+	Reasoning string `json:"reasoning,omitempty"`
+	Event     string `json:"event"`
 	Error     string `json:"error,omitempty"`
+	LatencyMS int    `json:"latency_ms,omitempty"`
+	Tokens    int    `json:"tokens,omitempty"`
 }
 
 type PlaygroundRequest struct {
 	Prompt    string            `json:"prompt"`
 	Variables map[string]string `json:"variables"`
 	Models    []string          `json:"models"`
+	Features  []string          `json:"features,omitempty"`
+	Skills    []string          `json:"skills,omitempty"`
 }
 
 type PlaygroundService interface {
-	RunPlayground(ctx context.Context, req PlaygroundRequest) ([]PlaygroundResult, error)
+	StreamPlayground(ctx context.Context, req PlaygroundRequest, results chan<- StreamResult) error
 }
 
 type playgroundService struct {
@@ -50,7 +54,7 @@ func NewPlaygroundService(modelSvc *service.ModelService, agentURL, authToken st
 		modelSvc:  modelSvc,
 		agentURL:  agentURL,
 		authToken: authToken,
-		client:    &http.Client{Timeout: 35 * time.Second},
+		client:    &http.Client{},
 	}
 }
 
@@ -70,39 +74,44 @@ func substituteVariables(prompt string, vars map[string]string) (string, error) 
 	return prompt, nil
 }
 
-func (s *playgroundService) RunPlayground(ctx context.Context, req PlaygroundRequest) ([]PlaygroundResult, error) {
+func (s *playgroundService) StreamPlayground(ctx context.Context, req PlaygroundRequest, results chan<- StreamResult) error {
 	prompt, err := substituteVariables(req.Prompt, req.Variables)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(req.Models) == 0 {
-		return nil, fmt.Errorf("no models selected — pilih minimal satu model")
+		return fmt.Errorf("no models selected — pilih minimal satu model")
 	}
 
-	results := make([]PlaygroundResult, len(req.Models))
 	var wg sync.WaitGroup
-
-	for i, modelID := range req.Models {
+	for _, modelID := range req.Models {
 		wg.Add(1)
-		go func(idx int, id string) {
+		go func(id string, feats, skls []string) {
 			defer wg.Done()
-			results[idx] = s.runModel(ctx, id, prompt)
-		}(i, modelID)
+			s.runModelStream(ctx, id, prompt, results, feats, skls)
+		}(modelID, req.Features, req.Skills)
 	}
 
 	wg.Wait()
-	return results, nil
+	select {
+	case results <- StreamResult{Event: "complete"}:
+	case <-ctx.Done():
+	}
+	return nil
 }
 
-func (s *playgroundService) runModel(ctx context.Context, modelID, prompt string) PlaygroundResult {
+func (s *playgroundService) runModelStream(ctx context.Context, modelID, prompt string, results chan<- StreamResult, features, skills []string) {
 	providerCfg, err := s.modelSvc.ResolveModel(modelID)
 	if err != nil {
-		return PlaygroundResult{
-			Model:  modelID,
-			Status: "error",
-			Error:  fmt.Sprintf("Unknown model: %s", modelID),
+		select {
+		case results <- StreamResult{
+			Model: modelID, Event: "error",
+			Error: fmt.Sprintf("Unknown model: %s", modelID),
+		}:
+		case <-ctx.Done():
 		}
+		return
 	}
 
 	agentPayload := map[string]any{
@@ -114,27 +123,38 @@ func (s *playgroundService) runModel(ctx context.Context, modelID, prompt string
 		},
 		"prompt":   prompt,
 		"strategy": "agent",
-		"features": []string{},
-		"skills":   []string{},
 		"config": map[string]any{
 			"harness": map[string]any{
 				"maxIterations": 5,
 			},
 		},
 	}
+	if len(features) > 0 {
+		agentPayload["features"] = features
+	}
+	if len(skills) > 0 {
+		agentPayload["skills"] = skills
+	}
 
-	bodyBytes, _ := json.Marshal(agentPayload)
+	bodyBytes, err := json.Marshal(agentPayload)
+	if err != nil {
+		log.Printf("[playground stream] failed to marshal payload for %s: %v", modelID, err)
+	}
+	log.Printf("[playground stream] agent payload for %s: %s", modelID, string(bodyBytes))
 
-	modelCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	modelCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(modelCtx, "POST", s.agentURL+"/api/generate-mission", bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		return PlaygroundResult{
-			Model:  modelID,
-			Status: "error",
-			Error:  fmt.Sprintf("Failed to build request: %v", err),
+		select {
+		case results <- StreamResult{
+			Model: modelID, Event: "error",
+			Error: fmt.Sprintf("Failed to build request: %v", err),
+		}:
+		case <-ctx.Done():
 		}
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Internal-Token", s.authToken)
@@ -142,51 +162,32 @@ func (s *playgroundService) runModel(ctx context.Context, modelID, prompt string
 	start := time.Now()
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return PlaygroundResult{
-			Model:  modelID,
-			Status: "error",
-			Error:  fmt.Sprintf("Agent unreachable: %v", err),
+		select {
+		case results <- StreamResult{
+			Model: modelID, Event: "error",
+			Error: fmt.Sprintf("Agent unreachable: %v", err),
+		}:
+		case <-ctx.Done():
 		}
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return PlaygroundResult{
-			Model:  modelID,
-			Status: "error",
-			Error:  fmt.Sprintf("Agent returned status %d: %s", resp.StatusCode, string(respBody)),
+		select {
+		case results <- StreamResult{
+			Model: modelID, Event: "error",
+			Error: fmt.Sprintf("Agent returned status %d: %s", resp.StatusCode, string(respBody)),
+		}:
+		case <-ctx.Done():
 		}
+		return
 	}
 
-	content, agentErr := consumeSSEStream(resp.Body)
-	latency := int(time.Since(start).Milliseconds())
-
-	result := PlaygroundResult{
-		Model:     modelID,
-		Content:   content,
-		LatencyMS: latency,
-		Tokens:    len(content) / 4,
-		Status:    "success",
-	}
-
-	if agentErr != "" {
-		result.Status = "error"
-		result.Error = agentErr
-	}
-
-	return result
-}
-
-type ssePacket struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
-}
-
-func consumeSSEStream(body io.Reader) (string, string) {
 	var content strings.Builder
-	var agentErr string
-	scanner := bufio.NewScanner(body)
+	var reasoning strings.Builder
+	scanner := bufio.NewScanner(resp.Body)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
 
@@ -207,18 +208,79 @@ func consumeSSEStream(body io.Reader) (string, string) {
 		switch packet.Type {
 		case "content":
 			content.WriteString(packet.Content)
-		case "error":
-			if agentErr == "" {
-				agentErr = packet.Content
+			select {
+			case results <- StreamResult{
+				Model:   modelID,
+				Event:   "content",
+				Content: packet.Content,
+			}:
+			case <-ctx.Done():
+				return
 			}
+		case "reasoning":
+			reasoning.WriteString(packet.Content)
+			select {
+			case results <- StreamResult{
+				Model:     modelID,
+				Event:     "reasoning",
+				Reasoning: packet.Content,
+			}:
+			case <-ctx.Done():
+				return
+			}
+		case "error":
+			select {
+			case results <- StreamResult{
+				Model: modelID, Event: "error",
+				Error: packet.Content,
+			}:
+			case <-ctx.Done():
+			}
+			return
 		case "turn_complete":
-			return content.String(), agentErr
+			latency := int(time.Since(start).Milliseconds())
+			select {
+			case results <- StreamResult{
+				Model:     modelID,
+				Event:     "done",
+				Content:   content.String(),
+				Reasoning: reasoning.String(),
+				LatencyMS: latency,
+				Tokens:    content.Len()/4 + reasoning.Len()/4,
+			}:
+			case <-ctx.Done():
+			}
+			return
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return content.String(), fmt.Sprintf("Stream read error: %v", err)
+		select {
+		case results <- StreamResult{
+			Model: modelID, Event: "error",
+			Error: fmt.Sprintf("Stream read error: %v", err),
+		}:
+		case <-ctx.Done():
+		}
+		return
 	}
 
-	return content.String(), agentErr
+	latency := int(time.Since(start).Milliseconds())
+	select {
+	case results <- StreamResult{
+		Model:     modelID,
+		Event:     "done",
+		Content:   content.String(),
+		LatencyMS: latency,
+		Tokens:    content.Len()/4 + reasoning.Len()/4,
+	}:
+	case <-ctx.Done():
+	}
 }
+
+type ssePacket struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+

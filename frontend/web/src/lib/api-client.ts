@@ -4,6 +4,26 @@ import { generateTraceContext } from "./telemetry-fetch"
 
 const BASE_URL = "/api"
 
+function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?: unknown): void {
+  const { traceparent } = generateTraceContext()
+  headers.set('traceparent', traceparent)
+
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+
+  if (body && typeof body === "object") {
+    const rec = body as Record<string, unknown>
+    const sid = typeof rec.sessionId === 'string' ? rec.sessionId : typeof rec.missionId === 'string' ? rec.missionId : undefined
+    if (sid) {
+      headers.set("x-agent-session-id", sid)
+    }
+  }
+}
+
 const client: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -12,22 +32,7 @@ const client: AxiosInstance = axios.create({
 })
 
 client.interceptors.request.use((config) => {
-  const { traceparent } = generateTraceContext()
-  config.headers.set('traceparent', traceparent)
-
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
-    if (token) {
-      config.headers.set('Authorization', `Bearer ${token}`)
-    }
-  }
-
-  const sessionId = config.headers.get('x-agent-session-id') ||
-    (config.data?.sessionId) || (config.data?.missionId)
-  if (sessionId) {
-    config.headers.set('x-agent-session-id', sessionId)
-  }
-
+  setAuthHeaders(config.headers, config.data)
   return config
 })
 
@@ -73,25 +78,9 @@ async function stream<T = unknown>(
 ) {
   const { signal } = options
 
-  const { traceparent } = generateTraceContext()
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
-  headers.set("traceparent", traceparent);
-
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-  }
-
-  if (body && typeof body === "object") {
-    const bodyRecord = body as Record<string, unknown>;
-    const sid = typeof bodyRecord.sessionId === 'string' ? bodyRecord.sessionId : typeof bodyRecord.missionId === 'string' ? bodyRecord.missionId : undefined;
-    if (sid) {
-      headers.set("x-agent-session-id", sid);
-    }
-  }
+  setAuthHeaders(headers, body);
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: "POST",
@@ -99,6 +88,13 @@ async function stream<T = unknown>(
     body: JSON.stringify(body),
     signal: signal as AbortSignal,
   });
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    let message = `Request failed with status ${response.status}`
+    try { const parsed = JSON.parse(errorText); message = parsed.error || parsed.message || message } catch { message = errorText || message }
+    throw new Error(message)
+  }
 
   if (!response.body) throw new Error("ReadableStream not supported");
 

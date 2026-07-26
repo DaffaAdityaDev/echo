@@ -199,15 +199,19 @@ export class NlahHarness {
             tools = isSubAgent
                 ? this.explicitTools.filter(t => t.name !== 'delegate_task')
                 : this.explicitTools;
+            logger.info(`[selectTools] Using explicitTools (length=${this.explicitTools.length}): ${this.explicitTools.map(t => t.name).join(', ') || '(empty)'}`);
         } else {
+            logger.info(`[selectTools] No explicitTools set — falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`);
             tools = NlahHarness.toolRetriever!.getRelevantTools(state.objective, filteredFullPool);
         }
 
         if (this.skills?.length) {
             const allowed = NlahHarness.skillRegistry.getToolFilter(this.skills);
             if (allowed) tools = tools.filter(t => allowed.includes(t.name));
+            logger.info(`[selectTools] Skills filter applied (skills=${this.skills.join(',')}) — tools remaining: ${tools.length}`);
         }
 
+        logger.info(`[selectTools] Final tools (${tools.length}): ${tools.map(t => t.name).join(', ') || '(none)'}`);
         return { tools, toolMap: new Map(tools.map(t => [t.name, t])) };
     }
 
@@ -372,10 +376,15 @@ export class NlahHarness {
                         throughput: (Date.now() - streamStart) / 1000 > 0 ? tokenEstimate / ((Date.now() - streamStart) / 1000) : undefined
                     });
                 }
-                if (event.toolCall) pendingToolCall = event.toolCall;
+                if (event.toolCall) {
+                    logger.info(`[processStreamEvents] Got toolCall event: ${JSON.stringify(event.toolCall)}`);
+                    pendingToolCall = event.toolCall;
+                }
                 if (event.content && !pendingToolCall) {
                     hasContentEmitted = true;
                     await this.emitContent(onPacket, iteration, event.content);
+                } else if (event.content && pendingToolCall) {
+                    logger.info(`[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`);
                 }
                 if (event.usage) {
                     await this.emitUsage(onPacket, iteration, event.usage);
@@ -387,6 +396,7 @@ export class NlahHarness {
             clearInterval(heartbeatInterval);
         }
 
+        logger.info(`[processStreamEvents] Done — hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`);
         return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted };
     }
 
@@ -641,6 +651,7 @@ export class NlahHarness {
 
                         let toolCallResult: { name: string; args: Record<string, unknown> } | null = pendingToolCall;
                         if (toolCallResult) {
+                            logger.info(`[runMission] Iter ${iteration}: executing toolCall ${toolCallResult.name}`);
                             const { isComplete: turnComplete } = await this.executeToolCall(
                                 toolCallResult, currentToolMap, assistantContent, reasoningContent,
                                 iteration, onPacket, state, circuit, degradation, totalInputTokensSum, maxContextTokens
@@ -649,6 +660,7 @@ export class NlahHarness {
                                 await this.emitContent(onPacket, iteration, assistantContent);
                             }
                         } else {
+                            logger.info(`[runMission] Iter ${iteration}: no toolCall — entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`);
                             const { isComplete: turnComplete, retryWithTool } = await this.handleAutoRecovery(
                                 assistantContent, reasoningContent, iteration, onPacket, state
                             );

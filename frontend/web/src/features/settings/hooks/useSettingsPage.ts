@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import { useFeatures } from "@/features/chat/hooks/useFeatures";
-import { useSkills } from "@/features/chat/hooks/useSkills";
+import { useFeatures } from "@/features/shared/hooks/useFeatures";
+import { useSkills } from "@/features/shared/hooks/useSkills";
 import { useModels } from "@/features/chat/hooks/useModels";
 import { settingsApi } from "../services/settings-api";
 
@@ -79,7 +79,6 @@ export function useSettingsPage() {
     loaded: loadedStore && !loading,
     features,
     skills,
-    models,
     groupedModels,
     saved,
     loading,

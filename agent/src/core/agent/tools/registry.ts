@@ -106,9 +106,11 @@ export class ToolRegistry {
      */
     async resolveTools(features?: string[]): Promise<ToolDefinition[]> {
         if (!features || features.length === 0) {
+            logger.info(`[resolveTools] No features provided (features=${JSON.stringify(features)}) — returning empty`);
             return [];
         }
 
+        logger.info(`[resolveTools] Resolving features: ${JSON.stringify(features)}`);
         const resolved: ToolDefinition[] = [];
         for (const featureId of features) {
             const loadFn = LAZY_TOOLS[featureId];
@@ -118,14 +120,18 @@ export class ToolRegistry {
                     const tool = ('default' in module ? module.default : module) as ToolDefinition;
                     if (tool && tool.name && tool.schema) {
                         resolved.push(tool);
+                        logger.info(`[resolveTools] Loaded tool: ${tool.name} (has execute: ${typeof tool.execute === 'function'})`);
+                    } else {
+                        logger.warn(`[resolveTools] Tool '${featureId}' loaded but missing name/schema: ${JSON.stringify({ name: tool?.name, hasSchema: !!tool?.schema })}`);
                     }
                 } catch (err: any) {
-                    logger.error(`Failed to lazy load tool '${featureId}': ${err.message}`);
+                    logger.error(`[resolveTools] Failed to lazy load tool '${featureId}': ${err.message}`);
                 }
             } else {
-                logger.warn(`Tool '${featureId}' not found in lazy registry.`);
+                logger.warn(`[resolveTools] Tool '${featureId}' not found in LAZY_TOOLS registry. Available: ${Object.keys(LAZY_TOOLS).join(', ')}`);
             }
         }
+        logger.info(`[resolveTools] Resolved ${resolved.length} tools: ${resolved.map(t => t.name).join(', ')}`);
         return resolved;
     }
 

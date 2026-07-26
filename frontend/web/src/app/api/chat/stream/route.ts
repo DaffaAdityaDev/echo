@@ -28,12 +28,13 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return new Response(upstream.body, {
+  return new Response(upstream.body ?? new ReadableStream({ start(c) { c.close() } }), {
     status: upstream.status,
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }

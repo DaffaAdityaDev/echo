@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Toast } from "@/components/ui/Toast";
 import type { AgentConfig } from "../types";
-import type { AgentFeature } from "@/features/chat/hooks/useFeatures";
-import type { AgentSkill } from "@/features/chat/hooks/useSkills";
+import type { AgentFeature } from "@/features/shared/hooks/useFeatures";
+import type { AgentSkill } from "@/features/shared/hooks/useSkills";
 import type { Model } from "@/lib/queries";
 
 interface SettingsPageProps {
@@ -19,7 +19,6 @@ interface SettingsPageProps {
   loaded: boolean;
   features: AgentFeature[];
   skills: AgentSkill[];
-  models: Model[];
   groupedModels: Record<string, Model[]>;
   saved: boolean;
   handleModeChange: (value: string) => void;

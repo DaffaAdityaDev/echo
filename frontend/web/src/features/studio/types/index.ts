@@ -89,6 +89,7 @@ export interface AuditLog {
 export interface PlaygroundResult {
   model: string
   content: string
+  reasoning?: string
   latency_ms: number
   tokens: number
   error?: string

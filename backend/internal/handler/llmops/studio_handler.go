@@ -1,6 +1,9 @@
 package llmops
 
 import (
+	"bufio"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -27,14 +30,48 @@ func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Prompt is required"})
 	}
 
-	results, err := h.playgroundSvc.RunPlayground(c.Context(), req)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
-	}
+	results := make(chan llmops.StreamResult, 64)
 
-	return c.JSON(fiber.Map{
-		"status":  "success",
-		"results": results,
+	go func() {
+		defer close(results)
+		for _, modelID := range req.Models {
+			select {
+			case results <- llmops.StreamResult{
+				Model: modelID,
+				Event: "started",
+			}:
+			case <-c.Context().Done():
+				return
+			}
+		}
+		if err := h.playgroundSvc.StreamPlayground(c.Context(), req, results); err != nil {
+			select {
+			case results <- llmops.StreamResult{
+				Event: "error",
+				Error: err.Error(),
+			}:
+			case <-c.Context().Done():
+			}
+		}
+	}()
+
+	c.Response().Header.Set("Content-Type", "text/event-stream")
+	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
+	c.Response().Header.Set("Connection", "keep-alive")
+	c.Response().Header.Set("Transfer-Encoding", "chunked")
+	c.Response().Header.Set("X-Accel-Buffering", "no")
+
+	return c.SendStreamWriter(func(w *bufio.Writer) {
+		for r := range results {
+			data, err := json.Marshal(r)
+			if err != nil {
+				continue
+			}
+			w.WriteString(fmt.Sprintf("data: %s\n\n", string(data)))
+			if err := w.Flush(); err != nil {
+				break
+			}
+		}
 	})
 }
 
