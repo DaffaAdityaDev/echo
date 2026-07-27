@@ -189,6 +189,67 @@ Used by:
 +--------------------------------------+----------------------------------------------------+
 | src/features/chat/hooks/useModels.ts | useQuery wrapping modelQueries.list()              |
 +--------------------------------------+----------------------------------------------------+
+| src/features/chat/hooks/useChatPage.ts| useQuery for sessions + messages (dedup by key)   |
++--------------------------------------+----------------------------------------------------+
+| src/features/settings/hooks/         | useQuery for settings fetch (dedup by key),        |
+| useSettingsPage.ts                   | Zustand for local persistence                      |
++--------------------------------------+----------------------------------------------------+
+
+## Dedup Pattern — useQuery + Zustand
+
+When multiple components mount simultaneously and need the same data, React Query
+deduplicates by `queryKey`. Only one network request is made per key.
+
+### Pattern: Fetch via useQuery, sync to Zustand
+
+```typescript
+// In a shared hook (called by multiple components):
+const { data } = useQuery({
+  queryKey: ["settings"],    // ← same key = single request
+  queryFn: settingsApi.get,
+  staleTime: 60_000,
+});
+
+useEffect(() => {
+  if (data) setConfig(data); // ← sync into Zustand store
+}, [data, setConfig]);
+```
+
+**Before:** manual `useEffect` + module-level `fetchInFlight` flag (brittle).
+**After:** React Query dedup by key — works automatically for `SettingsPage`
+and `SettingsModal` sharing the same hook.
+
+### Pattern — Session & Messages via useQuery
+
+```typescript
+// useChatPage.ts
+const { data: sessionsList } = useQuery({
+  queryKey: ["sessions"],
+  queryFn: sessionApi.list,
+  enabled: isAuthenticated,
+  staleTime: 30_000,
+});
+
+const { data: messagesData } = useQuery({
+  queryKey: ["sessions", activeSessionId, "messages"],
+  queryFn: () => sessionApi.getMessages(activeSessionId!),
+  enabled: !!activeSessionId,
+  staleTime: 30_000,
+});
+
+// Sync to Zustand store
+useEffect(() => {
+  if (sessionsList) setSessions(sessionsList);
+}, [sessionsList]);
+
+useEffect(() => {
+  if (messagesData) setMessages(transform(messagesData));
+}, [messagesData]);
+```
+
+Key insight: when `activeSessionId` changes (via `selectSession`), React Query
+automatically re-fetches messages because the `queryKey` changed — no manual
+fetch needed.
 
 ## Dependencies
 

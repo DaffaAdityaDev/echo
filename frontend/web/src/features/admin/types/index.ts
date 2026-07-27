@@ -9,8 +9,6 @@ export interface ApiKey {
 }
 
 export interface AdminStats {
-  countUsers: number;
-  countMissions: number;
-  countApiKeys: number;
-  totalRequests: number;
+  total_keys: number;
+  active_keys: number;
 }

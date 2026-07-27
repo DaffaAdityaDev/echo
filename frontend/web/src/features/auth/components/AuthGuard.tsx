@@ -43,7 +43,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={24} className="animate-spin text-zinc-500" />
+          <p className="text-sm text-zinc-600">Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

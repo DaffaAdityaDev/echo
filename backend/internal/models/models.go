@@ -104,6 +104,7 @@ type UserPreferences struct {
 	DefaultSkills  []string `json:"default_skills" example:"python,research"`
 	ProviderType   string   `json:"provider_type" example:"opencode-go"`
 	APIKey         string   `json:"api_key,omitempty" example:""`
+	HasAPIKey      bool     `json:"has_api_key"`
 	BaseURL        string   `json:"base_url" example:"https://opencode.ai/zen/go/v1"`
 }
 

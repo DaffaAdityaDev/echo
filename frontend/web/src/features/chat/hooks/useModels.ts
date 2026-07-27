@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { modelQueries } from "@/lib/queries";
+import type { Model } from "@/lib/queries";
 
-const EMPTY_MODELS: any[] = [];
+const EMPTY_MODELS: Model[] = [];
 
 export function useModels() {
   const query = useQuery(modelQueries.list());

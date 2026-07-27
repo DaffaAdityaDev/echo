@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Trash2,
   Menu,
@@ -15,10 +16,10 @@ import {
   ShieldCheck,
   Settings,
   Cpu,
-  Bug,
   Sparkles,
   Wrench,
   Target,
+  Bug,
 } from "lucide-react";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { DegradationToast } from "./DegradationToast";
@@ -26,16 +27,28 @@ import { ToolCallTimeline } from "./ToolCallTimeline";
 import { MessageList, type MessageListHandle } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { AgentProgress } from "./AgentProgress";
-import { ModelSelectorModal } from "./ModelSelectorModal";
-import { DebugDrawer } from "./DebugDrawer";
 import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
-import { SettingsModal } from "@/features/settings/components/SettingsModal";
 import { useChatStore } from "../stores/chatStore";
 import { useChatPage } from "../hooks/useChatPage";
 import { useModels } from "../hooks/useModels";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSidebar } from "@/lib/sidebar-context";
+
+const ModelSelectorModal = dynamic(() => import("./ModelSelectorModal").then((m) => m.ModelSelectorModal), {
+  ssr: false,
+  loading: () => null,
+});
+
+const DebugDrawer = dynamic(() => import("./DebugDrawer").then((m) => m.DebugDrawer), {
+  ssr: false,
+  loading: () => null,
+});
+
+const SettingsModal = dynamic(() => import("@/features/settings/components/SettingsModal").then((m) => m.SettingsModal), {
+  ssr: false,
+  loading: () => null,
+});
 
 export function ChatPage() {
   const { sendMessage, clearMessages, createSession, deleteSession, selectSession } =

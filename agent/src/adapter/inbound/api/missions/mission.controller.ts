@@ -17,35 +17,6 @@ import { SkillRegistry } from '../../../../core/agent/skills';
 import { HttpStreamTransport } from './stream.transport';
 import { cancellationManager } from '../../../../core/agent/harness/cancel_manager';
 
-async function generateSessionTitle(provider: LLMProvider, messages: BaseMessage[]): Promise<{ title: string; summary: string } | null> {
-  const systemPrompt = `You are an AI session metadata generator. Given the conversation so far, generate a concise, human-readable Title (3 to 6 words, Title Case, no quotes, no period) and a 1-sentence Summary describing the main topic or objective.
-Respond ONLY with a valid JSON object in this exact format:
-{"title": "Concise Topic Title", "summary": "Short 1-sentence summary of the conversation topic."}`;
-
-  try {
-    const stream = provider.stream(messages, [], systemPrompt);
-    let content = "";
-    for await (const chunk of stream) {
-      if (chunk.content) content += chunk.content;
-    }
-    content = content.trim();
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.title) {
-        const title = String(parsed.title).trim();
-        const summary = parsed.summary ? String(parsed.summary).trim() : "";
-        logger.info(`[AUTO-TITLE] Generated title: "${title}"`);
-        return { title, summary };
-      }
-    }
-    return null;
-  } catch (err: any) {
-    logger.error(`[AUTO-TITLE] Generation failed: ${err.message}`);
-    return null;
-  }
-}
-
 export class MissionController {
   public async createMission(c: Context) {
     try {
@@ -145,6 +116,9 @@ export class MissionController {
         const transport = new HttpStreamTransport(streamInstance);
 
         const signal = cancellationManager.register(missionId);
+        streamInstance.onAbort(() => {
+          cancellationManager.cancelLocal(missionId);
+        });
 
         const harness = new NlahHarness({
           missionId,
@@ -167,22 +141,6 @@ export class MissionController {
               await transport.send(packet);
             }
           );
-
-          if (!state.memory?.titleGenerated && state.messages.length > 0) {
-            state.memory = state.memory || {};
-            const result = await generateSessionTitle(llmProvider, state.messages);
-            if (result) {
-              state.memory.titleGenerated = true;
-              await transport.send({
-                type: 'metadata',
-                missionId,
-                step: 0,
-                content: result.title,
-                title: result.title,
-                summary: result.summary
-              });
-            }
-          }
         } catch (streamErr: any) {
           logger.error(`Stream execution failed: ${streamErr.message}`);
           try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useFeatures } from "@/features/shared/hooks/useFeatures";
 import { useSkills } from "@/features/shared/hooks/useSkills";
@@ -17,18 +18,19 @@ export function useSettingsPage() {
   const { skills } = useSkills();
   const { models } = useModels();
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  const { data: serverConfig, isLoading } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsApi.get,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   useEffect(() => {
-    settingsApi.get()
-      .then((serverConfig) => {
-        setConfig(serverConfig);
-      })
-      .catch(() => {
-        // fallback to localStorage defaults
-      })
-      .finally(() => setLoading(false));
-  }, [setConfig]);
+    if (serverConfig) {
+      setConfig(serverConfig);
+    }
+  }, [serverConfig, setConfig]);
 
   useEffect(() => {
     if (saved) {
@@ -43,7 +45,8 @@ export function useSettingsPage() {
       setConfig(savedConfig);
       setSaved(true);
       return true;
-    } catch {
+    } catch (err) {
+      console.warn("[Settings] Failed to save settings:", err);
       return false;
     }
   };
@@ -89,12 +92,12 @@ export function useSettingsPage() {
 
   return {
     config,
-    loaded: loadedStore && !loading,
+    loaded: loadedStore && !isLoading,
     features,
     skills,
     groupedModels,
     saved,
-    loading,
+    loading: isLoading,
     handleSave,
     handleModeChange,
     handleModelChange,

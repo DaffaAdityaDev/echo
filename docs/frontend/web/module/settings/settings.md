@@ -10,9 +10,9 @@
 ## Deskripsi
 
 Settings page for configuring default agent preferences — default mode, model,
-features, and skills. Uses a Zustand-only state approach (no React Query); server
-sync is done via raw API calls. Cross-feature dependency on chat hooks for
-features, skills, and models data.
+features, and skills. Server sync is done via React Query (dedup by query key);
+fetched data is written into a Zustand store for local persistence and cross-feature
+access. Cross-feature dependency on chat hooks for features, skills, and models data.
 
 ## File Structure
 
@@ -47,7 +47,7 @@ src/features/settings/
 │            │                      │              └───────┬───────┘  │
 │            v                      v                      v          │
 │   ┌─────────────────────────────────────────────────────────────┐   │
-│   │                    settingsApi (raw fetch)                   │   │
+│   │                    settingsApi (via useQuery)                │   │
 │   │  ┌─────────────┐  ┌─────────────┐  ┌───────────────────┐   │   │
 │   │  │ get()       │  │ update()    │  │ getDefaults()     │   │   │
 │   │  │ GET /setting│  │ PUT /setting│  │ GET /settings/    │   │   │
@@ -81,14 +81,15 @@ src/features/settings/
 │  (Zustand)       │─────→│  config from localStorage     │
 └──────────────────┘      └───────────────────────────────┘
          │
-         │ useEffect on mount
+         │ useQuery({ queryKey: ["settings"] })
+         │ (React Query dedup — 1 call regardless of mount count)
          v
-┌──────────────────┐  success  ┌────────────────────────────┐
-│  settingsApi     │──────────→│  store.setConfig(server)   │
-│  .get()          │           │  → overwrites localStorage │
-│  GET /settings   │           └────────────────────────────┘
-└──────────────────┘
-         │ error → silently fallback to localStorage
+┌──────────────────┐  on success  ┌────────────────────────────┐
+│  useSettingsPage  │────────────→│  useEffect:                │
+│  useQuery hook    │             │  store.setConfig(server)   │
+│  GET /settings    │             │  → overwrites localStorage │
+└──────────────────┘             └────────────────────────────┘
+         │ error → console.warn + localStorage fallback
          v
 ┌──────────────────┐
 │  loaded = true   │
@@ -198,9 +199,13 @@ src/features/settings/
 
 ## Architecture Note
 
-Settings uses **Zustand-only** (NOT React Query). Server sync is performed via
-raw API calls (`settingsApi.get/update`). It has a cross-feature dependency on
-chat hooks for features, skills, and models data.
+Settings uses **React Query** for server sync (deduplication by query key) and
+**Zustand** for local persistence + cross-feature access. On mount, `useQuery`
+fetches settings — React Query guarantees only one network request even if
+`SettingsPage` and `SettingsModal` mount simultaneously. The fetched data is
+written into the Zustand store via a `useEffect`. Writes (PUT) still use
+raw `settingsApi.update()`. Has a cross-feature dependency on chat hooks for
+features, skills, and models data.
 
 ## Source References
 

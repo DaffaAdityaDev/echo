@@ -35,9 +35,11 @@ swagger-gen:
 
 # Development
 dev-up:
+	-docker network create dokploy-network
 	docker compose -f docker-compose.dev.yml up -d --build
 
 dev-infra:
+	-docker network create dokploy-network
 	docker compose -f docker-compose.dev.yml up -d
 
 dev-down:
@@ -48,6 +50,7 @@ dev-logs:
 
 # Production
 prod-up:
+	-docker network create dokploy-network
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 prod-down:
@@ -59,6 +62,7 @@ prod-logs:
 # Deployment (clean build & deploy)
 deploy:
 	@echo "Deploying production stack..."
+	-docker network create dokploy-network
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 	@echo "Deployment complete. Production containers are running."

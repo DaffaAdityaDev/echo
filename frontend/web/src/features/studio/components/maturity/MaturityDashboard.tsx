@@ -60,28 +60,28 @@ export function MaturityDashboard({
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header Banner */}
-      <div className="border border--border bg-white rounded-xs p-6 relative overflow-hidden shadow-xs">
+      <div className="border border-border bg-white rounded-xs p-6 relative overflow-hidden shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10 font-mono">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-xs bg--blue-50 border border--gb-bright-blue/40 text--gb-blue text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-xs bg-blue-50 border border-gb-bright-blue/40 text-gb-blue text-xs font-semibold">
               <Sparkles className="h-3.5 w-3.5" />
               AI-Ready System Maturity Model v1.0
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text--foreground">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
               System Maturity & AI Readiness
             </h1>
-            <p className="text-xs md:text-sm text--slate-600 max-w-2xl mt-1 leading-relaxed">
-              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule — a system is only as mature as its lowest dimension.
+            <p className="text-xs md:text-sm text-slate-600 max-w-2xl mt-1 leading-relaxed">
+              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule â€” a system is only as mature as its lowest dimension.
             </p>
           </div>
 
           <div className="flex items-center gap-4 shrink-0 font-mono">
-            <div className="border border--gb-bright-blue/40 bg--blue-50 rounded-xs px-4 py-3 text-center">
-              <div className="text-[10px] text--gb-blue font-bold uppercase tracking-wider">Overall Echo Level</div>
-              <div className="text-3xl font-black text--foreground mt-0.5">
+            <div className="border border-gb-bright-blue/40 bg-blue-50 rounded-xs px-4 py-3 text-center">
+              <div className="text-[10px] text-gb-blue font-bold uppercase tracking-wider">Overall Echo Level</div>
+              <div className="text-3xl font-black text-foreground mt-0.5">
                 {echoAssessment.overallLevel}
               </div>
-              <div className="text-[10px] text--slate-600 font-medium mt-0.5">Structured Baseline</div>
+              <div className="text-[10px] text-slate-600 font-medium mt-0.5">Structured Baseline</div>
             </div>
 
             <div className="border border-amber-300 bg-amber-50 rounded-xs px-4 py-3 text-center">
@@ -98,13 +98,13 @@ export function MaturityDashboard({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border--border gap-6 font-mono">
+      <div className="flex border-b border-border gap-6 font-mono">
         <button
           onClick={() => setActiveTab("matrix")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "matrix"
-              ? "border--gb-blue text--gb-blue"
-              : "border-transparent text--muted hover:text--foreground"
+              ? "border-gb-blue text-gb-blue"
+              : "border-transparent text-muted hover:text-foreground"
           }`}
         >
           <Layers className="h-4 w-4" />
@@ -115,8 +115,8 @@ export function MaturityDashboard({
           onClick={() => setActiveTab("roadmap")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "roadmap"
-              ? "border--gb-blue text--gb-blue"
-              : "border-transparent text--muted hover:text--foreground"
+              ? "border-gb-blue text-gb-blue"
+              : "border-transparent text-muted hover:text-foreground"
           }`}
         >
           <Map className="h-4 w-4" />
@@ -127,8 +127,8 @@ export function MaturityDashboard({
           onClick={() => setActiveTab("scoring")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "scoring"
-              ? "border--gb-blue text--gb-blue"
-              : "border-transparent text--muted hover:text--foreground"
+              ? "border-gb-blue text-gb-blue"
+              : "border-transparent text-muted hover:text-foreground"
           }`}
         >
           <HelpCircle className="h-4 w-4" />

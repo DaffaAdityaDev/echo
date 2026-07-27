@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Users, Activity, Key, Cpu, AlertCircle, RefreshCw } from "lucide-react";
+import { Activity, Key, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StatCard } from "./StatCard";
 import { SystemStatusBanner } from "./SystemStatusBanner";
@@ -49,40 +49,22 @@ export function AdminDashboardPage({
 
   const statCards = [
     {
-      title: "Total Users",
-      value: stats?.countUsers,
-      icon: Users,
-      description: "Active system user accounts provisioned",
-      glowColor: "shadow-blue-500/5 border-blue-500/10 hover:border-blue-500/30",
-      iconColor: "text-blue-400 bg-blue-500/10",
-      badgeText: "Accounts",
-    },
-    {
-      title: "Active Missions",
-      value: stats?.countMissions,
-      icon: Cpu,
-      description: "Agent execution missions processed",
-      glowColor: "shadow-purple-500/5 border-purple-500/10 hover:border-purple-500/30",
-      iconColor: "text-purple-400 bg-purple-500/10",
-      badgeText: "Executions",
-    },
-    {
-      title: "API Keys",
-      value: stats?.countApiKeys,
+      title: "Total API Keys",
+      value: stats?.total_keys,
       icon: Key,
-      description: "Active developer authorization credentials",
+      description: "Total API keys ever created",
       glowColor: "shadow-amber-500/5 border-amber-500/10 hover:border-amber-500/30",
       iconColor: "text-amber-400 bg-amber-500/10",
-      badgeText: "Security",
+      badgeText: "Total",
     },
     {
-      title: "API Requests",
-      value: stats?.totalRequests,
+      title: "Active Keys",
+      value: stats?.active_keys,
       icon: Activity,
-      description: "Engine API queries served total",
+      description: "Currently active API keys",
       glowColor: "shadow-emerald-500/5 border-emerald-500/10 hover:border-emerald-500/30",
       iconColor: "text-emerald-400 bg-emerald-500/10",
-      badgeText: "Traffic",
+      badgeText: "Active",
     },
   ];
 
@@ -110,7 +92,7 @@ export function AdminDashboardPage({
       />
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {statCards.map((card, idx) => (
           <StatCard
             key={idx}

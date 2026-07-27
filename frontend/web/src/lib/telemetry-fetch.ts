@@ -39,19 +39,4 @@ export function generateTraceContext(): TraceContext {
   };
 }
 
-/**
- * A fetch wrapper that injects W3C trace headers and optional agent session context
- */
-export async function traceAwareFetch(
-  url: string,
-  sessionId?: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const { traceparent } = generateTraceContext();
-  const headers = new Headers(options.headers || {});
-  headers.set('traceparent', traceparent);
-  if (sessionId) {
-    headers.set('x-agent-session-id', sessionId);
-  }
-  return fetch(url, { ...options, headers });
-}
+

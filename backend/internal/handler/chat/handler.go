@@ -373,8 +373,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			mu          sync.RWMutex
 			content     strings.Builder
 			thinking    strings.Builder
-			title       string
-			summary     string
 			toolCalls   []ToolCallCapture
 			toolResults []ToolCallResult
 			isComplete  bool
@@ -448,23 +446,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 					if err := json.Unmarshal([]byte(dataStr), &packet); err == nil {
 						sc.mu.Lock()
 						switch packet.Type {
-						case "metadata":
-							if packet.Title != "" {
-								sc.title = packet.Title
-								sc.summary = packet.Summary
-								titleToSave := packet.Title
-								summaryToSave := packet.Summary
-								go func() {
-									dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
-									defer dbCancel()
-									err := h.SessionRepo.UpdateTitleAndSummary(dbCtx, req.SessionID, titleToSave, summaryToSave)
-									if err != nil {
-										log.Printf("[CHAT] Error saving title for session %s: %v", req.SessionID, err)
-									} else {
-										log.Printf("[CHAT] Successfully updated title for session %s: '%s'", req.SessionID, titleToSave)
-									}
-								}()
-							}
 						case "content":
 							sc.content.WriteString(packet.Content)
 						case "reasoning":
@@ -502,8 +483,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		finalThinking := sc.thinking.String()
 		finalCalls := sc.toolCalls
 		finalResults := sc.toolResults
-		finalTitle := sc.title
-		finalSummary := sc.summary
 		complete := sc.isComplete
 		sc.mu.RUnlock()
 
@@ -521,12 +500,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		})
 		if err != nil {
 			log.Printf("[CHAT] Error executing CompleteTurn transaction for msg %d: %v", assistantMsgID, err)
-		}
-
-		if finalTitle != "" {
-			dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = h.SessionRepo.UpdateTitleAndSummary(dbCtx, req.SessionID, finalTitle, finalSummary)
-			dbCancel()
 		}
 
 		log.Printf("[CHAT] Completed turn %d for session %s (status=%s, content_len=%d)", nextTurn, req.SessionID, status, len(finalContent))

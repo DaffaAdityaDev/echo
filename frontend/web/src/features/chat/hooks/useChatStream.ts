@@ -109,19 +109,7 @@ export function useChatStream() {
           lastMessage.meta = meta;
           store.setMissionMeta(meta);
 
-          // Auto-title: update store title & session list when title packet arrives
-          if (data.title) {
-            const sid = store.activeSessionId;
-            if (sid) {
-              const currentSessions = store.sessions;
-              const newTitle = data.title;
-              const newSummary = data.summary;
-              const updated = currentSessions.map((s) =>
-                s.id === sid ? { ...s, title: newTitle, contextSummary: newSummary || s.contextSummary } : s
-              );
-              store.setSessions(updated);
-            }
-          }
+
         } else if (data.type === PACKET_TYPES.DEBUG) {
           store.appendDebugInfo({
             systemPrompt: data.rawSystemPrompt,
@@ -337,18 +325,24 @@ export function useChatStream() {
       const state = useChatStore.getState();
       const sid = state.activeSessionId;
 
-      // Auto-generate title asynchronously if session exists and still has default title
-      if (sid && state.selectedModel) {
-        const activeSess = state.sessions.find((s) => s.id === sid);
-        if (!activeSess?.title || activeSess.title === "New Chat") {
-          sessionApi.generateTitle(sid, state.selectedModel).catch(() => {});
-        }
-      }
+      // Auto-generate title if still default, then refresh session list
+      const titlePromise = sid && state.selectedModel
+        ? (() => {
+            const activeSess = state.sessions.find((s) => s.id === sid);
+            if (!activeSess?.title || activeSess.title === "New Chat") {
+              return sessionApi.generateTitle(sid, state.selectedModel).catch((err) => {
+                console.warn("[Chat] Failed to auto-generate title:", err);
+              });
+            }
+            return Promise.resolve();
+          })()
+        : Promise.resolve();
 
-      sessionApi
-        .list()
-        .then((sessions) => useChatStore.getState().setSessions(sessions))
-        .catch(() => {});
+      titlePromise.then(() =>
+        sessionApi.list().then((sessions) => useChatStore.getState().setSessions(sessions))
+      ).catch((err) => {
+        console.warn("[Chat] Failed to refresh sessions:", err);
+      });
     }
   };
 

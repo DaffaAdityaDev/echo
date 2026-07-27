@@ -16,7 +16,7 @@ interface MarkdownProps {
   className?: string;
 }
 
-export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
+const Markdown = React.memo(({ content, className }: MarkdownProps) => {
   const processedContent = React.useMemo(() => {
     if (!content) return "";
     return content
@@ -33,9 +33,9 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
       "prose max-w-none text-inherit font-mono",
       "prose-p:leading-relaxed prose-p:text-inherit",
       "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-inherit",
-      "prose-a:text--gb-blue prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
-      "prose-code:text--gb-blue prose-code:bg--surface-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-xs prose-code:border prose-code:border--border prose-code:before:content-none prose-code:after:content-none",
-      "prose-blockquote:border-l--gb-blue prose-blockquote:bg--slate-50 prose-blockquote:py-1 prose-blockquote:rounded-r-[2px] prose-blockquote:text--slate-600 prose-blockquote:italic",
+      "prose-a:text-gb-blue prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
+      "prose-code:text-gb-blue prose-code:bg-surface-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-xs prose-code:border prose-code:border-border prose-code:before:content-none prose-code:after:content-none",
+      "prose-blockquote:border-l--gb-blue prose-blockquote:bg-slate-50 prose-blockquote:py-1 prose-blockquote:rounded-r-[2px] prose-blockquote:text-slate-600 prose-blockquote:italic",
       "prose-sm md:prose-base",
       className
     )}>
@@ -55,26 +55,26 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
             }
 
             return (
-              <code className={cn("bg--surface-hover text--gb-blue border border--border rounded-xs px-1.5 py-0.5 font-mono text-[0.9em]", className)} translate="no" {...props}>
+              <code className={cn("bg-surface-hover text-gb-blue border border-border rounded-xs px-1.5 py-0.5 font-mono text-[0.9em]", className)} translate="no" {...props}>
                 {children}
               </code>
             );
           },
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-6 border border--border rounded-xs bg-white">
+              <div className="overflow-x-auto my-6 border border-border rounded-xs bg-white">
                 <table className="w-full text-left border-collapse">{children}</table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg--slate-50 border-b border--border">{children}</thead>;
+            return <thead className="bg-slate-50 border-b border-border">{children}</thead>;
           },
           th({ children }) {
             return <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-inherit">{children}</th>;
           },
           td({ children }) {
-            return <td className="px-4 py-3 text-sm border-t border--border text-inherit">{children}</td>;
+            return <td className="px-4 py-3 text-sm border-t border-border text-inherit">{children}</td>;
           },
         }}
       >
@@ -85,6 +85,8 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
 });
 
 Markdown.displayName = 'Markdown';
+
+export default Markdown;
 
 interface CodeBlockProps {
   language: string;

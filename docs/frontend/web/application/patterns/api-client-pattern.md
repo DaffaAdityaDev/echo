@@ -161,10 +161,10 @@ Generates W3C-compliant trace context:
 
 Uses `crypto.getRandomValues()` when available, falls back to `Math.random()`.
 
-### `traceAwareFetch()`
+### `traceAwareFetch()` (removed)
 
-A standalone fetch wrapper that injects `traceparent` and optional `x-agent-session-id` headers.
-Still used for direct fetch calls outside the axios client.
+Was a standalone fetch wrapper — removed as dead code. The axios interceptor
+handles all trace context injection.
 
 ## React Query Integration
 
@@ -261,8 +261,7 @@ export const chatApi = {
 +---------------------------+---------+----------------------------------------------------+
 | src/lib/telemetry-fetch.ts| 12-40   | generateTraceContext() — W3C traceparent generation|
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() — fetch wrapper with trace       |
-|                           |         | headers                                           |
+| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() — removed (dead code)           |
 +---------------------------+---------+----------------------------------------------------+
 
 ===============================================================================

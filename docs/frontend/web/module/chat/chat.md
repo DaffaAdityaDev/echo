@@ -282,11 +282,12 @@ src/features/chat/
 |              |                           | modelQueries.list().                              |
 |              |                           | Returns { models, isLoading, ...query }            |
 +--------------+---------------------------+---------------------------------------------------+
-| useSessions  | hooks/useSessions.ts      | Session CRUD operations using sessionApi.         |
+| useSessions  | hooks/useSessions.ts      | Session CRUD helpers using sessionApi.            |
 |              |                           | Returns { sessions, activeSessionId,              |
-|              |                           |   loadSessions, loadSessionMessages,              |
-|              |                           |   createSession, deleteSession, selectSession }   |
-|              |                           | Loads/saves messages from DB via dbMessageToMsg.  |
+|              |                           |   createSession, deleteSession, selectSession }.  |
+|              |                           | Data fetching moved to useChatPage via useQuery.  |
+|              |                           | selectSession only sets activeSessionId; messages |
+|              |                           | fetch automatically via RQ key change.            |
 +--------------+---------------------------+---------------------------------------------------+
 | useSkills    | hooks/useSkills.ts        | Fetches available skills via TanStack Query from  |
 |              |                           | /skills endpoint.                                 |
@@ -434,11 +435,12 @@ src/features/chat/
 |                                                   |       | includes current message, clear crash guard,       |
 |                                                   |       | handles all 17 packet types                        |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/hooks/useChatPage.ts            | 1–61  | Orchestrator hook — composes store, sessions,      |
-|                                                   |       | models, features, auth, settings, useChatStream    |
+| src/features/chat/hooks/useChatPage.ts            | 1–125 | Orchestrator hook — useQuery for sessions +        |
+|                                                   |       | messages, composes store, models, features, auth,  |
+|                                                   |       | settings, useChatStream. Dedup by React Query key. |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/hooks/useSessions.ts            | 1–73  | Session CRUD with optimistic delete, DB message    |
-|                                                   |       | loading via dbMessageToMessage                     |
+| src/features/chat/hooks/useSessions.ts            | 1–100 | Session CRUD helpers (create, delete, select).     |
+|                                                   |       | Data fetching delegated to useChatPage's useQuery. |
 +---------------------------------------------------+-------+----------------------------------------------------+
 | src/features/chat/hooks/useFeatures.ts            | 1–28  | TanStack Query wrapper for /features endpoint      |
 +---------------------------------------------------+-------+----------------------------------------------------+

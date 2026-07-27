@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -309,7 +310,7 @@ Respond ONLY with a valid JSON object in this exact format:
 			{"role": "user", "content": conversation.String()},
 		},
 		"temperature": 0.3,
-		"max_tokens":  150,
+		"max_tokens":  1024,
 	}
 
 	jsonBytes, err := json.Marshal(reqBody)
@@ -352,20 +353,27 @@ Respond ONLY with a valid JSON object in this exact format:
 	var chatCompletion struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
 
 	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
+		log.Printf("[AUTO-TITLE] Failed to parse chat completion for session %s: err=%v choices=%d", sessionID, err, len(chatCompletion.Choices))
+		log.Printf("[AUTO-TITLE] Full response body: %s", string(respBytes))
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "Failed to parse LLM response"})
 	}
 
 	rawContent := strings.TrimSpace(chatCompletion.Choices[0].Message.Content)
-	rawContent = strings.TrimPrefix(rawContent, "```json")
-	rawContent = strings.TrimPrefix(rawContent, "```")
-	rawContent = strings.TrimSuffix(rawContent, "```")
-	rawContent = strings.TrimSpace(rawContent)
+	if rawContent == "" {
+		rawContent = strings.TrimSpace(chatCompletion.Choices[0].Message.ReasoningContent)
+	}
+
+	re := regexp.MustCompile(`\{[\s\S]*\}`)
+	if match := re.FindString(rawContent); match != "" {
+		rawContent = match
+	}
 
 	var metaData struct {
 		Title   string `json:"title"`
@@ -373,6 +381,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
+		log.Printf("[AUTO-TITLE] Failed to parse JSON for session %s: %v", sessionID, err)
+		log.Printf("[AUTO-TITLE] Content after regex: %s", truncateStr(rawContent, 500))
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "LLM response is not valid JSON"})
 	}
 
@@ -389,6 +399,13 @@ Respond ONLY with a valid JSON object in this exact format:
 
 	log.Printf("[AUTO-TITLE] Generated title for session %s: '%s'", sessionID, title)
 	return c.JSON(fiber.Map{"title": title, "summary": summary})
+}
+
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 type PruneRequest struct {

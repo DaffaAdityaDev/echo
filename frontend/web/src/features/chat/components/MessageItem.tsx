@@ -16,9 +16,16 @@ import {
   Loader2,
 } from "lucide-react";
 
+import dynamic from "next/dynamic";
 import { cn } from "@/utils/cn";
-import { Markdown } from "@/components/Markdown";
 import { Message, ThoughtStep } from "../types";
+
+const Markdown = dynamic(() => import("@/components/Markdown"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+  ),
+});
 import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 
 interface MessageItemProps {
@@ -54,8 +61,8 @@ export const MessageItem = memo(function MessageItem({
         className={cn(
           "w-8 h-8 rounded-xs flex items-center justify-center shrink-0 shadow-xs border font-mono font-bold text-xs",
           !isAssistant
-            ? "bg--foreground text-white border--foreground"
-            : "bg--blue-50 text--gb-blue border--gb-bright-blue/30"
+            ? "bg-foreground text-white border-foreground"
+            : "bg-blue-50 text-gb-blue border-gb-bright-blue/30"
         )}
       >
         {!isAssistant ? (
@@ -70,26 +77,26 @@ export const MessageItem = memo(function MessageItem({
         className={cn(
           "max-w-[90%] sm:max-w-[85%] rounded-xs px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-xs border font-mono",
           !isAssistant
-            ? "bg--slate-50 text--foreground border--slate-300"
-            : "bg-white border--border text--foreground"
+            ? "bg-slate-50 text-foreground border-slate-300"
+            : "bg-white border-border text-foreground"
         )}
       >
         {/* Mission metadata bar */}
         {isAssistant && msg.meta && (
-          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border--border">
+          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-border">
             <span
               className={cn(
                 "px-2 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider",
                 msg.meta.strategy === "react"
-                  ? "bg--blue-50 text--gb-blue border border--gb-bright-blue/30"
-                  : "bg--surface-hover text--slate-600 border border--border"
+                  ? "bg-blue-50 text-gb-blue border border-gb-bright-blue/30"
+                  : "bg-surface-hover text-slate-600 border border-border"
               )}
             >
-              {msg.meta.strategy === "react" ? "⚡ Agent Mode" : "💬 Standard"}
+              {msg.meta.strategy === "react" ? "âš¡ Agent Mode" : "ðŸ’¬ Standard"}
             </span>
 
             {msg.usage && (
-              <span className="text-[10px] font-mono text--muted ml-auto">
+              <span className="text-[10px] font-mono text-muted ml-auto">
                 {msg.usage.totalTokens} tokens
               </span>
             )}
@@ -99,7 +106,7 @@ export const MessageItem = memo(function MessageItem({
         {/* Thought Process Accordion */}
         {msg.steps.length > 0 && (
           <details className="group/thinking mb-1" open={isLoading && isLast}>
-            <summary className="flex items-center gap-2 text-[10px] font-bold text--gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg--blue-50 p-2 rounded-xs border border--gb-bright-blue/30">
+            <summary className="flex items-center gap-2 text-[10px] font-bold text-gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-blue-50 p-2 rounded-xs border border-gb-bright-blue/30">
               <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />
               <span>Thought Process ({msg.steps.length} steps)</span>
               <ChevronDown className="h-3 w-3 ml-auto group-open/thinking:rotate-180 transition-transform" />
@@ -116,8 +123,8 @@ export const MessageItem = memo(function MessageItem({
         {msg.content ? (
           <Markdown content={msg.content} />
         ) : isLoading && isLast && msg.steps.length === 0 ? (
-          <div className="flex items-center gap-2 py-2 text--muted text-xs italic font-mono">
-            <span className="w-2 h-2 bg--gb-blue rounded-full animate-ping" />
+          <div className="flex items-center gap-2 py-2 text-muted text-xs italic font-mono">
+            <span className="w-2 h-2 bg-gb-blue rounded-full animate-ping" />
             <span>Thinking...</span>
           </div>
         ) : null}
@@ -130,24 +137,24 @@ export const MessageItem = memo(function MessageItem({
           </div>
         )}
         {isAssistant && msg.status === 'interrupted' && (
-          <div className="flex items-center gap-1.5 py-1 text-[10px] text--muted italic border-t border-dashed border--slate-300 mt-1 font-mono">
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-muted italic border-t border-dashed border-slate-300 mt-1 font-mono">
             <AlertTriangle className="h-3 w-3" />
-            Response was interrupted — send a reply to continue
+            Response was interrupted â€” send a reply to continue
           </div>
         )}
 
         {/* Floating Action Toolbar on Assistant Messages */}
         {isAssistant && msg.content && (
-          <div className="flex items-center gap-2 pt-2 border-t border--border text--muted text-xs font-mono">
+          <div className="flex items-center gap-2 pt-2 border-t border-border text-muted text-xs font-mono">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 hover:text--foreground transition-colors p-1 rounded-xs hover:bg--surface-hover cursor-pointer"
+              className="flex items-center gap-1 hover:text-foreground transition-colors p-1 rounded-xs hover:bg-surface-hover cursor-pointer"
               title="Copy markdown text"
             >
               {copied ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text--success" />
-                  <span className="text-[10px] text--success font-bold">Copied</span>
+                  <Check className="h-3.5 w-3.5 text-success" />
+                  <span className="text-[10px] text-success font-bold">Copied</span>
                 </>
               ) : (
                 <>
@@ -240,8 +247,8 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
                       : "border-zinc-400 text-transparent"
                   )}
                 >
-                  {isDone && <span className="text-[10px]">✓</span>}
-                  {isProgress && <span className="text-[10px] animate-spin">⚡</span>}
+                  {isDone && <span className="text-[10px]">âœ“</span>}
+                  {isProgress && <span className="text-[10px] animate-spin">âš¡</span>}
                   {isFailed && <span className="text-[10px]">!</span>}
                 </div>
                 <span

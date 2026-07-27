@@ -9,7 +9,7 @@ interface UserPreferencesDTO {
   default_features?: string[];
   default_skills?: string[];
   provider_type?: string;
-  api_key?: string;
+  has_api_key?: boolean;
   base_url?: string;
 }
 
@@ -21,7 +21,7 @@ function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
     defaultSkills: dto.default_skills ?? DEFAULT_AGENT_CONFIG.defaultSkills,
     providerType: dto.provider_type ?? DEFAULT_AGENT_CONFIG.providerType,
     apiKey: "", // Never pre-fill — user must enter key to change
-    hasApiKey: (dto.api_key ?? "") !== "",
+    hasApiKey: dto.has_api_key ?? false,
     baseUrl: dto.base_url ?? DEFAULT_AGENT_CONFIG.baseUrl,
   };
 }

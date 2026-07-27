@@ -9,10 +9,10 @@ function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   const variants = {
     default: 'bg-zinc-800/80 text-zinc-200 border border-zinc-700/60',
     outline: 'border border-zinc-700/80 text-zinc-400 bg-transparent',
-    verified: 'bg--success/10 text--success border border--success/30',
-    success: 'bg--success/10 text--success border border--success/30',
-    blocked: 'bg--status-blocked/10 text--status-blocked border border--status-blocked/30',
-    parameter: 'bg--status-parameter/10 text--status-parameter border border--status-parameter/30',
+    verified: 'bg-success/10 text-success border border-success/30',
+    success: 'bg-success/10 text-success border border-success/30',
+    blocked: 'bg-status-blocked/10 text-status-blocked border border-status-blocked/30',
+    parameter: 'bg-status-parameter/10 text-status-parameter border border-status-parameter/30',
     warning: 'bg-amber-500/10 text-amber-400 border border-amber-500/30',
     danger: 'bg-rose-500/10 text-rose-400 border border-rose-500/30',
   }

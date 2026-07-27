@@ -58,17 +58,8 @@ func (s *Service) GetSettings(ctx context.Context, userID int) (*models.UserPref
 		return s.GetDefaults(), nil
 	}
 
-	if prefs.APIKey != "" {
-		decrypted, decErr := crypto.Decrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
-		if decErr != nil {
-			log.Printf("[SETTINGS] Failed to decrypt API key for user %d: %v", userID, decErr)
-			prefs.APIKey = ""
-		} else {
-			prefs.APIKey = decrypted
-		}
-	}
-
-	prefs.APIKey = crypto.MaskAPIKey(prefs.APIKey)
+	prefs.HasAPIKey = prefs.APIKey != ""
+	prefs.APIKey = ""
 
 	if prefs.DefaultModel == "" {
 		prefs.DefaultModel = s.cfg.DefaultModel
@@ -102,15 +93,8 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int, prefs *models.
 		return nil, err
 	}
 
-	if updated.APIKey != "" {
-		decrypted, decErr := crypto.Decrypt(updated.APIKey, []byte(s.cfg.EncryptionKey))
-		if decErr != nil {
-			log.Printf("[SETTINGS] Failed to decrypt API key after update for user %d: %v", userID, decErr)
-			updated.APIKey = ""
-		} else {
-			updated.APIKey = crypto.MaskAPIKey(decrypted)
-		}
-	}
+	updated.HasAPIKey = updated.APIKey != ""
+	updated.APIKey = ""
 
 	return updated, nil
 }

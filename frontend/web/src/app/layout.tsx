@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className={cn(
         ibmPlexMono.variable,
-        "font-mono antialiased bg-white text--foreground selection:bg--gb-blue/20 h-full flex flex-col overflow-hidden"
+        "font-mono antialiased bg-white text-foreground selection:bg-gb-blue/20 h-full flex flex-col overflow-hidden"
       )}>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-sm">
           Skip to content

@@ -90,10 +90,10 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border--border rounded-xs p-4 shadow-md space-y-3 transition-all focus-within:border--gb-blue focus-within:ring-1 focus-within:ring--gb-blue font-mono"
+        className="bg-white border border-border rounded-xs p-4 shadow-md space-y-3 transition-all focus-within:border-gb-blue focus-within:ring-1 focus-within:ring-gb-blue font-mono"
       >
         {attachedFileName && (
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-xs bg--blue-50 border border--gb-bright-blue/30 text-xs font-bold text--gb-blue">
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-xs bg-blue-50 border border-gb-bright-blue/30 text-xs font-bold text-gb-blue">
             <span>Attached: {attachedFileName}</span>
             <button
               type="button"
@@ -114,11 +114,11 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
           placeholder="Ask me anything..."
           autoComplete="off"
           spellCheck={false}
-          className="w-full bg-transparent border-none outline-none text-sm text--foreground font-mono placeholder:text--slate-400 focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
+          className="w-full bg-transparent border-none outline-none text-sm text-foreground font-mono placeholder:text-slate-400 focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
         />
 
         {/* Input Bar Action Controls */}
-        <div className="flex items-center justify-between pt-2 border-t border--border flex-wrap gap-2">
+        <div className="flex items-center justify-between pt-2 border-t border-border flex-wrap gap-2">
           <div className="flex items-center gap-2">
             {/* Mode Toggle Pill */}
             <button
@@ -131,8 +131,8 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider",
                 mode === CHAT_MODES.AGENT
-                  ? "bg--blue-50 border--gb-bright-blue text--gb-blue shadow-xs"
-                  : "bg--slate-50 border--border text--slate-600 hover:text--foreground hover:bg--surface-hover"
+                  ? "bg-blue-50 border-gb-bright-blue text-gb-blue shadow-xs"
+                  : "bg-slate-50 border-border text-slate-600 hover:text-foreground hover:bg-surface-hover"
               )}
             >
               <Sparkles className="h-3.5 w-3.5" />

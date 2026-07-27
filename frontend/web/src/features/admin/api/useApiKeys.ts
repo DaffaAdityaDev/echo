@@ -13,8 +13,10 @@ export function useApiKeys() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; scopes: string[] }) =>
-      api.post<ApiKey>("/admin/api-keys", data),
+    mutationFn: async (data: { name: string; scopes: string[] }) => {
+      const res = await api.post<{ key: string; api_key: ApiKey }>("/admin/api-keys", data);
+      return { ...res.api_key, key: res.key };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] });
     },

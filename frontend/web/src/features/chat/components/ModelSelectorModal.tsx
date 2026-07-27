@@ -8,6 +8,7 @@ import {
   Bot,
   Sparkles,
   Cloud,
+  Image,
   X,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
@@ -53,7 +54,13 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   });
 
   // Helper to derive model metadata tags
-  const getModelTags = (_m: Model) => [] as Array<{ label: string; icon: React.ComponentType<{ className?: string }>; color: string }>;
+  const getModelTags = (m: Model) => {
+    const tags: Array<{ label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = [];
+    if (m.supports_multimodal) {
+      tags.push({ label: "Multimodal", icon: Image, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" });
+    }
+    return tags;
+  };
 
   const getContextWindow = (_m: Model) => "—";
 

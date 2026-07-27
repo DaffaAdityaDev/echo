@@ -18,7 +18,7 @@ export default function MainAppLayout({ children }: { children: React.ReactNode 
   return (
     <AuthGuard>
       <SidebarContext.Provider value={{ sidebarOpen, toggleSidebar }}>
-        <div className={`flex bg-white bg-grid-tech font-mono text--foreground ${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+        <div className={`flex bg-white bg-grid-tech font-mono text-foreground ${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"}`}>
           <SessionSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
           {isChatRoute ? (
             children
