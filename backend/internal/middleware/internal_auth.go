@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/config"
 	"strings"
 
@@ -12,39 +13,29 @@ func InternalAuthRequired(cfg *cfgmodel.Config) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing internal token",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing internal token")
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing internal token",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing internal token")
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(cfg.ServiceJWTSecret), nil
 		})
 		if err != nil || !token.Valid {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid internal token",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid internal token")
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid token claims",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid token claims")
 		}
 
 		sub, ok := claims["sub"].(string)
 		if !ok || sub != "agent" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid token subject",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid token subject")
 		}
 
 		c.Locals("service_name", sub)

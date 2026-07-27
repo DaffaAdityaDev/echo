@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"crypto/rand"
+	"echo-backend/internal/handler/handlerutil"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -41,10 +42,10 @@ type episodicStoreRequest struct {
 func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 	var req episodicStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.SessionID == "" || req.Content == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "session_id and content are required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "session_id and content are required")
 	}
 
 	entry := fiber.Map{
@@ -57,14 +58,14 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 
 	data, err := json.Marshal(entry)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to serialize entry"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to serialize entry")
 	}
 
 	ctx := context.Background()
 	key := fmt.Sprintf("memory:episodic:%s", req.SessionID)
 
 	if err := h.rdb.LPush(ctx, key, data).Err(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to store episodic memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store episodic memory")
 	}
 
 	ttl := 24 * time.Hour
@@ -73,7 +74,7 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 	}
 	h.rdb.Expire(ctx, key, ttl)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	return handlerutil.RespondCreated(c, fiber.Map{
 		"id":     generateID("mem_ep_"),
 		"status": "stored",
 	})
@@ -88,10 +89,10 @@ type episodicRecallRequest struct {
 func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 	var req episodicRecallRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.SessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "session_id is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "session_id is required")
 	}
 	if req.Limit <= 0 {
 		req.Limit = 50
@@ -105,7 +106,7 @@ func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 
 	total, err := h.rdb.LLen(ctx, key).Result()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to get list length"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get list length")
 	}
 
 	start := int64(req.Offset)
@@ -113,7 +114,7 @@ func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 
 	raw, err := h.rdb.LRange(ctx, key, start, stop).Result()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to recall episodic memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to recall episodic memory")
 	}
 
 	messages := make([]interface{}, 0, len(raw))
@@ -126,7 +127,7 @@ func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"session_id": req.SessionID,
 		"entries":    messages,
 		"total":      total,
@@ -143,10 +144,10 @@ type semanticStoreRequest struct {
 func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 	var req semanticStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.ID == "" || req.Content == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "id and content are required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id and content are required")
 	}
 
 	metadataJSON := []byte("{}")
@@ -154,7 +155,7 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		var err error
 		metadataJSON, err = json.Marshal(req.Metadata)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid metadata"})
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
 		}
 	}
 
@@ -169,7 +170,7 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 			SET content = $2, embedding = $3::vector, metadata = $4
 		`, req.ID, req.Content, vec, metadataJSON)
 		if err == nil {
-			return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			return handlerutil.RespondCreated(c, fiber.Map{
 				"id":     generateID("mem_sm_"),
 				"status": "indexed",
 			})
@@ -183,10 +184,10 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		SET content = $2, metadata = $3
 	`, req.ID, req.Content, metadataJSON)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to store semantic memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store semantic memory")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	return handlerutil.RespondCreated(c, fiber.Map{
 		"id":     generateID("mem_sm_"),
 		"status": "indexed",
 	})
@@ -202,10 +203,10 @@ type semanticSearchRequest struct {
 func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 	var req semanticSearchRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.Query == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "query is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "query is required")
 	}
 	if req.Limit <= 0 {
 		req.Limit = 10
@@ -223,7 +224,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 		LIMIT $2
 	`, req.Query, req.Limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to search semantic memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to search semantic memory")
 	}
 	defer rows.Close()
 
@@ -251,7 +252,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 		results = []fiber.Map{}
 	}
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"results": results,
 	})
 }
@@ -306,10 +307,10 @@ type proceduralGetRequest struct {
 func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	var req proceduralGetRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.ID == "" && req.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "id or name is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id or name is required")
 	}
 
 	ctx := context.Background()
@@ -334,15 +335,15 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "not_found", "message": "Procedural memory not found"})
+			return handlerutil.RespondError(c, fiber.StatusNotFound, "Procedural memory not found")
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to get procedural memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get procedural memory")
 	}
 
 	var metadata interface{}
 	json.Unmarshal(metadataBytes, &metadata)
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"id":         id,
 		"name":       name,
 		"content":    content,

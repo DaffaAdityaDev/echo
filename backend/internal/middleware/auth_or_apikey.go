@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"echo-backend/internal/constants/auth"
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/config"
 	adminrepo "echo-backend/internal/repository/admin"
 	"encoding/hex"
@@ -25,23 +26,17 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 				c.Locals("user_id", claims["sub"])
 				return c.Next()
 			}
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid token",
-			})
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid token")
 		}
 
 		authHeader := c.Get(auth.HeaderAuthorization)
 		if !strings.HasPrefix(authHeader, auth.BearerPrefix) {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing token",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
 		}
 
 		tokenString = strings.TrimPrefix(authHeader, auth.BearerPrefix)
 		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing token",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -58,15 +53,11 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 
 		key, err := apiKeyRepo.GetByHash(context.Background(), hashStr)
 		if err != nil || key == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid credentials",
-			})
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid credentials")
 		}
 
 		if key.Status != "active" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: API key is revoked",
-			})
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: API key is revoked")
 		}
 
 		c.Locals("api_key_id", key.ID)

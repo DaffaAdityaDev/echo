@@ -36,30 +36,30 @@ type UpdateSettingsRequest struct {
 func (h *Handler) HandleGetSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	prefs, err := h.SettingsSvc.GetSettings(c.Context(), userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get settings", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get settings", err.Error())
 	}
 
-	return c.JSON(prefs)
+	return handlerutil.RespondSuccess(c, prefs)
 }
 
 func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	var req UpdateSettingsRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
 	if req.ProviderType != "" && !aitype.IsValidProvider(req.ProviderType) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unknown provider type: " + req.ProviderType})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Unknown provider type: "+req.ProviderType)
 	}
 
 	prefs := &usermodel.UserPreferences{
@@ -76,13 +76,13 @@ func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 
 	updated, err := h.SettingsSvc.UpdateSettings(c.Context(), userID, prefs, req.KeepAPIKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update settings", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to update settings", err.Error())
 	}
 
-	return c.JSON(updated)
+	return handlerutil.RespondSuccess(c, updated)
 }
 
 func (h *Handler) HandleGetDefaults(c fiber.Ctx) error {
 	defaults := h.SettingsSvc.GetDefaults()
-	return c.JSON(defaults)
+	return handlerutil.RespondSuccess(c, defaults)
 }

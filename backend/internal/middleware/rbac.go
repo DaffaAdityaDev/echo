@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"echo-backend/internal/handler/handlerutil"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -17,8 +19,6 @@ func RequireRoles(allowedRoles ...string) fiber.Handler {
 			}
 		}
 
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Forbidden: insufficient permissions for this operation",
-		})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient permissions for this operation")
 	}
 }

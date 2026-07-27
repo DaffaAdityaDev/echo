@@ -6,6 +6,7 @@ import (
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/constants/routes"
 	"echo-backend/internal/database"
+	"echo-backend/internal/handler/handlerutil"
 	authhdl "echo-backend/internal/handler/auth"
 	adminhdl "echo-backend/internal/handler/admin"
 	chathdl "echo-backend/internal/handler/chat"
@@ -74,7 +75,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{
+		return handlerutil.RespondSuccess(c, fiber.Map{
 			"status":  app.HealthStatus,
 			"message": app.HealthMessage,
 		})

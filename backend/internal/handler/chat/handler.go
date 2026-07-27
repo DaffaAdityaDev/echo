@@ -136,7 +136,7 @@ func parseTraceparent(tp string) (trace.SpanContext, bool) {
 func (h *Handler) HandleChat(c fiber.Ctx) error {
 	var req ChatRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 
 	ctx := c.Context()
@@ -147,7 +147,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	userTier := c.Get("X-User-Tier")
@@ -165,9 +165,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			for _, fID := range req.Features {
 				if feat, exists := catalogMap[fID]; exists {
 					if userTier == "free" && feat.TierRequirement == "pro" {
-						return c.Status(403).JSON(fiber.Map{
-							"error": fmt.Sprintf("Feature '%s' requires a Pro subscription.", feat.Name),
-						})
+						return handlerutil.RespondError(c, fiber.StatusForbidden, fmt.Sprintf("Feature '%s' requires a Pro subscription.", feat.Name))
 					}
 				}
 			}
@@ -180,9 +178,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	}
 	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": fmt.Sprintf("Provider config error: %s", err.Error()),
-		})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Provider config error: %s", err.Error()))
 	}
 
 	if len(req.Skills) > 0 {
@@ -196,9 +192,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			}
 			for _, skillName := range req.Skills {
 				if !skillMap[skillName] {
-					return c.Status(400).JSON(fiber.Map{
-						"error": fmt.Sprintf("Unknown skill '%s'", skillName),
-					})
+					return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Unknown skill '%s'", skillName))
 				}
 			}
 		}
@@ -219,13 +213,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	if req.SessionID != "" {
 		session, err := h.SessionRepo.GetByID(ctx, req.SessionID)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session", "details": err.Error()})
+			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session", err.Error())
 		}
 		if session == nil || session.Status == "deleted" {
-			return c.Status(404).JSON(fiber.Map{"error": "Session not found"})
+			return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 		}
 		if session.UserID != userID {
-			return c.Status(403).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 		}
 
 		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
@@ -241,7 +235,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 		dbMessages, err := h.SessionRepo.GetSessionMessages(ctx, req.SessionID)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to load session history", "details": err.Error()})
+			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
 		}
 
 		if session.ContextSummary != "" {
@@ -273,7 +267,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	if req.SessionID == "" {
 		session, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to create session"})
+			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create session")
 		}
 		req.SessionID = session.ID
 		req.MissionID = session.ID
@@ -290,7 +284,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	assistantMsgID, err := h.SessionRepo.PrepareTurn(ctx, req.SessionID, req.Message, userTokenCount, nextTurn)
 	if err != nil {
 		log.Printf("[CHAT] Failed to prepare turn for session %s: %v", req.SessionID, err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to prepare chat turn", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to prepare chat turn", err.Error())
 	}
 
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
@@ -321,7 +315,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	agentReq, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create request to agent"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
 	agentReq.Header.Set("Content-Type", "application/json")
 	agentReq.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
@@ -332,13 +326,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Agent service unreachable"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return c.Status(resp.StatusCode).JSON(fiber.Map{"error": "Agent request failed", "details": string(bodyBytes)})
+		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}
 
 	c.Response().Header.Set("Content-Type", "text/event-stream")
@@ -510,7 +504,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 func (h *Handler) StreamMissionLogs(c fiber.Ctx) error {
 	missionID := c.Params("missionId")
 	if missionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missionId is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "missionId is required")
 	}
 
 	runtimeMode := os.Getenv("AGENT_RUNTIME_MODE")
@@ -526,7 +520,7 @@ func (h *Handler) StreamMissionLogs(c fiber.Ctx) error {
 
 	if runtimeMode == "saas" {
 		if h.RedisClient == nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Redis state store is offline"})
+			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Redis state store is offline")
 		}
 
 		return c.SendStreamWriter(func(w *bufio.Writer) {
@@ -710,9 +704,9 @@ func (h *Handler) HandleGetSkills(c fiber.Ctx) error {
 	ctx := c.Context()
 	skills, err := h.GetSkills(ctx)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve skills", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve skills", err.Error())
 	}
-	return c.JSON(skills)
+	return handlerutil.RespondSuccess(c, skills)
 }
 
 func (h *Handler) HandleGetFeatures(c fiber.Ctx) error {
@@ -724,7 +718,7 @@ func (h *Handler) HandleGetFeatures(c fiber.Ctx) error {
 
 	features, err := h.GetFeatures(ctx)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve features", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve features", err.Error())
 	}
 
 	response := make([]FeatureResponse, len(features))
@@ -741,5 +735,5 @@ func (h *Handler) HandleGetFeatures(c fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(response)
+	return handlerutil.RespondSuccess(c, response)
 }

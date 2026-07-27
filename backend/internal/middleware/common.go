@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"echo-backend/internal/constants/app"
+	"echo-backend/internal/handler/handlerutil"
 	"log"
 	"time"
 
@@ -32,7 +33,5 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 		code = e.Code
 	}
 
-	return c.Status(code).JSON(fiber.Map{
-		"error": err.Error(),
-	})
+	return handlerutil.RespondError(c, code, err.Error())
 }

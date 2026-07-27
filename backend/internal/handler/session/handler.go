@@ -62,7 +62,7 @@ type CreateSessionRequest struct {
 func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	var req CreateSessionRequest
@@ -75,111 +75,111 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 
 	session, err := h.SessionRepo.CreateSession(c.Context(), userID, title)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to create session", err.Error())
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(session)
+	return handlerutil.RespondCreated(c, session)
 }
 
 func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessions, err := h.SessionRepo.ListByUser(c.Context(), userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to list sessions", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to list sessions", err.Error())
 	}
 
 	if sessions == nil {
 		sessions = []*chatmodel.Session{}
 	}
 
-	return c.JSON(fiber.Map{"sessions": sessions})
+	return handlerutil.RespondSuccess(c, fiber.Map{"sessions": sessions})
 }
 
 func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
 	}
 
 	if session == nil || session.Status == "deleted" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 	}
 
 	if session.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
-	return c.JSON(session)
+	return handlerutil.RespondSuccess(c, session)
 }
 
 func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
 	}
 	if session == nil || session.Status == "deleted" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 	}
 	if session.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
 	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get messages", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
 	}
 
 	if messages == nil {
 		messages = []*chatmodel.Message{}
 	}
 
-	return c.JSON(fiber.Map{"messages": messages})
+	return handlerutil.RespondSuccess(c, fiber.Map{"messages": messages})
 }
 
 func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
 	}
 	if session == nil || session.Status == "deleted" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 	}
 	if session.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
 	var req struct {
@@ -187,50 +187,50 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 		Summary string `json:"summary"`
 	}
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
 	if req.Title == "" && req.Summary == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "At least one of 'title' or 'summary' is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "At least one of 'title' or 'summary' is required")
 	}
 
 	if err := h.SessionRepo.UpdateTitleAndSummary(c.Context(), sessionID, req.Title, req.Summary); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update session"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to update session")
 	}
 
-	return c.JSON(fiber.Map{"message": "Session updated"})
+	return handlerutil.RespondMessage(c, "Session updated")
 }
 
 func (h *Handler) HandleDeleteSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
 	}
 
 	if session == nil || session.Status == "deleted" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 	}
 
 	if session.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
 	err = h.SessionRepo.DeleteSession(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to delete session", err.Error())
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "message": "Session soft deleted"})
+	return handlerutil.RespondMessage(c, "Session soft deleted")
 }
 
 type GenerateTitleRequest struct {
@@ -240,42 +240,42 @@ type GenerateTitleRequest struct {
 func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get session", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
 	}
 	if session == nil || session.Status == "deleted" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Session not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 	}
 	if session.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Forbidden: ownership mismatch"})
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
 	if session.Title != "" && session.Title != db.DefaultSessionTitle {
-		return c.JSON(fiber.Map{"title": session.Title, "summary": session.ContextSummary, "cached": true})
+		return handlerutil.RespondSuccess(c, fiber.Map{"title": session.Title, "summary": session.ContextSummary, "cached": true})
 	}
 
 	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get messages", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
 	}
 
 	if len(messages) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No messages to summarize"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "No messages to summarize")
 	}
 
 	var req GenerateTitleRequest
 	if len(c.Body()) > 0 {
 		if err := json.Unmarshal(c.Body(), &req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 		}
 	}
 
@@ -286,7 +286,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 
 	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, err.Error())
 	}
 
 	var conversation strings.Builder
@@ -317,13 +317,13 @@ Respond ONLY with a valid JSON object in this exact format:
 
 	jsonBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to build request"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build request")
 	}
 
 	endpoint := strings.TrimSuffix(providerCfg.BaseURL, "/") + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(c.Context(), "POST", endpoint, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request")
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -335,21 +335,19 @@ Respond ONLY with a valid JSON object in this exact format:
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		log.Printf("[AUTO-TITLE] HTTP request failed for session %s: %v", sessionID, err)
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "LLM provider request failed"})
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s: %s", resp.StatusCode, sessionID, string(respBody))
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-			"error": fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)),
-		})
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)))
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read LLM response"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to read LLM response")
 	}
 
 	var chatCompletion struct {
@@ -364,7 +362,7 @@ Respond ONLY with a valid JSON object in this exact format:
 	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
 		log.Printf("[AUTO-TITLE] Failed to parse chat completion for session %s: err=%v choices=%d", sessionID, err, len(chatCompletion.Choices))
 		log.Printf("[AUTO-TITLE] Full response body: %s", string(respBytes))
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "Failed to parse LLM response"})
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Failed to parse LLM response")
 	}
 
 	rawContent := strings.TrimSpace(chatCompletion.Choices[0].Message.Content)
@@ -385,22 +383,22 @@ Respond ONLY with a valid JSON object in this exact format:
 	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
 		log.Printf("[AUTO-TITLE] Failed to parse JSON for session %s: %v", sessionID, err)
 		log.Printf("[AUTO-TITLE] Content after regex: %s", truncateStr(rawContent, 500))
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "LLM response is not valid JSON"})
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM response is not valid JSON")
 	}
 
 	title := strings.TrimSpace(metaData.Title)
 	summary := strings.TrimSpace(metaData.Summary)
 
 	if title == "" {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "LLM returned empty title"})
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM returned empty title")
 	}
 
 	if err := h.SessionRepo.UpdateTitleAndSummary(c.Context(), sessionID, title, summary); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save title"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to save title")
 	}
 
 	log.Printf("[AUTO-TITLE] Generated title for session %s: '%s'", sessionID, title)
-	return c.JSON(fiber.Map{"title": title, "summary": summary})
+	return handlerutil.RespondSuccess(c, fiber.Map{"title": title, "summary": summary})
 }
 
 func truncateStr(s string, maxLen int) string {
@@ -417,18 +415,18 @@ type PruneRequest struct {
 func (h *Handler) HandlePruneSession(c fiber.Ctx) error {
 	sessionID := c.Params("id")
 	if sessionID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Session ID is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
 	}
 
 	var req PruneRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
 	err := h.ConsolidationSvc.TriggerConsolidation(c.Context(), sessionID, req.ProviderConfig)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Consolidation failed", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Consolidation failed", err.Error())
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "message": "Session pruned and consolidated successfully"})
+	return handlerutil.RespondMessage(c, "Session pruned and consolidated successfully")
 }

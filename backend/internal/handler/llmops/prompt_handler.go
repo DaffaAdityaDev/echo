@@ -3,6 +3,7 @@ package llmops
 import (
 	"strconv"
 
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/llmops"
 	"echo-backend/internal/service/llmops"
 	"github.com/gofiber/fiber/v3"
@@ -24,30 +25,30 @@ type createTemplateReq struct {
 func (h *PromptHandler) HandleCreateTemplate(c fiber.Ctx) error {
 	var req createTemplateReq
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
 	tenantID := c.Get("X-Tenant-ID", "local")
 	tmpl, err := h.promptSvc.CreatePromptTemplate(c.Context(), tenantID, req.Name, req.Description)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.Status(201).JSON(tmpl)
+	return handlerutil.RespondCreated(c, tmpl)
 }
 
 func (h *PromptHandler) HandleListTemplates(c fiber.Ctx) error {
 	tenantID := c.Get("X-Tenant-ID", "local")
 	templates, err := h.promptSvc.ListTemplates(c.Context(), tenantID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
 	if templates == nil {
 		templates = []llmopsmodel.PromptTemplate{}
 	}
 
-	return c.JSON(fiber.Map{"templates": templates})
+	return handlerutil.RespondSuccess(c, fiber.Map{"templates": templates})
 }
 
 type createVersionReq struct {
@@ -62,15 +63,15 @@ func (h *PromptHandler) HandleCreateVersion(c fiber.Ctx) error {
 
 	var req createVersionReq
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
 	version, err := h.promptSvc.CreateNewVersion(c.Context(), templateID, req.SystemPrompt, actor, req.BoundTools, req.Variables)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.Status(201).JSON(version)
+	return handlerutil.RespondCreated(c, version)
 }
 
 func (h *PromptHandler) HandleGetVersion(c fiber.Ctx) error {
@@ -78,40 +79,40 @@ func (h *PromptHandler) HandleGetVersion(c fiber.Ctx) error {
 	versionStr := c.Params("v")
 	version, err := strconv.Atoi(versionStr)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid version parameter"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid version parameter")
 	}
 
 	pv, err := h.promptSvc.GetVersion(c.Context(), templateID, version)
 	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())
 	}
 
-	return c.JSON(pv)
+	return handlerutil.RespondSuccess(c, pv)
 }
 
 func (h *PromptHandler) HandleGetActivePrompt(c fiber.Ctx) error {
 	templateName := c.Query("name")
 	if templateName == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Query parameter 'name' is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Query parameter 'name' is required")
 	}
 
 	tenantID := c.Get("X-Tenant-ID", "local")
 	pv, err := h.promptSvc.GetActivePrompt(c.Context(), tenantID, templateName)
 	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())
 	}
 
-	return c.JSON(pv)
+	return handlerutil.RespondSuccess(c, pv)
 }
 
 func (h *PromptHandler) HandleListVersions(c fiber.Ctx) error {
 	templateID := c.Params("id")
 	versions, err := h.promptSvc.GetVersionHistory(c.Context(), templateID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(fiber.Map{"versions": versions})
+	return handlerutil.RespondSuccess(c, fiber.Map{"versions": versions})
 }
 
 func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
@@ -122,10 +123,10 @@ func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 
 	err := h.promptSvc.PromoteToProduction(c.Context(), templateID, version, actor)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "promoted_version": version})
+	return handlerutil.RespondSuccess(c, fiber.Map{"status": "success", "promoted_version": version})
 }
 
 func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
@@ -133,14 +134,14 @@ func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
 	versionStr := c.Params("version")
 	version, err := strconv.Atoi(versionStr)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid version parameter"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid version parameter")
 	}
 
 	actor := c.Get("X-User-Email", "unknown@echo.internal")
 	err = h.promptSvc.RollbackToVersion(c.Context(), templateID, version, actor)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "rolled_back_to": version})
+	return handlerutil.RespondSuccess(c, fiber.Map{"status": "success", "rolled_back_to": version})
 }

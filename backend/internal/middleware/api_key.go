@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"crypto/sha256"
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/config"
 	adminrepo "echo-backend/internal/repository/admin"
 	"encoding/hex"
@@ -15,16 +16,12 @@ func APIKeyAuthRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository) 
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing API key",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing API key")
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		if token == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Missing API key",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing API key")
 		}
 
 		hash := sha256.Sum256([]byte(token))
@@ -32,15 +29,11 @@ func APIKeyAuthRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository) 
 
 		key, err := apiKeyRepo.GetByHash(context.Background(), hashStr)
 		if err != nil || key == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: Invalid API key",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid API key")
 		}
 
 		if key.Status != "active" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized: API key is revoked",
-			})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: API key is revoked")
 		}
 
 		c.Locals("api_key_id", key.ID)

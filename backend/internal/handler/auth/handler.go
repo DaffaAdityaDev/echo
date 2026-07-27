@@ -44,20 +44,20 @@ func (h *Handler) HandleRegister(c fiber.Ctx) error {
 	var req registerRequest
 	body := c.Request().Body()
 	if len(body) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Empty body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Empty body")
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request: " + err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request: "+err.Error())
 	}
 
 	user, token, err := h.AuthSvc.Register(c.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusConflict, err.Error())
 	}
 
 	setAuthCookie(c, h.Cfg.Environment, token)
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"token": token,
 		"user":  user,
 	})
@@ -67,20 +67,20 @@ func (h *Handler) HandleLogin(c fiber.Ctx) error {
 	var req loginRequest
 	body := c.Request().Body()
 	if len(body) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Empty body"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Empty body")
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request: " + err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request: "+err.Error())
 	}
 
 	user, token, err := h.AuthSvc.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, err.Error())
 	}
 
 	setAuthCookie(c, h.Cfg.Environment, token)
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"token": token,
 		"user":  user,
 	})
@@ -89,18 +89,18 @@ func (h *Handler) HandleLogin(c fiber.Ctx) error {
 func (h *Handler) HandleMe(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	user, err := h.AuthSvc.GetUserByID(c.Context(), userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get user"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get user")
 	}
 	if user == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "User not found")
 	}
 
-	return c.JSON(user)
+	return handlerutil.RespondSuccess(c, user)
 }
 
 func (h *Handler) HandleLogout(c fiber.Ctx) error {
@@ -114,7 +114,7 @@ func (h *Handler) HandleLogout(c fiber.Ctx) error {
 		Path:     "/",
 	})
 
-	return c.JSON(fiber.Map{"message": "Logged out"})
+	return handlerutil.RespondMessage(c, "Logged out")
 }
 
 func setAuthCookie(c fiber.Ctx, environment, token string) {

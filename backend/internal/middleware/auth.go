@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"echo-backend/internal/constants/auth"
+	"echo-backend/internal/handler/handlerutil"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -39,8 +40,6 @@ func AuthRequired(secret string) fiber.Handler {
 			}
 		}
 
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": auth.ErrMissingToken,
-		})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, auth.ErrMissingToken)
 	}
 }

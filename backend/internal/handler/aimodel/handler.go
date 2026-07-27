@@ -19,15 +19,15 @@ func NewHandler(modelSvc *aimodel.Service) *Handler {
 func (h *Handler) HandleGetModels(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
 	modelsList, err := h.ModelSvc.GetModels(c.Context(), userID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve models", "details": err.Error()})
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve models", err.Error())
 	}
 	if modelsList == nil {
 		modelsList = []aitype.ModelInfo{}
 	}
-	return c.JSON(fiber.Map{"models": modelsList})
+	return handlerutil.RespondSuccess(c, fiber.Map{"models": modelsList})
 }

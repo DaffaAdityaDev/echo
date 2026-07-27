@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/service/llmops"
 	"github.com/gofiber/fiber/v3"
 )
@@ -22,11 +23,11 @@ func NewStudioHandler(playgroundSvc llmops.PlaygroundService) *StudioHandler {
 func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
 	var req llmops.PlaygroundRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request payload")
 	}
 
 	if strings.TrimSpace(req.Prompt) == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Prompt is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Prompt is required")
 	}
 
 	if userIDStr, ok := c.Locals("user_id").(string); ok && userIDStr != "" {

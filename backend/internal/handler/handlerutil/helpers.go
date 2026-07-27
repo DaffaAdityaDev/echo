@@ -25,3 +25,29 @@ func GenerateUUID() string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+func RespondSuccess(c fiber.Ctx, data any) error {
+	return c.JSON(data)
+}
+
+func RespondCreated(c fiber.Ctx, data any) error {
+	return c.Status(fiber.StatusCreated).JSON(data)
+}
+
+func RespondMessage(c fiber.Ctx, msg string) error {
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": msg,
+	})
+}
+
+func RespondError(c fiber.Ctx, status int, msg string) error {
+	return RespondErrorDetail(c, status, msg, "")
+}
+
+func RespondErrorDetail(c fiber.Ctx, status int, msg string, details string) error {
+	return c.Status(status).JSON(fiber.Map{
+		"error":   msg,
+		"details": details,
+	})
+}

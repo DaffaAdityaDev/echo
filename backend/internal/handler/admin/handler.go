@@ -54,28 +54,28 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to list keys"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to list keys")
 	}
-	return c.JSON(keys)
+	return handlerutil.RespondSuccess(c, keys)
 }
 
 func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	var req createAPIKeyRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "name is required")
 	}
 
 	fullKey, prefix, hash, err := generateAPIKey()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate key"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to generate key")
 	}
 
 	userIDInt, err := handlerutil.GetUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 	userID := strconv.Itoa(userIDInt)
 
@@ -92,10 +92,10 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	}
 
 	if err := h.APIKeyRepo.Create(context.Background(), &ak); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to store key"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store key")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	return handlerutil.RespondCreated(c, fiber.Map{
 		"key":     fullKey,
 		"api_key": ak,
 	})
@@ -104,28 +104,28 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id is required")
 	}
 
 	existing, err := h.APIKeyRepo.GetByID(context.Background(), id)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to find key"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to find key")
 	}
 	if existing == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Key not found"})
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Key not found")
 	}
 
 	if err := h.APIKeyRepo.Revoke(context.Background(), id); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to revoke key"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to revoke key")
 	}
 
-	return c.JSON(fiber.Map{"message": "Key revoked"})
+	return handlerutil.RespondMessage(c, "Key revoked")
 }
 
 func (h *Handler) HandleStats(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get stats"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get stats")
 	}
 
 	total := int64(len(keys))
@@ -136,7 +136,7 @@ func (h *Handler) HandleStats(c fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(fiber.Map{
+	return handlerutil.RespondSuccess(c, fiber.Map{
 		"total_keys":  total,
 		"active_keys": active,
 	})
