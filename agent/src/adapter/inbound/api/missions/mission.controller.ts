@@ -3,19 +3,19 @@ import { streamSSE } from 'hono/streaming';
 import { MissionPayload, ToolDefinition, LLMProvider } from '../../../../shared/types';
 import { NlahHarness } from '../../../../core/agent/harness';
 import { ProviderFactory } from '../../../../infrastructure/providers/factory';
-import { StrategyFactory } from '../../../../core/agent/strategies/factory';
+import { StrategyFactory } from '../../../../core/agent/strategies';
 import { logger } from '../../../../shared/utils/logger';
 import { HumanMessage, BaseMessage } from "@langchain/core/messages";
-import { stateStorage } from '../../../../core/agent/storage/factory';
+import { stateStorage } from '../../../../core/agent/storage';
 import { randomUUID } from 'node:crypto';
 import { createMissionSchema } from './mission.schema';
 import { mapHistoryToMessages } from '../../../../shared/utils/messages';
-import { StandardContextAnchor } from '../../../../core/agent/anchors/standard';
+import { StandardContextAnchor } from '../../../../core/agent/anchors';
 import { VALIDATION_MESSAGES, MISSION_LOG_MESSAGES } from './mission.constants';
-import { toolRegistry } from '../../../../core/agent/tools/registry';
+import { toolRegistry } from '../../../../core/agent/tools';
 import { SkillRegistry } from '../../../../core/agent/skills';
 import { HttpStreamTransport } from './stream.transport';
-import { cancellationManager } from '../../../../core/agent/harness/cancel_manager';
+import { cancellationManager } from '../../../../core/agent/harness';
 
 export class MissionController {
   public async createMission(c: Context) {

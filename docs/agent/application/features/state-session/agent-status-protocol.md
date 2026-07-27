@@ -253,14 +253,14 @@ Non-blocking toast, auto-dismiss after 8 seconds.
 ### Harness Changes (agent)
 
 ```
-nlah/harness.ts:
+harness.ts:
   - Compute AgentStatus in sendBase() before every packet
   - Track state transitions vs previous iteration
   - Emit state_change packet on transition
   - Emit progress packet after every checkpoint
   - 5-second heartbeat during LLM stream inactivity
 
-nlah/constants.ts:
+constants.ts:
   - Add STALL_TIMEOUT: 10000 (ms)
   - Add HEARTBEAT_INTERVAL: 5000 (ms)
 ```
@@ -317,7 +317,7 @@ features/chat/components/DegradationToast.tsx:
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                         | Key Lines                                             |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
-| Typed emit methods       | `harness/nlah/harness.ts:60-180`             | sendBase() + typed emit*() methods (no generic emit)  |
+| Typed emit methods       | `harness/harness.ts:60-180`             | sendBase() + typed emit*() methods (no generic emit)  |
 | Packet types             | `shared/types/index.ts:17-36`                | AgentPacketType union                               |
 | Packet type shapes       | `shared/types/index.ts:56-80`                | HarnessPacket discriminated union (flat, no meta)   |
 | Heartbeat current        | `adapter/inbound/api/missions/mission.controller.ts:165` | SSE stream creation                                  |

@@ -1,4 +1,4 @@
-﻿==============================================================================
+==============================================================================
   API Client Pattern
 ==============================================================================
   Module    : API Client Pattern
@@ -19,10 +19,10 @@ headers for distributed tracing via `telemetry-fetch.ts`.
 
 ```
 src/lib/
-├── api-client.ts         # Axios-based API client + SSE stream (native fetch)
-├── telemetry-fetch.ts    # W3C trace context generator
-├── get-query-client.ts   # QueryClient factory + browser singleton
-└── queries.ts            # Predefined query objects (modelQueries)
++-- api-client.ts         # Axios-based API client + SSE stream (native fetch)
++-- telemetry-fetch.ts    # W3C trace context generator
++-- get-query-client.ts   # QueryClient factory + browser singleton
++-- queries.ts            # Predefined query objects (modelQueries)
 ```
 
 ## Flow Diagrams
@@ -30,69 +30,69 @@ src/lib/
 ### Standard Request Flow (axios)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                  Feature Hook (e.g., useAuth)                          │
-│                          │                                              │
-│                          v                                              │
-│              useQuery/useMutation({ queryFn })                         │
-│                          │                                              │
-│                          v                                              │
-│              api.get<T>("/auth/me")                                     │
-│              api.post<T>("/auth/login", body)                          │
-│                          │                                              │
-│                          v                                              │
-│            request<T>(endpoint, options)                                │
-│                          │                                              │
-│        ┌─────────────────┼─────────────────┐                           │
-│        v                 v                 v                           │
-│ ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐           │
-│ │ Axios        │  │ Request          │  │ Response         │           │
-│ │ client       │  │ interceptor:     │  │ interceptor:     │           │
-│ │ (axios.create│  │ inject           │  │ unwrap data,     │           │
-│ │  with        │  │ traceparent,     │  │ normalize errors │           │
-│ │  baseURL,    │  │ x-agent-         │  │                  │           │
-│ │  timeout)    │  │ session-id       │  │                  │           │
-│ └──────────────┘  └──────────────────┘  └──────────────────┘           │
-│                          │                                              │
-│                          v                                              │
-│                 return response.data (as T)                             │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+�                  Feature Hook (e.g., useAuth)                          �
+�                          �                                              �
+�                          v                                              �
+�              useQuery/useMutation({ queryFn })                         �
+�                          �                                              �
+�                          v                                              �
+�              api.get<T>("/auth/me")                                     �
+�              api.post<T>("/auth/login", body)                          �
+�                          �                                              �
+�                          v                                              �
+�            request<T>(endpoint, options)                                �
+�                          �                                              �
+�        +-----------------+-----------------+                           �
+�        v                 v                 v                           �
+� +--------------+  +------------------+  +------------------+           �
+� � Axios        �  � Request          �  � Response         �           �
+� � client       �  � interceptor:     �  � interceptor:     �           �
+� � (axios.create�  � inject           �  � unwrap data,     �           �
+� �  with        �  � traceparent,     �  � normalize errors �           �
+� �  baseURL,    �  � x-agent-         �  �                  �           �
+� �  timeout)    �  � session-id       �  �                  �           �
+� +--------------+  +------------------+  +------------------+           �
+�                          �                                              �
+�                          v                                              �
+�                 return response.data (as T)                             �
++-------------------------------------------------------------------------+
 ```
 
 ### SSE Stream Flow (native fetch)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   useChatStream.sendMessage(text)                       │
-│                          │                                              │
-│                          v                                              │
-│              api.stream<StreamPacket>("/chat", payload, onChunk)        │
-│                          │                                              │
-│        ┌─────────────────┼─────────────────┐                           │
-│        v                 v                 v                           │
-│ ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────┐   │
-│ │ POST /chat with  │  │ Get ReadableStream│ │ Read chunks via       │   │
-│ │ JSON body +      │  │ from response.body│ │ reader.read() loop    │   │
-│ │ trace headers    │  │ (native fetch)    │ │                      │   │
-│ └──────────────────┘  └──────────────────┘  └──────────────────────┘   │
-│                                                    │                   │
-│                                                    v                   │
-│                              ┌──────────────────────────────────────┐   │
-│                              │     Buffer partial lines             │   │
-│                              │     (handle split packets)           │   │
-│                              └────────────────┬─────────────────────┘   │
-│                                               v                         │
-│                              ┌──────────────────────────────────────┐   │
-│                              │     For each complete line:          │   │
-│                              │ ┌──────────────────────────────────┐ │   │
-│                              │ │ Strip "data: " prefix            │ │   │
-│                              │ │ Skip "[DONE]"                    │ │   │
-│                              │ │ JSON.parse → onChunk(parsed)     │ │   │
-│                              │ │ Fallback → onChunk({             │ │   │
-│                              │ │   content: raw })                │ │   │
-│                              │ └──────────────────────────────────┘ │   │
-│                              └──────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+�                   useChatStream.sendMessage(text)                       �
+�                          �                                              �
+�                          v                                              �
+�              api.stream<StreamPacket>("/chat", payload, onChunk)        �
+�                          �                                              �
+�        +-----------------+-----------------+                           �
+�        v                 v                 v                           �
+� +------------------+  +------------------+  +----------------------+   �
+� � POST /chat with  �  � Get ReadableStream� � Read chunks via       �   �
+� � JSON body +      �  � from response.body� � reader.read() loop    �   �
+� � trace headers    �  � (native fetch)    � �                      �   �
+� +------------------+  +------------------+  +----------------------+   �
+�                                                    �                   �
+�                                                    v                   �
+�                              +--------------------------------------+   �
+�                              �     Buffer partial lines             �   �
+�                              �     (handle split packets)           �   �
+�                              +--------------------------------------+   �
+�                                               v                         �
+�                              +--------------------------------------+   �
+�                              �     For each complete line:          �   �
+�                              � +----------------------------------+ �   �
+�                              � � Strip "data: " prefix            � �   �
+�                              � � Skip "[DONE]"                    � �   �
+�                              � � JSON.parse ? onChunk(parsed)     � �   �
+�                              � � Fallback ? onChunk({             � �   �
+�                              � �   content: raw })                � �   �
+�                              � +----------------------------------+ �   �
+�                              +--------------------------------------+   �
++-------------------------------------------------------------------------+
 ```
 
 > **Note:** The actual `api-client.ts` uses a hardcoded `baseURL: '/api'` (not
@@ -163,7 +163,7 @@ Uses `crypto.getRandomValues()` when available, falls back to `Math.random()`.
 
 ### `traceAwareFetch()` (removed)
 
-Was a standalone fetch wrapper — removed as dead code. The axios interceptor
+Was a standalone fetch wrapper � removed as dead code. The axios interceptor
 handles all trace context injection.
 
 ## React Query Integration
@@ -229,13 +229,13 @@ export const chatApi = {
 
 ### Internal
 
-- `@/constants` — `API_CONFIG`, `API_VERSION`
+- `@/constants` � `API_CONFIG`, `API_VERSION`
 
 ### External
 
-- `axios` ^1.16.0 — HTTP client
-- `@tanstack/react-query` — server-state management
-- `@tanstack/react-query-devtools` — dev tools
+- `axios` ^1.16.0 � HTTP client
+- `@tanstack/react-query` � server-state management
+- `@tanstack/react-query-devtools` � dev tools
 
 ## Source References
 
@@ -247,23 +247,23 @@ export const chatApi = {
 +---------------------------+---------+----------------------------------------------------+
 | src/lib/api-client.ts     | 1-11    | Imports, BASE_URL, axios.create(config)            |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 13-26   | Request interceptor — traceparent injection        |
+| src/lib/api-client.ts     | 13-26   | Request interceptor � traceparent injection        |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 28-37   | Response interceptor — error normalization         |
+| src/lib/api-client.ts     | 28-37   | Response interceptor � error normalization         |
 +---------------------------+---------+----------------------------------------------------+
 | src/lib/api-client.ts     | 39-42   | ApiRequestOptions type (extends AxiosRequestConfig) |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 44-53   | request<T>() — axios-based HTTP request            |
+| src/lib/api-client.ts     | 44-53   | request<T>() � axios-based HTTP request            |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 55-100  | stream<T>() — SSE streaming (native fetch)         |
+| src/lib/api-client.ts     | 55-100  | stream<T>() � SSE streaming (native fetch)         |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 102-109 | api object — exposes get, post, put, delete, stream|
+| src/lib/api-client.ts     | 102-109 | api object � exposes get, post, put, delete, stream|
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/telemetry-fetch.ts| 12-40   | generateTraceContext() — W3C traceparent generation|
+| src/lib/telemetry-fetch.ts| 12-40   | generateTraceContext() � W3C traceparent generation|
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() — removed (dead code)           |
+| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() � removed (dead code)           |
 +---------------------------+---------+----------------------------------------------------+
 
 ===============================================================================
-  © 2026 Echo — All Rights Reserved
+  � 2026 Echo � All Rights Reserved
 ===============================================================================

@@ -54,7 +54,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
     return results;
 }
 
-const webSearchTool: ToolDefinition = {
+export const webSearchTool: ToolDefinition = {
     name: SEARCH_CONFIG.NAME,
     description: SEARCH_CONFIG.DESCRIPTION,
     keywords: [...SEARCH_CONFIG.KEYWORDS],

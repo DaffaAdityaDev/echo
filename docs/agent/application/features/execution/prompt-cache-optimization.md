@@ -264,9 +264,9 @@ LLM API Call:
 +----------------------------+------------------------------------------+------------------------------------------+
 | Ref                        | File                                      | Key Lines                                |
 +----------------------------+------------------------------------------+------------------------------------------+
-| System prompt construction | `harness/nlah/harness.ts`                 | `buildSystemPrompt()` once before loop   |
-| Tool array passed to LLM   | `harness/nlah/harness.ts`                 | `provider.stream(msg, tools, sys)`       |
-| Pacing (preserves tools)   | `harness/nlah/harness.ts`                 | `pacingForced` flag instead of tools=[]  |
+| System prompt construction | `harness/harness.ts`                 | `buildSystemPrompt()` once before loop   |
+| Tool array passed to LLM   | `harness/harness.ts`                 | `provider.stream(msg, tools, sys)`       |
+| Pacing (preserves tools)   | `harness/harness.ts`                 | `pacingForced` flag instead of tools=[]  |
 | Anthropic cache_control    | `providers/anthropic/index.ts`            | System + all tools get ephemeral cache   |
 | OpenAI prompt caching      | `providers/openai/index.ts`               | Auto — no special handling needed        |
 | LangChain Anthropic conv   | `node_modules/@langchain/anthropic/...`   | `_convertMessagesToAnthropicPayload()`   |

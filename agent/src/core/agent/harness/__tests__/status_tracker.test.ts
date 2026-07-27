@@ -1,5 +1,5 @@
 
-import { AgentStatusTracker } from '../utils/status_tracker';
+import { AgentStatusTracker } from '../status-tracker';
 
 describe('AgentStatusTracker', () => {
   it('initial state is starting', () => {

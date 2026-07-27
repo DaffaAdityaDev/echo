@@ -10,9 +10,9 @@ import routes from "./adapter/inbound/api/routes";
 import { monitorMiddleware } from "./adapter/inbound/middleware/monitor";
 import { authMiddleware } from "./adapter/inbound/middleware/auth";
 import { errorHandler } from "./adapter/inbound/middleware/error";
-import { toolRegistry } from "./core/agent/tools/registry";
+import { toolRegistry } from "./core/agent/tools";
 import { MemoryAdapter } from "./adapter/outbound/backend/memory.adapter";
-import { CredentialManager } from "./core/agent/credentials/manager";
+import { CredentialManager } from "./core/agent/credentials";
 
 import { fileURLToPath } from "node:url";
 

@@ -1,7 +1,7 @@
 import type { z } from 'zod'
 import type { ToolDefinition, Observation } from '../../../shared/types'
 import type { RestAuthConfig, RestToolConfig } from './types'
-import type { CredentialManager } from '../../../core/agent/credentials/manager'
+import type { CredentialManager } from '../../../core/agent/credentials'
 import { jsonSchemaToZod } from '../mcp/schema-converter'
 
 function resolveEnvRefs(input: Record<string, unknown>): Record<string, string> {

@@ -3,13 +3,13 @@ import { ToolDefinition, Observation, LLMProvider } from '../../../../../shared/
 import { logger } from '../../../../../shared/utils/logger';
 import { HumanMessage, BaseMessage } from '@langchain/core/messages';
 import { NlahHarness } from '../../../harness';
-import { StandardContextAnchor } from '../../../anchors/standard';
+import { StandardContextAnchor } from '../../../anchors';
 import { 
     DELEGATION_CONFIG, 
     SCHEMA_DESC, 
     DELEGATION_DEFAULTS 
 } from './constants';
-import { OPERATION_STATUS, PACKET_TYPES } from '../../../harness/nlah/constants';
+import { OPERATION_STATUS, PACKET_TYPES } from '../../../harness/constants';
 import { langfuseStorage } from '../../../../../shared/utils/langfuse';
 
 

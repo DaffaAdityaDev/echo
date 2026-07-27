@@ -334,7 +334,7 @@ export const createMissionSchema = z.object({
 | Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*    |
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts` | Full mission request validation            |
 | Provider config dispatch   | `infrastructure/providers/factory.ts:15-27`| `fromConfig()` reads session provider config|
-| Harness defaults           | `harness/nlah/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |
+| Harness defaults           | `harness/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |
 | Stream transport           | `adapter/inbound/api/missions/stream.transport.ts` | Packet serialization                        |
 +----------------------------+------------------------------------------+---------------------------------------------+
 

@@ -1,9 +1,9 @@
 
 import { CircuitBreaker } from '../circuit_breaker';
 import { DegradationManager } from '../degradation';
-import { compressObservation } from '../utils/compress';
-import { AgentStatusTracker } from '../utils/status_tracker';
-import { Observation } from '../../../../../shared/types';
+import { compressObservation } from '../compressor';
+import { AgentStatusTracker } from '../status-tracker';
+import { Observation } from '../../../../shared/types';
 
 describe('Resilience & Status Components', () => {
   describe('CircuitBreaker', () => {

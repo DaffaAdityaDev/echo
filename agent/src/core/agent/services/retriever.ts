@@ -1,5 +1,5 @@
 import { ToolDefinition } from '../../../shared/types';
-import { RETRIEVER_CONFIG, MATCH_WEIGHTS, RETRIEVER_FALLBACK_TOOLS } from './retriever.constants';
+import { RETRIEVER_CONFIG, MATCH_WEIGHTS, RETRIEVER_FALLBACK_TOOLS } from './constants';
 
 export class ToolRetriever {
     private tools: ToolDefinition[];

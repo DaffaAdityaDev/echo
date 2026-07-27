@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToolDefinition, Observation } from '../../../../../shared/types';
 import { logger } from '../../../../../shared/utils/logger';
 import { PLANNING_CONFIG, PLANNING_LOGS, PLANNING_TEMPLATES, SCHEMA_DESC } from './constants';
-import { OPERATION_STATUS } from '../../../harness/nlah/constants';
+import { OPERATION_STATUS } from '../../../harness/constants';
 
 export const writeTodosTool: ToolDefinition = {
     name: PLANNING_CONFIG.NAME,

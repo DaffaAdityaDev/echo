@@ -1,6 +1,6 @@
 
-import { CancellationManager } from '../../cancel_manager';
-import { logger } from '../../../../../shared/utils/logger';
+import { CancellationManager } from '../cancel_manager';
+import { logger } from '../../../../shared/utils/logger';
 
 describe('CancellationManager', () => {
   let manager: CancellationManager;

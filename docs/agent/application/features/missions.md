@@ -129,7 +129,7 @@ missions/
 | `zod`                  | Schema validation                                            |
 | `ProviderFactory`      | LLM provider creation (infrastructure/providers/factory.ts)  |
 | `StrategyFactory`      | Strategy selection (core/agent/strategies/factory.ts)        |
-| `NlahHarness`          | Execution harness (core/agent/harness/nlah/harness.ts)       |
+| `NlahHarness`          | Execution harness (core/agent/harness/harness.ts)       |
 | `toolRegistry`         | Conditional tool resolution — only when features explicitly set |
 | `stateStorage`         | State persistence (core/agent/storage/factory.ts)            |
 | `StandardContextAnchor`| Context anchor builder (core/agent/anchors/standard.ts)      |

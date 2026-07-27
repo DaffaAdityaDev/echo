@@ -1,7 +1,7 @@
 import { AgentState } from '../../../shared/types';
 import { signServiceJwt } from '../../../shared/utils/jwt';
 import { ENV } from '../../../config/env';
-import { serializeAgentState, deserializeAgentState } from '../../../core/agent/storage/serializer';
+import { serializeAgentState, deserializeAgentState } from '../../../core/agent/storage';
 
 const ENDPOINTS = {
   store: '/api/v1/internal/memory/episodic/store',

@@ -1,10 +1,5 @@
-const ENV_REF_RE = /\$env\.([A-Z_][A-Z0-9_]*)/g
-
-interface CredentialMapping {
-  key: string
-  envRef: string
-  resolved?: string
-}
+import { ENV_REF_RE } from './constants'
+import type { CredentialMapping } from './types'
 
 export class CredentialManager {
   private mappings: Map<string, CredentialMapping[]> = new Map()

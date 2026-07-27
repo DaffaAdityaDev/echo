@@ -22,10 +22,10 @@ across requests. Three strategy profiles exist: Standard (simple chat), ReAct
 
 ```
 src/core/agent/strategies/
+  index.ts                # Barrel — re-exports all strategies + factory + constants
   prompts.ts              # All prompt templates: STANDARD, REACT, NLAH
   constants.ts            # Strategy names and alias mappings
   standard.ts             # StandardStrategy (legacy)
-  re-act.ts               # ReActStrategy (legacy)
   nlah.ts                 # NLAHStrategy (primary production)
   factory.ts              # StrategyFactory: selects strategy by mode
 ```

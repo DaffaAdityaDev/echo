@@ -20,16 +20,17 @@ auto-recovering from failures, and managing context window via compaction.
 
 ```
 harness/
-  index.ts                   # AgentHarness facade → delegates to factory
+  index.ts                   # Barrel — re-exports all public API
   types.ts                   # HarnessConfig, AgentHarness interface
-  factory.ts                 # HarnessFactory.create()
   cancel_manager.ts          # AbortController-based cancellation (singleton)
-  nlah/
-    harness.ts               # NlahHarness — primary execution loop
-    constants.ts             # HARNESS_CONFIG, PACKET_TYPES
-    prompts.ts               # System prompts for compaction, recovery, stuck
-    utils/
-      debug.ts               # Async prompt ledger writer
+  constants.ts               # HARNESS_CONFIG, PACKET_TYPES, OPERATION_STATUS
+  prompts.ts                 # System prompts for compaction, recovery, stuck
+  harness.ts                 # NlahHarness — primary execution loop
+  circuit_breaker.ts         # CircuitBreaker — per-tool retry tracking
+  degradation.ts             # DegradationManager + DegradationLevel
+  debug.ts                   # QueuePromptDebug — async prompt ledger writer
+  compressor.ts              # compressObservation — tool error compression
+  status-tracker.ts          # AgentStatusTracker
 ```
 
 ---
@@ -165,7 +166,7 @@ harness/
 | `HarnessConfig`       | `types.ts`                     | Configuration interface                    |
 | `IAgentHarness`       | `types.ts`                     | `runMission()` interface                   |
 | `cancellationManager` | `cancel_manager.ts`            | Singleton                                  |
-| `NlahHarness`         | `nlah/harness.ts`              | Primary harness implementation             |
+| `NlahHarness`         | `harness.ts`              | Primary harness implementation             |
 +-----------------------+--------------------------------+--------------------------------------------+
 
 ---
@@ -193,18 +194,18 @@ harness/
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Main loop                | `nlah/harness.ts:150-548`                | `while (!isComplete && iteration < maxIterations)`    |
-| Provider stream          | `nlah/harness.ts:264-307`                | Iterates event stream, dispatches by type             |
-| Native tool call         | `nlah/harness.ts:346-457`                | O(1) map lookup, execute, emit                        |
-| Soft recovery (XML)      | `nlah/harness.ts:459-492`                | Regex parse `<function>` + `<parameter>`              |
-| Tier 2 stuck check       | `nlah/harness.ts:496-516`                | LLM classifier, feedback prompt                       |
-| Pacing threshold         | `nlah/harness.ts:177-184`                | Iteration > 5 → force synthesis                       |
-| Context compaction       | `nlah/harness.ts:191-237`                | Token ratio > 90% → summarize                         |
-| Financial abort          | `nlah/harness.ts:301-305`                | Cost >= $1.00 → throw                                 |
-| Cosine similarity        | `nlah/harness.ts:309-318`                | Threshold 0.92 → loop warning                         |
-| Tool selection at start  | `nlah/harness.ts:122-131`                | explicitTools !== undefined → use as-is (even []), else ToolRetriever |
-| Cancel check             | `nlah/harness.ts:151-157`                | Checks `cancellationManager.isAborted()`               |
-| Harness config           | `nlah/constants.ts`                      | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
+| Main loop                | `harness.ts:150-548`                | `while (!isComplete && iteration < maxIterations)`    |
+| Provider stream          | `harness.ts:264-307`                | Iterates event stream, dispatches by type             |
+| Native tool call         | `harness.ts:346-457`                | O(1) map lookup, execute, emit                        |
+| Soft recovery (XML)      | `harness.ts:459-492`                | Regex parse `<function>` + `<parameter>`              |
+| Tier 2 stuck check       | `harness.ts:496-516`                | LLM classifier, feedback prompt                       |
+| Pacing threshold         | `harness.ts:177-184`                | Iteration > 5 → force synthesis                       |
+| Context compaction       | `harness.ts:191-237`                | Token ratio > 90% → summarize                         |
+| Financial abort          | `harness.ts:301-305`                | Cost >= $1.00 → throw                                 |
+| Cosine similarity        | `harness.ts:309-318`                | Threshold 0.92 → loop warning                         |
+| Tool selection at start  | `harness.ts:122-131`                | explicitTools !== undefined → use as-is (even []), else ToolRetriever |
+| Cancel check             | `harness.ts:151-157`                | Checks `cancellationManager.isAborted()`               |
+| Harness config           | `constants.ts`                      | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ================================================================================

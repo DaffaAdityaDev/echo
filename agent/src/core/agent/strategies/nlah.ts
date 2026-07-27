@@ -31,4 +31,3 @@ export class NLAHStrategy implements AgentStrategy {
             .replace('{delegation}', SUBAGENT_DELEGATION_INSTRUCTIONS);
     }
 }
-export default NLAHStrategy;

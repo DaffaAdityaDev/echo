@@ -29,7 +29,7 @@ src/infrastructure/providers/constants/
   index.ts               # Pricing models, local URL detection
 
 src/core/agent/services/
-  retriever.constants.ts # Tool retriever weights and limits
+  constants.ts # Tool retriever weights and limits
 ```
 
 ---
@@ -123,7 +123,7 @@ MONITOR_CONSTANTS = {
 > - `shared/constants/skills.ts`
 > - `shared/constants/credentials.ts`
 >
-> JWT-related constants are in `config/env.constants.ts` (SERVICE_JWT_ALGORITHM), MCP transport constants are in `infrastructure/transports/mcp/client.ts`, and retriever constants are in `core/agent/services/retriever.constants.ts`. These may be consolidated in the future.
+> JWT-related constants are in `config/env.constants.ts` (SERVICE_JWT_ALGORITHM), MCP transport constants are in `infrastructure/transports/mcp/client.ts`, and retriever constants are in `core/agent/services/constants.ts`. These may be consolidated in the future.
 
 ---
 
@@ -146,7 +146,7 @@ Used by `calculateUsageCost()` in `providers/utils/index.ts`:
 
 ---
 
-## Retriever Constants (core/agent/services/retriever.constants.ts)
+## Retriever Constants (core/agent/services/constants.ts)
 
 ```typescript
 RETRIEVER_CONFIG = {
@@ -186,7 +186,7 @@ RETRIEVER_FALLBACK_TOOLS = ['web_search'] as const;
 | `shared/constants/errors.ts`                     | 1-14                        | Error types and messages                          |
 | `shared/constants/middleware.ts`                  | 1-20                        | Auth and monitor constants                        |
 | `infrastructure/providers/constants/index.ts`    | 1-34                        | Local URL detection, pricing models               |
-| `core/agent/services/retriever.constants.ts`     | 1-12                        | Retriever config, weights, fallback               |
+| `core/agent/services/constants.ts`     | 1-12                        | Retriever config, weights, fallback               |
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

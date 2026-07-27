@@ -6,8 +6,7 @@ describe("SkillRegistry", () => {
   let registry: SkillRegistry;
 
   beforeEach(() => {
-    (SkillRegistry as any).instance = undefined;
-    registry = SkillRegistry.getInstance();
+    registry = new SkillRegistry();
   });
 
   describe("getSkill", () => {
@@ -159,11 +158,4 @@ describe("SkillRegistry", () => {
     });
   });
 
-  describe("singleton", () => {
-    test("getInstance returns the same instance", () => {
-      const instance1 = SkillRegistry.getInstance();
-      const instance2 = SkillRegistry.getInstance();
-      expect(instance1).toBe(instance2);
-    });
-  });
 });

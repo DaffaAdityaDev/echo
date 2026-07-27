@@ -28,7 +28,7 @@ a tool that is unavailable. Each failure adds two messages to context:
 Over 15 iterations (MAX_ITERATIONS), 5+ failed calls can waste 3,500+
 tokens on dead ends. Context bloat degrades quality and increases cost.
 
-Current harness (`nlah/harness.ts`) catches errors as `Observation` but:
+Current harness (`harness.ts`) catches errors as `Observation` but:
   - No per-tool retry tracking
   - No circuit breaker per tool
   - No distinction between "first time failing" and "failing for the 5th time"
@@ -227,10 +227,10 @@ DEGRADATION = {
 +-----------------------------+----------------------------------+--------------------------------------------+
 | Export                      | Source                           | Type                                       |
 +-----------------------------+----------------------------------+--------------------------------------------+
-| `CircuitBreaker`            | `nlah/circuit_breaker.ts`        | Class (Map-based state per mission)        |
-| `DegradationManager`        | `nlah/degradation.ts`            | Class (tracks consecutive failures)        |
-| `compressObservation()`     | `nlah/utils/compress.ts`         | Function (Observation → compressed)        |
-| `CIRCUIT_BREAKER_CONFIG`    | `nlah/constants.ts`              | Constants addendum                         |
+| `CircuitBreaker`            | `circuit_breaker.ts`        | Class (Map-based state per mission)        |
+| `DegradationManager`        | `degradation.ts`            | Class (tracks consecutive failures)        |
+| `compressObservation()`     | `compressor.ts`         | Function (Observation → compressed)        |
+| `CIRCUIT_BREAKER_CONFIG`    | `constants.ts`              | Constants addendum                         |
 +-----------------------------+----------------------------------+--------------------------------------------+
 
 ---
@@ -240,11 +240,11 @@ DEGRADATION = {
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Tool execution error     | `harness/nlah/harness.ts:366-480`        | Current error → Observation mapping                  |
-| Compaction               | `harness/nlah/harness.ts:208-260`        | Existing token-based context compression              |
-| HARNESS_CONFIG           | `harness/nlah/constants.ts`              | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
-| Loop detection           | `harness/nlah/harness.ts:331-341`        | Cosine similarity thought comparison                  |
-| Stuck check              | `harness/nlah/harness.ts:517-539`        | Tier 2 recovery — separate LLM call                   |
+| Tool execution error     | `harness/harness.ts:366-480`        | Current error → Observation mapping                  |
+| Compaction               | `harness/harness.ts:208-260`        | Existing token-based context compression              |
+| HARNESS_CONFIG           | `harness/constants.ts`              | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
+| Loop detection           | `harness/harness.ts:331-341`        | Cosine similarity thought comparison                  |
+| Stuck check              | `harness/harness.ts:517-539`        | Tier 2 recovery — separate LLM call                   |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

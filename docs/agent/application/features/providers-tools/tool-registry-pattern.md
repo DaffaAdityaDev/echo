@@ -319,8 +319,8 @@ This check ensures that tools loaded by `autoload()` (via `this.tools.set()`) ar
 | ACTIVE_FEATURES          | `registry.ts:20-24`                      | 3 entries with id, name, tier                          |
 | autoload()               | `registry.ts:31-69`                      | `readdir` + dynamic `import()` for each module        |
 | resolveTools()           | `registry.ts:75-99`                      | Resolves by feature ID or falls back to all           |
-| Delegate filter          | `harness/nlah/harness.ts:108-113`        | Sub-agents filter out delegate_task                   |
-| Tool map                 | `harness/nlah/harness.ts:121`            | `Map<string, ToolDefinition>` for O(1) lookup         |
+| Delegate filter          | `harness/harness.ts:108-113`        | Sub-agents filter out delegate_task                   |
+| Tool map                 | `harness/harness.ts:121`            | `Map<string, ToolDefinition>` for O(1) lookup         |
 | Web search flow          | `definitions/web-search/index.ts:57-94`  | DDG HTML parse → Observation                          |
 | Planning flow            | `definitions/planning/index.ts:19-74`    | Validate → mkdir → writeFile(STATE.md)                |
 | Delegation flow          | `definitions/delegation/index.ts:17-134` | Child harness → sub-agent execution → relay           |

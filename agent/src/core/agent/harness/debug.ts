@@ -1,9 +1,9 @@
 import { join } from 'node:path';
 import { mkdir, appendFile } from 'node:fs/promises';
-import { AgentState } from '../../../../../shared/types';
-import { logger } from '../../../../../shared/utils/logger';
-import { HARNESS_PROMPTS } from '../prompts';
-import { DEBUG_CONFIG } from '../constants';
+import { AgentState } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
+import { HARNESS_PROMPTS } from './prompts';
+import { DEBUG_CONFIG } from './constants';
 
 export interface DebugLedgerOptions {
     state: AgentState;
@@ -12,11 +12,6 @@ export interface DebugLedgerOptions {
     systemPrompt: string;
 }
 
-/**
- * Writes agent execution prompt logs asynchronously to local file storage.
- * Runs inside the non-blocking event loop (setImmediate) so disk I/O does not
- * stall the agent's main execution runtime.
- */
 export function queuePromptDebug({ state, iteration, strategyName, systemPrompt }: DebugLedgerOptions): void {
     setImmediate(async () => {
         try {
@@ -36,7 +31,6 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
             const isLangChainInstance = sampleMsg && typeof sampleMsg._getType === 'function';
             const storageStatus = isLangChainInstance ? "✅ HEALTHY" : "❌ OBJECT_CORRUPT";
 
-            // Format message chronology with emoji badges based on message type
             const messageHistoryString = state.messages.map((m, idx) => {
                 const rawType = m._getType ? m._getType().toUpperCase() : 'UNKNOWN';
 
@@ -63,7 +57,6 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
 
             const pureContent = HARNESS_PROMPTS.PURE_LEDGER(iteration, shortMissionId, timeString, systemPrompt, pureMessagesString);
 
-            // Create directory if absent, then write both logs in parallel
             await mkdir(debugDir, { recursive: true });
             await Promise.all([
                 appendFile(debugPath, mdContent, DEBUG_CONFIG.ENCODING),

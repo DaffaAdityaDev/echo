@@ -3,22 +3,14 @@ import { standardSkills } from './library'
 import { SkillCompiler } from './compiler'
 
 export class SkillRegistry {
-  private static instance: SkillRegistry
   private skills: Map<string, SkillDefinition>
   private compiler = new SkillCompiler()
 
-  private constructor() {
+  constructor() {
     this.skills = new Map()
     for (const skill of standardSkills) {
       this.skills.set(skill.name, skill)
     }
-  }
-
-  static getInstance(): SkillRegistry {
-    if (!SkillRegistry.instance) {
-      SkillRegistry.instance = new SkillRegistry()
-    }
-    return SkillRegistry.instance
   }
 
   getSkill(name: string): SkillDefinition | undefined {

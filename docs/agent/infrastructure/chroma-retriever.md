@@ -25,8 +25,9 @@ mechanism.
 
 ```
 src/core/agent/services/
+  index.ts                   # Barrel — re-exports ToolRetriever + constants
   retriever.ts               # ToolRetriever class
-  retriever.constants.ts     # Scoring weights & config
+  constants.ts               # Scoring weights & config
 ```
 
 ---
@@ -90,7 +91,7 @@ src/core/agent/services/
 | Dependency                       | Usage                                                        |
 +----------------------------------+--------------------------------------------------------------+
 | `ToolDefinition` (shared/types)  | Input type for the tool list                                 |
-| `retriever.constants.ts`         | Weights, limits, fallback configuration                      |
+| `constants.ts`                   | Weights, limits, fallback configuration                      |
 +----------------------------------+--------------------------------------------------------------+
 
 ---
@@ -103,9 +104,9 @@ src/core/agent/services/
 | `retriever.ts`              | 4-9                         | Class constructor, tool list storage              |
 | `retriever.ts`              | 11-13                       | `updateIndex()` — replaces tool list              |
 | `retriever.ts`              | 18-64                       | `getRelevantTools()` — full scoring and selection |
-| `retriever.constants.ts`    | 1-4                         | `RETRIEVER_CONFIG` — default limit and min score  |
-| `retriever.constants.ts`    | 6-10                        | `MATCH_WEIGHTS` — per-scoring-category weights    |
-| `retriever.constants.ts`    | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback when none   |
+| `constants.ts`    | 1-4                         | `RETRIEVER_CONFIG` — default limit and min score  |
+| `constants.ts`    | 6-10                        | `MATCH_WEIGHTS` — per-scoring-category weights    |
+| `constants.ts`    | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback when none   |
 +-----------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

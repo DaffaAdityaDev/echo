@@ -1,30 +1,30 @@
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
-import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus, HarnessPacket } from '../../../../shared/types';
-import { toolRegistry } from '../../tools/registry';
-import { StrategyFactory } from '../../strategies/factory';
+import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus, HarnessPacket } from '../../../shared/types';
+import { toolRegistry } from '../tools/registry';
+import { StrategyFactory } from '../strategies/factory';
 import { CircuitBreaker } from './circuit_breaker';
 import { DegradationManager, DegradationLevel } from './degradation';
-import { compressObservation } from './utils/compress';
-import { AgentStatusTracker } from './utils/status_tracker';
-import { logger } from '../../../../shared/utils/logger';
+import { compressObservation } from './compressor';
+import { AgentStatusTracker } from './status-tracker';
+import { logger } from '../../../shared/utils/logger';
 
-import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from '../../../../shared/utils/harness';
-import { ENV } from '../../../../config/env';
-import { stateStorage } from '../../storage/factory';
-import { ToolRetriever } from '../../services/retriever';
-import { startAgentTrace, langfuseStorage } from '../../../../shared/utils/langfuse';
+import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from '../../../shared/utils/harness';
+import { ENV } from '../../../config/env';
+import { stateStorage } from '../storage/factory';
+import { ToolRetriever } from '../services/retriever';
+import { startAgentTrace, langfuseStorage } from '../../../shared/utils/langfuse';
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { 
     HARNESS_CONFIG, 
     DEBUG_CONFIG,
     OPERATION_STATUS, 
 } from "./constants";
-import { SkillRegistry } from '../../skills';
+import { SkillRegistry } from '../skills';
 import { HARNESS_PROMPTS } from "./prompts";
-import { calculateUsageCost } from "../../../../infrastructure/providers/utils";
-import { queuePromptDebug } from "./utils/debug";
-import { HarnessConfig } from '../types';
-import { cancellationManager } from '../cancel_manager';
+import { calculateUsageCost } from "../../../infrastructure/providers/utils";
+import { queuePromptDebug } from "./debug";
+import { HarnessConfig } from './types';
+import { cancellationManager } from './cancel_manager';
 
 export class NlahHarness {
     private provider: LLMProvider;
@@ -41,7 +41,7 @@ export class NlahHarness {
     private harnessConfig?: any;
     private statusTracker?: AgentStatusTracker;
     private static toolRetriever: ToolRetriever | null = null;
-    private static skillRegistry = SkillRegistry.getInstance();
+    private static skillRegistry = new SkillRegistry();
 
     constructor(options: HarnessConfig) {
         this.provider = options.provider;
@@ -720,7 +720,6 @@ export class NlahHarness {
 
         await stateStorage.set(state.missionId, state, 600);
 
-        // Queue final debug log to ensure the last messages (last AI + Tool response) are captured
         if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
             queuePromptDebug({
                 state,

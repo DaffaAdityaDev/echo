@@ -107,7 +107,7 @@ Interface for constructing the system prompt. Implementations: ReAct
 **AnchorFactory**
 Creates the initial system message/anchor for agent state. Provides the base
 persona prompt that starts every mission.
-*Source: `agent/src/core/agent/anchors/factory.ts`*
+*Source: `agent/src/core/agent/anchors/standard.ts`*
 
 **Answer**
 A user's submitted response to a flash card. Evaluated by LLM with rubric:

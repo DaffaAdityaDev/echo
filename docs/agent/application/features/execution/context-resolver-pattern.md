@@ -557,8 +557,8 @@ CONTEXT_RESOLVER = {
 | Ref                       | File                                     | Key Lines                                             |
 +---------------------------+------------------------------------------+-------------------------------------------------------+
 | ToolRetriever (current)   | `services/retriever.ts`                  | Naive keyword scoring — to be replaced                |
-| RETRIEVER_CONFIG          | `services/retriever.constants.ts`        | Current weights: 0.6/0.3/0.1                          |
-| Tool resolution in harness| `harness/nlah/harness.ts:122-131`        | Where retriever is called                             |
+| RETRIEVER_CONFIG          | `services/constants.ts`        | Current weights: 0.6/0.3/0.1                          |
+| Tool resolution in harness| `harness/harness.ts:122-131`        | Where retriever is called                             |
 | Prefix-caching layout     | `docs/shared/architecture/headless-      | KV cache optimization strategy                       |
 |                           |   haas.md`                              |                                                       |
 | Session management        | `docs/agent/application/features/        | Go as session authority, BLOCK 4 loading, pruning     |

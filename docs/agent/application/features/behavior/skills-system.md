@@ -259,7 +259,8 @@ if (modifiers.loopDetection === false) this.loopDetectionEnabled = false;
 
 ## Dual SkillRegistryImpl Instances
 
-`SkillRegistry` is a singleton accessed via `SkillRegistry.getInstance()`
+`SkillRegistry` is a regular class instantiated via
+`new SkillRegistry()`
 used by both the controller and harness for prompt compilation and modifier
 resolution.
 
@@ -320,9 +321,11 @@ Backend receives skills: ["research"]
 |                            |                                          | preferredTools, modifiers                |
 | compileSkillPrompts()      | `core/agent/skills/registry.ts:30`        | Delegates to SkillCompiler for templates  |
 | compileModifiers()         | `core/agent/skills/registry.ts:42`        | Merges modifier flags from skills         |
-| Harness integration        | `core/agent/harness/nlah/harness.ts`      | Singleton SkillRegistry (getInstance),   |
+| Harness integration        | 
+`core/agent/harness/harness.ts`      | `new SkillRegistry()`,                   |
 |                            |                                          | compileSkillPrompts + compileModifiers   |
-| Controller usage           | `adapter/inbound/api/missions/mission.controller.ts`  | SkillRegistry.getInstance() singleton    |
+| Controller usage           | 
+`adapter/inbound/api/missions/mission.controller.ts`  | `new SkillRegistry()`                    |
 | Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`  | features XOR preferredTools (lines 88-110)|
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts`      | `skills` array + `features` array        |
 | Skills API endpoint        | `adapter/inbound/api/skills/skills.routes.ts`         | Filters response to 4 fields (line 8-13) |

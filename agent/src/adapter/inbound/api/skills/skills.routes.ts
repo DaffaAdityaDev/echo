@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { standardSkills } from "../../../../core/agent/skills/library";
+import { standardSkills } from "../../../../core/agent/skills";
 
 const skillsRouter = new Hono();
 
