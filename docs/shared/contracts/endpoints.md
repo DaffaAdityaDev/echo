@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Endpoints
   Service   : Shared / Contracts
-  Version   : 1.2
-  Updated   : 2026-07-23 (added generate-title endpoint)
+   Version   : 1.3
+   Updated   : 2026-07-26 (auth upgrade: /models & /studio/playground now JWT)
 ================================================================================
 
 ## Description
@@ -54,7 +54,7 @@ Base path: `/api/v1`
 +--------+----------------------------------+---------+--------+----------------------------------+--------+
 | GET    | /health                          | Go      | None   | Health check                     | Active |
 | GET    | /v1/features                     | Go      | None   | Get feature catalog              | Active |
-| GET    | /v1/models                       | Go      | Opt.   | List available LLM models        | Active |
+| GET    | /v1/models                       | Go      | JWT    | List available LLM models        | Active |
 | GET    | /v1/skills                       | Go      | None   | List active agent skills catalog | Active |
 | POST   | /v1/auth/login                   | Go      | None   | Login, returns JWT               | Active |
 | POST   | /v1/auth/register                | Go      | None   | Register user                    | Active |
@@ -72,6 +72,12 @@ Base path: `/api/v1`
 | PUT    | /v1/settings                     | Go      | JWT    | Update user preferences          | Active |
 | GET    | /v1/settings/defaults            | Go      | None   | Get system default preferences   | Active |
 +--------+----------------------------------+---------+--------+----------------------------------+--------+
+
+> **Note**: `GET /api/v1/models` now requires JWT auth (was optional). Model
+> listing is per-user — it reads the authenticated user's provider config
+> (provider type, API key, base URL) from their `UserPreferences` and fetches
+> models from their configured provider. If no API key is set for the user and
+> the provider is not `lm-studio`, an empty list is returned.
 
 ### Route Constants (Go)
 
@@ -113,7 +119,7 @@ Auth: User JWT (admin role) or valid admin `X-API-Key`.
 
 Base path: `/api/v1/studio`
 
-Role-gated endpoints for prompt engineering, evaluation, shadow testing, playground, and audit.
+Role-gated endpoints for prompt engineering and playground.
 
 +--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
 | Method | Path                                        | Service | Auth                 | Description                      | Status |
@@ -126,13 +132,13 @@ Role-gated endpoints for prompt engineering, evaluation, shadow testing, playgro
 | POST   | /v1/studio/prompts/:id/versions             | Go      | User JWT + Role      | Create version (role-gated)      | Active |
 | POST   | /v1/studio/prompts/:id/promote/:version     | Go      | User JWT + Role      | Promote version (role-gated)     | Active |
 | POST   | /v1/studio/prompts/:id/rollback/:version    | Go      | User JWT + Role      | Rollback version (role-gated)    | Active |
-| POST   | /v1/studio/evals/datasets                   | Go      | User JWT + Role      | Upload eval dataset (role-gated) | Active |
-| POST   | /v1/studio/evals/run                        | Go      | User JWT + Role      | Run evaluation (role-gated)      | Active |
-| GET    | /v1/studio/evals/runs/:id                   | Go      | User JWT             | Get eval run result              | Active |
-| GET    | /v1/studio/shadow/history/:id               | Go      | User JWT             | Get shadow run history           | Active |
 | POST   | /v1/studio/playground                       | Go      | User JWT             | Run playground prompt            | Active |
-| GET    | /v1/studio/audit                            | Go      | User JWT             | Query audit logs                 | Active |
 +--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
+
+> **Note**: `POST /api/v1/studio/playground` now requires JWT auth (was
+> optional). The handler reads user ID from JWT locals to call
+> `ResolveProviderConfig(userID, modelID)` instead of the old server-level
+> config fallback.
 
 ## Internal Routes (Go Gateway — Memory & Session Authority)
 
@@ -203,13 +209,6 @@ STUDIO_ENDPOINTS = {
   PROMPT_VERSION: (id, v) => `/studio/prompts/${id}/versions/${v}`,
   PROMPT_PROMOTE: (id, v) => `/studio/prompts/${id}/promote/${v}`,
   PROMPT_ROLLBACK: (id, v) => `/studio/prompts/${id}/rollback/${v}`,
-  EVAL_DATASETS: "/studio/evals/datasets",
-  EVAL_RUN: "/studio/evals/run",
-  EVAL_RUNS: "/studio/evals/runs",
-  EVAL_RESULT: (id) => `/studio/evals/runs/${id}`,
-  SHADOW: "/studio/shadow",
-  SHADOW_HISTORY: (id) => `/studio/shadow/history/${id}`,
-  AUDIT: "/studio/audit",
   MATURITY: "/studio/maturity",
   MATURITY_CLIENT: "/studio/maturity/client",
   PLAYGROUND: "/studio/playground",
@@ -313,9 +312,8 @@ From `docs/architecture-plan.md` — not yet implemented:
 |                                                 |       |   traceparent propagation        |
 | backend/internal/handler/llmops/                | 1-450 | Studio handler group             |
 | backend/internal/service/llmops/                | 1-350 | Studio service layer (prompts,   |
-|                                                 |       |   evals, shadow, audit, maturity)|
-| backend/internal/repository/llmops/module/      | 1-500 | Studio repository layer (audit,  |
-|                                                 |       |   eval, props, shadow sub-pkgs)  |
+|                                                 |       |   maturity)                      |
+| backend/internal/repository/llmops/module/      | 1-500 | Studio repository layer (props)  |
 +-------------------------------------------------+-------+----------------------------------+
 
 ================================================================================

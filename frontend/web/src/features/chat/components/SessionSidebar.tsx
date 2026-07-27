@@ -13,9 +13,6 @@ import {
   Layers,
   FlaskConical,
   ScrollText,
-  ClipboardCheck,
-  Eye,
-  ShieldAlert,
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -92,9 +89,6 @@ export function SessionSidebar({
     { label: "AI Maturity", icon: Layers, href: "/maturity" },
     { label: "Playground", icon: FlaskConical, href: "/playground" },
     { label: "Prompts", icon: ScrollText, href: "/prompts" },
-    { label: "Evals", icon: ClipboardCheck, href: "/evals" },
-    { label: "Shadow", icon: Eye, href: "/shadow" },
-    { label: "Audit", icon: ShieldAlert, href: "/audit" },
   ];
 
   return (
@@ -275,7 +269,7 @@ export function SessionSidebar({
                 {user?.email || "guest@echo.ai"}
               </p>
             </div>
-            {onOpenSettings && (
+            {onOpenSettings ? (
               <button
                 onClick={onOpenSettings}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors shrink-0"
@@ -283,6 +277,14 @@ export function SessionSidebar({
               >
                 <Settings className="h-3.5 w-3.5" />
               </button>
+            ) : (
+              <Link
+                href="/settings"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors shrink-0"
+                title="Agent Settings"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </Link>
             )}
             <button
               onClick={() => logout()}

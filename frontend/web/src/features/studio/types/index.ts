@@ -1,4 +1,4 @@
-export type VersionStatus = 'draft' | 'in_review' | 'shadow' | 'approved' | 'production' | 'rolled_back'
+export type VersionStatus = 'draft' | 'in_review' | 'approved' | 'production' | 'rolled_back'
 
 export interface PromptTemplate {
   id: string
@@ -19,70 +19,6 @@ export interface PromptVersion {
   variables: string[]
   status: VersionStatus
   created_by: string
-  created_at: string
-}
-
-export interface TestCase {
-  input: string
-  expected_output: string
-}
-
-export interface EvalDataset {
-  id: string
-  tenant_id: string
-  name: string
-  description: string
-  test_cases: TestCase[]
-  created_by: string
-  created_at: string
-}
-
-export interface EvalRun {
-  id: string
-  prompt_version_id: string
-  dataset_id: string | null
-  pass_rate: number
-  score_accuracy: number
-  score_format: number
-  score_tools: number
-  details: EvalRunDetail[]
-  executed_by: string
-  created_at: string
-}
-
-export interface EvalRunDetail {
-  input: string
-  expected_output: string
-  ai_output: string
-  passed: boolean
-  score_accuracy: number
-  score_format: number
-  score_tools: number
-  reasoning: string
-}
-
-export interface ShadowRun {
-  id: string
-  template_id: string
-  live_version_id: string
-  candidate_version_id: string
-  user_query: string
-  live_output: string
-  shadow_output: string
-  live_cost_usd: number
-  shadow_cost_usd: number
-  live_latency_ms: number
-  shadow_latency_ms: number
-  created_at: string
-}
-
-export interface AuditLog {
-  id: string
-  tenant_id: string
-  actor: string
-  action: string
-  resource: string
-  payload: Record<string, unknown>
   created_at: string
 }
 

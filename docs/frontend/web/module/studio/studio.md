@@ -9,7 +9,7 @@
 
 ## Deskripsi
 
-The AI Studio feature — an LLMOps workbench for managing prompts, running evaluations, A/B shadow testing, playground experimentation, AI-readiness maturity assessment, and audit logging. Provides tools for prompt engineers, domain experts, and product managers to govern AI behavior through structured contracts.
+The AI Studio feature — an LLMOps workbench for managing prompts, playground experimentation, and AI-readiness maturity assessment. Provides tools for prompt engineers, domain experts, and product managers to govern AI behavior through structured contracts.
 
 ## File Structure
 
@@ -20,18 +20,12 @@ src/features/studio/
 ├── data/
 │   └── maturity-data.ts
 ├── api/
-│   ├── useAudit.ts
-│   ├── useEvals.ts
 │   ├── useMaturity.ts
-│   ├── usePrompts.ts
-│   └── useShadow.ts
+│   └── usePrompts.ts
 ├── hooks/
-│   ├── useAuditTrail.ts
-│   ├── useEvalSuite.ts
 │   ├── useMaturityModel.ts
 │   ├── usePlayground.ts
 │   ├── usePromptLibrary.ts
-│   ├── useShadowTest.ts
 │   └── useStudioDashboard.ts
 ├── stores/
 │   └── studioStore.ts
@@ -51,21 +45,11 @@ src/features/studio/
 │   │   ├── PlaygroundPage.tsx
 │   │   ├── PromptEditor.tsx
 │   │   └── ModelComparisonGrid.tsx
-│   ├── evals/
-│   │   ├── EvalDashboard.tsx
-│   │   ├── DatasetUploader.tsx
-│   │   └── EvalScoreCard.tsx
-│   ├── shadow/
-│   │   ├── ShadowDashboard.tsx
-│   │   ├── ShadowComparisonTable.tsx
-│   │   └── ShadowTrafficSlider.tsx
-│   ├── maturity/
-│   │   ├── MaturityDashboard.tsx
-│   │   ├── MaturityMatrix.tsx
-│   │   ├── MaturityRoadmap.tsx
-│   │   └── MaturityScoringGuide.tsx
-│   └── audit/
-│       └── AuditTrailTable.tsx
+│   └── maturity/
+│       ├── MaturityDashboard.tsx
+│       ├── MaturityMatrix.tsx
+│       ├── MaturityRoadmap.tsx
+│       └── MaturityScoringGuide.tsx
 └── types/
     └── index.ts
 ```
@@ -80,8 +64,7 @@ src/features/studio/
 │                                                                           │
 │  ┌──────────────────┐   ┌────────────────────────────────────────────┐   │
 │  │   Summary Cards   │   │        Sub-feature Navigation Tabs         │   │
-│  │  prompt/eval/     │   │  Prompts │ Playground │ Evals │ Shadow │  │   │
-│  │  shadow/audit     │   │  Maturity │ Audit                         │   │
+│  │  prompt/          │   │  Prompts │ Playground │ Maturity            │   │
 │  │  counts + level   │   └────────────────────────────────────────────┘   │
 │  └──────────────────┘                                                    │
 └───────────────────────────────────────────────────────────────────────────┘
@@ -100,29 +83,17 @@ src/features/studio/
 └───────────────────────────────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────────────────────────────┐
-│  EvalDashboard                            ShadowDashboard                │
-│  ┌────────────────────────┐               ┌─────────────────────────┐    │
-│  │  DatasetUploader       │               │  ShadowComparisonTable  │    │
-│  │  (upload test cases)   │               │  (live vs candidate)    │    │
-│  ├────────────────────────┤               ├─────────────────────────┤    │
-│  │  EvalScoreCard         │               │  ShadowTrafficSlider    │    │
-│  │  (accuracy/format/     │               │  (traffic % control)    │    │
-│  │   tools breakdown)     │               └─────────────────────────┘    │
-│  └────────────────────────┘                                             │
-└───────────────────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────────────────┐
-│  MaturityDashboard                          AuditTrailTable              │
-│  ┌────────────────────────┐               ┌─────────────────────────┐    │
-│  │  MaturityMatrix        │               │  Audit log table with   │    │
-│  │  (7 dimensions x L1-5) │               │  actor/action/resource  │    │
-│  ├────────────────────────┤               │  + payload viewer       │    │
-│  │  MaturityRoadmap       │               └─────────────────────────┘    │
-│  │  (7 roadmap items)     │                                             │
-│  ├────────────────────────┤                                             │
-│  │  MaturityScoringGuide  │                                             │
-│  │  (13 scoring questions)│                                             │
-│  └────────────────────────┘                                             │
+│  MaturityDashboard                                                       │
+│  ┌────────────────────────┐                                               │
+│  │  MaturityMatrix        │                                               │
+│  │  (7 dimensions x L1-5) │                                               │
+│  ├────────────────────────┤                                               │
+│  │  MaturityRoadmap       │                                               │
+│  │  (7 roadmap items)     │                                               │
+│  ├────────────────────────┤                                               │
+│  │  MaturityScoringGuide  │                                               │
+│  │  (13 scoring questions)│                                               │
+│  └────────────────────────┘                                               │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -148,20 +119,10 @@ src/features/studio/
 | PlaygroundPage             | Component   | components/playground/PlaygroundPage.tsx              |
 | PromptEditor               | Component   | components/playground/PromptEditor.tsx                |
 | ModelComparisonGrid        | Component   | components/playground/ModelComparisonGrid.tsx         |
-| EvalDashboard              | Component   | components/evals/EvalDashboard.tsx                    |
-| DatasetUploader            | Component   | components/evals/DatasetUploader.tsx                  |
-| EvalScoreCard              | Component   | components/evals/EvalScoreCard.tsx                    |
-| ShadowDashboard            | Component   | components/shadow/ShadowDashboard.tsx                 |
-| ShadowComparisonTable      | Component   | components/shadow/ShadowComparisonTable.tsx           |
-| ShadowTrafficSlider        | Component   | components/shadow/ShadowTrafficSlider.tsx             |
-| AuditTrailTable            | Component   | components/audit/AuditTrailTable.tsx                  |
 | useStudioDashboard         | Hook        | hooks/useStudioDashboard.ts                           |
 | useMaturityModel           | Hook        | hooks/useMaturityModel.ts                             |
 | usePlayground              | Hook        | hooks/usePlayground.ts                                |
-| useEvalSuite               | Hook        | hooks/useEvalSuite.ts                                 |
 | usePromptLibrary           | Hook        | hooks/usePromptLibrary.ts                             |
-| useShadowTest              | Hook        | hooks/useShadowTest.ts                                |
-| useAuditTrail              | Hook        | hooks/useAuditTrail.ts                                |
 | all types                  | Type        | types/index.ts                                        |
 +----------------------------+-------------+------------------------------------------------------+
 
@@ -172,7 +133,7 @@ src/features/studio/
 +-----------------------+--------------------------------------------------------------+
 | Component             | Description                                                  |
 +-----------------------+--------------------------------------------------------------+
-| StudioDashboard       | Overview page — prompt/eval/shadow/audit counts, maturity    |
+| StudioDashboard       | Overview page — prompt counts, maturity                     |
 |                       | level, weakest dimension, roadmap progress. Props: all       |
 |                       | data from useStudioDashboard.                                |
 +-----------------------+--------------------------------------------------------------+
@@ -184,7 +145,7 @@ src/features/studio/
 +-----------------------+--------------------------------------------------------------+
 | VersionDiffViewer     | Side-by-side diff between two prompt versions.               |
 +-----------------------+--------------------------------------------------------------+
-| VersionStatusBadge    | Colored badge: draft, in_review, shadow, approved,           |
+| VersionStatusBadge    | Colored badge: draft, in_review, approved,                   |
 |                       | production, rolled_back.                                     |
 +-----------------------+--------------------------------------------------------------+
 | PlaygroundPage        | Interactive prompt editor with multi-model comparison.       |
@@ -192,18 +153,6 @@ src/features/studio/
 | PromptEditor          | Textarea with variable interpolation fields.                 |
 +-----------------------+--------------------------------------------------------------+
 | ModelComparisonGrid   | Grid of model outputs (content, latency, tokens, errors).    |
-+-----------------------+--------------------------------------------------------------+
-| EvalDashboard         | Upload datasets, run evals, view score cards.                |
-+-----------------------+--------------------------------------------------------------+
-| DatasetUploader       | Upload test cases as JSON array.                             |
-+-----------------------+--------------------------------------------------------------+
-| EvalScoreCard         | Per-eval-run scores: pass_rate, accuracy, format, tools.     |
-+-----------------------+--------------------------------------------------------------+
-| ShadowDashboard       | View shadow runs, control traffic %, compare outputs.        |
-+-----------------------+--------------------------------------------------------------+
-| ShadowComparisonTable | Table: live vs shadow output, cost, latency.                 |
-+-----------------------+--------------------------------------------------------------+
-| ShadowTrafficSlider   | Slider to control candidate traffic percentage.              |
 +-----------------------+--------------------------------------------------------------+
 | MaturityDashboard     | AI-readiness maturity assessment — matrix, roadmap, scoring, |
 |                       | client assessment.                                           |
@@ -213,8 +162,6 @@ src/features/studio/
 | MaturityRoadmap       | 7 roadmap items with priority/status toggles.                |
 +-----------------------+--------------------------------------------------------------+
 | MaturityScoringGuide  | 13 yes/no scoring questions per dimension.                   |
-+-----------------------+--------------------------------------------------------------+
-| AuditTrailTable       | Paginated audit log with actor, action, resource, payload.   |
 +-----------------------+--------------------------------------------------------------+
 | EmptyState            | Reusable empty state placeholder.                            |
 +-----------------------+--------------------------------------------------------------+
@@ -226,7 +173,7 @@ src/features/studio/
 +---------------------------+---------------------------+-----------------------------------------------------+
 | Export                    | File                      | Purpose                                             |
 +---------------------------+---------------------------+-----------------------------------------------------+
-| useStudioDashboard        | hooks/useStudioDashboard  | Orchestrator — wraps prompt, audit, shadow queries  |
+| useStudioDashboard        | hooks/useStudioDashboard  | Orchestrator — wraps prompt queries                  |
 |                           |                           | + maturity model. Returns counts, level, progress.  |
 +---------------------------+---------------------------+-----------------------------------------------------+
 | usePromptLibrary          | hooks/usePromptLibrary    | Prompt CRUD — wraps api/usePrompts hooks.           |
@@ -235,14 +182,8 @@ src/features/studio/
 | usePlayground             | hooks/usePlayground       | Runs playground prompt against selected models.     |
 |                           |                           | Reads/writes store for results + loading state.     |
 +---------------------------+---------------------------+-----------------------------------------------------+
-| useEvalSuite              | hooks/useEvalSuite        | Wraps api/useEvals — run eval, manage result.       |
-+---------------------------+---------------------------+-----------------------------------------------------+
-| useShadowTest             | hooks/useShadowTest       | Traffic percentage slider state.                    |
-+---------------------------+---------------------------+-----------------------------------------------------+
 | useMaturityModel          | hooks/useMaturityModel    | Maturity assessment logic — computes overall level, |
 |                           |                           | manages client assessments, roadmap, scoring.       |
-+---------------------------+---------------------------+-----------------------------------------------------+
-| useAuditTrail             | hooks/useAuditTrail       | Wraps api/useAudit — fetches audit logs.            |
 +---------------------------+---------------------------+-----------------------------------------------------+
 
 ### TanStack Query Hooks (`api/` — internal, consumed by hooks)
@@ -256,11 +197,6 @@ src/features/studio/
 | useCreateVersion      | api/usePrompts.ts          | Mutation — create version                           |
 | usePromoteVersion     | api/usePrompts.ts          | Mutation — promote version to production            |
 | useRollbackVersion    | api/usePrompts.ts          | Mutation — rollback version                         |
-| useCreateDataset      | api/useEvals.ts            | Mutation — create eval dataset                      |
-| useRunEval            | api/useEvals.ts            | Mutation — run evaluation                           |
-| useEvalRun            | api/useEvals.ts            | Query — get eval run by ID                          |
-| useShadowHistory      | api/useShadow.ts           | Query — shadow history for a template               |
-| useAuditLogs          | api/useAudit.ts            | Query — audit logs with limit                       |
 | useMaturityAssessment | api/useMaturity.ts         | Query — system maturity assessment                  |
 | useSaveClientAssessment| api/useMaturity.ts        | Mutation — save client assessment                   |
 +----------------------+---------------------------+-----------------------------------------------------+
@@ -285,13 +221,8 @@ src/features/studio/
 +------------------------+---------------------------------------------------------+
 | PromptTemplate         | Prompt template with id, name, active_version           |
 | PromptVersion          | Versioned snapshot with status lifecycle                |
-| VersionStatus          | 'draft' | 'in_review' | 'shadow' | 'approved'           |
+| VersionStatus          | 'draft' | 'in_review' | 'approved'                |
 |                        | 'production' | 'rolled_back'                              |
-| EvalDataset            | Test case collection with name/description              |
-| EvalRun                | Evaluation result with pass_rate + scores               |
-| EvalRunDetail          | Per-test-case eval detail                               |
-| ShadowRun              | A/B comparison: live vs candidate output/cost/latency   |
-| AuditLog               | Operational audit entry                                 |
 | PlaygroundResult       | Single model output from playground                     |
 | MaturityLevel          | 'L1' | 'L2' | 'L3' | 'L4' | 'L5'                         |
 | MaturityDimensionKey   | 'tools' | 'skills' | 'prompts' | 'security'              |
@@ -339,7 +270,7 @@ src/features/studio/
 ### External
 
 - `zustand` — playground state management
-- `@tanstack/react-query` — server state (prompts, evals, shadow, audit, maturity)
+- `@tanstack/react-query` — server state (prompts, maturity)
 
 ## API Routes
 
@@ -350,8 +281,8 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | File                                                      | Lines   | Description                                      |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/types/index.ts                        | 1-175   | All studio types: Prompt*, Eval*, ShadowRun,     |
-|                                                           |         | AuditLog, PlaygroundResult, Maturity*            |
+| src/features/studio/types/index.ts                        | 1-175   | All studio types: Prompt*, PlaygroundResult,     |
+|                                                           |         | Maturity*                                        |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/constants.ts                          | 1-25    | STUDIO_ENDPOINTS, STUDIO_QUERY_KEYS              |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
@@ -362,12 +293,6 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/api/usePrompts.ts                     | 1-100   | TanStack Query hooks for prompt CRUD             |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/api/useEvals.ts                       | 1-50    | TanStack Query hooks for eval datasets + runs    |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/api/useShadow.ts                      | 1-20    | TanStack Query hook for shadow history            |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/api/useAudit.ts                       | 1-20    | TanStack Query hook for audit logs               |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/api/useMaturity.ts                    | 1-25    | TanStack Query hooks for maturity assessment     |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/useStudioDashboard.ts           | 1-35    | Orchestrator — counts, maturity, refresh         |
@@ -376,13 +301,7 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/usePlayground.ts                | 1-61    | Playground execution + store integration         |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/hooks/useEvalSuite.ts                 | 1-30    | Eval run orchestration                           |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/hooks/useShadowTest.ts                | 1-8     | Traffic slider state                             |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/useMaturityModel.ts             | 1-187   | Maturity assessment logic                        |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/hooks/useAuditTrail.ts                | 1-10    | Audit log wrapper                                |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/index.ts                              | 1-52    | Barrel exports — components, hooks, types        |
 +-----------------------------------------------------------+---------+--------------------------------------------------+

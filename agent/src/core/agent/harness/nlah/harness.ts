@@ -31,6 +31,7 @@ export class NlahHarness {
     private strategy: AgentStrategy;
     private missionId: string;
     private tenantId: string;
+    private delegationDepth: number;
     private explicitTools?: ToolDefinition[];
     private skills?: string[];
     private compressionEnabled = true;
@@ -47,6 +48,7 @@ export class NlahHarness {
         this.strategy = options.strategy;
         this.missionId = options.missionId || crypto.randomUUID();
         this.tenantId = options.tenantId || HARNESS_CONFIG.DEFAULT_TENANT_ID;
+        this.delegationDepth = options.delegationDepth ?? 0;
         this.explicitTools = options.tools;
         this.skills = options.skills;
         this.harnessConfig = options.harnessConfig;
@@ -187,16 +189,16 @@ export class NlahHarness {
 
     private selectTools(state: AgentState): { tools: ToolDefinition[]; toolMap: Map<string, ToolDefinition> } {
         const fullToolPool = toolRegistry.getAllTools();
-        const isSubAgent = this.tenantId === HARNESS_CONFIG.SUBAGENT_TENANT_ID;
+        const depthExceeded = this.delegationDepth >= HARNESS_CONFIG.MAX_DELEGATION_DEPTH;
 
         let filteredFullPool = fullToolPool;
-        if (isSubAgent) {
+        if (depthExceeded) {
             filteredFullPool = fullToolPool.filter(t => t.name !== 'delegate_task');
         }
 
         let tools: ToolDefinition[];
         if (this.explicitTools !== undefined) {
-            tools = isSubAgent
+            tools = depthExceeded
                 ? this.explicitTools.filter(t => t.name !== 'delegate_task')
                 : this.explicitTools;
             logger.info(`[selectTools] Using explicitTools (length=${this.explicitTools.length}): ${this.explicitTools.map(t => t.name).join(', ') || '(empty)'}`);
@@ -447,7 +449,7 @@ export class NlahHarness {
         let observation;
         try {
             observation = await tool.execute(pendingToolCall.args, {
-                parentMessages: state.messages, onPacket, provider: this.provider, tools: [...toolMap.values()]
+                parentMessages: state.messages, onPacket, provider: this.provider, tools: [...toolMap.values()], delegationDepth: this.delegationDepth
             });
         } catch (err: any) {
             logger.error(`Tool execution failed for ${pendingToolCall.name}: ${err.message}`, err);

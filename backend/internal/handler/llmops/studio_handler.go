@@ -13,11 +13,10 @@ import (
 
 type StudioHandler struct {
 	playgroundSvc llmops.PlaygroundService
-	auditSvc      llmops.AuditService
 }
 
-func NewStudioHandler(playgroundSvc llmops.PlaygroundService, auditSvc llmops.AuditService) *StudioHandler {
-	return &StudioHandler{playgroundSvc: playgroundSvc, auditSvc: auditSvc}
+func NewStudioHandler(playgroundSvc llmops.PlaygroundService) *StudioHandler {
+	return &StudioHandler{playgroundSvc: playgroundSvc}
 }
 
 func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
@@ -28,6 +27,12 @@ func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
 
 	if strings.TrimSpace(req.Prompt) == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Prompt is required"})
+	}
+
+	if userIDStr, ok := c.Locals("user_id").(string); ok && userIDStr != "" {
+		if uid, err := strconv.Atoi(userIDStr); err == nil {
+			req.UserID = uid
+		}
 	}
 
 	results := make(chan llmops.StreamResult, 64)
@@ -73,17 +78,4 @@ func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
 			}
 		}
 	})
-}
-
-func (h *StudioHandler) HandleQueryAuditLogs(c fiber.Ctx) error {
-	tenantID := c.Get("X-Tenant-ID", "local")
-	limitStr := c.Query("limit", "50")
-	limit, _ := strconv.Atoi(limitStr)
-
-	logs, err := h.auditSvc.QueryLogs(c.Context(), tenantID, limit)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(fiber.Map{"audit_logs": logs})
 }

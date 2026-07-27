@@ -31,10 +31,7 @@ src/app/
 │   ├── studio/page.tsx      ← Studio dashboard
 │   ├── prompts/page.tsx     ← Prompt library
 │   ├── playground/page.tsx  ← Playground
-│   ├── evals/page.tsx       ← Evaluation dashboard
-│   ├── shadow/page.tsx      ← Shadow testing
 │   ├── maturity/page.tsx    ← Maturity assessment
-│   └── audit/page.tsx       ← Audit trail
 │
 ├── login/
 │   └── page.tsx             ← useAuth().loginAsync → <LoginForm>
@@ -84,12 +81,6 @@ src/app/
 │       │   └── [id]/
 │       │       ├── versions/route.ts
 │       │       └── versions/[v]/route.ts
-│       ├── evals/
-│       │   ├── datasets/route.ts
-│       │   ├── run/route.ts
-│       │   └── runs/[id]/route.ts
-│       ├── shadow/history/[id]/route.ts
-│       ├── audit/route.ts
 │       └── playground/route.ts
 │
 ├── globals.css

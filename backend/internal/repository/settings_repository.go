@@ -33,7 +33,7 @@ func (r *SettingsRepository) Get(ctx context.Context, userID int) (*models.UserP
 	var updatedAt time.Time
 
 	err := r.pool.QueryRow(ctx, db.QueryGetPreferences, userID).
-		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &updatedAt)
+		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &updatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -60,8 +60,9 @@ func (r *SettingsRepository) Upsert(ctx context.Context, userID int, prefs *mode
 	}
 
 	err := r.pool.QueryRow(ctx, db.QueryUpsertPreferences,
-		userID, prefs.DefaultMode, prefs.DefaultModel, prefs.DefaultFeatures, prefs.DefaultSkills).
-		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &updatedAt)
+		userID, prefs.DefaultMode, prefs.DefaultModel, prefs.DefaultFeatures, prefs.DefaultSkills,
+		prefs.ProviderType, prefs.APIKey, prefs.BaseURL).
+		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &updatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert preferences: %w", err)
 	}

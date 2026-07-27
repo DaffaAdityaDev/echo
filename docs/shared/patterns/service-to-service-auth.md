@@ -47,7 +47,7 @@ Three approaches were evaluated for agent → backend auth:
   can sign a valid JWT
 - Short TTL (60s) limits blast radius of token leakage
 - Same port, same TLS — no extra infra
-- Logged identity (sub: "agent") in every request for audit
+- Logged identity (sub: "agent") in every request
 - Easy to test and debug with curl
 - Consistent with the existing User JWT pattern
 
@@ -127,7 +127,7 @@ Three approaches were evaluated for agent → backend auth:
 1. **Defense in depth**: Even if an attacker bypasses the internal route
    guard, they still need the secret to forge a valid token.
 2. **Auditability**: Every internal request carries `sub: "agent"` in the
-   JWT, which the backend logs for audit trails.
+    JWT, which the backend logs.
 3. **No session management**: Stateless — the backend never stores token
    state. Verification is purely cryptographic.
 4. **No refresh flow**: Tokens are so short-lived (60s) that refresh is

@@ -7,7 +7,6 @@ import type { VersionStatus } from "../../types"
 const STATUS_MAP: Record<VersionStatus, { label: string; variant: "default" | "outline" | "success" | "warning" | "danger" }> = {
   draft: { label: "Draft", variant: "outline" },
   in_review: { label: "In Review", variant: "warning" },
-  shadow: { label: "Shadow", variant: "warning" },
   approved: { label: "Approved", variant: "success" },
   production: { label: "Production", variant: "success" },
   rolled_back: { label: "Rolled Back", variant: "danger" },

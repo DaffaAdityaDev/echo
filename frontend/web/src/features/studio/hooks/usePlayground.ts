@@ -1,11 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { api } from "@/lib/api-client"
-import { STUDIO_ENDPOINTS } from "../constants"
+import { STUDIO_ENDPOINTS, PACKET_TYPES, type DebugTab } from "../constants"
 import { useStudioStore } from "../stores/studioStore"
 import { useFeatures } from "@/features/shared/hooks/useFeatures"
 import { useSkills } from "@/features/shared/hooks/useSkills"
 import type { PlaygroundResult } from "../types"
+import type { StreamPacket } from "@/features/chat/types"
 import { finalizeModel } from "./playground-utils"
 
 interface StreamEvent {
@@ -42,10 +44,58 @@ export function usePlayground() {
     addStreamingChunk,
     setStreamingReasoning,
     addReasoningChunk,
+    debugMode,
+    debugPackets,
+    debugAgentStatus,
+    debugMissionMeta,
+    debugCumulativeUsage,
+    debugInfo,
+    debugAgentTree,
+    debugStateChanges,
+    debugToolCalls,
+    debugDegradationLevel,
+    debugMissionState,
+    debugTotalCost,
+    debugMaxIterations,
+    debugContent,
+    debugReasoning,
+    debugIsRunning,
+    debugError,
+    setDebugMode,
+    appendDebugPacket,
+    appendDebugInfo,
+    setDebugUsage,
+    addDebugContent,
+    addDebugReasoning,
+    addDebugSubagentCall,
+    addDebugSubagentResult,
+    addDebugToolCall,
+    addDebugToolResult,
+    addDebugStateChange,
+    setDebugDegradation,
+    setDebugMissionState,
+    setDebugMeta,
+    setDebugRunning,
+    setDebugError,
+    setDebugTotalCost,
+    resetDebug,
   } = useStudioStore()
 
   const { features: allFeatures, isLoading: featuresLoading } = useFeatures()
   const { skills: allSkills, isLoading: skillsLoading } = useSkills()
+
+  const [activeTab, setActiveTab] = useState<DebugTab>('output')
+  const [thoughtTraceOpen, setThoughtTraceOpen] = useState(false)
+
+  const openThoughtTrace = () => setThoughtTraceOpen(true)
+
+  const handleToggleDebug = () => {
+    const next = !debugMode
+    setDebugMode(next)
+    if (!next) resetDebug()
+    setActiveTab('output')
+    setThoughtTraceOpen(false)
+  }
 
   const handleRun = async () => {
     if (!prompt.trim() || selectedModels.length === 0) return
@@ -96,6 +146,92 @@ export function usePlayground() {
     }
   }
 
+  const handleDebugRun = async () => {
+    if (!prompt.trim()) return
+
+    resetDebug()
+    setDebugRunning(true)
+    setDebugError(null)
+
+    try {
+      const session = await api.post<{ id: string }>('/sessions', { title: 'Debug: ' + prompt.substring(0, 40) })
+
+      await api.stream<StreamPacket>(
+        '/chat/stream',
+        {
+          message: prompt,
+          sessionId: session.id,
+          mode: 'agent',
+          features: selectedFeatures,
+          skills: selectedSkills,
+        },
+        (packet) => {
+          appendDebugPacket(packet)
+
+          switch (packet.type) {
+            case PACKET_TYPES.METADATA: {
+              const meta = (packet as any).meta
+              const m = meta?.maxIterations != null ? meta : {
+                maxIterations: packet.maxIterations,
+                toolsAvailable: packet.toolsAvailable,
+                strategy: packet.strategy,
+              }
+              setDebugMeta(m)
+              break
+            }
+            case PACKET_TYPES.REASONING:
+              addDebugReasoning(packet.content ?? '')
+              break
+            case PACKET_TYPES.CONTENT:
+              addDebugContent(packet.content ?? '')
+              break
+            case PACKET_TYPES.TOOL_CALL:
+              addDebugToolCall(packet.toolName, packet.toolInput, packet.timestamp)
+              break
+            case PACKET_TYPES.TOOL_RESULT:
+              addDebugToolResult(packet.toolName, packet.content, packet.timestamp)
+              break
+            case PACKET_TYPES.USAGE:
+              setDebugUsage(packet.usage)
+              break
+            case PACKET_TYPES.STATE_CHANGE:
+              addDebugStateChange(packet.from, packet.to, packet.reason, packet.timestamp)
+              break
+            case PACKET_TYPES.DEGRADED:
+              setDebugDegradation(packet.from, packet.to, packet.reason)
+              break
+            case PACKET_TYPES.TURN_COMPLETE:
+              setDebugMissionState('completed')
+              if (packet.totalCost != null) setDebugTotalCost(packet.totalCost)
+              break
+            case PACKET_TYPES.DEBUG:
+              appendDebugInfo({
+                iteration: packet.step,
+                systemPrompt: packet.rawSystemPrompt,
+                messages: packet.rawMessages,
+              })
+              break
+            case PACKET_TYPES.SUBAGENT_CALL:
+              addDebugSubagentCall(packet.subagent.name, packet.subagent.instruction)
+              break
+            case PACKET_TYPES.SUBAGENT_RESULT:
+              addDebugSubagentResult(packet.subagent.name, packet.subagent.instruction, packet.subagent.result ?? '', packet.subagent.status)
+              break
+            case PACKET_TYPES.ERROR:
+              setDebugMissionState('error')
+              setDebugError(packet.content)
+              break
+          }
+        }
+      )
+    } catch (err) {
+      setDebugMissionState('error')
+      setDebugError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
+      setDebugRunning(false)
+    }
+  }
+
   return {
     prompt,
     setPrompt,
@@ -117,5 +253,29 @@ export function usePlayground() {
     streamingContent,
     streamingReasoning,
     handleRun,
+
+    debugMode,
+    debugAgentStatus,
+    debugMissionMeta,
+    debugCumulativeUsage,
+    debugInfo,
+    debugAgentTree,
+    debugToolCalls,
+    debugStateChanges,
+    debugDegradationLevel,
+    debugMissionState,
+    debugTotalCost,
+    debugMaxIterations,
+    debugContent,
+    debugReasoning,
+    debugIsRunning,
+    debugError,
+    handleDebugRun,
+    handleToggleDebug,
+    activeTab,
+    setActiveTab,
+    thoughtTraceOpen,
+    openThoughtTrace,
+    closeThoughtTrace: () => setThoughtTraceOpen(false),
   }
 }

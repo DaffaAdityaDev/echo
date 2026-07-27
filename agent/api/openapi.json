@@ -667,7 +667,7 @@
       },
       "HarnessPacket": {
         "type": "object",
-        "description": "SSE stream event packet emitted during mission execution. Discriminated by 'type' — each type has its own flat fields (no 'meta' wrapper). Each line is prefixed with 'data: ' and terminated with '\\n\\n'.",
+        "description": "SSE stream event packet — discriminated by 'type'. Each type has its own flat fields (no 'meta' wrapper). Each line prefixed with 'data: ' and terminated with '\\n\\n'.",
         "properties": {
           "type": {
             "type": "string",
@@ -723,20 +723,39 @@
           },
           "toolInput": {
             "type": "object",
-            "example": { "action": "write", "path": "/app/src/index.js", "content": "..." }
+            "example": {
+              "action": "write",
+              "path": "/app/src/index.js",
+              "content": "..."
+            }
           },
           "toolResult": {},
           "todos": {
             "type": "array",
-            "items": { "type": "object" }
+            "items": {
+              "type": "object"
+            }
           },
           "subagent": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "instruction": { "type": "string" },
-              "result": { "type": "string" },
-              "status": { "type": "string", "enum": ["calling", "completed", "failed"] }
+              "name": {
+                "type": "string"
+              },
+              "instruction": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "calling",
+                  "completed",
+                  "failed"
+                ]
+              }
             }
           },
           "usage": {
@@ -789,7 +808,9 @@
           },
           "toolsAvailable": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Tool names in scope (for metadata)"
           },
           "objective": {

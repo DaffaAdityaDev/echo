@@ -14,6 +14,17 @@ const (
 	ProviderOpenCode  ProviderType = "opencode-go"
 )
 
+var ValidProviders = []ProviderType{ProviderOpenAI, ProviderAnthropic, ProviderLMStudio, ProviderOpenCode}
+
+func IsValidProvider(s string) bool {
+	for _, p := range ValidProviders {
+		if string(p) == s {
+			return true
+		}
+	}
+	return false
+}
+
 type ProviderConfig struct {
 	Type    ProviderType `json:"type" example:"openai"`
 	BaseURL string       `json:"base_url" example:"https://api.openai.com/v1"`
@@ -41,15 +52,6 @@ type Config struct {
 	OtelCollectorAddr string
 	EnableOtel        bool
 	InternalAuthToken string
-	OpenAIAPIKey      string
-	OpenAIBaseURL     string
-	OpenAIModels      []string
-	AnthropicAPIKey   string
-	AnthropicBaseURL  string
-	AnthropicModels   []string
-	LMStudioBaseURL    string
-	LMStudioAPIKey     string
-	OpenCodeGoAPIKey   string
 	DefaultModel       string
 	ServiceJWTSecret   string
 	PRUNE_THRESHOLD         int
@@ -58,6 +60,7 @@ type Config struct {
 	EvaluatorEndpoint string
 	EvaluatorAPIKey   string
 	EvaluatorModel    string
+	EncryptionKey     string
 }
 
 type ApiKey struct {
@@ -99,6 +102,9 @@ type UserPreferences struct {
 	DefaultModel   string   `json:"default_model" example:"gpt-4o"`
 	DefaultFeatures []string `json:"default_features" example:"web-browsing,code-interpreter"`
 	DefaultSkills  []string `json:"default_skills" example:"python,research"`
+	ProviderType   string   `json:"provider_type" example:"opencode-go"`
+	APIKey         string   `json:"api_key,omitempty" example:""`
+	BaseURL        string   `json:"base_url" example:"https://opencode.ai/zen/go/v1"`
 }
 
 type ThoughtStep struct {

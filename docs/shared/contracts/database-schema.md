@@ -54,10 +54,6 @@ PostgreSQL                              Redis
 │  messages (Active)           │
 │  prompt_templates (Active)   │        NUQ (PostgreSQL schema)
 │  prompt_versions (Active)    │        ┌─────────────────────────┐
-│  eval_datasets (Active)      │        │  queue_scrape (Active)  │
-│  eval_runs (Active)          │        │  queue_scrape_backlog   │
-│  shadow_runs (Active)        │        │  queue_crawl_finished   │
-│  audit_logs (Active)         │        │  group_crawl (Active)   │
 │  goals (Planned)             │        └─────────────────────────┘
 │  skill_nodes (Planned)       │
 │  topics (Planned)            │
@@ -249,7 +245,6 @@ CREATE INDEX idx_messages_session_status ON messages (session_id, status);
 
 ## LLMOps Studio Tables `[Active — schema.go:111, migration 20260725_001]`
 
-Six tables supporting prompt engineering, evaluation, shadow testing, and audit.
 Created by auto-migration (`schema.go:Migrate()`) and migration `20260725_001_llmops_studio`.
 
 ### prompt_templates `[Active — schema.go:111]`
@@ -284,89 +279,14 @@ CREATE TABLE IF NOT EXISTS prompt_versions (
     bound_tools    TEXT[] DEFAULT '{}',
     variables      TEXT[] DEFAULT '{}',
     status         TEXT NOT NULL DEFAULT 'draft'
-                   CHECK (status IN ('draft', 'in_review', 'shadow', 'approved', 'production', 'rolled_back')),
+                   CHECK (status IN ('draft', 'in_review', 'approved', 'production', 'rolled_back')),
     created_by     TEXT NOT NULL DEFAULT '',
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(template_id, version)
 );
 ```
 
-### eval_datasets `[Active — schema.go:143]`
 
-Test case collections used for evaluating prompt versions. Each dataset contains
-an array of test cases (input/expected_output pairs).
-
-```sql
-CREATE TABLE IF NOT EXISTS eval_datasets (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id      UUID NOT NULL,
-    name           TEXT NOT NULL,
-    description    TEXT NOT NULL DEFAULT '',
-    test_cases     JSONB NOT NULL DEFAULT '[]',
-    created_by     TEXT NOT NULL DEFAULT '',
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-### eval_runs `[Active — schema.go:157]`
-
-Evaluation execution results. Records pass rate and per-dimension scores
-(accuracy, format, tools) along with detailed per-case breakdown.
-
-```sql
-CREATE TABLE IF NOT EXISTS eval_runs (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prompt_version_id  UUID NOT NULL,
-    dataset_id         UUID,
-    pass_rate          REAL NOT NULL DEFAULT 0,
-    score_accuracy     REAL NOT NULL DEFAULT 0,
-    score_format       REAL NOT NULL DEFAULT 0,
-    score_tools        REAL NOT NULL DEFAULT 0,
-    details            JSONB NOT NULL DEFAULT '[]',
-    executed_by        TEXT NOT NULL DEFAULT '',
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-### shadow_runs `[Active — schema.go:175]`
-
-A/B comparison records: live vs candidate prompt version outputs.
-Captures cost and latency differences for the same user query.
-
-```sql
-CREATE TABLE IF NOT EXISTS shadow_runs (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    template_id         UUID NOT NULL,
-    live_version_id     UUID NOT NULL,
-    candidate_version_id UUID NOT NULL,
-    user_query          TEXT NOT NULL,
-    live_output         TEXT NOT NULL,
-    shadow_output       TEXT NOT NULL,
-    live_cost_usd       REAL NOT NULL DEFAULT 0,
-    shadow_cost_usd     REAL NOT NULL DEFAULT 0,
-    live_latency_ms     INTEGER NOT NULL DEFAULT 0,
-    shadow_latency_ms   INTEGER NOT NULL DEFAULT 0,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-### audit_logs `[Active — schema.go:191]`
-
-Operational audit trail for all LLMOps actions (create, promote, rollback, etc.).
-
-```sql
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id      UUID NOT NULL,
-    actor          TEXT NOT NULL,
-    action         TEXT NOT NULL,
-    resource       TEXT NOT NULL,
-    payload        JSONB DEFAULT '{}',
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs (tenant_id, created_at DESC);
-```
 
 ---
 
@@ -647,7 +567,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | messages | `idx_messages_session_status` | btree (session_id, status) | Active |
 | api_keys | `idx_api_keys_user_id` | btree (user_id) | Active |
 | api_keys | `idx_api_keys_key_hash` | btree (key_hash) | Active |
-| audit_logs | `idx_audit_logs_tenant` | btree (tenant_id, created_at DESC) | Active |
+
 | prompt_templates | (unique constraint) | btree (tenant_id, name) | Active |
 | prompt_versions | (unique constraint) | btree (template_id, version) | Active |
 
@@ -677,9 +597,8 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 - **Migration 004**: Adds `status` column to `messages` table with CHECK
   constraint and `idx_messages_session_status` index. Must be run manually or
   via migration tool after deploy.
-- **Migration 20260725_001**: Creates all 6 LLMOps Studio tables
-  (`prompt_templates`, `prompt_versions`, `eval_datasets`, `eval_runs`,
-  `shadow_runs`, `audit_logs`). Run via migration tool.
+- **Migration 20260725_001**: Creates LLMOps Studio tables
+  (`prompt_templates`, `prompt_versions`). Run via migration tool.
 - **K8s**: ConfigMap with init SQL mounted to `/docker-entrypoint-initdb.d/`.
 - **Development**: Docker Compose mounts init scripts directly.
 
@@ -705,9 +624,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | backend/internal/database/schema.go            | 60-108    | sessions, messages,               |
 |                                                |           |   user_preferences DDL            |
 | backend/internal/database/schema.go            | 111-191   | LLMOps Studio tables DDL          |
-|                                                |           |   (prompt_templates, prompt_versions, |
-|                                                |           |   eval_datasets, eval_runs,        |
-|                                                |           |   shadow_runs, audit_logs)         |
+|                                                |           |   (prompt_templates, prompt_versions) |
 | backend/internal/database/postgres.go          | 1-48      | pgx pool + Migrate() call         |
 | backend/scripts/init-pgvector.sql              | 1-16      | tool_catalog DDL + HNSW index     |
 | backend/scripts/init-nuq.sql                   | 1-332     | NUQ: 4 tables, 30+ indexes,       |

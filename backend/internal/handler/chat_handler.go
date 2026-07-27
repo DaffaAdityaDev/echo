@@ -187,15 +187,15 @@ func (h *ChatHandler) HandleChat(c fiber.Ctx) error {
 		}
 	}
 
-	// Resolve model to provider configuration
+	// Resolve model to provider configuration (user-aware)
 	modelID := req.Model
 	if modelID == "" {
-		modelID = h.ModelSvc.GetDefault().Model
+		modelID = h.Cfg.DefaultModel
 	}
-	providerCfg, err := h.ModelSvc.ResolveModel(modelID)
+	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
-			"error": fmt.Sprintf("Unknown model '%s'", modelID),
+			"error": fmt.Sprintf("Provider config error: %s", err.Error()),
 		})
 	}
 

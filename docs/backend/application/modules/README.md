@@ -10,17 +10,16 @@
 ## Overview
 
 Cross-service product modules owned by the backend. The backend acts as
-Manager & Auditor — it holds state, enforces security, manages prompt
-versions, records audit logs. The Agent is a stateless worker that receives
+Manager — it holds state, enforces security, manages prompt
+versions. The Agent is a stateless worker that receives
 prompts + config and emits events.
 
 ```
-BACKEND (Manager / Auditor)          AGENT (Stateless Worker)
+BACKEND (Manager)                    AGENT (Stateless Worker)
   • Database & State                   • Receive prompt + config
   • Prompt versioning                  • Execute ReAct / NLAH loop
   • Auth / Security / Tier             • Call tools & skills
-  • Audit logging                      • Emit telemetry events
-  • Eval & scoring
+                                       • Emit telemetry events
 ```
 
 ## Module Index
@@ -28,8 +27,8 @@ BACKEND (Manager / Auditor)          AGENT (Stateless Worker)
 +----------------------------+---------------------------------------------------+
 | Module                     | Description                                       |
 +----------------------------+---------------------------------------------------+
-| llmops-user-studio.md      | User-facing LLMOps: Playground, Eval Suite,       |
-|                            |   Shadow Testing, Governance (new module)         |
+| llmops-user-studio.md      | User-facing LLMOps: Playground,                    |
+|                            |   Governance (new module)                         |
 +----------------------------+---------------------------------------------------+
 
 ================================================================================

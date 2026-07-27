@@ -42,13 +42,8 @@ const HarnessConfigSchema = z.object({
   loopDetection: LoopDetectionConfigSchema,
   maxIterations: z.number().int().default(15),
   costCap: z.number().default(1.0),
-}).default({
-  compression: { enabled: true, ratio: 0.8, keepLastTurns: 10 },
-  pacing: { enabled: true, threshold: 5 },
-  loopDetection: { enabled: true, similarityThreshold: 0.92 },
-  maxIterations: 15,
-  costCap: 1.0,
-});
+  delegationDepth: z.number().int().min(0).max(10).default(0),
+})
 
 const CircuitBreakerConfigSchema = z.object({
   enabled: z.boolean().default(true),
@@ -123,6 +118,7 @@ export const AgentConfigSchema = z.object({
     loopDetection: { enabled: true, similarityThreshold: 0.92 },
     maxIterations: 15,
     costCap: 1.0,
+    delegationDepth: 0,
   },
   harnessConfig: {
     circuitBreaker: { enabled: true, openAfter: 3, maxRetriesPerTool: 3 },
@@ -159,7 +155,7 @@ export const createMissionSchema = z.preprocess((input: any) => {
     skills: input.skills ?? undefined,
     missionId: input.missionId ?? undefined,
     model: input.model ?? undefined,
-    config: input.config ?? {},
+    config: input.config,
   };
 }, z.object({
   prompt: z.string({ message: VALIDATION_MESSAGES.PROMPT_REQUIRED }),

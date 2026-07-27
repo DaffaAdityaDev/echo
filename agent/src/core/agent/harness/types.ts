@@ -9,6 +9,7 @@ export interface HarnessConfig {
     tools?: ToolDefinition[];
     skills?: string[];
     harnessConfig?: any;
+    delegationDepth?: number;
 }
 
 

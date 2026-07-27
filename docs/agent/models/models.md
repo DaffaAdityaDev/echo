@@ -1,104 +1,105 @@
 ================================================================================
-  Models - LLM Model Listing Endpoint
+  Models - LLM Model Listing Endpoints
 ================================================================================
   Module    : Model Management
-  Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Service   : agent (internal) + Go backend (primary)
+  Version   : 1.1
+  Updated   : 2026-07-26 (per-user model fetching on Go backend)
 ================================================================================
 
 ## Description
 
-LLM model listing endpoint that proxies requests to the configured LLM provider
-API, transforming responses into a normalized format.
+Model listing is now **per-user** on the Go backend. `GET /api/v1/models`
+reads the authenticated user's provider config from `UserPreferences`,
+fetches models from their configured provider API, and returns the list.
+
+The agent still has `GET /api/models` as an internal endpoint, proxying to
+`LLM_MODEL_API_URL`, but this is **secondary** — the primary model endpoint
+for clients is the Go backend.
 
 ---
 
-## File Structure
-
-```
-models/
-  model.routes.ts      # Route definition
-  model.controller.ts  # Fetch and transform model list
-  model.constants.ts   # Path and log message constants
-```
-
----
-
-## Flow Diagram
+## Flow Diagram (Primary — Go Backend)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         HTTP GET /models                              │
+│                   HTTP GET /api/v1/models                             │
+│                   Auth: JWT (user_id from token)                      │
 └────────────────────────────────┬─────────────────────────────────────┘
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                          model.routes.ts                              │
+│                model_handler.go → HandleGetModels()                    │
 └────────────────────────────────┬─────────────────────────────────────┘
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                    model.controller.listModels(c)                      │
+│              model_service.go → GetModels(ctx, userID)                │
 └────────────────────────────────┬─────────────────────────────────────┘
                                  │
-         ┌───────────────────────┴───────────────────────┐
-         │                                               │
-         ▼                                               ▼
-┌────────────────────────────────┐  ┌────────────────────────────────────┐
-│  Read baseHost from            │  │  On error:                        │
-│  ENV.LLM_MODEL_API_URL         │  │  return c.json({ models: [] })    │
-│                                │  └────────────────────────────────────┘
-│  Build URL: {host}/v1/models   │
-│                                │
-│  fetch(url)                    │
-│                                │
-│  Transform response:           │
-│  { data: [{ id: "gpt-4" }] }  │
-│  → { models: [{id, name}] }   │
-│                                │
-│  Return c.json({ models })     │
-└────────────────────────────────┘
+            ┌────────────────────┴────────────────────┐
+            │                                         │
+            ▼                                         ▼
+┌──────────────────────────┐  ┌──────────────────────────────────────┐
+│  1. GetSettingsInternal() │  │  On error or no api_key:             │
+│     (decrypts API key)    │  │  return { models: [] }               │
+│                          │  └──────────────────────────────────────┘
+│  2. modelsURL(baseURL)   │
+│     → /v1/models         │
+│                          │
+│  3. fetch(URL, API key)  │
+│                          │
+│  4. Transform response   │
+│     → { models: [...] }  │
+└──────────────────────────┘
 ```
 
----
+### modelsURL() helper
+
+```go
+func modelsURL(baseURL string) string {
+    base := strings.TrimRight(baseURL, "/")
+    if !strings.HasSuffix(base, "/v1") {
+        return base + "/v1/models"
+    }
+    return base + "/models"
+}
+```
 
 ## Entry Points & Exports
 
-+--------------------+-------------------------+---------------------------+
-| Export             | Source                  | Type                      |
-+--------------------+-------------------------+---------------------------+
-| `modelRouter`      | `model.routes.ts`       | `Hono` router             |
-| `modelController`  | `model.controller.ts`   | `ModelController` instance|
-| `MODEL_CONSTANTS`  | `model.constants.ts`    | Constants object          |
-| `LOG_MESSAGES`     | `model.constants.ts`    | Log message constants     |
-+--------------------+-------------------------+---------------------------+
-
----
++--------------------+-----------------------------+----------------------------+
+| Export             | Source                      | Type                       |
++--------------------+-----------------------------+----------------------------+
+| Go GET /models     | backend/router.go:121       | JWT-protected route        |
+| Go GetModels()     | model_service.go:55         | Per-user model fetch       |
+| Go modelsURL()     | model_service.go:110        | URL constructor helper     |
+| Agent GET /models  | model.routes.ts:6           | Internal proxy (secondary) |
++--------------------+-----------------------------+----------------------------+
 
 ## Dependencies
 
 +---------------------------+----------------------------------------------------+
 | Dependency                | Purpose                                            |
 +---------------------------+----------------------------------------------------+
-| `hono`                    | HTTP framework                                     |
-| `ENV.LLM_MODEL_API_URL`   | Base URL for LLM provider from environment config   |
-| `LLM_API_VERSIONS.V1`     | API version suffix (shared/constants)              |
-| `logger`                  | Structured logging                                 |
+| ModelService              | Orchestrates per-user model fetch                  |
+| SettingsService           | Reads user prefs + decrypts API key                |
+| ENCRYPTION_KEY            | AES-256-GCM key for API key decryption             |
+| modelCache                | Single instance cache with 30s TTL                 |
 +---------------------------+----------------------------------------------------+
-
----
 
 ## Source References
 
 +-----------------------+-----------------------------+----------------------------------------------+
 | Ref                   | File                        | Key Lines                                    |
 +-----------------------+-----------------------------+----------------------------------------------+
-| Route                 | `model.routes.ts:6`          | `router.get("/models", ...)`                 |
-| Controller fetch      | `model.controller.ts:9-11`  | Builds URL from env + `/v1/models`           |
-| Response transform    | `model.controller.ts:19-22` | Maps `result.data` to `{ id, name }`         |
-| Error fallback        | `model.controller.ts:25-28` | Returns empty `{ models: [] }` on failure    |
-| Constants             | `model.constants.ts`         | `MODELS_PATH: '/models'`                     |
+| Go route              | router.go:121               | GET /api/v1/models (JWT required)            |
+| Go handler            | model_handler.go:30         | HandleGetModels — extracts userID from JWT   |
+| Go service            | model_service.go:55         | GetModels(ctx, userID)                       |
+| modelsURL()           | model_service.go:110        | URL construction logic                       |
+| Cache                 | model_service.go:28         | 30s TTL, shared across all users             |
+| Agent route           | model.routes.ts:6           | GET /api/models (Internal auth)              |
+| Agent controller      | model.controller.ts:9-11    | Proxies to LLM_MODEL_API_URL                 |
 +-----------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

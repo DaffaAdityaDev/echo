@@ -16,22 +16,21 @@ change control pipeline.
 | Location                              | Role                            |
 |---------------------------------------|---------------------------------|
 | frontend/web/src/features/llmops/     | Frontend module                 |
-|   governance/                         | Approval flow, audit ledger     |
+|   governance/                         | Approval flow                   |
 |   prompts/                            | Prompt versioning & history     |
 | backend/internal/handler/llmops/      | governance_handler.go           |
 | backend/internal/service/llmops/      | Governance business logic       |
 | backend/internal/repository/llmops/   | Data access                     |
-|   module/audit/                       | audit_logs table                |
 |   module/props/                       | prompt_templates, prompt_versions|
 
 ## User Persona — Governance Permissions
 
-| Persona           | Governance (Approve) | Audit View |
-|-------------------|----------------------|------------|
-| Prompt Engineer   | No                   | View       |
-| Domain Expert     | No                   | View       |
-| Admin Bisnis      | Full                 | Full       |
-| Product Manager   | Approve              | Full       |
+| Persona           | Governance (Approve) |
+|-------------------|----------------------|
+| Prompt Engineer   | No                   |
+| Domain Expert     | No                   |
+| Admin Bisnis      | Full                 |
+| Product Manager   | Approve              |
 
 ## UX Flow — Governance
 
@@ -65,7 +64,7 @@ non-technical admin. No Git knowledge required.
 | v1.0 — Initial prompt (sarah@, 78% score)                              |
 | v1.1 — Added return policy instructions (alex@, 85%) — Rolled back     |
 | v1.2 — Simplified tone per user feedback (sarah@, 82%) — Live          |
-| v1.3 — Added escalation flow (alex@, 92%) — Shadow testing             |
+| v1.3 — Added escalation flow (alex@, 92%)                              |
 | v1.4 — Proposed edit (unsaved)                                          |
 
 **Diff Inspector:**
@@ -83,31 +82,29 @@ v1.3 ─────────────────────────
 - If a promoted prompt causes issues (flagged conversations spike,
   score drops), admin clicks **"Rollback to v1.2"**
 - System immediately switches live traffic to the previous version
-- Full audit trail: who rolled back, when, why
+
 
 ### Approval Flow
 
 ```
 Prompt Engineer ──► Domain Expert ──► Admin Bisnis ──► PRODUCTION
     creates            reviews            approves
-    draft              dataset score      shadow results
+    draft
 ```
 
 - Each stage can reject with reason
 - Rejected prompts go back to Draft with feedback attached
-- Status: Draft → In Review → Shadow Testing → Approved → Production
+- Status: Draft → In Review → Approved → Production
 
 ### States
 
 | State          | What User Sees                                                    |
 |----------------|-------------------------------------------------------------------|
 | Draft          | Prompt editor, [Save as Draft], [Submit for Review]               |
-| In Review      | Reviewer name, Eval score badge, [Approve]/[Reject]               |
-| Shadow Testing | "Running on 5% of traffic" with live score comparison             |
+| In Review      | Reviewer name, [Approve]/[Reject]                                 |
 | Approved       | [Promote to Production] button, confirmation modal                |
 | Production     | "Live since July 25" with rollback button                         |
 | Rolled Back    | "v1.3 rolled back to v1.2 by alex@ — 2026-07-25 14:30"           |
-| Failed         | "Shadow score dropped 15%, auto-cancelled"                        |
 
 ## Architecture Integration
 
@@ -131,13 +128,11 @@ Prompt Engineer ──► Domain Expert ──► Admin Bisnis ──► PRODUCT
 |-------|--------------------------------|---------------------------------|
 | 1     | Playground (single-model) +    | None                            |
 |       | Prompt Versioning              |                                 |
-| 3     | Shadow Testing + Approval Flow | Needs Eval Suite for scoring    |
+| 3     | Approval Flow                  |                                 |
 
 ## Dependencies
 
-- **PostgreSQL** — prompt_templates, prompt_versions, audit_log tables
-- **Shadow Testing** — provides scores for approval flow
-- **Eval Suite** — provides dataset scores for review stage
+- **PostgreSQL** — prompt_templates, prompt_versions
 
 ## Source References
 

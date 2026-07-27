@@ -21,15 +21,6 @@ func Load() *models.Config {
 	c.OtelCollectorAddr = envStr("OTEL_COLLECTOR_ADDR", "otel-collector:4317")
 	c.EnableOtel = envStr("ENABLE_OTEL", "false") == "true"
 	c.InternalAuthToken = envStr("INTERNAL_AUTH_TOKEN", "default-internal-token-secret")
-	c.OpenAIAPIKey = os.Getenv("OPENAI_API_KEY")
-	c.OpenAIBaseURL = envStr("OPENAI_BASE_URL", cfgConst.DefaultOpenAIBaseURL)
-	c.OpenAIModels = splitEnv(envStr("OPENAI_MODELS", "gpt-4o,gpt-4o-mini"))
-	c.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
-	c.AnthropicBaseURL = envStr("ANTHROPIC_BASE_URL", cfgConst.DefaultAnthropicBaseURL)
-	c.AnthropicModels = splitEnv(envStr("ANTHROPIC_MODELS", "claude-3-5-sonnet-latest,claude-3-haiku"))
-	c.LMStudioBaseURL = os.Getenv("LM_STUDIO_BASE_URL")
-	c.LMStudioAPIKey = os.Getenv("LM_STUDIO_API_KEY")
-	c.OpenCodeGoAPIKey = os.Getenv("OPENCODE_GO_API_KEY")
 	c.DefaultModel = envStr("DEFAULT_MODEL", cfgConst.DefaultModel)
 	c.ServiceJWTSecret = envStr("SERVICE_JWT_SECRET", cfgConst.DefaultServiceJWTSecret)
 	c.PRUNE_THRESHOLD = envInt("PRUNE_THRESHOLD", 100000)
@@ -38,6 +29,7 @@ func Load() *models.Config {
 	c.EvaluatorEndpoint = envStr("EVALUATOR_ENDPOINT", "https://api.openai.com/v1/chat/completions")
 	c.EvaluatorAPIKey = os.Getenv("EVALUATOR_API_KEY")
 	c.EvaluatorModel = envStr("EVALUATOR_MODEL", "gpt-4o")
+	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
 	return c
 }
 

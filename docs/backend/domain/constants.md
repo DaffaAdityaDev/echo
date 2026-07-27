@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Application Constants
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+   Version   : 1.1
+   Updated   : 2026-07-26
 ================================================================================
 
 Overview
@@ -104,12 +104,9 @@ Package: config - Default Values
       DefaultRedisPass = ""
   )
 
-  // LLM Provider defaults
+  // LLM Model defaults
   const (
-      DefaultOpenAIBaseURL    = "https://api.openai.com/v1"
-      DefaultAnthropicBaseURL = "https://api.anthropic.com"
-      DefaultLMStudioBaseURL  = "http://localhost:1234"
-      DefaultModel            = "gpt-4o"
+      DefaultModel = "opencode-go/deepseek-v4-flash"
   )
 
 +-------------------+--------------------------------------------------------+-------------------------------+
@@ -122,11 +119,12 @@ Package: config - Default Values
 | AGENT_HTTP_URL    | "http://localhost:3001"                                 | DefaultAgentHTTPURL           |
 | ALLOW_ORIGINS     | "http://localhost:3000"                                 | DefaultAllowOrigins           |
 | REDIS_ADDR        | "localhost:6379"                                       | DefaultRedisAddr              |
-| OPENAI_BASE_URL   | "https://api.openai.com/v1"                            | DefaultOpenAIBaseURL          |
-| ANTHROPIC_BASE_URL| "https://api.anthropic.com"                            | DefaultAnthropicBaseURL       |
-| LM_STUDIO_BASE_URL| No default (os.Getenv, empty if unset)                 | Constant exists but NOT used  |
-| DEFAULT_MODEL     | "gpt-4o"                                               | DefaultModel                  |
+| DEFAULT_MODEL     | "opencode-go/deepseek-v4-flash"                        | DefaultModel                  |
+| ENCRYPTION_KEY    | Required, exactly 32 ASCII chars                       | No default — must be set      |
 +-------------------+--------------------------------------------------------+-------------------------------+
+
+  Provider API keys and base URLs removed from server-level config.
+  They are now per-user settings stored encrypted in the database.
 
 Package: db - Database Constants
 ---------------------------------
@@ -188,8 +186,8 @@ Entry Points & Exports
 |                  |                 | HealthMessage                                      |
 | constants/auth   | jwt.go          | HeaderAuthorization, BearerPrefix, TokenCookie,    |
 |                  |                 | ErrMissingToken, ErrInvalidToken                   |
-| constants/config | defaults.go     | DefaultPort, DefaultJWTSecret, DefaultDatabaseURL  |
-|                  |                 | etc.                                               |
+| constants/config | defaults.go     | DefaultPort, DefaultJWTSecret, DefaultDatabaseURL, |
+|                  |                 | DefaultModel, etc.                                 |
 | constants/db     | postgres.go     | QueryCreateUser, QueryGetUserByEmail, error consts |
 | constants/routes | v1.go           | V1APIPrefix, V1PathHealth, V1PathChat, etc.        |
 +------------------+-----------------+----------------------------------------------------+

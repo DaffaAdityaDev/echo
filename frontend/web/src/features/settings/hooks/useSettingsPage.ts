@@ -39,7 +39,8 @@ export function useSettingsPage() {
 
   const handleSave = async () => {
     try {
-      await settingsApi.update(config);
+      const savedConfig = await settingsApi.update(config);
+      setConfig(savedConfig);
       setSaved(true);
       return true;
     } catch {
@@ -69,6 +70,18 @@ export function useSettingsPage() {
     setConfig({ defaultSkills: next });
   }, [config.defaultSkills, setConfig]);
 
+  const handleProviderTypeChange = useCallback((value: string) => {
+    setConfig({ providerType: value });
+  }, [setConfig]);
+
+  const handleApiKeyChange = useCallback((value: string) => {
+    setConfig({ apiKey: value });
+  }, [setConfig]);
+
+  const handleBaseUrlChange = useCallback((value: string) => {
+    setConfig({ baseUrl: value });
+  }, [setConfig]);
+
   const groupedModels = models.reduce<Record<string, typeof models>>((acc, m) => {
     (acc[m.provider_name] ??= []).push(m);
     return acc;
@@ -87,6 +100,9 @@ export function useSettingsPage() {
     handleModelChange,
     handleFeatureToggle,
     handleSkillToggle,
+    handleProviderTypeChange,
+    handleApiKeyChange,
+    handleBaseUrlChange,
     setConfig,
     resetConfig,
   };

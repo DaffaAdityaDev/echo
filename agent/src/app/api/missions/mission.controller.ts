@@ -163,7 +163,8 @@ export class MissionController {
           strategy: executionStrategy,
           tools: resolvedTools,
           skills: validatedData.skills ?? undefined,
-          harnessConfig: validatedData.config.harnessConfig
+          harnessConfig: validatedData.config.harnessConfig,
+          delegationDepth: validatedData.config.harness.delegationDepth
         });
 
         try {

@@ -11,10 +11,7 @@ import (
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models"
 	"echo-backend/internal/repository"
-	auditrepo "echo-backend/internal/repository/llmops/module/audit"
-	evalrepo "echo-backend/internal/repository/llmops/module/eval"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
-	shadowrepo "echo-backend/internal/repository/llmops/module/shadow"
 	"echo-backend/internal/service"
 	llmopsSvc "echo-backend/internal/service/llmops"
 
@@ -39,9 +36,9 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 
 	// 3. Initialize Services
 	authSvc := service.NewAuthService(cfg, userRepo)
-	modelSvc := service.NewModelService(cfg)
 	settingsRepo := repository.NewSettingsRepository(pool)
 	settingsSvc := service.NewSettingsService(cfg, settingsRepo)
+	modelSvc := service.NewModelService(cfg, settingsSvc)
 	consolidationSvc := service.NewConsolidationService(cfg, sessionRepo)
 
 	// 4. Initialize Handlers
@@ -55,21 +52,13 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 
 	// 5. Initialize LLMOps Module
 	llmopsPromptRepo := propsrepo.NewRepository(pool)
-	llmopsEvalRepo := evalrepo.NewRepository(pool)
-	llmopsShadowRepo := shadowrepo.NewRepository(pool)
-	llmopsAuditRepo := auditrepo.NewRepository(pool)
 
-	llmopsAuditSvc := llmopsSvc.NewAuditService(llmopsAuditRepo)
-	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo, llmopsAuditSvc)
-	llmopsEvalSvc := llmopsSvc.NewEvalService(llmopsEvalRepo, llmopsPromptRepo, cfg.AgentHTTPURL, cfg.EvaluatorEndpoint, cfg.EvaluatorAPIKey, cfg.EvaluatorModel, cfg.InternalAuthToken)
-	llmopsShadowSvc := llmopsSvc.NewShadowService(llmopsShadowRepo, cfg.AgentHTTPURL, cfg.InternalAuthToken)
+	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo)
 
 	llmopsPlaygroundSvc := llmopsSvc.NewPlaygroundService(modelSvc, cfg.AgentHTTPURL, cfg.InternalAuthToken)
 
 	llmopsPromptHandler := llmopsHandler.NewPromptHandler(llmopsPromptSvc)
-	llmopsEvalHandler := llmopsHandler.NewEvalHandler(llmopsEvalSvc)
-	llmopsShadowHandler := llmopsHandler.NewShadowHandler(llmopsShadowSvc)
-	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsPlaygroundSvc, llmopsAuditSvc)
+	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsPlaygroundSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {
@@ -118,7 +107,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 	api.Get("/missions/:missionId/stream", chatHandler.StreamMissionLogs)
-	api.Get(routes.V1PathModels, modelHandler.HandleGetModels)
+	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), modelHandler.HandleGetModels)
 	api.Get(routes.V1PathFeatures, chatHandler.HandleGetFeatures)
 
 	// Settings routes
@@ -158,16 +147,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	prompts.Post("/:id/promote/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandlePromote)
 	prompts.Post("/:id/rollback/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandleRollback)
 
-	evals := studio.Group("/evals")
-	evals.Post("/datasets", middleware.RequireRoles("admin", "domain_expert", "prompt_engineer"), llmopsEvalHandler.HandleUploadDataset)
-	evals.Post("/run", middleware.RequireRoles("admin", "prompt_engineer", "domain_expert"), llmopsEvalHandler.HandleRunEval)
-	evals.Get("/runs/:id", llmopsEvalHandler.HandleGetEvalRun)
-
-	shadow := studio.Group("/shadow")
-	shadow.Get("/history/:id", llmopsShadowHandler.HandleGetShadowHistory)
-
-	studio.Post("/playground", llmopsStudioHandler.HandleRunPlayground)
-	studio.Get("/audit", llmopsStudioHandler.HandleQueryAuditLogs)
+	studio.Post("/playground", middleware.AuthRequired(cfg.JWTSecret), llmopsStudioHandler.HandleRunPlayground)
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))

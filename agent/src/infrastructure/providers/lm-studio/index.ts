@@ -20,10 +20,11 @@ export class LMStudioProvider implements LLMProvider {
 
     constructor(baseURL: string, modelName: string, apiKey: string = "lm-studio") {
         this.modelName = modelName;
-        this.baseURL = baseURL;
+        const clean = baseURL.replace(/\/+$/, "");
+        this.baseURL = clean.endsWith("/v1") ? clean : `${clean}/v1`;
         this.chat = new ChatOpenAI({
             configuration: {
-                baseURL,
+                baseURL: this.baseURL,
                 fetch: (url, options) => this.interceptor.interceptFetch(url, options)
             },
             modelName,

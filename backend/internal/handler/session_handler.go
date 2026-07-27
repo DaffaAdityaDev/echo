@@ -346,9 +346,9 @@ func (h *SessionHandler) HandleGenerateTitle(c fiber.Ctx) error {
 		modelID = h.Cfg.DefaultModel
 	}
 
-	providerCfg, err := h.ModelSvc.ResolveModel(modelID)
+	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unknown model: " + modelID})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Build conversation text from messages (only user, assistant, system with content)

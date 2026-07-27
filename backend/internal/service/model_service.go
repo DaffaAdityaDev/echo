@@ -13,24 +13,32 @@ import (
 	"time"
 )
 
-var httpClient = &http.Client{}
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 const openCodeGoPrefix = "opencode-go/"
 
-type modelCache struct {
-	mu        sync.RWMutex
+type cacheEntry struct {
 	models    []models.ModelInfo
 	expiresAt time.Time
 }
 
-type ModelService struct {
-	cfg     *models.Config
-	goCache modelCache
-	lmCache modelCache
+type modelCache struct {
+	mu      sync.RWMutex
+	entries map[string]cacheEntry
 }
 
-func NewModelService(cfg *models.Config) *ModelService {
-	return &ModelService{cfg: cfg}
+type ModelService struct {
+	cfg         *models.Config
+	settingsSvc *SettingsService
+	cache       modelCache
+}
+
+func NewModelService(cfg *models.Config, settingsSvc *SettingsService) *ModelService {
+	return &ModelService{cfg: cfg, settingsSvc: settingsSvc, cache: modelCache{entries: make(map[string]cacheEntry)}}
+}
+
+func cacheKey(providerType, baseURL string) string {
+	return providerType + "|" + baseURL
 }
 
 func isMultimodalModel(id string) bool {
@@ -52,160 +60,135 @@ func isMultimodalModel(id string) bool {
 		strings.Contains(lower, "gemini")
 }
 
-func (s *ModelService) GetModels(ctx context.Context) ([]models.ModelInfo, error) {
-	var result []models.ModelInfo
+func defaultBaseURL(providerType string) string {
+	switch providerType {
+	case "opencode-go":
+		return "https://opencode.ai/zen/go/v1"
+	case "lm-studio":
+		return "http://localhost:1234/v1"
+	case "openai":
+		return "https://api.openai.com/v1"
+	case "anthropic":
+		return "https://api.anthropic.com"
+	}
+	return ""
+}
 
-	if s.cfg.OpenAIAPIKey != "" {
-		for _, m := range s.cfg.OpenAIModels {
-			result = append(result, models.ModelInfo{
-				ID:                 m,
-				Name:               m,
+func (s *ModelService) GetModels(ctx context.Context, userID int) ([]models.ModelInfo, error) {
+	prefs, err := s.settingsSvc.GetSettingsInternal(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+	if prefs == nil || prefs.ProviderType == "" {
+		return []models.ModelInfo{}, nil
+	}
+	if prefs.APIKey == "" && prefs.ProviderType != "lm-studio" {
+		return []models.ModelInfo{}, nil
+	}
+	if prefs.BaseURL == "" {
+		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+	}
+
+	return s.getCachedModels(ctx, prefs.ProviderType, prefs.APIKey, prefs.BaseURL)
+}
+
+func (s *ModelService) getCachedModels(ctx context.Context, providerType, apiKey, baseURL string) ([]models.ModelInfo, error) {
+	key := cacheKey(providerType, baseURL)
+
+	s.cache.mu.RLock()
+	entry, ok := s.cache.entries[key]
+	if ok && time.Now().Before(entry.expiresAt) {
+		s.cache.mu.RUnlock()
+		return entry.models, nil
+	}
+	s.cache.mu.RUnlock()
+
+	s.cache.mu.Lock()
+	entry, ok = s.cache.entries[key]
+	if ok && time.Now().Before(entry.expiresAt) {
+		s.cache.mu.Unlock()
+		return entry.models, nil
+	}
+
+	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
+	if err != nil {
+		log.Printf("[MODEL] failed to fetch models for %s: %v", providerType, err)
+		s.cache.entries[key] = cacheEntry{expiresAt: time.Now().Add(30 * time.Second)}
+		s.cache.mu.Unlock()
+		return nil, nil
+	}
+
+	s.cache.entries[key] = cacheEntry{models: models, expiresAt: time.Now().Add(30 * time.Second)}
+	s.cache.mu.Unlock()
+	return models, nil
+}
+
+func modelsURL(baseURL string) string {
+	base := strings.TrimRight(baseURL, "/")
+	if !strings.HasSuffix(base, "/v1") {
+		return base + "/v1/models"
+	}
+	return base + "/models"
+}
+
+func (s *ModelService) fetchProviderModels(ctx context.Context, providerType, apiKey, baseURL string) ([]models.ModelInfo, error) {
+	switch providerType {
+	case "opencode-go":
+		return s.fetchModels(ctx, providerType, "https://opencode.ai/zen/go/v1/models", apiKey, func(id string) models.ModelInfo {
+			return models.ModelInfo{
+				ID:                 openCodeGoPrefix + id,
+				Name:               id,
+				ProviderType:       models.ProviderOpenCode,
+				ProviderName:       "OpenCode Go",
+				SupportsMultimodal: isMultimodalModel(id),
+			}
+		})
+	case "lm-studio":
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
+			return models.ModelInfo{
+				ID:                 id,
+				Name:               id,
+				ProviderType:       models.ProviderLMStudio,
+				ProviderName:       "LM Studio",
+				SupportsMultimodal: isMultimodalModel(id),
+			}
+		})
+	case "openai":
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
+			return models.ModelInfo{
+				ID:                 id,
+				Name:               id,
 				ProviderType:       models.ProviderOpenAI,
 				ProviderName:       "OpenAI",
-				SupportsMultimodal: isMultimodalModel(m),
-			})
-		}
-	}
-
-	if s.cfg.AnthropicAPIKey != "" {
-		for _, m := range s.cfg.AnthropicModels {
-			result = append(result, models.ModelInfo{
-				ID:                 m,
-				Name:               m,
+				SupportsMultimodal: isMultimodalModel(id),
+			}
+		})
+	case "anthropic":
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
+			return models.ModelInfo{
+				ID:                 id,
+				Name:               id,
 				ProviderType:       models.ProviderAnthropic,
 				ProviderName:       "Anthropic",
-				SupportsMultimodal: isMultimodalModel(m),
-			})
-		}
-	}
-
-	if s.cfg.LMStudioBaseURL != "" {
-		lmModels := s.getCachedLMStudioModels(ctx)
-		result = append(result, lmModels...)
-	}
-
-	if s.cfg.OpenCodeGoAPIKey != "" {
-		goModels := s.getCachedOpenCodeModels(ctx)
-		result = append(result, goModels...)
-	}
-
-	return result, nil
-}
-
-func (s *ModelService) ResolveModel(modelID string) (*models.ProviderConfig, error) {
-	for _, m := range s.cfg.OpenAIModels {
-		if m == modelID {
-			apiKey := s.cfg.OpenAIAPIKey
-			return &models.ProviderConfig{
-				Type:    models.ProviderOpenAI,
-				BaseURL: s.cfg.OpenAIBaseURL,
-				APIKey:  apiKey,
-				Model:   modelID,
-			}, nil
-		}
-	}
-
-	for _, m := range s.cfg.AnthropicModels {
-		if m == modelID {
-			return &models.ProviderConfig{
-				Type:    models.ProviderAnthropic,
-				BaseURL: s.cfg.AnthropicBaseURL,
-				APIKey:  s.cfg.AnthropicAPIKey,
-				Model:   modelID,
-			}, nil
-		}
-	}
-
-	if strings.HasPrefix(modelID, openCodeGoPrefix) {
-		suffix := strings.TrimPrefix(modelID, openCodeGoPrefix)
-		return &models.ProviderConfig{
-			Type:    models.ProviderOpenCode,
-			BaseURL: "https://opencode.ai/zen/go/v1",
-			APIKey:  s.cfg.OpenCodeGoAPIKey,
-			Model:   suffix,
-		}, nil
-	}
-
-	if s.cfg.LMStudioBaseURL != "" {
-		lmModels := s.getCachedLMStudioModels(context.Background())
-		for _, lm := range lmModels {
-			if lm.ID == modelID {
-				return &models.ProviderConfig{
-					Type:    models.ProviderLMStudio,
-					BaseURL: s.cfg.LMStudioBaseURL,
-					APIKey:  s.cfg.LMStudioAPIKey,
-					Model:   modelID,
-				}, nil
+				SupportsMultimodal: isMultimodalModel(id),
 			}
-		}
-		if strings.HasPrefix(modelID, "lmstudio") || strings.HasPrefix(modelID, "local") {
-			return &models.ProviderConfig{
-				Type:    models.ProviderLMStudio,
-				BaseURL: s.cfg.LMStudioBaseURL,
-				APIKey:  s.cfg.LMStudioAPIKey,
-				Model:   modelID,
-			}, nil
-		}
+		})
+	default:
+		return nil, fmt.Errorf("unknown provider: %s", providerType)
 	}
-
-	return nil, fmt.Errorf("unknown model: %s", modelID)
 }
 
-func (s *ModelService) GetDefault() *models.ProviderConfig {
-	cfg, err := s.ResolveModel(s.cfg.DefaultModel)
-	if err != nil {
-		if s.cfg.OpenAIAPIKey == "" {
-			log.Printf("warning: GetDefault() fallback with no OpenAI API key configured")
-		}
-		return &models.ProviderConfig{
-			Type:    models.ProviderOpenAI,
-			BaseURL: s.cfg.OpenAIBaseURL,
-			APIKey:  s.cfg.OpenAIAPIKey,
-			Model:   s.cfg.DefaultModel,
-		}
-	}
-	return cfg
-}
-
-func (s *ModelService) getCachedModels(ctx context.Context, cache *modelCache, ttl time.Duration, fetch func(context.Context) ([]models.ModelInfo, error)) []models.ModelInfo {
-	cache.mu.RLock()
-	if time.Now().Before(cache.expiresAt) {
-		defer cache.mu.RUnlock()
-		return cache.models
-	}
-	cache.mu.RUnlock()
-
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
-	if time.Now().Before(cache.expiresAt) {
-		return cache.models
-	}
-
-	models, err := fetch(ctx)
-	if err != nil {
-		log.Printf("failed to fetch models: %v", err)
-		return nil
-	}
-	cache.models = models
-	cache.expiresAt = time.Now().Add(ttl)
-	return models
-}
-
-func (s *ModelService) getCachedOpenCodeModels(ctx context.Context) []models.ModelInfo {
-	return s.getCachedModels(ctx, &s.goCache, 5*time.Minute, s.fetchOpenCodeGoModels)
-}
-
-func (s *ModelService) getCachedLMStudioModels(ctx context.Context) []models.ModelInfo {
-	return s.getCachedModels(ctx, &s.lmCache, 30*time.Second, s.fetchLMStudioModels)
-}
-
-func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, transform func(id string) models.ModelInfo) ([]models.ModelInfo, error) {
+func (s *ModelService) fetchModels(ctx context.Context, providerType, url, apiKey string, transform func(id string) models.ModelInfo) ([]models.ModelInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
+		if providerType == "anthropic" {
+			req.Header.Set("x-api-key", apiKey)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
 	}
 
 	resp, err := httpClient.Do(req)
@@ -213,6 +196,11 @@ func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, tran
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API returned %d: %s", resp.StatusCode, string(bodyBytes))
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -225,7 +213,7 @@ func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, tran
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	var items []models.ModelInfo
@@ -235,26 +223,36 @@ func (s *ModelService) fetchModels(ctx context.Context, url, apiKey string, tran
 	return items, nil
 }
 
-func (s *ModelService) fetchOpenCodeGoModels(ctx context.Context) ([]models.ModelInfo, error) {
-	return s.fetchModels(ctx, "https://opencode.ai/zen/go/v1/models", s.cfg.OpenCodeGoAPIKey, func(id string) models.ModelInfo {
-		return models.ModelInfo{
-			ID:                 openCodeGoPrefix + id,
-			Name:               id,
-			ProviderType:       models.ProviderOpenCode,
-			ProviderName:       "OpenCode Go",
-			SupportsMultimodal: isMultimodalModel(id),
-		}
-	})
-}
+func (s *ModelService) ResolveProviderConfig(userID int, modelID string) (*models.ProviderConfig, error) {
+	prefs, err := s.settingsSvc.GetSettingsInternal(context.Background(), userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+	if prefs == nil || prefs.ProviderType == "" {
+		return nil, fmt.Errorf("provider tidak dikonfigurasi — atur di Settings")
+	}
 
-func (s *ModelService) fetchLMStudioModels(ctx context.Context) ([]models.ModelInfo, error) {
-	return s.fetchModels(ctx, fmt.Sprintf("%s/v1/models", s.cfg.LMStudioBaseURL), "", func(id string) models.ModelInfo {
-		return models.ModelInfo{
-			ID:                 id,
-			Name:               id,
-			ProviderType:       models.ProviderLMStudio,
-			ProviderName:       "LM Studio",
-			SupportsMultimodal: isMultimodalModel(id),
-		}
-	})
+	providerType := prefs.ProviderType
+	apiKey := prefs.APIKey
+	baseURL := prefs.BaseURL
+
+	if apiKey == "" && providerType != "lm-studio" {
+		return nil, fmt.Errorf("API Key %s wajib diisi di Settings", providerType)
+	}
+
+	if baseURL == "" {
+		baseURL = defaultBaseURL(providerType)
+	}
+
+	modelName := modelID
+	if providerType == "opencode-go" {
+		modelName = strings.TrimPrefix(modelID, openCodeGoPrefix)
+	}
+
+	return &models.ProviderConfig{
+		Type:    models.ProviderType(providerType),
+		BaseURL: baseURL,
+		APIKey:  apiKey,
+		Model:   modelName,
+	}, nil
 }

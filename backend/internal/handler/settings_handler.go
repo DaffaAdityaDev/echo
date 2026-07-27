@@ -24,6 +24,10 @@ type UpdateSettingsRequest struct {
 	DefaultModel    string   `json:"default_model" example:"gpt-4o"`
 	DefaultFeatures []string `json:"default_features" example:"web-browsing,code-interpreter"`
 	DefaultSkills   []string `json:"default_skills" example:"python,research"`
+	ProviderType    string   `json:"provider_type" example:"opencode-go"`
+	APIKey          *string  `json:"api_key" example:""`
+	KeepAPIKey      bool     `json:"keep_api_key"`
+	BaseURL         string   `json:"base_url" example:"https://opencode.ai/zen/go/v1"`
 }
 
 // @Summary Get user settings
@@ -72,14 +76,23 @@ func (h *SettingsHandler) HandleUpdateSettings(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
+	if req.ProviderType != "" && !models.IsValidProvider(req.ProviderType) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unknown provider type: " + req.ProviderType})
+	}
+
 	prefs := &models.UserPreferences{
 		DefaultMode:     req.DefaultMode,
 		DefaultModel:    req.DefaultModel,
 		DefaultFeatures: req.DefaultFeatures,
 		DefaultSkills:   req.DefaultSkills,
+		ProviderType:    req.ProviderType,
+		BaseURL:         req.BaseURL,
+	}
+	if req.APIKey != nil {
+		prefs.APIKey = *req.APIKey
 	}
 
-	updated, err := h.SettingsSvc.UpdateSettings(c.Context(), userID, prefs)
+	updated, err := h.SettingsSvc.UpdateSettings(c.Context(), userID, prefs, req.KeepAPIKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update settings", "details": err.Error()})
 	}

@@ -122,7 +122,7 @@ to end-users. No code, no raw JSON, no terminal.
 
 ## Dependencies
 
-- **Existing LLM providers** — reused for test execution and eval judging
+- **Existing LLM providers** — reused for test execution
 - **Existing agent harness** — reused, with prompt override from DB
 - **PostgreSQL** — prompt_templates, prompt_versions tables
 - **Frontend** — /studio/playground route, independent from chat

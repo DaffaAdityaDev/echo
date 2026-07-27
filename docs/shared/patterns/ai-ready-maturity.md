@@ -276,7 +276,7 @@ across all dimensions before pursuing L5 (Agentic) selectively.
 | Data Models    | L3     | Go structs + Zod schemas, domain               |
 |                |        | documentation exists, manual migrations        |
 +----------------+--------+-----------------------------------------------+
-| Observability  | L3     | Logger + OTel + Langfuse, audit logging       |
+| Observability  | L3     | Logger + OTel + Langfuse                      |
 |                |        | unstructured in Go (log.Printf), stack         |
 |                |        | commented out in docker-compose                |
 +----------------+--------+-----------------------------------------------+
@@ -289,7 +289,7 @@ across all dimensions before pursuing L5 (Agentic) selectively.
 The most valuable jump is L3 → L4. Priority order:
 
 1. **Observability** — Replace log.Printf with structured slog, enable OTel
-   collector stack, add audit_logs table
+   collector stack
 2. **API Security** — Enforce rate limiting at proxy, add injection scanning
    at the gateway boundary
 3. **Prompts** — CI-validate prompt structure, add injection scanning per

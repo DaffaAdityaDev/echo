@@ -4,10 +4,7 @@ import React from "react"
 import Link from "next/link"
 import {
   FlaskConical,
-  ClipboardCheck,
   ScrollText,
-  Eye,
-  ShieldAlert,
   AlertCircle,
   RefreshCw,
   Layers,
@@ -24,9 +21,6 @@ import type { MaturityLevel, MaturityDimensionKey } from "../../types"
 
 export interface StudioDashboardProps {
   promptCount: number
-  evalRunCount: number
-  shadowRunCount: number
-  auditLogCount: number
   maturityLevel?: MaturityLevel
   weakestDimension?: MaturityDimensionKey
   roadmapProgress?: { completed: number; total: number }
@@ -37,9 +31,6 @@ export interface StudioDashboardProps {
 
 export function StudioDashboard({
   promptCount,
-  evalRunCount,
-  shadowRunCount,
-  auditLogCount,
   maturityLevel = "L2",
   weakestDimension = "skills",
   roadmapProgress = { completed: 1, total: 7 },
@@ -83,27 +74,6 @@ export function StudioDashboard({
       icon: ScrollText,
       description: "Versioned prompt templates managed",
       href: "/prompts",
-    },
-    {
-      title: "Eval Runs",
-      value: evalRunCount,
-      icon: ClipboardCheck,
-      description: "Rule-based & LLM-as-a-Judge suites",
-      href: "/evals",
-    },
-    {
-      title: "Shadow Runs",
-      value: shadowRunCount,
-      icon: Eye,
-      description: "Production traffic mirrored for testing",
-      href: "/shadow",
-    },
-    {
-      title: "Audit Events",
-      value: auditLogCount,
-      icon: ShieldAlert,
-      description: "Governance actions recorded",
-      href: "/audit",
     },
   ]
 

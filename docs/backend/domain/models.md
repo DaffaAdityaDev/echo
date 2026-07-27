@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Domain Models
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+   Version   : 1.1
+   Updated   : 2026-07-26
 ================================================================================
 
 Overview
@@ -73,30 +73,50 @@ Struct Definitions
   ~~~~~~
 
   type Config struct {
-      Port              string
-      DatabaseURL       string
-      JWTSecret         string
-      Environment       string
-      AgentHTTPURL      string
-      AllowOrigins      string
-      RedisAddr         string
-      RedisPassword     string
-      OtelCollectorAddr string
-      EnableOtel        bool
-      InternalAuthToken string
-      OpenAIAPIKey      string
-      OpenAIBaseURL     string
-      OpenAIModels      []string
-      AnthropicAPIKey   string
-      AnthropicBaseURL  string
-      AnthropicModels   []string
-      LMStudioBaseURL   string
-      LMStudioAPIKey    string
-      OpenCodeGoAPIKey  string
-      DefaultModel      string
+      Port                string
+      DatabaseURL         string
+      JWTSecret           string
+      ServiceJWTSecret    string
+      Environment         string
+      AgentHTTPURL        string
+      AllowOrigins        string
+      RedisAddr           string
+      RedisPassword       string
+      OtelCollectorAddr   string
+      EnableOtel          bool
+      InternalAuthToken   string
+      DefaultModel        string
+      EncryptionKey       string
+      EvaluatorEndpoint   string
+      EvaluatorAPIKey     string
+      EvaluatorModel      string
+      PRUNE_THRESHOLD         int
+      PRUNE_KEEP_LATEST_TURNS int
+      SUMMARIZE_MAX_TOKENS    int
   }
 
 (Config does not have JSON tags - internal use only)
+
+  Provider API keys and base URLs removed from Config.
+  They are now per-user, stored encrypted in UserPreferences.
+
+  UserPreferences
+  ~~~~~~~~~~~~~~~~
+
+  type UserPreferences struct {
+      UserID          int      `json:"user_id"`
+      DefaultMode     string   `json:"default_mode"`
+      DefaultModel    string   `json:"default_model"`
+      DefaultFeatures []string `json:"default_features"`
+      DefaultSkills   []string `json:"default_skills"`
+      ProviderType    string   `json:"provider_type"`
+      APIKey          string   `json:"api_key,omitempty"`
+      BaseURL         string   `json:"base_url"`
+  }
+
+  APIKey is encrypted at rest using AES-256-GCM with ENCRYPTION_KEY.
+  Only returned to client when explicitly requested (json:"api_key,omitempty").
+  The frontend never pre-fills it — user must re-enter to change.
 
   Provider Configs
   ~~~~~~~~~~~~~~~~
@@ -124,18 +144,7 @@ Struct Definitions
       ProviderName string       `json:"provider_name"`
   }
 
-  DB Wrapper
-  ~~~~~~~~~~
-
-  type DB struct {
-      Pool *pgxpool.Pool
-  }
-
-  func (db *DB) Close() {
-      db.Pool.Close()
-  }
-
-JSON Tags Convention
+  JSON Tags Convention
 --------------------
 
 +----------------------+-------------------------------------------+
@@ -154,16 +163,16 @@ Entry Points & Exports
 +--------------------+--------------+-------------------------------+
 | Symbol             | Kind         | Path                          |
 +--------------------+--------------+-------------------------------+
-| User               | Struct       | models/models.go:64           |
+| User               | Struct       | models/models.go:66           |
 | Config             | Struct       | models/models.go:32           |
-| DB                 | Struct       | models/models.go:56           |
-| ProviderType       | Type (string)| models/models.go:9            |
-| ProviderConfig     | Struct       | models/models.go:18           |
-| ModelInfo          | Struct       | models/models.go:25           |
-| ProviderOpenAI     | Constant     | models/models.go:12           |
-| ProviderAnthropic  | Constant     | models/models.go:13           |
-| ProviderLMStudio   | Constant     | models/models.go:14           |
-| ProviderOpenCode   | Constant     | models/models.go:15           |
+| UserPreferences    | Struct       | models/models.go:88           |
+| ProviderType       | Type (string)| models/models.go:8            |
+| ProviderConfig     | Struct       | models/models.go:17           |
+| ModelInfo          | Struct       | models/models.go:24           |
+| ProviderOpenAI     | Constant     | models/models.go:11           |
+| ProviderAnthropic  | Constant     | models/models.go:12           |
+| ProviderLMStudio   | Constant     | models/models.go:13           |
+| ProviderOpenCode   | Constant     | models/models.go:14           |
 +--------------------+--------------+-------------------------------+
 
 Source References

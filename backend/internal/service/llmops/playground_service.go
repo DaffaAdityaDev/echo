@@ -33,6 +33,7 @@ type PlaygroundRequest struct {
 	Models    []string          `json:"models"`
 	Features  []string          `json:"features,omitempty"`
 	Skills    []string          `json:"skills,omitempty"`
+	UserID    int               `json:"-"`
 }
 
 type PlaygroundService interface {
@@ -87,10 +88,10 @@ func (s *playgroundService) StreamPlayground(ctx context.Context, req Playground
 	var wg sync.WaitGroup
 	for _, modelID := range req.Models {
 		wg.Add(1)
-		go func(id string, feats, skls []string) {
+		go func(id string, feats, skls []string, uid int) {
 			defer wg.Done()
-			s.runModelStream(ctx, id, prompt, results, feats, skls)
-		}(modelID, req.Features, req.Skills)
+			s.runModelStream(ctx, id, prompt, results, feats, skls, uid)
+		}(modelID, req.Features, req.Skills, req.UserID)
 	}
 
 	wg.Wait()
@@ -101,13 +102,13 @@ func (s *playgroundService) StreamPlayground(ctx context.Context, req Playground
 	return nil
 }
 
-func (s *playgroundService) runModelStream(ctx context.Context, modelID, prompt string, results chan<- StreamResult, features, skills []string) {
-	providerCfg, err := s.modelSvc.ResolveModel(modelID)
+func (s *playgroundService) runModelStream(ctx context.Context, modelID, prompt string, results chan<- StreamResult, features, skills []string, userID int) {
+	providerCfg, err := s.modelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
 		select {
 		case results <- StreamResult{
 			Model: modelID, Event: "error",
-			Error: fmt.Sprintf("Unknown model: %s", modelID),
+			Error: fmt.Sprintf("Provider config error: %s", err.Error()),
 		}:
 		case <-ctx.Done():
 		}

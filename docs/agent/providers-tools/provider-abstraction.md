@@ -112,6 +112,7 @@ Stream Phase 3 - Usage (after stream ends)
 | Auth                 | apiKey (dummy)       | anthropicApiKey (dummy) | apiKey (lm-studio)     | apiKey (dummy)            |
 | Tool call extraction | Accumulated chunk    | Accumulated chunk       | Accumulated chunk      | Accumulated delta/index   |
 | Parallel tool calls  | Single (first)       | Single (first)          | Single (first)         | Multi (per index)         |
+| baseURL normalization| No — expects `/v1`   | No — fallback default   | **Yes** — auto `/v1`   | No — expects `/v1`       |
 | Pricing              | GPT-4o / GPT-4o-mini| Claude 3.5 Sonnet       | Free (local)           | Free (local)              |
 +----------------------+----------------------+-------------------------+------------------------+---------------------------+
 
@@ -152,6 +153,35 @@ Stream Phase 3 - Usage (after stream ends)
 +-----------------------------------+--------------------------------------------------------------+
 
 ---
+
+## Runtime Requirements
+
+The agent **must** be started with `bun` (not `node`). Bun natively loads `.env`
+into `process.env`. The `dotenv` npm package is listed as a dependency but
+`dotenv.config()` is never called in code.
+
+| Command | Runtime | .env loaded? | Use case |
+|---------|---------|-------------|----------|
+| `bun dev` | Bun | Yes | Development (watch mode) |
+| `bun run dist/index.js` | Bun | Yes | Production |
+| `node dist/index.js` | Node | **No** | ❌ Will fail |
+
+## LM Studio baseURL Normalization
+
+LM Studio exposes the OpenAI-compatible API at `/v1/chat/completions`. The
+`baseURL` from user settings (e.g. `http://127.0.0.1:1234`) often lacks the
+`/v1` prefix. The `LMStudioProvider` constructor normalizes it:
+
+```typescript
+const clean = baseURL.replace(/\/+$/, "");
+this.baseURL = clean.endsWith("/v1") ? clean : `${clean}/v1`;
+```
+
+This ensures LangChain's `ChatOpenAI` constructs the correct URL:
+`http://127.0.0.1:1234/v1/chat/completions`.
+
+Other providers (OpenAI, OpenCode-Go) do NOT perform this normalization —
+they expect `baseURL` to already include `/v1` (e.g. `https://api.openai.com/v1`).
 
 ## Source References
 

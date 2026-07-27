@@ -25,7 +25,7 @@ export const delegate_task: ToolDefinition = {
     }),
     execute: async (
         input: { agentName: string; instruction: string; systemPrompt: string; fork_context: boolean }, 
-        config?: { parentMessages?: BaseMessage[]; onPacket?: (p: any) => Promise<void>; provider?: LLMProvider; tools?: any[] }
+        config?: { parentMessages?: BaseMessage[]; onPacket?: (p: any) => Promise<void>; provider?: LLMProvider; tools?: any[]; delegationDepth?: number }
     ): Promise<Observation> => {
         const store = langfuseStorage.getStore();
         const parentMissionId = store?.sessionId || "standalone";
@@ -55,12 +55,14 @@ export const delegate_task: ToolDefinition = {
                 buildSystemPrompt: () => input.systemPrompt
             };
 
+            const childDepth = (config?.delegationDepth ?? 0) + 1;
             const childHarness = new NlahHarness({
                 provider,
                 strategy: subagentStrategy,
                 missionId: childMissionId,
                 tenantId: DELEGATION_DEFAULTS.TENANT_ID,
-                tools: config?.tools
+                tools: config?.tools,
+                delegationDepth: childDepth
             });
 
             // Build child hydrated state

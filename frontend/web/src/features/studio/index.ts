@@ -17,36 +17,25 @@ export * from './components/playground/PlaygroundPage'
 export * from './components/playground/PromptEditor'
 export * from './components/playground/ModelComparisonGrid'
 
-export * from './components/evals/EvalDashboard'
-export * from './components/evals/DatasetUploader'
-export * from './components/evals/EvalScoreCard'
+export * from './components/debug/AgentExecutionTree'
+export * from './components/debug/StatusDashboard'
+export * from './components/debug/TokenCostMeter'
+export * from './components/debug/ToolTimeline'
+export * from './components/debug/ThoughtTrace'
+export * from './components/debug/DebugPromptPanel'
 
-export * from './components/shadow/ShadowDashboard'
-export * from './components/shadow/ShadowComparisonTable'
-export * from './components/shadow/ShadowTrafficSlider'
-
-export * from './components/audit/AuditTrailTable'
 
 export * from './hooks/useStudioDashboard'
 export * from './hooks/useMaturityModel'
 export * from './hooks/useMaturityPage'
 export * from './hooks/usePlayground'
-export * from './hooks/useEvalSuite'
 export * from './hooks/usePromptLibrary'
-export * from './hooks/useShadowTest'
-export * from './hooks/useShadowPage'
-export * from './hooks/useAuditTrail'
 
 export type {
   VersionStatus,
   PromptTemplate,
   PromptVersion,
-  TestCase,
-  EvalDataset,
-  EvalRun,
-  EvalRunDetail,
-  ShadowRun,
-  AuditLog,
+
   PlaygroundResult,
   MaturityLevel,
   MaturityDimensionKey,

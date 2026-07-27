@@ -38,8 +38,7 @@ checking in the chat handler.
 +------+----------------------------+---------------------------------------+
 | user | Standard authenticated     | Self-service (own data only)          |
 |      |   user                     |                                       |
-| admin| System administrator       | Aggregate data, user management,      |
-|      |                            |   audit                               |
+| admin| System administrator       | Aggregate data, user management       |
 +------+----------------------------+---------------------------------------+
 
 ### Current Implementation
