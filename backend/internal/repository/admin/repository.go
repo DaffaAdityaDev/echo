@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 	"echo-backend/internal/constants/db"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/auth"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -18,7 +18,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) Create(ctx context.Context, key *models.ApiKey) error {
+func (r *Repository) Create(ctx context.Context, key *authmodel.ApiKey) error {
 	err := r.pool.QueryRow(ctx, db.QueryCreateApiKey, key.KeyHash, key.Prefix, key.Name, key.Scopes, key.UserID, key.Status).
 		Scan(&key.ID, &key.CreatedAt)
 	if err != nil {
@@ -27,8 +27,8 @@ func (r *Repository) Create(ctx context.Context, key *models.ApiKey) error {
 	return nil
 }
 
-func (r *Repository) GetByHash(ctx context.Context, hash string) (*models.ApiKey, error) {
-	var key models.ApiKey
+func (r *Repository) GetByHash(ctx context.Context, hash string) (*authmodel.ApiKey, error) {
+	var key authmodel.ApiKey
 	err := r.pool.QueryRow(ctx, db.QueryGetApiKeyByHash, hash).
 		Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt)
 	if err != nil {
@@ -40,16 +40,16 @@ func (r *Repository) GetByHash(ctx context.Context, hash string) (*models.ApiKey
 	return &key, nil
 }
 
-func (r *Repository) GetByUserID(ctx context.Context, userID string) ([]models.ApiKey, error) {
+func (r *Repository) GetByUserID(ctx context.Context, userID string) ([]authmodel.ApiKey, error) {
 	rows, err := r.pool.Query(ctx, db.QueryGetApiKeysByUser, userID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
 	}
 	defer rows.Close()
 
-	var keys []models.ApiKey
+	var keys []authmodel.ApiKey
 	for rows.Next() {
-		var key models.ApiKey
+		var key authmodel.ApiKey
 		if err := rows.Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt); err != nil {
 			return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
 		}
@@ -58,16 +58,16 @@ func (r *Repository) GetByUserID(ctx context.Context, userID string) ([]models.A
 	return keys, rows.Err()
 }
 
-func (r *Repository) List(ctx context.Context) ([]models.ApiKey, error) {
+func (r *Repository) List(ctx context.Context) ([]authmodel.ApiKey, error) {
 	rows, err := r.pool.Query(ctx, db.QueryListApiKeys)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
 	}
 	defer rows.Close()
 
-	var keys []models.ApiKey
+	var keys []authmodel.ApiKey
 	for rows.Next() {
-		var key models.ApiKey
+		var key authmodel.ApiKey
 		if err := rows.Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt); err != nil {
 			return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
 		}
@@ -87,8 +87,8 @@ func (r *Repository) Revoke(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id string) (*models.ApiKey, error) {
-	var key models.ApiKey
+func (r *Repository) GetByID(ctx context.Context, id string) (*authmodel.ApiKey, error) {
+	var key authmodel.ApiKey
 	err := r.pool.QueryRow(ctx, db.QueryGetApiKeyByID, id).
 		Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt)
 	if err != nil {

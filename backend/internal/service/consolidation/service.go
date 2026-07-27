@@ -3,7 +3,8 @@ package consolidation
 import (
 	"bytes"
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,17 +15,17 @@ import (
 type SessionRepo interface {
 	GetSessionTokenCount(ctx context.Context, sessionID string) (int, error)
 	GetMaxTurnNumber(ctx context.Context, sessionID string) (int, error)
-	GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error)
-	GetByID(ctx context.Context, sessionID string) (*models.Session, error)
+	GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error)
+	GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error)
 	PruneSession(ctx context.Context, sessionID string, newSummary string, pruneLimitTurn int) error
 }
 
 type Service struct {
-	cfg         *models.Config
+	cfg         *cfgmodel.Config
 	sessionRepo SessionRepo
 }
 
-func NewService(cfg *models.Config, sessionRepo SessionRepo) *Service {
+func NewService(cfg *cfgmodel.Config, sessionRepo SessionRepo) *Service {
 	return &Service{
 		cfg:         cfg,
 		sessionRepo: sessionRepo,

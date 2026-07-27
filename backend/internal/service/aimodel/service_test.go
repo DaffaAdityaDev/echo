@@ -2,7 +2,9 @@ package aimodel
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,39 +15,39 @@ type mockSettingsProvider struct {
 	mock.Mock
 }
 
-func (m *mockSettingsProvider) GetSettingsInternal(ctx context.Context, userID int) (*models.UserPreferences, error) {
+func (m *mockSettingsProvider) GetSettingsInternal(ctx context.Context, userID int) (*usermodel.UserPreferences, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.UserPreferences), args.Error(1)
+	return args.Get(0).(*usermodel.UserPreferences), args.Error(1)
 }
 
 func TestResolveProviderConfig(t *testing.T) {
 	t.Parallel()
 
-	cfg := &models.Config{DefaultModel: "gpt-4o"}
+	cfg := &cfgmodel.Config{DefaultModel: "gpt-4o"}
 
 	tests := []struct {
 		name     string
 		userID   int
 		modelID  string
-		prefs    *models.UserPreferences
+		prefs    *usermodel.UserPreferences
 		prefsErr error
-		want     *models.ProviderConfig
+		want     *aitype.ProviderConfig
 		wantErr  bool
 	}{
 		{
 			name:    "user has custom provider in preferences",
 			userID:  1,
 			modelID: "custom-model",
-			prefs: &models.UserPreferences{
+			prefs: &usermodel.UserPreferences{
 				ProviderType: "openai",
 				APIKey:       "sk-custom-key",
 				BaseURL:      "https://custom.openai.com/v1",
 			},
-			want: &models.ProviderConfig{
-				Type:    models.ProviderOpenAI,
+			want: &aitype.ProviderConfig{
+				Type:    aitype.ProviderOpenAI,
 				BaseURL: "https://custom.openai.com/v1",
 				APIKey:  "sk-custom-key",
 				Model:   "custom-model",
@@ -55,7 +57,7 @@ func TestResolveProviderConfig(t *testing.T) {
 			name:    "no api key and provider not lm studio returns error",
 			userID:  2,
 			modelID: "claude-opus",
-			prefs: &models.UserPreferences{
+			prefs: &usermodel.UserPreferences{
 				ProviderType: "anthropic",
 				APIKey:       "",
 				BaseURL:      "https://api.anthropic.com",
@@ -73,13 +75,13 @@ func TestResolveProviderConfig(t *testing.T) {
 			name:    "empty modelID falls back to system default provider config",
 			userID:  4,
 			modelID: "",
-			prefs: &models.UserPreferences{
+			prefs: &usermodel.UserPreferences{
 				ProviderType: "opencode-go",
 				APIKey:       "sk-key",
 				BaseURL:      "",
 			},
-			want: &models.ProviderConfig{
-				Type:    models.ProviderOpenCode,
+			want: &aitype.ProviderConfig{
+				Type:    aitype.ProviderOpenCode,
 				BaseURL: "https://opencode.ai/zen/go/v1",
 				APIKey:  "sk-key",
 				Model:   "",

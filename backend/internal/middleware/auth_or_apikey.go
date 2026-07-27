@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"echo-backend/internal/constants/auth"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	adminrepo "echo-backend/internal/repository/admin"
 	"encoding/hex"
 	"strings"
@@ -13,7 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func AuthOrAPIKeyRequired(cfg *models.Config, apiKeyRepo *adminrepo.Repository) fiber.Handler {
+func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		tokenString := c.Cookies(auth.TokenCookie)
 		if tokenString != "" {

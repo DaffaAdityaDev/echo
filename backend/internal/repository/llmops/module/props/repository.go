@@ -6,20 +6,20 @@ import (
 	"errors"
 	"fmt"
 
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/llmops"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository interface {
-	CreateTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error)
-	GetTemplateByName(ctx context.Context, tenantID, name string) (*models.PromptTemplate, error)
-	ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error)
-	CreateVersion(ctx context.Context, v *models.PromptVersion) (*models.PromptVersion, error)
-	GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error)
-	GetActiveVersion(ctx context.Context, templateID string) (*models.PromptVersion, error)
-	GetActiveVersionByName(ctx context.Context, tenantID, name string) (*models.PromptVersion, error)
-	ListVersions(ctx context.Context, templateID string) ([]models.PromptVersion, error)
+	CreateTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error)
+	GetTemplateByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptTemplate, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error)
+	CreateVersion(ctx context.Context, v *llmopsmodel.PromptVersion) (*llmopsmodel.PromptVersion, error)
+	GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error)
+	GetActiveVersion(ctx context.Context, templateID string) (*llmopsmodel.PromptVersion, error)
+	GetActiveVersionByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptVersion, error)
+	ListVersions(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error)
 	PromoteVersion(ctx context.Context, templateID string, version int, actor string) error
 	RollbackVersion(ctx context.Context, templateID string, targetVersion int, actor string) error
 }
@@ -32,7 +32,7 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 	return &repository{pool: pool}
 }
 
-func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error) {
+func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error) {
 	query := `
 		SELECT id, tenant_id, name, COALESCE(description, ''), COALESCE(active_version, 1), created_at, updated_at
 		FROM prompt_templates WHERE tenant_id = $1 ORDER BY updated_at DESC
@@ -43,9 +43,9 @@ func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]mode
 	}
 	defer rows.Close()
 
-	var templates []models.PromptTemplate
+	var templates []llmopsmodel.PromptTemplate
 	for rows.Next() {
-		var t models.PromptTemplate
+		var t llmopsmodel.PromptTemplate
 		if err := rows.Scan(&t.ID, &t.TenantID, &t.Name, &t.Description, &t.ActiveVersion, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan template row: %w", err)
 		}
@@ -54,13 +54,13 @@ func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]mode
 	return templates, nil
 }
 
-func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error) {
+func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error) {
 	query := `
 		INSERT INTO prompt_templates (tenant_id, name, description)
 		VALUES ($1, $2, $3)
 		RETURNING id, tenant_id, name, description, active_version, created_at, updated_at
 	`
-	t := &models.PromptTemplate{}
+	t := &llmopsmodel.PromptTemplate{}
 	err := r.pool.QueryRow(ctx, query, tenantID, name, desc).Scan(
 		&t.ID, &t.TenantID, &t.Name, &t.Description, &t.ActiveVersion, &t.CreatedAt, &t.UpdatedAt,
 	)
@@ -70,12 +70,12 @@ func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc st
 	return t, nil
 }
 
-func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name string) (*models.PromptTemplate, error) {
+func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptTemplate, error) {
 	query := `
 		SELECT id, tenant_id, name, description, active_version, created_at, updated_at
 		FROM prompt_templates WHERE tenant_id = $1 AND name = $2
 	`
-	t := &models.PromptTemplate{}
+	t := &llmopsmodel.PromptTemplate{}
 	err := r.pool.QueryRow(ctx, query, tenantID, name).Scan(
 		&t.ID, &t.TenantID, &t.Name, &t.Description, &t.ActiveVersion, &t.CreatedAt, &t.UpdatedAt,
 	)
@@ -88,7 +88,7 @@ func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name strin
 	return t, nil
 }
 
-func (r *repository) CreateVersion(ctx context.Context, v *models.PromptVersion) (*models.PromptVersion, error) {
+func (r *repository) CreateVersion(ctx context.Context, v *llmopsmodel.PromptVersion) (*llmopsmodel.PromptVersion, error) {
 	toolsJSON, _ := json.Marshal(v.BoundTools)
 	varsJSON, _ := json.Marshal(v.Variables)
 
@@ -105,12 +105,12 @@ func (r *repository) CreateVersion(ctx context.Context, v *models.PromptVersion)
 	return v, nil
 }
 
-func (r *repository) GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error) {
+func (r *repository) GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error) {
 	query := `
 		SELECT id, template_id, version, system_prompt, bound_tools, variables, status, created_by, created_at
 		FROM prompt_versions WHERE template_id = $1 AND version = $2
 	`
-	v := &models.PromptVersion{}
+	v := &llmopsmodel.PromptVersion{}
 	var toolsBytes, varsBytes []byte
 	err := r.pool.QueryRow(ctx, query, templateID, version).Scan(
 		&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt,
@@ -126,14 +126,14 @@ func (r *repository) GetVersion(ctx context.Context, templateID string, version 
 	return v, nil
 }
 
-func (r *repository) GetActiveVersion(ctx context.Context, templateID string) (*models.PromptVersion, error) {
+func (r *repository) GetActiveVersion(ctx context.Context, templateID string) (*llmopsmodel.PromptVersion, error) {
 	query := `
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
 		JOIN prompt_templates t ON t.id = v.template_id AND t.active_version = v.version
 		WHERE t.id = $1
 	`
-	v := &models.PromptVersion{}
+	v := &llmopsmodel.PromptVersion{}
 	var toolsBytes, varsBytes []byte
 	err := r.pool.QueryRow(ctx, query, templateID).Scan(
 		&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt,
@@ -149,14 +149,14 @@ func (r *repository) GetActiveVersion(ctx context.Context, templateID string) (*
 	return v, nil
 }
 
-func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name string) (*models.PromptVersion, error) {
+func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptVersion, error) {
 	query := `
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
 		JOIN prompt_templates t ON t.id = v.template_id AND t.active_version = v.version
 		WHERE t.tenant_id = $1 AND t.name = $2
 	`
-	v := &models.PromptVersion{}
+	v := &llmopsmodel.PromptVersion{}
 	var toolsBytes, varsBytes []byte
 	err := r.pool.QueryRow(ctx, query, tenantID, name).Scan(
 		&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt,
@@ -172,7 +172,7 @@ func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name 
 	return v, nil
 }
 
-func (r *repository) ListVersions(ctx context.Context, templateID string) ([]models.PromptVersion, error) {
+func (r *repository) ListVersions(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error) {
 	query := `SELECT id, template_id, version, system_prompt, bound_tools, variables, status, created_by, created_at FROM prompt_versions WHERE template_id = $1 ORDER BY version DESC`
 	rows, err := r.pool.Query(ctx, query, templateID)
 	if err != nil {
@@ -180,9 +180,9 @@ func (r *repository) ListVersions(ctx context.Context, templateID string) ([]mod
 	}
 	defer rows.Close()
 
-	var versions []models.PromptVersion
+	var versions []llmopsmodel.PromptVersion
 	for rows.Next() {
-		var v models.PromptVersion
+		var v llmopsmodel.PromptVersion
 		var toolsBytes, varsBytes []byte
 		if err := rows.Scan(&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan version row: %w", err)

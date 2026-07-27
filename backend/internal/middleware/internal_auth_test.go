@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +16,7 @@ func TestInternalAuthRequired(t *testing.T) {
 	t.Parallel()
 
 	secret := "service-jwt-secret"
-	cfg := &models.Config{ServiceJWTSecret: secret}
+	cfg := &cfgmodel.Config{ServiceJWTSecret: secret}
 
 	tests := []struct {
 		name       string

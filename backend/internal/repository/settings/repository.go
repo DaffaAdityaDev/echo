@@ -3,7 +3,7 @@ package settings
 import (
 	"context"
 	"echo-backend/internal/constants/db"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/user"
 	"fmt"
 	"time"
 
@@ -27,8 +27,8 @@ func nonil(s []string) []string {
 	return s
 }
 
-func (r *Repository) Get(ctx context.Context, userID int) (*models.UserPreferences, error) {
-	var p models.UserPreferences
+func (r *Repository) Get(ctx context.Context, userID int) (*usermodel.UserPreferences, error) {
+	var p usermodel.UserPreferences
 	var features, skills []string
 	var updatedAt time.Time
 
@@ -47,8 +47,8 @@ func (r *Repository) Get(ctx context.Context, userID int) (*models.UserPreferenc
 	return &p, nil
 }
 
-func (r *Repository) Upsert(ctx context.Context, userID int, prefs *models.UserPreferences) (*models.UserPreferences, error) {
-	var p models.UserPreferences
+func (r *Repository) Upsert(ctx context.Context, userID int, prefs *usermodel.UserPreferences) (*usermodel.UserPreferences, error) {
+	var p usermodel.UserPreferences
 	var features, skills []string
 	var updatedAt pgtype.Timestamptz
 

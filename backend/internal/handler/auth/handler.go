@@ -3,7 +3,8 @@ package auth
 import (
 	"context"
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
 	"encoding/json"
 	"time"
 
@@ -11,17 +12,17 @@ import (
 )
 
 type Service interface {
-	Login(ctx context.Context, email, password string) (*models.User, string, error)
-	Register(ctx context.Context, email, password, name string) (*models.User, string, error)
-	GetUserByID(ctx context.Context, id int) (*models.User, error)
+	Login(ctx context.Context, email, password string) (*authmodel.User, string, error)
+	Register(ctx context.Context, email, password, name string) (*authmodel.User, string, error)
+	GetUserByID(ctx context.Context, id int) (*authmodel.User, error)
 }
 
 type Handler struct {
-	Cfg     *models.Config
+	Cfg     *cfgmodel.Config
 	AuthSvc Service
 }
 
-func NewHandler(cfg *models.Config, authSvc Service) *Handler {
+func NewHandler(cfg *cfgmodel.Config, authSvc Service) *Handler {
 	return &Handler{
 		Cfg:     cfg,
 		AuthSvc: authSvc,

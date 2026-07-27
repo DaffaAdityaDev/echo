@@ -5,7 +5,7 @@ import (
 	"context"
 	"echo-backend/internal/config"
 	"echo-backend/internal/database"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/auth"
 	authrepo "echo-backend/internal/repository/auth"
 	"log"
 	"os"
@@ -63,7 +63,7 @@ func main() {
 		log.Fatalf("Failed to hash password: %v", err)
 	}
 
-	adminUser := &models.User{
+	adminUser := &authmodel.User{
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		Name:         "Admin",

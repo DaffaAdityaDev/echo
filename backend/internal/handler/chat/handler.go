@@ -6,7 +6,8 @@ import (
 	"context"
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/agent"
+	"echo-backend/internal/models/config"
 	"echo-backend/internal/repository/session"
 	"echo-backend/internal/service/consolidation"
 	"echo-backend/internal/service/aimodel"
@@ -53,7 +54,7 @@ func retryDBOperation(attempts int, delay time.Duration, fn func() error) error 
 }
 
 type Handler struct {
-	Cfg              *models.Config
+	Cfg              *cfgmodel.Config
 	RedisClient      *redis.Client
 	HonoAPIURL       string
 	ModelSvc         *aimodel.Service
@@ -62,7 +63,7 @@ type Handler struct {
 }
 
 func NewHandler(
-	cfg *models.Config,
+	cfg *cfgmodel.Config,
 	rdb *redis.Client,
 	modelSvc *aimodel.Service,
 	sessionRepo *session.Repository,
@@ -410,15 +411,15 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		}()
 
 		buildStepsJSON := func(thinking string, calls []ToolCallCapture, results []ToolCallResult) json.RawMessage {
-			var steps []models.ThoughtStep
+			var steps []agentmodel.ThoughtStep
 			if thinking != "" {
-				steps = append(steps, models.ThoughtStep{Type: "reasoning", Content: thinking})
+				steps = append(steps, agentmodel.ThoughtStep{Type: "reasoning", Content: thinking})
 			}
 			for _, tc := range calls {
-				steps = append(steps, models.ThoughtStep{Type: "tool_call", ToolName: tc.ToolName, ToolInput: tc.ToolInput})
+				steps = append(steps, agentmodel.ThoughtStep{Type: "tool_call", ToolName: tc.ToolName, ToolInput: tc.ToolInput})
 			}
 			for _, tr := range results {
-				steps = append(steps, models.ThoughtStep{Type: "tool_result", ToolName: tr.ToolName, Content: tr.Content})
+				steps = append(steps, agentmodel.ThoughtStep{Type: "tool_result", ToolName: tr.ToolName, Content: tr.Content})
 			}
 			if len(steps) == 0 {
 				return nil

@@ -3,7 +3,7 @@ package session
 import (
 	"context"
 	"echo-backend/internal/constants/db"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/chat"
 	"encoding/json"
 	"fmt"
 
@@ -27,8 +27,8 @@ func (r *Repository) UpdateSessionTimestamp(ctx context.Context, sessionID strin
 	return nil
 }
 
-func (r *Repository) CreateSession(ctx context.Context, userID int, title string) (*models.Session, error) {
-	var s models.Session
+func (r *Repository) CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error) {
+	var s chatmodel.Session
 	err := r.pool.QueryRow(ctx, db.QueryCreateSession, userID, title).
 		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
@@ -37,16 +37,16 @@ func (r *Repository) CreateSession(ctx context.Context, userID int, title string
 	return &s, nil
 }
 
-func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*models.Session, error) {
+func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error) {
 	rows, err := r.pool.Query(ctx, db.QueryListSessions, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sessions: %w", err)
 	}
 	defer rows.Close()
 
-	var sessions []*models.Session
+	var sessions []*chatmodel.Session
 	for rows.Next() {
-		var s models.Session
+		var s chatmodel.Session
 		err := rows.Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan session row: %w", err)
@@ -56,8 +56,8 @@ func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*models.Sess
 	return sessions, nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, sessionID string) (*models.Session, error) {
-	var s models.Session
+func (r *Repository) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
+	var s chatmodel.Session
 	err := r.pool.QueryRow(ctx, db.QueryGetSession, sessionID).
 		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
 	if err != nil {
@@ -93,16 +93,16 @@ func (r *Repository) UpdateTitleAndSummary(ctx context.Context, sessionID string
 	return nil
 }
 
-func (r *Repository) GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error) {
+func (r *Repository) GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error) {
 	rows, err := r.pool.Query(ctx, db.QueryGetSessionMessages, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query messages: %w", err)
 	}
 	defer rows.Close()
 
-	var messages []*models.Message
+	var messages []*chatmodel.Message
 	for rows.Next() {
-		var m models.Message
+		var m chatmodel.Message
 		var stepsBytes []byte
 		err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.TokenCount, &m.TurnNumber, &stepsBytes, &m.Status, &m.CreatedAt)
 		if err != nil {
@@ -142,14 +142,14 @@ func (r *Repository) DeleteMessagesUpToTurn(ctx context.Context, sessionID strin
 	return nil
 }
 
-func stepsOrNull(m *models.Message) json.RawMessage {
+func stepsOrNull(m *chatmodel.Message) json.RawMessage {
 	if len(m.Steps) > 0 {
 		return m.Steps
 	}
 	return json.RawMessage("null")
 }
 
-func (r *Repository) SaveTurnMessages(ctx context.Context, sessionID string, userMsg *models.Message, assistantMsg *models.Message, toolResults []*models.Message) error {
+func (r *Repository) SaveTurnMessages(ctx context.Context, sessionID string, userMsg *chatmodel.Message, assistantMsg *chatmodel.Message, toolResults []*chatmodel.Message) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)

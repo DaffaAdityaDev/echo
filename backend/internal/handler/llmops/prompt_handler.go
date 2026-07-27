@@ -3,7 +3,7 @@ package llmops
 import (
 	"strconv"
 
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/llmops"
 	"echo-backend/internal/service/llmops"
 	"github.com/gofiber/fiber/v3"
 )
@@ -44,7 +44,7 @@ func (h *PromptHandler) HandleListTemplates(c fiber.Ctx) error {
 	}
 
 	if templates == nil {
-		templates = []models.PromptTemplate{}
+		templates = []llmopsmodel.PromptTemplate{}
 	}
 
 	return c.JSON(fiber.Map{"templates": templates})

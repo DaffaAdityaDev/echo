@@ -2,7 +2,9 @@ package aimodel
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,7 +20,7 @@ var httpClient = &http.Client{Timeout: 10 * time.Second}
 const openCodeGoPrefix = "opencode-go/"
 
 type cacheEntry struct {
-	models    []models.ModelInfo
+	models    []aitype.ModelInfo
 	expiresAt time.Time
 }
 
@@ -28,16 +30,16 @@ type modelCache struct {
 }
 
 type SettingsProvider interface {
-	GetSettingsInternal(ctx context.Context, userID int) (*models.UserPreferences, error)
+	GetSettingsInternal(ctx context.Context, userID int) (*usermodel.UserPreferences, error)
 }
 
 type Service struct {
-	cfg         *models.Config
+	cfg         *cfgmodel.Config
 	settingsSvc SettingsProvider
 	cache       modelCache
 }
 
-func NewService(cfg *models.Config, settingsSvc SettingsProvider) *Service {
+func NewService(cfg *cfgmodel.Config, settingsSvc SettingsProvider) *Service {
 	return &Service{cfg: cfg, settingsSvc: settingsSvc, cache: modelCache{entries: make(map[string]cacheEntry)}}
 }
 
@@ -78,16 +80,16 @@ func defaultBaseURL(providerType string) string {
 	return ""
 }
 
-func (s *Service) GetModels(ctx context.Context, userID int) ([]models.ModelInfo, error) {
+func (s *Service) GetModels(ctx context.Context, userID int) ([]aitype.ModelInfo, error) {
 	prefs, err := s.settingsSvc.GetSettingsInternal(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
 	}
 	if prefs == nil || prefs.ProviderType == "" {
-		return []models.ModelInfo{}, nil
+		return []aitype.ModelInfo{}, nil
 	}
 	if prefs.APIKey == "" && prefs.ProviderType != "lm-studio" {
-		return []models.ModelInfo{}, nil
+		return []aitype.ModelInfo{}, nil
 	}
 	if prefs.BaseURL == "" {
 		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
@@ -96,7 +98,7 @@ func (s *Service) GetModels(ctx context.Context, userID int) ([]models.ModelInfo
 	return s.getCachedModels(ctx, prefs.ProviderType, prefs.APIKey, prefs.BaseURL)
 }
 
-func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, baseURL string) ([]models.ModelInfo, error) {
+func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, baseURL string) ([]aitype.ModelInfo, error) {
 	key := cacheKey(providerType, baseURL)
 
 	s.cache.mu.RLock()
@@ -135,44 +137,44 @@ func modelsURL(baseURL string) string {
 	return base + "/models"
 }
 
-func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey, baseURL string) ([]models.ModelInfo, error) {
+func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey, baseURL string) ([]aitype.ModelInfo, error) {
 	switch providerType {
 	case "opencode-go":
-		return s.fetchModels(ctx, providerType, "https://opencode.ai/zen/go/v1/models", apiKey, func(id string) models.ModelInfo {
-			return models.ModelInfo{
+		return s.fetchModels(ctx, providerType, "https://opencode.ai/zen/go/v1/models", apiKey, func(id string) aitype.ModelInfo {
+			return aitype.ModelInfo{
 				ID:                 openCodeGoPrefix + id,
 				Name:               id,
-				ProviderType:       models.ProviderOpenCode,
+				ProviderType:       aitype.ProviderOpenCode,
 				ProviderName:       "OpenCode Go",
 				SupportsMultimodal: isMultimodalModel(id),
 			}
 		})
 	case "lm-studio":
-		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
-			return models.ModelInfo{
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) aitype.ModelInfo {
+			return aitype.ModelInfo{
 				ID:                 id,
 				Name:               id,
-				ProviderType:       models.ProviderLMStudio,
+				ProviderType:       aitype.ProviderLMStudio,
 				ProviderName:       "LM Studio",
 				SupportsMultimodal: isMultimodalModel(id),
 			}
 		})
 	case "openai":
-		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
-			return models.ModelInfo{
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) aitype.ModelInfo {
+			return aitype.ModelInfo{
 				ID:                 id,
 				Name:               id,
-				ProviderType:       models.ProviderOpenAI,
+				ProviderType:       aitype.ProviderOpenAI,
 				ProviderName:       "OpenAI",
 				SupportsMultimodal: isMultimodalModel(id),
 			}
 		})
 	case "anthropic":
-		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) models.ModelInfo {
-			return models.ModelInfo{
+		return s.fetchModels(ctx, providerType, modelsURL(baseURL), apiKey, func(id string) aitype.ModelInfo {
+			return aitype.ModelInfo{
 				ID:                 id,
 				Name:               id,
-				ProviderType:       models.ProviderAnthropic,
+				ProviderType:       aitype.ProviderAnthropic,
 				ProviderName:       "Anthropic",
 				SupportsMultimodal: isMultimodalModel(id),
 			}
@@ -182,7 +184,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 	}
 }
 
-func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey string, transform func(id string) models.ModelInfo) ([]models.ModelInfo, error) {
+func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey string, transform func(id string) aitype.ModelInfo) ([]aitype.ModelInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -220,14 +222,14 @@ func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey str
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	var items []models.ModelInfo
+	var items []aitype.ModelInfo
 	for _, m := range apiResp.Data {
 		items = append(items, transform(m.ID))
 	}
 	return items, nil
 }
 
-func (s *Service) ResolveProviderConfig(userID int, modelID string) (*models.ProviderConfig, error) {
+func (s *Service) ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error) {
 	prefs, err := s.settingsSvc.GetSettingsInternal(context.Background(), userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
@@ -253,8 +255,8 @@ func (s *Service) ResolveProviderConfig(userID int, modelID string) (*models.Pro
 		modelName = strings.TrimPrefix(modelID, openCodeGoPrefix)
 	}
 
-	return &models.ProviderConfig{
-		Type:    models.ProviderType(providerType),
+	return &aitype.ProviderConfig{
+		Type:    aitype.ProviderType(providerType),
 		BaseURL: baseURL,
 		APIKey:  apiKey,
 		Model:   modelName,

@@ -15,7 +15,7 @@ import (
 	setthdl "echo-backend/internal/handler/settings"
 	"echo-backend/internal/handler/llmops"
 	"echo-backend/internal/middleware"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	authrepo "echo-backend/internal/repository/auth"
 	adminrepo "echo-backend/internal/repository/admin"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
@@ -30,7 +30,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
+func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	// 1. Initialize Infrastructure
 	pool := database.NewPostgresPool(cfg)
 	rdb := database.NewRedisClient(cfg)

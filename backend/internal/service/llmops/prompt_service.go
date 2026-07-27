@@ -4,19 +4,19 @@ import (
 	"context"
 	"fmt"
 
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/llmops"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
 )
 
 type PromptService interface {
-	CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error)
-	ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error)
-	CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*models.PromptVersion, error)
-	GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error)
-	GetActivePrompt(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error)
+	CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error)
+	CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error)
+	GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error)
+	GetActivePrompt(ctx context.Context, tenantID, templateName string) (*llmopsmodel.PromptVersion, error)
 	PromoteToProduction(ctx context.Context, templateID string, version int, actor string) error
 	RollbackToVersion(ctx context.Context, templateID string, targetVersion int, actor string) error
-	GetVersionHistory(ctx context.Context, templateID string) ([]models.PromptVersion, error)
+	GetVersionHistory(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error)
 }
 
 type promptService struct {
@@ -27,11 +27,11 @@ func NewPromptService(repo propsrepo.Repository) PromptService {
 	return &promptService{repo: repo}
 }
 
-func (s *promptService) ListTemplates(ctx context.Context, tenantID string) ([]models.PromptTemplate, error) {
+func (s *promptService) ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error) {
 	return s.repo.ListTemplates(ctx, tenantID)
 }
 
-func (s *promptService) CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*models.PromptTemplate, error) {
+func (s *promptService) CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error) {
 	if name == "" {
 		return nil, fmt.Errorf("template name cannot be empty")
 	}
@@ -42,7 +42,7 @@ func (s *promptService) CreatePromptTemplate(ctx context.Context, tenantID, name
 	return tmpl, nil
 }
 
-func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*models.PromptVersion, error) {
+func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error) {
 	versions, err := s.repo.ListVersions(ctx, templateID)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt
 		nextVersion = versions[0].Version + 1
 	}
 
-	pv := &models.PromptVersion{
+	pv := &llmopsmodel.PromptVersion{
 		TemplateID:   templateID,
 		Version:      nextVersion,
 		SystemPrompt: prompt,
@@ -71,7 +71,7 @@ func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt
 	return created, nil
 }
 
-func (s *promptService) GetVersion(ctx context.Context, templateID string, version int) (*models.PromptVersion, error) {
+func (s *promptService) GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error) {
 	v, err := s.repo.GetVersion(ctx, templateID, version)
 	if err != nil || v == nil {
 		return nil, fmt.Errorf("prompt version not found: %w", err)
@@ -79,7 +79,7 @@ func (s *promptService) GetVersion(ctx context.Context, templateID string, versi
 	return v, nil
 }
 
-func (s *promptService) GetActivePrompt(ctx context.Context, tenantID, templateName string) (*models.PromptVersion, error) {
+func (s *promptService) GetActivePrompt(ctx context.Context, tenantID, templateName string) (*llmopsmodel.PromptVersion, error) {
 	v, err := s.repo.GetActiveVersionByName(ctx, tenantID, templateName)
 	if err != nil || v == nil {
 		return nil, fmt.Errorf("active prompt version not found: %w", err)
@@ -103,6 +103,6 @@ func (s *promptService) RollbackToVersion(ctx context.Context, templateID string
 	return nil
 }
 
-func (s *promptService) GetVersionHistory(ctx context.Context, templateID string) ([]models.PromptVersion, error) {
+func (s *promptService) GetVersionHistory(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error) {
 	return s.repo.ListVersions(ctx, templateID)
 }

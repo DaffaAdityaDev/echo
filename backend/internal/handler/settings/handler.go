@@ -2,18 +2,20 @@ package settings
 
 import (
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
 	"echo-backend/internal/service/settings"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type Handler struct {
-	Cfg         *models.Config
+	Cfg         *cfgmodel.Config
 	SettingsSvc *settings.Service
 }
 
-func NewHandler(cfg *models.Config, settingsSvc *settings.Service) *Handler {
+func NewHandler(cfg *cfgmodel.Config, settingsSvc *settings.Service) *Handler {
 	return &Handler{
 		Cfg:         cfg,
 		SettingsSvc: settingsSvc,
@@ -56,11 +58,11 @@ func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	if req.ProviderType != "" && !models.IsValidProvider(req.ProviderType) {
+	if req.ProviderType != "" && !aitype.IsValidProvider(req.ProviderType) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unknown provider type: " + req.ProviderType})
 	}
 
-	prefs := &models.UserPreferences{
+	prefs := &usermodel.UserPreferences{
 		DefaultMode:     req.DefaultMode,
 		DefaultModel:    req.DefaultModel,
 		DefaultFeatures: req.DefaultFeatures,

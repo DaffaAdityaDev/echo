@@ -2,7 +2,8 @@ package consolidation
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,20 +24,20 @@ func (m *mockSessionRepo) GetMaxTurnNumber(ctx context.Context, sessionID string
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error) {
+func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*models.Message), args.Error(1)
+	return args.Get(0).([]*chatmodel.Message), args.Error(1)
 }
 
-func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*models.Session, error) {
+func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Session), args.Error(1)
+	return args.Get(0).(*chatmodel.Session), args.Error(1)
 }
 
 func (m *mockSessionRepo) PruneSession(ctx context.Context, sessionID string, newSummary string, pruneLimitTurn int) error {
@@ -47,7 +48,7 @@ func (m *mockSessionRepo) PruneSession(ctx context.Context, sessionID string, ne
 func TestCheckThreshold(t *testing.T) {
 	t.Parallel()
 
-	cfg := &models.Config{PRUNE_THRESHOLD: 100}
+	cfg := &cfgmodel.Config{PRUNE_THRESHOLD: 100}
 
 	tests := []struct {
 		name      string

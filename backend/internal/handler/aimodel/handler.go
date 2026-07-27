@@ -2,7 +2,7 @@ package aimodel
 
 import (
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
 	"echo-backend/internal/service/aimodel"
 
 	"github.com/gofiber/fiber/v3"
@@ -27,7 +27,7 @@ func (h *Handler) HandleGetModels(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve models", "details": err.Error()})
 	}
 	if modelsList == nil {
-		modelsList = []models.ModelInfo{}
+		modelsList = []aitype.ModelInfo{}
 	}
 	return c.JSON(fiber.Map{"models": modelsList})
 }

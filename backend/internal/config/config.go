@@ -2,14 +2,14 @@ package config
 
 import (
 	cfgConst "echo-backend/internal/constants/config"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	"os"
 	"strconv"
 	"strings"
 )
 
-func Load() *models.Config {
-	c := &models.Config{}
+func Load() *cfgmodel.Config {
+	c := &cfgmodel.Config{}
 	c.Port = envStr("PORT", cfgConst.DefaultPort)
 	c.DatabaseURL = envStr("DATABASE_URL", cfgConst.DefaultDatabaseURL)
 	c.JWTSecret = envStr("JWT_SECRET", cfgConst.DefaultJWTSecret)

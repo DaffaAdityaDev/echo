@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func InternalAuthRequired(cfg *models.Config) fiber.Handler {
+func InternalAuthRequired(cfg *cfgmodel.Config) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {

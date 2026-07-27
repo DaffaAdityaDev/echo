@@ -3,7 +3,7 @@ package session
 import (
 	"bufio"
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/chat"
 	"fmt"
 	"os"
 	"strings"
@@ -82,26 +82,26 @@ func TestSessionRepository(t *testing.T) {
 		t.Error("Expected generated session ID, got empty string")
 	}
 
-	userMsg := &models.Message{
+	userMsg := &chatmodel.Message{
 		Role:       "user",
 		Content:    "Hello agent!",
 		TokenCount: 3,
 		TurnNumber: 1,
 	}
-	assistantMsg := &models.Message{
+	assistantMsg := &chatmodel.Message{
 		Role:       "assistant",
 		Content:    "Hello user! How can I help you today?",
 		TokenCount: 10,
 		TurnNumber: 1,
 	}
-	toolResult := &models.Message{
+	toolResult := &chatmodel.Message{
 		Role:       "tool_result",
 		Content:    "search result: success",
 		TokenCount: 4,
 		TurnNumber: 1,
 	}
 
-	err = repo.SaveTurnMessages(ctx, session.ID, userMsg, assistantMsg, []*models.Message{toolResult})
+	err = repo.SaveTurnMessages(ctx, session.ID, userMsg, assistantMsg, []*chatmodel.Message{toolResult})
 	if err != nil {
 		t.Fatalf("Failed to save turn messages: %v", err)
 	}

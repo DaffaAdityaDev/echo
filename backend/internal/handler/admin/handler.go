@@ -5,7 +5,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
 	"encoding/hex"
 	"strconv"
 	"time"
@@ -14,18 +15,18 @@ import (
 )
 
 type APIKeyRepo interface {
-	Create(ctx context.Context, key *models.ApiKey) error
-	List(ctx context.Context) ([]models.ApiKey, error)
-	GetByID(ctx context.Context, id string) (*models.ApiKey, error)
+	Create(ctx context.Context, key *authmodel.ApiKey) error
+	List(ctx context.Context) ([]authmodel.ApiKey, error)
+	GetByID(ctx context.Context, id string) (*authmodel.ApiKey, error)
 	Revoke(ctx context.Context, id string) error
 }
 
 type Handler struct {
-	Cfg        *models.Config
+	Cfg        *cfgmodel.Config
 	APIKeyRepo APIKeyRepo
 }
 
-func NewHandler(cfg *models.Config, apiKeyRepo APIKeyRepo) *Handler {
+func NewHandler(cfg *cfgmodel.Config, apiKeyRepo APIKeyRepo) *Handler {
 	return &Handler{
 		Cfg:        cfg,
 		APIKeyRepo: apiKeyRepo,
@@ -79,7 +80,7 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	userID := strconv.Itoa(userIDInt)
 
 	now := time.Now()
-	ak := models.ApiKey{
+	ak := authmodel.ApiKey{
 		ID:        handlerutil.GenerateUUID(),
 		KeyHash:   hash,
 		Prefix:    prefix,

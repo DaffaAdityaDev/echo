@@ -2,7 +2,8 @@ package settings
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
 	"echo-backend/internal/repository/settings"
 	"echo-backend/pkg/crypto"
 	"fmt"
@@ -24,20 +25,20 @@ func defaultBaseURL(providerType string) string {
 }
 
 type Service struct {
-	cfg          *models.Config
+	cfg          *cfgmodel.Config
 	settingsRepo *settings.Repository
 }
 
-func NewService(cfg *models.Config, settingsRepo *settings.Repository) *Service {
+func NewService(cfg *cfgmodel.Config, settingsRepo *settings.Repository) *Service {
 	return &Service{
 		cfg:          cfg,
 		settingsRepo: settingsRepo,
 	}
 }
 
-func (s *Service) GetDefaults() *models.UserPreferences {
+func (s *Service) GetDefaults() *usermodel.UserPreferences {
 	defaultFeatures := []string{"web_search", "write_todos"}
-	return &models.UserPreferences{
+	return &usermodel.UserPreferences{
 		UserID:          0,
 		DefaultMode:     "standard",
 		DefaultModel:    s.cfg.DefaultModel,
@@ -49,7 +50,7 @@ func (s *Service) GetDefaults() *models.UserPreferences {
 	}
 }
 
-func (s *Service) GetSettings(ctx context.Context, userID int) (*models.UserPreferences, error) {
+func (s *Service) GetSettings(ctx context.Context, userID int) (*usermodel.UserPreferences, error) {
 	prefs, err := s.settingsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func (s *Service) GetSettings(ctx context.Context, userID int) (*models.UserPref
 	return prefs, nil
 }
 
-func (s *Service) UpdateSettings(ctx context.Context, userID int, prefs *models.UserPreferences, keepAPIKey bool) (*models.UserPreferences, error) {
+func (s *Service) UpdateSettings(ctx context.Context, userID int, prefs *usermodel.UserPreferences, keepAPIKey bool) (*usermodel.UserPreferences, error) {
 	if keepAPIKey && prefs.APIKey == "" {
 		existing, err := s.settingsRepo.Get(ctx, userID)
 		if err == nil && existing != nil && existing.APIKey != "" {
@@ -99,7 +100,7 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int, prefs *models.
 	return updated, nil
 }
 
-func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*models.UserPreferences, error) {
+func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*usermodel.UserPreferences, error) {
 	prefs, err := s.settingsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err

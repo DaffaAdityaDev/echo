@@ -5,7 +5,9 @@ import (
 	"context"
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,11 +21,11 @@ import (
 )
 
 type SessionRepo interface {
-	CreateSession(ctx context.Context, userID int, title string) (*models.Session, error)
-	GetByID(ctx context.Context, sessionID string) (*models.Session, error)
+	CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error)
+	GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
-	ListByUser(ctx context.Context, userID int) ([]*models.Session, error)
-	GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error)
+	ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error)
+	GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error)
 	UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error
 	GetSessionTokenCount(ctx context.Context, sessionID string) (int, error)
 }
@@ -34,17 +36,17 @@ type ConsolidationSvc interface {
 }
 
 type ModelSvc interface {
-	ResolveProviderConfig(userID int, modelID string) (*models.ProviderConfig, error)
+	ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error)
 }
 
 type Handler struct {
-	Cfg              *models.Config
+	Cfg              *cfgmodel.Config
 	SessionRepo      SessionRepo
 	ConsolidationSvc ConsolidationSvc
 	ModelSvc         ModelSvc
 }
 
-func NewHandler(cfg *models.Config, sessionRepo SessionRepo, consolidationSvc ConsolidationSvc, modelSvc ModelSvc) *Handler {
+func NewHandler(cfg *cfgmodel.Config, sessionRepo SessionRepo, consolidationSvc ConsolidationSvc, modelSvc ModelSvc) *Handler {
 	return &Handler{
 		Cfg:              cfg,
 		SessionRepo:      sessionRepo,
@@ -91,7 +93,7 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 	}
 
 	if sessions == nil {
-		sessions = []*models.Session{}
+		sessions = []*chatmodel.Session{}
 	}
 
 	return c.JSON(fiber.Map{"sessions": sessions})
@@ -152,7 +154,7 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 	}
 
 	if messages == nil {
-		messages = []*models.Message{}
+		messages = []*chatmodel.Message{}
 	}
 
 	return c.JSON(fiber.Map{"messages": messages})

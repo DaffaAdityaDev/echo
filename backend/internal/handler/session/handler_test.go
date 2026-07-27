@@ -2,7 +2,9 @@ package session
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -16,20 +18,20 @@ type mockSessionRepo struct {
 	mock.Mock
 }
 
-func (m *mockSessionRepo) CreateSession(ctx context.Context, userID int, title string) (*models.Session, error) {
+func (m *mockSessionRepo) CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error) {
 	args := m.Called(ctx, userID, title)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Session), args.Error(1)
+	return args.Get(0).(*chatmodel.Session), args.Error(1)
 }
 
-func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*models.Session, error) {
+func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Session), args.Error(1)
+	return args.Get(0).(*chatmodel.Session), args.Error(1)
 }
 
 func (m *mockSessionRepo) DeleteSession(ctx context.Context, sessionID string) error {
@@ -37,20 +39,20 @@ func (m *mockSessionRepo) DeleteSession(ctx context.Context, sessionID string) e
 	return args.Error(0)
 }
 
-func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int) ([]*models.Session, error) {
+func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*models.Session), args.Error(1)
+	return args.Get(0).([]*chatmodel.Session), args.Error(1)
 }
 
-func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string) ([]*models.Message, error) {
+func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*models.Message), args.Error(1)
+	return args.Get(0).([]*chatmodel.Message), args.Error(1)
 }
 
 func (m *mockSessionRepo) UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error {
@@ -81,12 +83,12 @@ type mockModelSvc struct {
 	mock.Mock
 }
 
-func (m *mockModelSvc) ResolveProviderConfig(userID int, modelID string) (*models.ProviderConfig, error) {
+func (m *mockModelSvc) ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error) {
 	args := m.Called(userID, modelID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.ProviderConfig), args.Error(1)
+	return args.Get(0).(*aitype.ProviderConfig), args.Error(1)
 }
 
 func TestHandleCreateSession(t *testing.T) {
@@ -105,7 +107,7 @@ func TestHandleCreateSession(t *testing.T) {
 			setUserID: "1",
 			mockSetup: func(m *mockSessionRepo, _ *mockConsolidationSvc, _ *mockModelSvc) {
 				m.On("CreateSession", mock.Anything, 1, "My New Session").
-					Return(&models.Session{ID: "sess_abc", UserID: 1, Title: "My New Session"}, nil)
+					Return(&chatmodel.Session{ID: "sess_abc", UserID: 1, Title: "My New Session"}, nil)
 			},
 			wantStatus: fiber.StatusCreated,
 		},
@@ -129,7 +131,7 @@ func TestHandleCreateSession(t *testing.T) {
 			tt.mockSetup(mockRepo, mockCons, mockMod)
 
 			h := &Handler{
-				Cfg:              &models.Config{},
+				Cfg:              &cfgmodel.Config{},
 				SessionRepo:      mockRepo,
 				ConsolidationSvc: mockCons,
 				ModelSvc:         mockMod,
@@ -157,8 +159,8 @@ func TestHandleCreateSession(t *testing.T) {
 func TestHandleDeleteSession(t *testing.T) {
 	t.Parallel()
 
-	sharedSession := &models.Session{ID: "sess_shared", UserID: 1, Status: "active"}
-	otherUserSession := &models.Session{ID: "sess_other", UserID: 2, Status: "active"}
+	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: "active"}
+	otherUserSession := &chatmodel.Session{ID: "sess_other", UserID: 2, Status: "active"}
 
 	tests := []struct {
 		name          string
@@ -199,7 +201,7 @@ func TestHandleDeleteSession(t *testing.T) {
 			tt.mockSetup(mockRepo, mockCons, mockMod)
 
 			h := &Handler{
-				Cfg:              &models.Config{},
+				Cfg:              &cfgmodel.Config{},
 				SessionRepo:      mockRepo,
 				ConsolidationSvc: mockCons,
 				ModelSvc:         mockMod,

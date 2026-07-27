@@ -2,7 +2,8 @@ package admin
 
 import (
 	"context"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"
@@ -17,25 +18,25 @@ type mockAPIKeyRepo struct {
 	mock.Mock
 }
 
-func (m *mockAPIKeyRepo) Create(ctx context.Context, key *models.ApiKey) error {
+func (m *mockAPIKeyRepo) Create(ctx context.Context, key *authmodel.ApiKey) error {
 	args := m.Called(ctx, key)
 	return args.Error(0)
 }
 
-func (m *mockAPIKeyRepo) List(ctx context.Context) ([]models.ApiKey, error) {
+func (m *mockAPIKeyRepo) List(ctx context.Context) ([]authmodel.ApiKey, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.ApiKey), args.Error(1)
+	return args.Get(0).([]authmodel.ApiKey), args.Error(1)
 }
 
-func (m *mockAPIKeyRepo) GetByID(ctx context.Context, id string) (*models.ApiKey, error) {
+func (m *mockAPIKeyRepo) GetByID(ctx context.Context, id string) (*authmodel.ApiKey, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.ApiKey), args.Error(1)
+	return args.Get(0).(*authmodel.ApiKey), args.Error(1)
 }
 
 func (m *mockAPIKeyRepo) Revoke(ctx context.Context, id string) error {
@@ -59,7 +60,7 @@ func TestHandleCreateKey(t *testing.T) {
 			body:      `{"name":"Test Key","scopes":["read","write"]}`,
 			setUserID: "1",
 			mockSetup: func(m *mockAPIKeyRepo) {
-				m.On("Create", mock.Anything, mock.MatchedBy(func(k *models.ApiKey) bool {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(k *authmodel.ApiKey) bool {
 					return k.Prefix != "" && k.KeyHash != "" && k.Name == "Test Key" && k.Status == "active"
 				})).Return(nil)
 			},
@@ -84,7 +85,7 @@ func TestHandleCreateKey(t *testing.T) {
 			tt.mockSetup(mockRepo)
 
 			h := &Handler{
-				Cfg:        &models.Config{},
+				Cfg:        &cfgmodel.Config{},
 				APIKeyRepo: mockRepo,
 			}
 

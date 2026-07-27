@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"echo-backend/internal/constants/db"
-	"echo-backend/internal/models"
+	"echo-backend/internal/models/config"
 	"log"
 	"time"
 
@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisClient(cfg *models.Config) *redis.Client {
+func NewRedisClient(cfg *cfgmodel.Config) *redis.Client {
 	if cfg.RedisAddr == "" {
 		return nil
 	}
@@ -25,7 +25,7 @@ func NewRedisClient(cfg *models.Config) *redis.Client {
 	return rdb
 }
 
-func NewPostgresPool(cfg *models.Config) *pgxpool.Pool {
+func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 	if cfg.DatabaseURL == "" {
 		return nil
 	}
