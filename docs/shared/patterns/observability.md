@@ -21,8 +21,8 @@ for infrastructure monitoring, and Grafana dashboards for visualization.
 | backend/internal/observability/     |                                             |
 |   tracer.go                         | OTLP exporter, tracer init, span helpers    |
 | backend/internal/handler/           |                                             |
-|   chat_handler.go                   | Trace propagation, span creation            |
-| agent/src/utils/                    |                                             |
+|   chat/handler.go                   | Trace propagation, span creation            |
+| agent/src/shared/utils/             |                                             |
 |   telemetry.ts                      | OTel SDK with LangfuseSpanProcessor         |
 |   langfuse.ts                       | Langfuse tracing, LangChain callbacks       |
 | frontend/web/src/lib/               |                                             |
@@ -328,11 +328,11 @@ service:
 
 - **Go tracer init**: `backend/internal/observability/tracer.go:23-51`
 - **Go span helpers**: `backend/internal/observability/tracer.go:54-63`
-- **Go trace propagation**: `backend/internal/handler/chat_handler.go:68-90,
+- **Go trace propagation**: `backend/internal/handler/chat/handler.go:68-90,
   98-102, 188-191`
-- **Agent OTel SDK**: `agent/src/utils/telemetry.ts:1-39`
-- **Agent Langfuse**: `agent/src/utils/langfuse.ts:1-65`
-- **Agent LangChain callbacks**: `agent/src/utils/langfuse.ts:16-29`
+- **Agent OTel SDK**: `agent/src/shared/utils/telemetry.ts:1-39`
+- **Agent Langfuse**: `agent/src/shared/utils/langfuse.ts:1-65`
+- **Agent LangChain callbacks**: `agent/src/shared/utils/langfuse.ts:16-29`
 - **Frontend trace context**: `frontend/web/src/lib/api-client.ts:27-29`
 
 ## Dependencies
@@ -350,15 +350,15 @@ service:
 +-------------------------------------------------------+-------+--------------------------------------+
 | backend/internal/observability/tracer.go              | 23-51 | OTLP exporter, tracer init           |
 | backend/internal/observability/tracer.go              | 54-63 | TrackAgentTurn span helper           |
-| backend/internal/handler/chat_handler.go              | 68-90 | parseTraceparent                     |
-| backend/internal/handler/chat_handler.go              | 98-102| RemoteSpanContext injection          |
-| backend/internal/handler/chat_handler.go              | 104-  | HandleChat span start                |
+| backend/internal/handler/chat/handler.go              | 68-90 | parseTraceparent                     |
+| backend/internal/handler/chat/handler.go              | 98-102| RemoteSpanContext injection          |
+| backend/internal/handler/chat/handler.go              | 104-  | HandleChat span start                |
 |                                                       | 109   |                                      |
-| backend/internal/handler/chat_handler.go              | 188-  | Traceparent propagation to Agent     |
+| backend/internal/handler/chat/handler.go              | 188-  | Traceparent propagation to Agent     |
 |                                                       | 191   |                                      |
-| agent/src/utils/telemetry.ts                          | 1-39  | OTel SDK with LangfuseSpanProcessor  |
-| agent/src/utils/langfuse.ts                           | 34-63 | startAgentTrace                      |
-| agent/src/utils/langfuse.ts                           | 16-29 | getLangChainCallbacks                |
+| agent/src/shared/utils/telemetry.ts                   | 1-39  | OTel SDK with LangfuseSpanProcessor  |
+| agent/src/shared/utils/langfuse.ts                    | 34-63 | startAgentTrace                      |
+| agent/src/shared/utils/langfuse.ts                    | 16-29 | getLangChainCallbacks                |
 | frontend/web/src/lib/api-client.ts                    | 65-69 | Frontend traceparent generation      |
 | docker-compose.yml                                    | 42-80 | Observability infra services         |
 +-------------------------------------------------------+-------+--------------------------------------+

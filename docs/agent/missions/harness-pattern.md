@@ -183,7 +183,7 @@ harness/
 | `cancellationManager`            | Abort signal for client disconnect                           |
 | `startAgentTrace`/`langfuseStorage` | Observability + tracing                                  |
 | `@opentelemetry/api`             | OpenTelemetry context propagation                            |
-| `utils/harness`                  | Cosine similarity, token counting, truncation                |
+| `shared/utils/harness`           | Cosine similarity, token counting, truncation                |
 +----------------------------------+--------------------------------------------------------------+
 
 ---

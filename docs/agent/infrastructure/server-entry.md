@@ -131,7 +131,7 @@ ENV_VALIDATION_MESSAGES = {
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  2. import "./utils/telemetry" → OpenTelemetry NodeSDK.start()           │
+│  2. import "./shared/utils/telemetry" → OpenTelemetry NodeSDK.start()           │
 │                                  → LangfuseSpanProcessor                 │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │
@@ -234,7 +234,7 @@ import "./utils/telemetry";
 await toolRegistry.autoload();
 
 // Step 4: Initialize state provider and credential manager
-import { MemoryAdapter } from "./adapter/backend/memory.adapter";
+import { MemoryAdapter } from "./adapter/outbound/backend/memory.adapter";
 import { CredentialManager } from "./core/agent/credentials/manager";
 
 const memoryProvider = new MemoryAdapter(ENV.BACKEND_URL);
@@ -254,7 +254,7 @@ export default {
 
 ### Backend Storage Provider
 
-The storage provider (`adapter/backend/memory.adapter.ts`) communicates with the Go backend via the internal network using `BACKEND_URL` as the base URL. It is used by the agent harness to persist and retrieve session state, conversation history, and key-value store entries.
+The storage provider (`adapter/outbound/backend/memory.adapter.ts`) communicates with the Go backend via the internal network using `BACKEND_URL` as the base URL. It is used by the agent harness to persist and retrieve session state, conversation history, and key-value store entries.
 
 ---
 
@@ -267,7 +267,7 @@ The storage provider (`adapter/backend/memory.adapter.ts`) communicates with the
 | `@hono/node-server`       | ^2.0.1      | Node.js server adapter                            |
 | `zod`                     | ^4.4.3      | Environment variable schema parsing               |
 | `@opentelemetry/sdk-node` | ^0.218.0    | Telemetry initialization                          |
-| `adapter/backend/memory.adapter` | src/  | MemoryAdapter for session & message store       |
+| `adapter/outbound/backend/memory.adapter` | src/  | MemoryAdapter for session & message store       |
 | `core/agent/credentials/manager` | src/ | CredentialManager for dynamic credentials         |
 | `node:fs`                 | built-in    | Startup cleanup (rmSync)                          |
 | `node:path`               | built-in    | Path resolution                                   |
@@ -292,7 +292,7 @@ The storage provider (`adapter/backend/memory.adapter.ts`) communicates with the
 | `src/config/env.schema.ts`       | 8-33                        | Zod schema with SERVICE_JWT_SECRET,               |
 |                                 |                             |   BACKEND_URL                                     |
 | `src/config/env.constants.ts`    | 1-22                        | Defaults, valid values, validation messages       |
-| `src/adapter/backend/memory.adapter.ts` | 1-60                   | MemoryAdapter network API calls                   |
+| `src/adapter/outbound/backend/memory.adapter.ts` | 1-60     | MemoryAdapter network API calls                   |
 | `src/core/agent/credentials/manager.ts` | 1-50                 | CredentialManager store implementation             |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 

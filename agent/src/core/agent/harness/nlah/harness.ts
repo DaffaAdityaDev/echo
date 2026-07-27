@@ -8,11 +8,11 @@ import { compressObservation } from './utils/compress';
 import { AgentStatusTracker } from './utils/status_tracker';
 import { logger } from '../../../../shared/utils/logger';
 
-import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from '../../../../utils/harness';
+import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from '../../../../shared/utils/harness';
 import { ENV } from '../../../../config/env';
 import { stateStorage } from '../../storage/factory';
 import { ToolRetriever } from '../../services/retriever';
-import { startAgentTrace, langfuseStorage } from '../../../../utils/langfuse';
+import { startAgentTrace, langfuseStorage } from '../../../../shared/utils/langfuse';
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { 
     HARNESS_CONFIG, 

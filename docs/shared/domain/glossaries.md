@@ -20,14 +20,14 @@ Terms reference definitions across these source files:
 | Location                           | Role                                     |
 +------------------------------------+------------------------------------------+
 | backend/internal/handler/          |                                          |
-|   chat_handler.go                  | ChatHandler, ChatRequest, Feature, Tier  |
-|   auth_handler.go                  | AuthHandler, JWT                         |
+|   chat/handler.go                  | ChatHandler, ChatRequest, Feature, Tier  |
+|   auth/handler.go                  | AuthHandler, JWT                         |
 | backend/internal/middleware/       |                                          |
 |   auth.go                          | AuthRequired                             |
 | backend/internal/models/models.go  | User, ProviderType, Config, ModelInfo    |
 | backend/internal/service/          |                                          |
-|   model_service.go                 | ModelService, ProviderConfig             |
-|   auth_service.go                  | AuthService                              |
+|   aimodel/service.go               | ModelService, ProviderConfig             |
+|   auth/service.go                  | AuthService                              |
 | backend/internal/observability/    |                                          |
 |   tracer.go                        | Tracer, Span                             |
 | backend/internal/constants/        |                                          |
@@ -39,12 +39,12 @@ Terms reference definitions across these source files:
 | agent/src/shared/constants/        |                                          |
 |   errors.ts                        | Error types                              |
 |   middleware.ts                    | Auth constants                           |
-| agent/src/app/api/missions/        |                                          |
+| agent/src/adapter/inbound/api/missions/        |                                          |
 |   mission.schema.ts                | Zod schema                               |
 |   mission.controller.ts            | MissionController                        |
 |   stream.transport.ts              | HttpStreamTransport                      |
 |   mission.constants.ts             | Mission constants                        |
-| agent/src/app/middleware/auth.ts   | Auth middleware                           |
+| agent/src/adapter/inbound/middleware/auth.ts   | Auth middleware                           |
 | agent/src/core/agent/harness/      |                                          |
 |   cancel_manager.ts                | CancellationManager                      |
 | agent/src/core/agent/strategies/   |                                          |
@@ -57,7 +57,7 @@ Terms reference definitions across these source files:
 |   providers/factory.ts             | ProviderFactory                          |
 | agent/src/config/                  |                                          |
 |   env.schema.ts                    | Env schema                               |
-| agent/src/utils/                   |                                          |
+| agent/src/shared/utils/            |                                          |
 |   telemetry.ts                     | OTel SDK                                 |
 |   langfuse.ts                      | Langfuse tracing                         |
 | frontend/web/src/features/chat/    |                                          |
@@ -125,7 +125,7 @@ AIMessage, SystemMessage for LLM provider compatibility.
 The typed HTTP contract between Go Gateway and Hono Agent. Defined by Zod
 schema on the agent side and Go structs on the gateway side. Authenticated via
 `X-Internal-Token`.
-*Source: `agent/src/app/api/missions/mission.schema.ts`*
+*Source: `agent/src/adapter/inbound/api/missions/mission.schema.ts`*
 
 ### C
 
@@ -143,7 +143,7 @@ algorithm fields (EF, interval, due, repetitions, last_score).
 **ChatHandler**
 Go Fiber handler managing chat requests. Validates input, checks tier gating on
 features, resolves model config, proxies SSE stream from Agent.
-*Source: `backend/internal/handler/chat_handler.go`*
+*Source: `backend/internal/handler/chat/handler.go`*
 
 **Chroma**
 Open-source vector database used by agent for RAG (Retrieval Augmented
@@ -171,7 +171,7 @@ game server management.
 A discoverable capability/plugin that can be bound to a mission. Examples:
 `web_search`, `code_execute`. Features have tier requirements
 (free vs pro) and are lazily loaded by the tool registry.
-*Source: `backend/internal/handler/chat_handler.go:54-59`*
+*Source: `backend/internal/handler/chat/handler.go:54-59`*
 
 **Frontend**
 The Next.js web application (`frontend/web/`) that provides the user interface.
@@ -211,7 +211,7 @@ fast, with built-in SSE streaming support.
 **HttpStreamTransport**
 Implements the StreamTransport interface. Enriches packets with seq and
 timestamp, writes to Hono's SSE stream instance.
-*Source: `agent/src/app/api/missions/stream.transport.ts`*
+*Source: `agent/src/adapter/inbound/api/missions/stream.transport.ts`*
 
 ### I
 
@@ -231,7 +231,7 @@ Redis (saas mode).
 Authentication token issued by Go Gateway on login. Contains sub (user ID), exp
 (72h), iat. Signed with HS256. Transmitted via httpOnly cookie `auth_token` or
 `Authorization: Bearer` header.
-*Source: `backend/internal/handler/auth_handler.go:34-47`*
+*Source: `backend/internal/handler/auth/handler.go:34-47`*
 
 ### L
 
@@ -243,7 +243,7 @@ callback handlers, and integrations with providers.
 **Langfuse**
 Open-source LLM observability platform. Agent sends traces via
 `LangfuseSpanProcessor` (OTel) and `CallbackHandler` (LangChain).
-*Source: `agent/src/utils/langfuse.ts`*
+*Source: `agent/src/shared/utils/langfuse.ts`*
 
 **LLMProvider**
 Interface for LLM communication. Single method: `stream()` returning
@@ -266,12 +266,12 @@ follow OpenAI function-calling schema format.
 **Mission**
 A single agent execution session. Created by the MissionController, run by the
 AgentHarness. Has a unique missionId, strategy type, and bounded toolset.
-*Source: `agent/src/app/api/missions/mission.controller.ts`*
+*Source: `agent/src/adapter/inbound/api/missions/mission.controller.ts`*
 
 **MissionController**
 Hono controller handling mission creation. Safe-parses request body with Zod,
 creates AgentHarness, manages SSE stream lifecycle.
-*Source: `agent/src/app/api/missions/mission.controller.ts`*
+*Source: `agent/src/adapter/inbound/api/missions/mission.controller.ts`*
 
 **MissionPayload**
 Typed input for a mission: missionId, tenant context, prompt, strategy.
@@ -280,7 +280,7 @@ Typed input for a mission: missionId, tenant context, prompt, strategy.
 **ModelService**
 Go interface for LLM model management. Lists available models from configured
 providers, resolves model IDs to provider configurations.
-*Source: `backend/internal/service/model_service.go`*
+*Source: `backend/internal/service/aimodel/service.go`*
 
 ### N
 
@@ -303,13 +303,13 @@ Standardized response from any tool execution. Contains status
 **OpenCode Go**
 Third-party LLM provider. Models prefixed with `opencode-go/`. Resolves to
 `https://opencode.ai/zen/go/v1` API.
-*Source: `backend/internal/service/model_service.go:16,112`*
+*Source: `backend/internal/service/aimodel/service.go:16,112`*
 
 **OTel (OpenTelemetry)**
 Observability framework used for distributed tracing. W3C trace context
 propagated via `traceparent` header across all services.
 *Source: `backend/internal/observability/tracer.go`,
-`agent/src/utils/telemetry.ts`*
+`agent/src/shared/utils/telemetry.ts`*
 
 ### P
 
@@ -349,7 +349,7 @@ and produces final answer. Max 2 sentences per thought. No fluff.
 **Redis**
 In-memory data store used for: feature catalog cache (10m TTL), mission state
 storage (saas mode), Pub/Sub for mission log streaming (saas mode).
-*Source: `backend/internal/handler/chat_handler.go:343-393`*
+*Source: `backend/internal/handler/chat/handler.go:343-393`*
 
 ### S
 
@@ -371,7 +371,7 @@ interval, and repetition count to schedule reviews.
 **SSE (Server-Sent Events)**
 Streaming protocol for real-time data from server to client. Used for agent
 mission output, mission logs. Lines formatted as `data: {json}\n\n`.
-*Source: `backend/internal/handler/chat_handler.go:206-211`*
+*Source: `backend/internal/handler/chat/handler.go:206-211`*
 
 **Standard**
 Simple direct-chat strategy. Agent answers user query directly without
@@ -403,7 +403,7 @@ orgId (billing organization). Default: `local`.
 **Tier**
 Access level for feature gating. Values: `free` (basic features), `pro` (all
 features). Passed via `X-User-Tier` header.
-*Source: `backend/internal/handler/chat_handler.go:111-114`*
+*Source: `backend/internal/handler/chat/handler.go:111-114`*
 
 **ToolDefinition**
 Contract for a callable tool: name, description, Zod schema, execute function,
@@ -423,7 +423,7 @@ bulk-imported via CSV/Markdown. Auto-split into atomic micro-skills.
 **Traceparent**
 W3C trace context HTTP header. Format: `00-{traceID}-{spanID}-{flags}`.
 Propagated across frontend -> Go -> Agent for distributed tracing.
-*Source: `backend/internal/handler/chat_handler.go:68-90`*
+*Source: `backend/internal/handler/chat/handler.go:68-90`*
 
 ### U
 
@@ -444,7 +444,7 @@ implementations requires config changes, not code changes.
 TypeScript schema validation library used by the agent. Defines request/response
 shapes with runtime parsing. Preprocesses input to normalize camelCase <-> 
 snake_case.
-*Source: `agent/src/app/api/missions/mission.schema.ts`*
+*Source: `agent/src/adapter/inbound/api/missions/mission.schema.ts`*
 
 ================================================================================
   (c) 2026 Echo — All Rights Reserved

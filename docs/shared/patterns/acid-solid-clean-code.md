@@ -38,10 +38,10 @@ return tx.Commit(ctx)
 
 | File | Sequence | ACID? |
 |---|---|---|
-| `chat_handler.go` — final flush | `UpdateMessageContent` + `UpdateMessageStatus` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
-| `chat_handler.go` — user msg + placeholder | `InsertMessage("user")` + `InsertAssistantPlaceholder` | ❌ Must be 1 tx |
-| `session_handler.go` — prune | `UpdateContextSummary` + `DeleteMessagesUpToTurn` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
-| `session_repository.go` — SaveTurnMessages | All 4 steps | ✅ Already in tx |
+| `chat/handler.go` — final flush | `UpdateMessageContent` + `UpdateMessageStatus` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
+| `chat/handler.go` — user msg + placeholder | `InsertMessage("user")` + `InsertAssistantPlaceholder` | ❌ Must be 1 tx |
+| `session/handler.go` — prune | `UpdateContextSummary` + `DeleteMessagesUpToTurn` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
+| `session/repository.go` — SaveTurnMessages | All 4 steps | ✅ Already in tx |
 
 ### Context Timeout
 
@@ -287,7 +287,7 @@ if (data.type === PACKET_TYPES.DEBUG) { ... }
 | Language | Convention | Example |
 |---|---|---|
 | Go | `camelCase` (unexported), `PascalCase` (exported) | `getUserID`, `SaveTurnMessages` |
-| Go files | `snake_case.go` | `session_repository.go` |
+| Go files | `snake_case.go` | `session/repository.go` |
 | TypeScript | `camelCase` (vars, functions), `PascalCase` (types, interfaces, components) | `sendMessage`, `MessageItem` |
 | TypeScript files | `kebab-case.ts` | `chat-api.ts` |
 | SQL | `snake_case` | `turn_number`, `session_id` |

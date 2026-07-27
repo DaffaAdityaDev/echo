@@ -344,8 +344,8 @@ Internal endpoints share a pool:
 
 ## Entry Points & Exports
 
-- **Handler**: `backend/internal/handler/memory_handler.go`
-- **Service**: `backend/internal/service/memory_service.go`
+- **Handler**: `backend/internal/handler/memory/handler.go`
+- **Service**: `backend/internal/service/memory/service.go`
 - **Middleware**: `backend/internal/middleware/internal_auth.go`
 
 ================================================================================

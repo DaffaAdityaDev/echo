@@ -7,7 +7,10 @@
     "docs": "node api/merge.mjs",
     "build": "npm run docs && bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "node dist/index.js",
-    "dev": "bun --watch src/index.ts"
+    "dev": "bun --watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
@@ -23,6 +26,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
     "@opentelemetry/sdk-node": "^0.218.0",
     "@opentelemetry/sdk-trace-base": "^2.0.1",
+    "@scalar/hono-api-reference": "^0.5.171",
     "cheerio": "^1.0.0",
     "chromadb": "^1.10.0",
     "deepagents": "^1.10.0",
@@ -30,7 +34,6 @@
     "hono": "^4.12.18",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^1.4.0",
-    "@scalar/hono-api-reference": "^0.5.171",
     "turndown": "^7.2.0",
     "zod": "^4.4.3",
     "zod-to-json-schema": "^3.25.2"
@@ -43,6 +46,7 @@
     "@types/turndown": "^5.0.5",
     "nodemon": "^3.0.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }

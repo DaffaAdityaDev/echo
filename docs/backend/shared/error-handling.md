@@ -51,20 +51,20 @@ HTTP Status Code Mapping
 +-------+------------------------------------------+----------------------------+
 | Code  | Condition                                | Source                     |
 +-------+------------------------------------------+----------------------------+
-| 400   | Invalid JSON request body                | chat_handler.go:95         |
-|       | Unknown model ID                         | chat_handler.go:146        |
-|       | Missing required param (missionId)       | chat_handler.go:239        |
+| 400   | Invalid JSON request body                | chat/handler.go:95         |
+|       | Unknown model ID                         | chat/handler.go:146        |
+|       | Missing required param (missionId)       | chat/handler.go:239        |
 | 401   | Missing JWT token                        | middleware/auth.go:26-29   |
 |       | Invalid/expired JWT token                | middleware/auth.go:36-40   |
-| 403   | Feature requires Pro subscription        | chat_handler.go:129        |
-| 500   | Failed to generate JWT                   | auth_handler.go:44         |
-|       | Agent service unreachable                | chat_handler.go:197        |
-|       | Agent request failed (non-200)           | chat_handler.go:203        |
-|       | Failed to retrieve features              | chat_handler.go:405        |
-|       | Failed to retrieve models                | model_handler.go:19        |
-|       | Redis offline (SaaS stream)              | chat_handler.go:258        |
-|       | Failed to create agent request           | chat_handler.go:183        |
-| 501   | Register endpoint (stub)                 | auth_handler.go:25         |
+| 403   | Feature requires Pro subscription        | chat/handler.go:129        |
+| 500   | Failed to generate JWT                   | auth/handler.go:44         |
+|       | Agent service unreachable                | chat/handler.go:197        |
+|       | Agent request failed (non-200)           | chat/handler.go:203        |
+|       | Failed to retrieve features              | chat/handler.go:405        |
+|       | Failed to retrieve models                | aimodel/handler.go:19      |
+|       | Redis offline (SaaS stream)              | chat/handler.go:258        |
+|       | Failed to create agent request           | chat/handler.go:183        |
+| 501   | Register endpoint (stub)                 | auth/handler.go:25         |
 +-------+------------------------------------------+----------------------------+
 
 Error Flow
@@ -188,9 +188,9 @@ Source References
 -----------------
 
 - internal/middleware/common.go:29-38 - Error handler
-- internal/handler/auth_handler.go - Auth error responses
-- internal/handler/chat_handler.go - Chat/stream/feature error responses
-- internal/handler/model_handler.go - Model error responses
+- internal/handler/auth/handler.go - Auth error responses
+- internal/handler/chat/handler.go - Chat/stream/feature error responses
+- internal/handler/aimodel/handler.go - Model error responses
 - internal/middleware/auth.go - Auth middleware error responses
 - internal/constants/auth/jwt.go - Auth error constants
 - internal/constants/db/postgres.go - DB error constants

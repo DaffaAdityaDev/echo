@@ -34,11 +34,11 @@ agent → backend for memory persistence (internal).
 |   auth/hooks/              |                                                      |
 |     useAuth.ts             | Auth hook                                            |
 | agent/src/                 |                                                      |
-|   app/api/missions/        |                                                      |
+|   adapter/inbound/api/missions/        |                                           |
 |     mission.schema.ts      | Zod validation schema                                |
 |     mission.controller.ts  | Harness orchestration                                |
 |     stream.transport.ts    | SSE packet writer                                    |
-|   app/middleware/           |                                                      |
+|   adapter/inbound/middleware/           |                                           |
 |     auth.ts                | Token validation (shared secret)                     |
 |   config/                  |                                                      |
 |     env.schema.ts          | Env validation                                       |
@@ -51,22 +51,23 @@ agent → backend for memory persistence (internal).
 |     tools/                 |                                                      |
 |       registry.ts          | Lazy tool loading                                    |
     |     adapter/               |                                                      |
+    |       outbound/            |                                                      |
     |       backend/             |                                                      |
-    |       memory.adapter.ts   | Calls backend via Service JWT for persistence        |
+    |         memory.adapter.ts | Calls backend via Service JWT for persistence        |
 | backend/                   |                                                      |
 |   internal/                |                                                      |
 |     handler/               |                                                      |
-|       chat_handler.go      | SSE proxy, tier check                                |
-|       auth_handler.go      | JWT login                                            |
-|       memory_handler.go    | Memory endpoint handlers (internal)                  |
+|       chat/handler.go      | SSE proxy, tier check                                |
+|       auth/handler.go      | JWT login                                            |
+|       memory/handler.go    | Memory endpoint handlers (internal)                  |
 |     middleware/             |                                                      |
 |       auth.go              | User JWT validation                                  |
 |       service_auth.go      | Service JWT validation (internal routes)             |
 |     router/                |                                                      |
 |       router.go            | Route wiring (public + internal)                     |
 |     service/               |                                                      |
-|       model_service.go     | Model resolution                                     |
-|       memory_service.go    | Memory CRUD (called by internal handler)             |
+|       aimodel/service.go   | Model resolution                                     |
+|       memory/service.go    | Memory CRUD (called by internal handler)             |
 |     observability/         |                                                      |
 |       tracer.go            | OTel tracing                                         |
 +----------------------------+------------------------------------------------------+
@@ -470,18 +471,18 @@ Anthropic (Claude):
 +-------------------------------------------------------+--------------------------------------+
 | File                                                  | Role                                 |
 +-------------------------------------------------------+--------------------------------------+
-| backend/internal/handler/chat_handler.go              | SSE proxy, tier gating, feature      |
+| backend/internal/handler/chat/handler.go              | SSE proxy, tier gating, feature      |
 |                                                       |   caching                            |
-| backend/internal/handler/memory_handler.go            | Internal memory endpoints            |
+| backend/internal/handler/memory/handler.go            | Internal memory endpoints            |
 | backend/internal/middleware/auth.go                   | User JWT validation                  |
 | backend/internal/middleware/service_auth.go           | Service JWT validation               |
 | backend/internal/router/router.go                     | Route wiring (public + internal)     |
-| agent/src/app/api/missions/mission.controller.ts      | Harness orchestration                |
-| agent/src/app/api/missions/mission.schema.ts          | Zod validation schema                |
-| agent/src/app/api/missions/stream.transport.ts        | SSE packet writer                    |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | Harness orchestration                |
+| agent/src/adapter/inbound/api/missions/mission.schema.ts          | Zod validation schema                |
+| agent/src/adapter/inbound/api/missions/stream.transport.ts        | SSE packet writer                    |
 | agent/src/core/agent/tools/registry.ts                | Lazy tool loading                    |
 | agent/src/core/agent/strategies/prompts.ts            | Prefix-caching prompt templates      |
-| agent/src/adapter/backend/memory.adapter.ts          | Memory persistence via Service JWT   |
+| agent/src/adapter/outbound/backend/memory.adapter.ts | Memory persistence via Service JWT   |
 | agent/src/shared/types/index.ts                       | Cross-service type contracts         |
 | frontend/web/src/features/chat/api/useChatStream.ts   | Client SSE consumer                  |
 +-------------------------------------------------------+--------------------------------------+

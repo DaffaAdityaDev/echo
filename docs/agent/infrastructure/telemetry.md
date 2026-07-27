@@ -19,10 +19,9 @@ async boundaries, used by the LangChain callback handler and the `OpenCodeGoProv
 ## File Structure
 
 ```
-src/utils/
+src/shared/utils/
   telemetry.ts          # OTel SDK initialization, LangfuseSpanProcessor
   langfuse.ts           # AsyncLocalStorage context, LangChain callbacks, startAgentTrace
-src/shared/utils/
   logger.ts             # Logger class with langfuse event logging
 ```
 
@@ -69,11 +68,11 @@ src/shared/utils/
 +-----------------------------+-------------------------------------+--------------------------------------------------+
 | Export                      | Source                              | Description                                      |
 +-----------------------------+-------------------------------------+--------------------------------------------------+
-| `langfuseStorage`           | `utils/langfuse.ts:14`              | AsyncLocalStorage context store                  |
-| `getLangChainCallbacks()`   | `utils/langfuse.ts:16`              | Returns [CallbackHandler] for LangChain          |
-| `startAgentTrace()`         | `utils/langfuse.ts:34`              | Creates root OTel observation with metadata      |
-| `propagateAttributes`       | `utils/langfuse.ts`                 | Re-exported from @langfuse/tracing              |
-| `sdk` (NodeSDK)             | `utils/telemetry.ts:30`             | OTel SDK with LangfuseSpanProcessor             |
+| `langfuseStorage`           | `shared/utils/langfuse.ts:14`              | AsyncLocalStorage context store                  |
+| `getLangChainCallbacks()`   | `shared/utils/langfuse.ts:16`              | Returns [CallbackHandler] for LangChain          |
+| `startAgentTrace()`         | `shared/utils/langfuse.ts:34`              | Creates root OTel observation with metadata      |
+| `propagateAttributes`       | `shared/utils/langfuse.ts`                 | Re-exported from @langfuse/tracing              |
+| `sdk` (NodeSDK)             | `shared/utils/telemetry.ts:30`             | OTel SDK with LangfuseSpanProcessor             |
 | `logger`                    | `shared/utils/logger.ts:185`        | Logger singleton with langfuse() method          |
 | `callbackHandler`           | `@langfuse/langchain`               | LangChain callback for OTel linking              |
 +-----------------------------+-------------------------------------+--------------------------------------------------+
@@ -111,10 +110,10 @@ interface LangfuseStorageContext {
 +----------------------------------+-----------------------------+---------------------------------------------------+
 | File                             | Line                        | Description                                       |
 +----------------------------------+-----------------------------+---------------------------------------------------+
-| `utils/telemetry.ts`             | 1-39                        | OTel SDK init, LangfuseSpanProcessor, diag       |
-| `utils/langfuse.ts`              | 1-65                        | AsyncLocalStorage, LangChain callbacks, trace     |
-| `utils/langfuse.ts`              | 14                          | `langfuseStorage` export                          |
-| `utils/langfuse.ts`              | 34-63                       | `startAgentTrace()` — root OTel observation       |
+| `shared/utils/telemetry.ts`             | 1-39                    | OTel SDK init, LangfuseSpanProcessor, diag       |
+| `shared/utils/langfuse.ts`              | 1-65                    | AsyncLocalStorage, LangChain callbacks, trace     |
+| `shared/utils/langfuse.ts`              | 14                      | `langfuseStorage` export                          |
+| `shared/utils/langfuse.ts`              | 34-63                   | `startAgentTrace()` — root OTel observation       |
 | `shared/utils/logger.ts`         | 93-131                      | `langfuse()` method — writes to active OTel span  |
 | `shared/utils/logger.ts`         | 149-158                     | `telemetry()` method — cost/spans logging         |
 | `shared/utils/logger.ts`         | 159-164                     | `agentActivity()` — mission-specific debug logging|

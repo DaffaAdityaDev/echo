@@ -19,10 +19,10 @@ checking in the chat handler.
 | Location                           | Role                                       |
 +------------------------------------+--------------------------------------------+
 | backend/internal/handler/          |                                            |
-|   chat_handler.go                  | Tier check, feature response, caching      |
+|   chat/handler.go                  | Tier check, feature response, caching      |
 | backend/internal/constants/auth/   |                                            |
 |   jwt.go                           | Auth constants                             |
-| agent/src/app/api/missions/        |                                            |
+| agent/src/adapter/inbound/api/missions/        |                                            |
 |   mission.constants.ts             | Feature constants (implied)                |
 | frontend/web/src/features/chat/    |                                            |
 |   api/useFeatures.ts               | Client-side feature discovery hook         |
@@ -75,7 +75,7 @@ The tier is passed via the `X-User-Tier` header.
 ### Default Behavior
 
 ```go
-// chat_handler.go:112-114
+// backend/internal/handler/chat/handler.go:112-114
 userTier := c.Get("X-User-Tier")
 if userTier == "" {
     userTier = "pro" // Default to pro for local backward-compatibility
@@ -114,7 +114,7 @@ The Hono Agent serves as the source of truth for the feature catalog via
 ### Code Implementation
 
 ```go
-// chat_handler.go:117-136
+// backend/internal/handler/chat/handler.go:117-136
 for _, fID := range req.Features {
     if feat, exists := catalogMap[fID]; exists {
         if userTier == "free" && feat.TierRequirement == "pro" {
@@ -194,7 +194,7 @@ INTERNAL_AUTH_TOKEN=default-internal-token-secret
 ## Feature Constants
 
 ```typescript
-// agent/src/app/api/missions/mission.constants.ts (implied features)
+// agent/src/adapter/inbound/api/missions/mission.constants.ts (implied features)
 // The agent maintains a registry of features with tier requirements:
 // - Features with tier_requirement: "free" -> available to all
 // - Features with tier_requirement: "pro" -> free users see locked: true
@@ -202,13 +202,13 @@ INTERNAL_AUTH_TOKEN=default-internal-token-secret
 
 ## Entry Points & Exports
 
-- **Tier check**: `backend/internal/handler/chat_handler.go:111-136` —
+- **Tier check**: `backend/internal/handler/chat/handler.go:111-136` —
   X-User-Tier header processing
-- **Feature response**: `backend/internal/handler/chat_handler.go:396-423` —
+- **Feature response**: `backend/internal/handler/chat/handler.go:396-423` —
   HandleGetFeatures
-- **Feature cache**: `backend/internal/handler/chat_handler.go:343-393` —
+- **Feature cache**: `backend/internal/handler/chat/handler.go:343-393` —
   GetFeatures with Redis TTL
-- **Feature constants**: `agent/src/app/api/missions/mission.constants.ts`
+- **Feature constants**: `agent/src/adapter/inbound/api/missions/mission.constants.ts`
   (implied)
 - **Frontend feature discovery**:
   `frontend/web/src/features/chat/api/useFeatures.ts`
@@ -219,12 +219,12 @@ INTERNAL_AUTH_TOKEN=default-internal-token-secret
 +-------------------------------------------------------+-------+---------------------------------------+
 | File                                                  | Lines | Role                                  |
 +-------------------------------------------------------+-------+---------------------------------------+
-| backend/internal/handler/chat_handler.go              | 111-  | Tier validation loop                  |
+| backend/internal/handler/chat/handler.go              | 111-  | Tier validation loop                  |
 |                                                       | 136   |                                       |
-| backend/internal/handler/chat_handler.go              | 54-66 | Feature struct with tier_requirement  |
-| backend/internal/handler/chat_handler.go              | 396-  | HandleGetFeatures with tier filtering  |
+| backend/internal/handler/chat/handler.go              | 54-66 | Feature struct with tier_requirement  |
+| backend/internal/handler/chat/handler.go              | 396-  | HandleGetFeatures with tier filtering  |
 |                                                       | 423   |                                       |
-| backend/internal/handler/chat_handler.go              | 342-  | GetFeatures with Redis caching        |
+| backend/internal/handler/chat/handler.go              | 342-  | GetFeatures with Redis caching        |
 |                                                       | 393   |                                       |
 | backend/internal/models/models.go                     | 64-72 | User struct with role field           |
 | frontend/web/src/features/chat/api/useFeatures.ts     | 1-41  | Client-side feature discovery hook    |

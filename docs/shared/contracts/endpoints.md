@@ -23,19 +23,19 @@ planned rate limits.
 | backend/internal/router/      |                                            |
 |   router.go                   | Route wiring + docs serving                |
 | backend/internal/handler/     |                                            |
-|   auth_handler.go             | Auth endpoint handlers                     |
-|   chat_handler.go             | Chat endpoint handlers                     |
-|   memory_handler.go           | Internal memory endpoint handlers          |
-|   model_handler.go            | Model endpoint handlers                    |
+|   auth/handler.go             | Auth endpoint handlers                     |
+|   chat/handler.go             | Chat endpoint handlers                     |
+|   memory/handler.go           | Internal memory endpoint handlers          |
+|   aimodel/handler.go          | Model endpoint handlers                    |
 | backend/api/docs/swagger.json | Generated monolithic OpenAPI 2.0 spec      |
 | backend/api/module/*.json     | Split per-module spec files (see           |
 |                               |   docs/backend/application/patterns/       |
 |                               |   docs-api.md for pipeline details)        |
 | backend/api/split/main.go     | Modular split tool                         |
 | agent/src/index.ts            | Hono app entry                             |
-| agent/src/app/api/missions/   |                                            |
+| agent/src/adapter/inbound/api/missions/   |                                            |
 |   mission.controller.ts       | Mission generation endpoint                |
-| agent/src/app/middleware/     |                                            |
+| agent/src/adapter/inbound/middleware/     |                                            |
 |   auth.ts                     | Agent auth middleware                      |
 | agent/api/openapi.json        | Hand-authored OpenAPI 3.0 spec             |
 | frontend/web/src/lib/         |                                            |
@@ -305,7 +305,7 @@ From `docs/architecture-plan.md` — not yet implemented:
 |                                                 |       |   injection                      |
 | backend/api/split/main.go                      | 1-295 | Modular spec split tool          |
 | backend/internal/middleware/internal_auth.go     | 1-52  | Service JWT verification MW      |
-| agent/src/app/middleware/auth.ts                | 6-32  | Agent auth bypass for /          |
+| agent/src/adapter/inbound/middleware/auth.ts                | 6-32  | Agent auth bypass for /          |
 | frontend/web/src/features/chat/constants.ts     | 31-34 | Frontend chat endpoint constants |
 | frontend/web/src/features/studio/constants.ts   | 1-25  | Frontend studio endpoint constants|
 | frontend/web/src/lib/api-client.ts              | 14-51 | Base URL construction,           |

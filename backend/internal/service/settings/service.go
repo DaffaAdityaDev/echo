@@ -1,0 +1,148 @@
+package settings
+
+import (
+	"context"
+	"echo-backend/internal/models"
+	"echo-backend/internal/repository/settings"
+	"echo-backend/pkg/crypto"
+	"fmt"
+	"log"
+)
+
+func defaultBaseURL(providerType string) string {
+	switch providerType {
+	case "opencode-go":
+		return "https://opencode.ai/zen/go/v1"
+	case "lm-studio":
+		return "http://localhost:1234/v1"
+	case "openai":
+		return "https://api.openai.com/v1"
+	case "anthropic":
+		return "https://api.anthropic.com"
+	}
+	return ""
+}
+
+type Service struct {
+	cfg          *models.Config
+	settingsRepo *settings.Repository
+}
+
+func NewService(cfg *models.Config, settingsRepo *settings.Repository) *Service {
+	return &Service{
+		cfg:          cfg,
+		settingsRepo: settingsRepo,
+	}
+}
+
+func (s *Service) GetDefaults() *models.UserPreferences {
+	defaultFeatures := []string{"web_search", "write_todos"}
+	return &models.UserPreferences{
+		UserID:          0,
+		DefaultMode:     "standard",
+		DefaultModel:    s.cfg.DefaultModel,
+		DefaultFeatures: defaultFeatures,
+		DefaultSkills:   []string{},
+		ProviderType:    "opencode-go",
+		APIKey:          "",
+		BaseURL:         defaultBaseURL("opencode-go"),
+	}
+}
+
+func (s *Service) GetSettings(ctx context.Context, userID int) (*models.UserPreferences, error) {
+	prefs, err := s.settingsRepo.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if prefs == nil {
+		return s.GetDefaults(), nil
+	}
+
+	if prefs.APIKey != "" {
+		decrypted, decErr := crypto.Decrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
+		if decErr != nil {
+			log.Printf("[SETTINGS] Failed to decrypt API key for user %d: %v", userID, decErr)
+			prefs.APIKey = ""
+		} else {
+			prefs.APIKey = decrypted
+		}
+	}
+
+	prefs.APIKey = crypto.MaskAPIKey(prefs.APIKey)
+
+	if prefs.DefaultModel == "" {
+		prefs.DefaultModel = s.cfg.DefaultModel
+	}
+	if prefs.ProviderType == "" {
+		prefs.ProviderType = "opencode-go"
+	}
+	if prefs.BaseURL == "" {
+		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+	}
+
+	return prefs, nil
+}
+
+func (s *Service) UpdateSettings(ctx context.Context, userID int, prefs *models.UserPreferences, keepAPIKey bool) (*models.UserPreferences, error) {
+	if keepAPIKey && prefs.APIKey == "" {
+		existing, err := s.settingsRepo.Get(ctx, userID)
+		if err == nil && existing != nil && existing.APIKey != "" {
+			prefs.APIKey = existing.APIKey
+		}
+	} else if prefs.APIKey != "" {
+		encrypted, encErr := crypto.Encrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
+		if encErr != nil {
+			return nil, fmt.Errorf("failed to encrypt API key: %w", encErr)
+		}
+		prefs.APIKey = encrypted
+	}
+
+	updated, err := s.settingsRepo.Upsert(ctx, userID, prefs)
+	if err != nil {
+		return nil, err
+	}
+
+	if updated.APIKey != "" {
+		decrypted, decErr := crypto.Decrypt(updated.APIKey, []byte(s.cfg.EncryptionKey))
+		if decErr != nil {
+			log.Printf("[SETTINGS] Failed to decrypt API key after update for user %d: %v", userID, decErr)
+			updated.APIKey = ""
+		} else {
+			updated.APIKey = crypto.MaskAPIKey(decrypted)
+		}
+	}
+
+	return updated, nil
+}
+
+func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*models.UserPreferences, error) {
+	prefs, err := s.settingsRepo.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if prefs == nil {
+		return s.GetDefaults(), nil
+	}
+
+	if prefs.APIKey != "" {
+		decrypted, decErr := crypto.Decrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
+		if decErr != nil {
+			log.Printf("[SETTINGS] Failed to decrypt API key for user %d: %v", userID, decErr)
+			prefs.APIKey = ""
+		} else {
+			prefs.APIKey = decrypted
+		}
+	}
+
+	if prefs.DefaultModel == "" {
+		prefs.DefaultModel = s.cfg.DefaultModel
+	}
+	if prefs.ProviderType == "" {
+		prefs.ProviderType = "opencode-go"
+	}
+	if prefs.BaseURL == "" {
+		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+	}
+
+	return prefs, nil
+}

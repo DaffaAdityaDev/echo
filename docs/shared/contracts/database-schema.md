@@ -403,7 +403,7 @@ CREATE TABLE answers (
 
 Ephemeral state and cached data are stored in Redis with TTL.
 
-### Episodic Memory `[Active — memory_handler.go]`
+### Episodic Memory `[Active — memory/handler.go]`
 
 ```redis
 memory:episodic:<session_id>  → List of JSON blobs    # LPUSH / LRANGE
@@ -629,7 +629,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | backend/scripts/init-pgvector.sql              | 1-16      | tool_catalog DDL + HNSW index     |
 | backend/scripts/init-nuq.sql                   | 1-332     | NUQ: 4 tables, 30+ indexes,       |
 |                                                |           |   enums, pg_cron jobs             |
-| backend/internal/handler/memory_handler.go     | 34-131    | Episodic (Redis) storage          |
+| backend/internal/handler/memory/handler.go     | 34-131    | Episodic (Redis) storage          |
 | backend/internal/models/models.go              | 32-78     | Config struct + ApiKey struct     |
 | backend/migrations/20260725_001_llmops_studio   | 1-120     | LLMOps Studio migration SQL       |
 | docs/agent/application/features/state-session/ |           | sessions + messages table design  |

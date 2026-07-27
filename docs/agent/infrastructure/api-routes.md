@@ -18,7 +18,7 @@ for CORS, monitoring, and authentication.
 ## File Structure
 
 ```
-src/app/
+src/adapter/inbound/
   api/
     routes.ts                     # Route aggregator
     missions/
@@ -97,14 +97,14 @@ src/app/
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 | Export                           | Source                               | Description                                      |
 +----------------------------------+--------------------------------------+--------------------------------------------------+
-| `default router`                 | `api/routes.ts`                     | Hono router mounting mission, model, feature subs|
-| `missionRouter`                  | `missions/mission.routes.ts`        | `POST /generate-mission` handler                 |
-| `modelRouter`                    | `models/model.routes.ts`            | `GET /models` handler                            |
-| `featuresRouter`                 | `features/features.routes.ts`       | `GET /features` handler                          |
-| `missionController`              | `missions/mission.controller.ts`    | `MissionController` instance                     |
-| `modelController`                | `models/model.controller.ts`        | `ModelController` instance                       |
-| `HttpStreamTransport`            | `missions/stream.transport.ts`      | SSE packet serializer with sequence numbers      |
-| `createMissionSchema`            | `missions/mission.schema.ts`        | Zod schema for mission payload validation        |
+| `default router`                 | `adapter/inbound/api/routes.ts`                     | Hono router mounting mission, model, feature subs|
+| `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` handler                 |
+| `modelRouter`                    | `adapter/inbound/api/models/model.routes.ts`            | `GET /models` handler                            |
+| `featuresRouter`                 | `adapter/inbound/api/features/features.routes.ts`       | `GET /features` handler                          |
+| `missionController`              | `adapter/inbound/api/missions/mission.controller.ts`    | `MissionController` instance                     |
+| `modelController`                | `adapter/inbound/api/models/model.controller.ts`        | `ModelController` instance                       |
+| `HttpStreamTransport`            | `adapter/inbound/api/missions/stream.transport.ts`      | SSE packet serializer with sequence numbers      |
+| `createMissionSchema`            | `adapter/inbound/api/missions/mission.schema.ts`        | Zod schema for mission payload validation        |
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 
 ### Mission Endpoint - POST /api/generate-mission
@@ -178,18 +178,18 @@ Array<{
 +----------------------------------+-----------------------------+---------------------------------------------------+
 | `src/index.ts`                   | 29-35                       | Global middleware registration (CORS, monitor)    |
 | `src/index.ts`                   | 38                          | `app.onError(errorHandler)`                       |
-| `src/app/api/routes.ts`          | 1-12                        | Route aggregator, sub-router mounting             |
-| `missions/mission.routes.ts`     | 7                           | `POST /generate-mission`                          |
-| `missions/mission.controller.ts` | 20-121                      | Mission creation orchestration (uses adapters)    |
+| `src/adapter/inbound/api/routes.ts` | 1-12                    | Route aggregator, sub-router mounting             |
+| `adapter/inbound/api/missions/mission.routes.ts` | 7       | `POST /generate-mission`                          |
+| `adapter/inbound/api/missions/mission.controller.ts` | 20-121 | Mission creation orchestration (uses adapters)    |
 | `adapter/factory.ts`            | 1-50                        | AdapterFactory.create() for LLM/backend           |
 | `adapter/manager.ts`            | 1-80                        | ConnectionManager lifecycle                       |
-| `missions/mission.schema.ts`     | 9-61                        | Zod input schema with strategy aliasing           |
-| `missions/stream.transport.ts`   | 7-26                        | SSE transport with seq/timestamp                  |
-| `models/model.routes.ts`         | 6                           | `GET /models`                                     |
-| `features/features.routes.ts`    | 6                           | `GET /features`                                   |
-| `middleware/auth.ts`             | 6-32                        | Bearer / X-Internal-Token auth                    |
-| `middleware/error.ts`            | 7-58                        | Classified error handler                          |
-| `middleware/monitor.ts`          | 5-56                        | Request/response logging                          |
+| `adapter/inbound/api/missions/mission.schema.ts` | 9-61 | Zod input schema with strategy aliasing           |
+| `adapter/inbound/api/missions/stream.transport.ts` | 7-26 | SSE transport with seq/timestamp                  |
+| `adapter/inbound/api/models/model.routes.ts` | 6         | `GET /models`                                     |
+| `adapter/inbound/api/features/features.routes.ts` | 6 | `GET /features`                                   |
+| `adapter/inbound/middleware/auth.ts` | 6-32                   | Bearer / X-Internal-Token auth                    |
+| `adapter/inbound/middleware/error.ts` | 7-58                   | Classified error handler                          |
+| `adapter/inbound/middleware/monitor.ts` | 5-56                | Request/response logging                          |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

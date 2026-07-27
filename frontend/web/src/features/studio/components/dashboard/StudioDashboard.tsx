@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Database,
   Clock,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import type { MaturityLevel, MaturityDimensionKey } from "../../types"

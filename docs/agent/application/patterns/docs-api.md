@@ -22,7 +22,7 @@ agent/
 ├── api/
 │   └── openapi.json           ← Hand-authored OpenAPI 3.0 spec
 └── src/
-    └── app/
+    └── adapter/inbound/
         └── api/
             ├── docs/
             │   └── docs.ts    ← Scalar reference handler
@@ -32,7 +32,7 @@ agent/
 ## How It Works
 
 ```
-  src/app/api/docs/docs.ts
+  src/adapter/inbound/api/docs/docs.ts
     │
     │  import openApiSpec from "../../../../api/openapi.json"
     │  import { apiReference } from "@scalar/hono-api-reference"
@@ -81,7 +81,7 @@ The spec covers all 6 agent endpoints:
 
 ## Adding a New Endpoint
 
-1. Add the route and handler in the appropriate module under `src/app/api/`.
+1. Add the route and handler in the appropriate module under `src/adapter/inbound/api/`.
 2. Add the corresponding path, method, request body, and response schema to
    `agent/api/openapi.json`.
 3. If the endpoint uses new types, add them under `components/schemas`.

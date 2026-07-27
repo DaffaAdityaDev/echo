@@ -19,8 +19,8 @@ the shared error contract.
 | Location                           | Role                                       |
 +------------------------------------+--------------------------------------------+
 | backend/internal/handler/          |                                            |
-|   auth_handler.go                  | 501, 500 errors                           |
-|   chat_handler.go                  | 400, 403, 500 errors                      |
+|   auth/handler.go                  | 501, 500 errors                           |
+|   chat/handler.go                  | 400, 403, 500 errors                      |
 | backend/internal/middleware/       |                                            |
 |   auth.go                          | 401 errors                                 |
 | backend/internal/constants/       |                                            |
@@ -29,8 +29,8 @@ the shared error contract.
 | agent/src/shared/constants/        |                                            |
 |   errors.ts                        | Error type taxonomy + messages             |
 |   middleware.ts                    | Forbidden message                          |
-| agent/src/app/middleware/auth.ts   | 403 response shape                         |
-| agent/src/app/api/missions/        |                                            |
+| agent/src/adapter/inbound/middleware/auth.ts   | 403 response shape                         |
+| agent/src/adapter/inbound/api/missions/        |                                            |
 |   mission.controller.ts            | Validation + execution errors              |
 | frontend/web/src/lib/              |                                            |
 |   api-client.ts                    | Standard request error                     |
@@ -242,7 +242,7 @@ thought steps.
 +-------------------------------------------------------+-------+---------------------------------------+
 | backend/internal/constants/auth/jwt.go                | 10-12 | Auth error messages                   |
 | backend/internal/constants/db/postgres.go             | 3-26  | DB error messages                     |
-| backend/internal/handler/chat_handler.go              | 94-96,| Go error responses                    |
+| backend/internal/handler/chat/handler.go              | 94-96,| Go error responses                    |
 |                                                       | 143-  |                                       |
 |                                                       | 148,  |                                       |
 |                                                       | 184-  |                                       |
@@ -253,8 +253,8 @@ thought steps.
 |                                                       | 203   |                                       |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy + messages        |
 | agent/src/shared/constants/middleware.ts              | 8     | Forbidden message                     |
-| agent/src/app/middleware/auth.ts                      | 25-28 | 403 response shape                    |
-| agent/src/app/api/missions/mission.controller.ts      | 28-33,| Validation + execution errors         |
+| agent/src/adapter/inbound/middleware/auth.ts                      | 25-28 | 403 response shape                    |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 28-33,| Validation + execution errors         |
 |                                                       | 117-  |                                       |
 |                                                       | 119   |                                       |
 | frontend/web/src/lib/api-client.ts                    | 42-44 | Standard request error                |

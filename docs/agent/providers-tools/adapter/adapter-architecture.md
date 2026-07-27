@@ -45,7 +45,6 @@ agent/src/
   ├── api/              ← HTTP entry (Hono routes, controllers, middleware)
   ├── agent/            ← Core logic (harness, strategies, tools, skills, storage)
   └── adapter/          ← ALL external connections (BARU)
-        ├── interfaces.ts    ← Generic Connection interface
         ├── factory.ts       ← AdapterFactory: create connections by type
         ├── manager.ts       ← ConnectionManager: lifecycle, reconnect, health
         ├── llm/             ← LLM provider connections
@@ -54,7 +53,7 @@ agent/src/
         │   ├── openrouter.adapter.ts
         │   ├── lm-studio.adapter.ts
         │   └── index.ts
-        ├── backend/         ← Echo Go backend connections
+        ├── outbound/backend/ ← Echo Go backend connections
         │   ├── session.adapter.ts    ← session CRUD + commit
         │   ├── memory.adapter.ts     ← episodic recall/store
         │   ├── context.adapter.ts    ← context injection (RAG, topics)
@@ -132,14 +131,14 @@ Key difference: all LLM connections are now created and managed through
 `AdapterFactory`, not imported directly. Harness requests a provider by
 type + config and receives a connected adapter.
 
-### Backend Adapters (`adapter/backend/`)
+### Backend Adapters (`adapter/outbound/backend/`)
 
 Connect to the Echo Go backend for session management, memory persistence,
 context injection, and MCP proxy discovery.
 
 Moved from:
-- `core/agent/storage/backend.ts` (memory) → `adapter/backend/memory.adapter.ts`
-- `core/agent/storage/serializer.ts` → `adapter/backend/serializer.ts` (shared)
+- `core/agent/storage/backend.ts` (memory) → `adapter/outbound/backend/memory.adapter.ts`
+- `core/agent/storage/serializer.ts` → `adapter/outbound/backend/serializer.ts` (shared)
 
 Each backend adapter maps to a logical API domain:
 - `session.adapter.ts` — `POST/GET/DELETE /v1/sessions`, `POST /v1/sessions/:id/prune`
@@ -205,7 +204,7 @@ agent/core/ (harness, strategies)
     │     └── implemented by adapter/llm/
     │
     └── uses IStateStore interface
-          └── implemented by adapter/backend/memory.adapter.ts
+          └── implemented by adapter/outbound/backend/memory.adapter.ts
 ```
 
 Agent core never imports directly from `adapter/`. It depends on interfaces
@@ -231,12 +230,12 @@ injection (mission controller creates adapters, passes to harness).
 | Sub-layer | Status | Notes |
 |---|---|---|
 | `adapter/llm/` | **Move** (existing code in `infrastructure/providers/` → `adapter/llm/`) | Refactor only — no logic change |
-| `adapter/backend/session.adapter.ts` | **New** | Part of Session Management (Priority 2) |
-| `adapter/backend/memory.adapter.ts` | **Move** (from `core/agent/storage/backend.ts`) | Consolidate scattered backend calls |
-| `adapter/backend/context.adapter.ts` | **New** | Part of Context Resolver (Priority 4) |
+| `adapter/outbound/backend/session.adapter.ts` | **New** | Part of Session Management (Priority 2) |
+| `adapter/outbound/backend/memory.adapter.ts` | **Move** (from `core/agent/storage/backend.ts`) | Consolidate scattered backend calls |
+| `adapter/outbound/backend/context.adapter.ts` | **New** | Part of Context Resolver (Priority 4) |
 | `adapter/rest/` | **Move** (from `infrastructure/transports/rest/`) | Refactor only |
 | `adapter/mcp/` | **Move** (from `infrastructure/transports/mcp/`) | Refactor only |
-| `adapter/interfaces.ts` | **New** | Core `Connection` interface |
+| ~~`adapter/interfaces.ts`~~ | ~~**New**~~ | ~~Core `Connection` interface~~ |
 | `adapter/factory.ts` | **New** | `AdapterFactory.create()` |
 | `adapter/manager.ts` | **New** | `ConnectionManager` |
 
@@ -258,7 +257,7 @@ injection (mission controller creates adapters, passes to harness).
 | `infrastructure/transports/mcp/client.ts`          | Existing `MCPClient` — to move           |
 | `infrastructure/transports/rest/adapter.ts`        | Existing `RestToolAdapter` — to move     |
 | `core/agent/storage/backend.ts`                    | Existing `BackendStateProvider` —        |
-|                                                     | to move to backend/memory.adapter.ts     |
+|                                                     | to move to outbound/backend/memory.adapter.ts |
 | `core/agent/storage/serializer.ts`                 | Existing serializer — shared util        |
 +----------------------------------------------------+------------------------------------------+
 

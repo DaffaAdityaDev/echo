@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"echo-backend/internal/service"
+	aimodelSvc "echo-backend/internal/service/aimodel"
 )
 
 type StreamResult struct {
@@ -41,13 +41,13 @@ type PlaygroundService interface {
 }
 
 type playgroundService struct {
-	modelSvc  *service.ModelService
+	modelSvc  *aimodelSvc.Service
 	agentURL  string
 	authToken string
 	client    *http.Client
 }
 
-func NewPlaygroundService(modelSvc *service.ModelService, agentURL, authToken string) PlaygroundService {
+func NewPlaygroundService(modelSvc *aimodelSvc.Service, agentURL, authToken string) PlaygroundService {
 	if authToken == "" {
 		authToken = "default-internal-token-secret"
 	}

@@ -564,8 +564,8 @@ CONTEXT_RESOLVER = {
 | Session management        | `docs/agent/application/features/        | Go as session authority, BLOCK 4 loading, pruning     |
 |                           |   state-session/session-management.md`  |                                                       |
 | Semantic memory table     | `backend/internal/handler/               | PostgreSQL + pgvector (embedding column exists)       |
-|                           |   memory_handler.go`                     |                                                       |
-| Mission schema (Zod)      | `app/api/missions/mission.schema.ts`     | Features/skills in mission payload                    |
+|                           |   memory/handler.go`                     |                                                       |
+| Mission schema (Zod)      | `adapter/inbound/api/missions/mission.schema.ts`     | Features/skills in mission payload                    |
 +---------------------------+------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

@@ -31,7 +31,7 @@ shared/
     logger.ts            # Structured Logger with file + console output
     messages.ts          # mapHistoryToMessages
 
-app/middleware/
+adapter/inbound/middleware/
   auth.ts                # Token-based authentication guard
   error.ts               # Global error handler
   monitor.ts             # Request/response monitoring middleware
@@ -141,9 +141,9 @@ app/middleware/
 | `ForbiddenError`           | `shared/utils/errors.ts`             | 403 error                                    |
 | `logger`                   | `shared/utils/logger.ts`             | Logger singleton                             |
 | `mapHistoryToMessages`     | `shared/utils/messages.ts`           | API history → LangChain messages             |
-| `authMiddleware`           | `app/middleware/auth.ts`              | Hono middleware                              |
-| `errorHandler`             | `app/middleware/error.ts`             | Hono error handler                           |
-| `monitorMiddleware`        | `app/middleware/monitor.ts`           | Hono middleware                              |
+| `authMiddleware`           | `adapter/inbound/middleware/auth.ts`              | Hono middleware                              |
+| `errorHandler`             | `adapter/inbound/middleware/error.ts`             | Hono error handler                           |
+| `monitorMiddleware`        | `adapter/inbound/middleware/monitor.ts`           | Hono middleware                              |
 +----------------------------+--------------------------------------+----------------------------------------------+
 
 ---
@@ -178,9 +178,9 @@ app/middleware/
 | AppError                 | `shared/utils/errors.ts:4-16`           | Base error with statusCode + isOperational            |
 | Logger                   | `shared/utils/logger.ts:92-165`         | info, warn, error, debug, langfuse, telemetry         |
 | mapHistoryToMessages     | `shared/utils/messages.ts:6-15`         | Maps `{ role, content }` to HumanMessage/AIMessage    |
-| Auth middleware           | `app/middleware/auth.ts:6-31`           | Token comparison against ENV.INTERNAL_AUTH_TOKEN      |
-| Error handler            | `app/middleware/error.ts:7-57`          | Pattern-matched error categories                      |
-| Monitor middleware       | `app/middleware/monitor.ts:5-56`        | Request/response logging with timing                  |
+| Auth middleware           | `adapter/inbound/middleware/auth.ts:6-31`           | Token comparison against ENV.INTERNAL_AUTH_TOKEN      |
+| Error handler            | `adapter/inbound/middleware/error.ts:7-57`          | Pattern-matched error categories                      |
+| Monitor middleware       | `adapter/inbound/middleware/monitor.ts:5-56`        | Request/response logging with timing                  |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ================================================================================

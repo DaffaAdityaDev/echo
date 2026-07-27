@@ -400,7 +400,7 @@ Measure:
 | `docs/agent/application/features/        | Go as session authority, session CRUD, commit policy |
 |                           |   state-session/session-management.md`   |                                                      |
 | `backend/internal/handler/               | Existing memory endpoints — PostgreSQL + Redis       |
-|                           |   memory_handler.go`                     |                                                      |
+|                           |   memory/handler.go`                     |                                                      |
 | `backend/scripts/init-pgvector.sql`      | pgvector extension — HNSW index planned              |
 +------------------------------------------+------------------------------------------------------+
 

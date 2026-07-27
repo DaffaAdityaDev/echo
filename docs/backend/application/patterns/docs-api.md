@@ -33,7 +33,7 @@ File Structure
 |                                          | per-tag module files                       |
 | api/module/_shared.json                  | Shared definitions used by 2+ modules      |
 | api/module/{auth,chat,...}.json          | Per-module spec files (one per @Tag)       |
-| internal/handler/*_handler.go            | Per-endpoint @Summary, @Param, @Success,   |
+| internal/handler/<name>/handler.go       | Per-endpoint @Summary, @Param, @Success,   |
 |                                          | @Router annotations on each handler func   |
 | internal/router/router.go               | Serves Scalar HTML at GET /api/docs and    |
 |                                          | spec JSON at GET /api/docs/openapi.json    |
@@ -166,34 +166,33 @@ Endpoint-to-Annotation Mapping
 +------------------------------------------+------------+------------------------------+
 | Handler File                             | Tag        | Endpoints                    |
 +------------------------------------------+------------+------------------------------+
-| auth_handler.go                          | Auth       | POST /register, POST /login, |
+| auth/handler.go                          | Auth       | POST /register, POST /login, |
 |                                          |            | GET /me, POST /logout        |
 +------------------------------------------+------------+------------------------------+
-| chat_handler.go                          | Chat       | POST /chat, GET /skills,     |
+| chat/handler.go                          | Chat       | POST /chat, GET /skills,     |
 |                                          |            | GET /features, GET .../stream|
 +------------------------------------------+------------+------------------------------+
-| session_handler.go                       | Sessions   | CRUD /sessions, messages,    |
+| session/handler.go                       | Sessions   | CRUD /sessions, messages,    |
 |                                          |            | prune                        |
 +------------------------------------------+------------+------------------------------+
-| model_handler.go                         | Models     | GET /models                  |
+| aimodel/handler.go                       | Models     | GET /models                  |
 +------------------------------------------+------------+------------------------------+
-| settings_handler.go                      | Settings   | GET /settings, PUT /settings,|
+| settings/handler.go                      | Settings   | GET /settings, PUT /settings,|
 |                                          |            | GET /settings/defaults       |
 +------------------------------------------+------------+------------------------------+
-| admin_handler.go                         | Admin      | CRUD /admin/api-keys,        |
+| admin/handler.go                         | Admin      | CRUD /admin/api-keys,        |
 |                                          |            | GET /admin/stats             |
 +------------------------------------------+------------+------------------------------+
-| memory_handler.go                        | Memory     | All /internal/memory/*       |
+| memory/handler.go                        | Memory     | All /internal/memory/*       |
 |                                          |            | (episodic, semantic,         |
 |                                          |            | procedural)                  |
 +------------------------------------------+------------+------------------------------+
-| helpers.go                               | Health     | GET /health                  |
 +------------------------------------------+------------+------------------------------+
 
 Adding a New Endpoint
 ---------------------
 
-  1. Add the handler function to the appropriate *_handler.go file.
+   1. Add the handler function to the appropriate handler/<name>/handler.go file.
   2. Add a swaggo annotation block above the function (see format above).
   3. Register the route in router.go.
   4. Run `make swagger` (or `make swagger-gen && make swagger-split`) to

@@ -21,11 +21,11 @@ backend -> agent -> database.
 | backend/internal/models/    |                                             |
 |   models.go                 | User, Config struct definitions             |
 | backend/internal/handler/   |                                             |
-|   chat_handler.go           | Chat handler                                |
+|   chat/handler.go           | Chat handler                                |
 | backend/internal/service/   |                                             |
-|   model_service.go          | Model service interface                     |
+|   aimodel/service.go        | Model service interface                     |
 | backend/internal/repository/|                                             |
-|   user_repository.go        | User repository interface                   |
+|   auth/repository.go        | User repository interface                   |
 | backend/internal/router/    |                                             |
 |   router.go                 | Route wiring                                |
 | agent/src/shared/types/     |                                             |

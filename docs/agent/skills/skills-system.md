@@ -322,10 +322,10 @@ Backend receives skills: ["research"]
 | compileModifiers()         | `core/agent/skills/registry.ts:42`        | Merges modifier flags from skills         |
 | Harness integration        | `core/agent/harness/nlah/harness.ts`      | Singleton SkillRegistry (getInstance),   |
 |                            |                                          | compileSkillPrompts + compileModifiers   |
-| Controller usage           | `app/api/missions/mission.controller.ts`  | SkillRegistry.getInstance() singleton    |
-| Controller tool resolution | `app/api/missions/mission.controller.ts`  | features XOR preferredTools (lines 88-110)|
-| Mission schema             | `app/api/missions/mission.schema.ts`      | `skills` array + `features` array        |
-| Skills API endpoint        | `app/api/skills/skills.routes.ts`         | Filters response to 4 fields (line 8-13) |
+| Controller usage           | `adapter/inbound/api/missions/mission.controller.ts`  | SkillRegistry.getInstance() singleton    |
+| Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`  | features XOR preferredTools (lines 88-110)|
+| Mission schema             | `adapter/inbound/api/missions/mission.schema.ts`      | `skills` array + `features` array        |
+| Skills API endpoint        | `adapter/inbound/api/skills/skills.routes.ts`         | Filters response to 4 fields (line 8-13) |
 +----------------------------+------------------------------------------+------------------------------------------+
 
 ===============================================================================

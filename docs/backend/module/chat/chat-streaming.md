@@ -28,12 +28,12 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
-| internal/handler/chat_handler.go         | ChatHandler - HandleChat, StreamMissionLogs|
+| internal/handler/chat/handler.go         | ChatHandler - HandleChat, StreamMissionLogs|
 |                                          | HandleGetFeatures, HandleGetSkills         |
-| internal/service/model_service.go        | ModelService - resolve model to config     |
-| internal/service/consolidation_service.go| ConsolidationService - token threshold &   |
+| internal/service/aimodel/service.go        | ModelService - resolve model to config     |
+| internal/service/consolidation/service.go| ConsolidationService - token threshold &   |
 |                                          |   session summarization                    |
-| internal/repository/session_repository.go| SessionRepository - session CRUD, turn     |
+| internal/repository/session/repository.go| SessionRepository - session CRUD, turn     |
 |                                          |   persistence (incremental flush):         |
 |                                          |   InsertMessage, InsertAssistantPlaceholder|
 |                                          |   UpdateMessageContent, UpdateMessageStatus|
@@ -350,23 +350,23 @@ Entry Points & Exports
 +--------------------------------------------+------------+----------------------------+
 | Symbol                                     | Kind       | Path                       |
 +--------------------------------------------+------------+----------------------------+
-| NewChatHandler(cfg, rdb, modelSvc,         | Constructor| chat_handler.go:36         |
+| NewChatHandler(cfg, rdb, modelSvc,         | Constructor| chat/handler.go:36         |
 |   sessionRepo, consolidationSvc)           |            |                            |
-| HandleChat(c)                              | Method     | chat_handler.go:107        |
-| StreamMissionLogs(c)                       | Method     | chat_handler.go:462        |
-| HandleGetFeatures(c)                       | Method     | chat_handler.go:685        |
-| HandleGetSkills(c)                         | Method     | chat_handler.go:675        |
-| GetFeatures(ctx)                           | Method     | chat_handler.go:569        |
-| GetSkills(ctx)                             | Method     | chat_handler.go:622        |
-| InsertMessage(ctx, sessionID, role,        | Method     | session_repository.go      |
+| HandleChat(c)                              | Method     | chat/handler.go:107        |
+| StreamMissionLogs(c)                       | Method     | chat/handler.go:462        |
+| HandleGetFeatures(c)                       | Method     | chat/handler.go:685        |
+| HandleGetSkills(c)                         | Method     | chat/handler.go:675        |
+| GetFeatures(ctx)                           | Method     | chat/handler.go:569        |
+| GetSkills(ctx)                             | Method     | chat/handler.go:622        |
+| InsertMessage(ctx, sessionID, role,        | Method     | session/repository.go      |
 |   content, tokenCount, turnNumber, status) |            |                            |
-| InsertAssistantPlaceholder(ctx, sessionID, | Method     | session_repository.go      |
+| InsertAssistantPlaceholder(ctx, sessionID, | Method     | session/repository.go      |
 |   turnNumber)                              |            |                            |
-| UpdateMessageContent(ctx, msgID, content,  | Method     | session_repository.go      |
+| UpdateMessageContent(ctx, msgID, content,  | Method     | session/repository.go      |
 |   steps, tokenCount)                       |            |                            |
-| UpdateMessageStatus(ctx, msgID, status)    | Method     | session_repository.go      |
-| MarkStreamingAsInterrupted(ctx, sessionID) | Method     | session_repository.go      |
-| UpdateSessionTimestamp(ctx, sessionID)     | Method     | session_repository.go      |
+| UpdateMessageStatus(ctx, msgID, status)    | Method     | session/repository.go      |
+| MarkStreamingAsInterrupted(ctx, sessionID) | Method     | session/repository.go      |
+| UpdateSessionTimestamp(ctx, sessionID)     | Method     | session/repository.go      |
 +--------------------------------------------+------------+----------------------------+
 
 Dependencies
@@ -391,10 +391,10 @@ Dependencies
 Source References
 -----------------
 
-- internal/handler/chat_handler.go - All chat, stream, feature, and skill handlers
-- internal/service/model_service.go - Model resolution for provider config
-- internal/service/consolidation_service.go - Token threshold & summarization
-- internal/repository/session_repository.go - Session persistence, incremental flush
+- internal/handler/chat/handler.go - All chat, stream, feature, and skill handlers
+- internal/service/aimodel/service.go - Model resolution for provider config
+- internal/service/consolidation/service.go - Token threshold & summarization
+- internal/repository/session/repository.go - Session persistence, incremental flush
 - internal/observability/tracer.go - Tracer init, TrackAgentTurn helper
 - internal/router/router.go:59-61 - Route registrations
 - internal/constants/db/postgres.go - SQL queries (InsertMessageWithStatus, UpdateMessageContent, etc.)

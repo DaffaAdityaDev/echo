@@ -23,14 +23,12 @@ src/shared/utils/
   logger.ts             # Logger class (console + file + langfuse)
   errors.ts             # AppError hierarchy
   messages.ts           # LangChain message reconstruction
+  harness.ts            # Cosine similarity, token counting, truncation, validation
 
 src/infrastructure/providers/utils/
   index.ts              # calculateUsageCost
   reasoning-interceptor.ts  # ReasoningInterceptor (SSE reasoning capture)
   zod-schema.ts         # zodV4ToOpenAISchema (Zod → OpenAI JSON Schema)
-
-src/utils/
-  harness.ts            # Cosine similarity, token counting, truncation, validation
 ```
 
 ---
@@ -96,7 +94,7 @@ into LangChain `HumanMessage` and `AIMessage` objects. Used in
 
 ---
 
-## Harness Utils (utils/harness.ts)
+## Harness Utils (shared/utils/harness.ts)
 
 +----------------------------------+---------------------------------------------------------------+
 | Function                         | Description                                                   |
@@ -221,10 +219,10 @@ function calculateUsageCost(
 | `shared/utils/logger.ts`                         | 72-90                       | File-based logging with date-rotated files        |
 | `shared/utils/errors.ts`                        | 1-43                        | AppError, ValidationError, NotFoundError, Forbidden|
 | `shared/utils/messages.ts`                      | 1-15                        | mapHistoryToMessages                              |
-| `utils/harness.ts`                              | 4-39                        | getCosineSimilarity                               |
-| `utils/harness.ts`                              | 41-43                       | getHistoryTokens                                  |
-| `utils/harness.ts`                              | 45-66                       | selectiveTruncateToolResults                      |
-| `utils/harness.ts`                              | 68-114                      | validateContent                                   |
+| `shared/utils/harness.ts`                       | 4-39                        | getCosineSimilarity                               |
+| `shared/utils/harness.ts`                       | 41-43                       | getHistoryTokens                                  |
+| `shared/utils/harness.ts`                       | 45-66                       | selectiveTruncateToolResults                      |
+| `shared/utils/harness.ts`                       | 68-114                      | validateContent                                   |
 | `providers/utils/reasoning-interceptor.ts`      | 5-148                       | Full ReasoningInterceptor implementation          |
 | `providers/utils/reasoning-interceptor.ts`      | 12-25                       | interceptFetch — body tee                         |
 | `providers/utils/reasoning-interceptor.ts`      | 30-88                       | processReasoningStream — SSE parsing              |

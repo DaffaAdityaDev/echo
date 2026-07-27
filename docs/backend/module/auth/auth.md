@@ -22,9 +22,9 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
-| internal/handler/auth_handler.go         | HTTP handlers: Register, Login, Me, Logout |
-| internal/service/auth_service.go         | AuthService interface & struct (impl.)     |
-| internal/repository/user_repository.go   | UserRepository interface & struct (impl.)  |
+| internal/handler/auth/handler.go         | HTTP handlers: Register, Login, Me, Logout |
+| internal/service/auth/service.go         | AuthService interface & struct (impl.)     |
+| internal/repository/auth/repository.go   | UserRepository interface & struct (impl.)  |
 | internal/middleware/auth.go              | AuthRequired middleware - JWT validation   |
 | internal/constants/auth/jwt.go           | Auth constants: headers, cookie, errors    |
 | frontend/web/src/features/auth/index.ts  | Barrel exports: LoginForm, AuthGuard, ...  |
@@ -77,13 +77,13 @@ Request / Response Flow - Login
 
   Login Request (POST /api/v1/auth/login)
     │
-    ├─ AuthHandler.HandleLogin (auth_handler.go:59)
+    ├─   AuthHandler.HandleLogin (auth/handler.go:59)
     │   │
     │   ├─ Parse body → loginRequest{Email, Password}
     │   │
     │   └─ h.AuthSvc.Login(ctx, email, password)
     │       │
-    │       ├─ authService.Login (auth_service.go:33)
+    │       ├─ authService.Login (auth/service.go:33)
     │       │   │
     │       │   ├─ (1) userRepo.GetByEmail(ctx, email)
     │       │   │       └─ SELECT ... FROM users WHERE email = $1
@@ -124,7 +124,7 @@ Flow Diagram - Me (GET /me)
        │                        │  ✓ Check expiry             │
        │                        │  ✓ Set c.Locals("user_id")  │
        │                        │                             │
-       │                        │  HandleMe (auth_handler)    │
+       │                        │  HandleMe (auth/handler)    │
        │                        │  ├─ Read user_id from JWT   │
        │                        │  └─ authSvc.GetUserByID     │
        │                        │      └─ userRepo.GetUserByID│
@@ -145,7 +145,7 @@ Flow Diagram - Logout (POST /logout)
        │  POST /auth/logout     │
        │  Cookie: auth_token    │
        │───────────────────────►│
-       │                        │  HandleLogout (auth_handler)
+       │                        │  HandleLogout (auth/handler)
        │                        │  └─ Clear auth_token cookie
        │                        │      Value: ""
        │                        │      Expires: -1h
@@ -178,13 +178,13 @@ Entry Points & Exports
 +---------------------------------------+-------------+----------------------------------+
 | Symbol                                | Kind        | Path                             |
 +---------------------------------------+-------------+----------------------------------+
-| NewAuthHandler(cfg, authSvc)          | Constructor | handler/auth_handler.go:18       |
-| HandleRegister(c)                     | Method      | handler/auth_handler.go:36       |
-| HandleLogin(c)                        | Method      | handler/auth_handler.go:59       |
-| HandleMe(c)                           | Method      | handler/auth_handler.go:82       |
-| HandleLogout(c)                       | Method      | handler/auth_handler.go:104      |
-| NewAuthService(cfg, userRepo)         | Constructor | service/auth_service.go:26       |
-| AuthService                           | Interface   | service/auth_service.go:15       |
+| NewAuthHandler(cfg, authSvc)          | Constructor | handler/auth/handler.go:18       |
+| HandleRegister(c)                     | Method      | handler/auth/handler.go:36       |
+| HandleLogin(c)                        | Method      | handler/auth/handler.go:59       |
+| HandleMe(c)                           | Method      | handler/auth/handler.go:82       |
+| HandleLogout(c)                       | Method      | handler/auth/handler.go:104      |
+| NewAuthService(cfg, userRepo)         | Constructor | service/auth/service.go:26       |
+| AuthService                           | Interface   | service/auth/service.go:15       |
 | AuthRequired(secret)                  | Middleware  | middleware/auth.go:12            |
 +---------------------------------------+-------------+----------------------------------+
 
@@ -212,8 +212,8 @@ Dependencies
 Source References
 -----------------
 
-- internal/handler/auth_handler.go - HTTP handlers for register & login
-- internal/service/auth_service.go - AuthService interface + struct
+- internal/handler/auth/handler.go - HTTP handlers for register & login
+- internal/service/auth/service.go - AuthService interface + struct
 - internal/middleware/auth.go - AuthRequired JWT middleware
 - internal/constants/auth/jwt.go - Header/cookie names, error constants
 - internal/constants/config/defaults.go - Default JWT secret, environment

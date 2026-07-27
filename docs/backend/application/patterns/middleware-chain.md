@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Middleware Chain
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-27
 ================================================================================
 
 Overview
@@ -12,7 +12,8 @@ Overview
 
 The Middleware chain is the request pipeline executed before the handler. The
 backend uses Fiber built-in middleware and custom middleware for cross-cutting
-concerns: logging, recovery, CORS, and JWT authentication.
+concerns: logging, recovery, CORS, and JWT authentication. All middleware
+lives in a single flat package (internal/middleware).
 
 File Structure
 --------------
@@ -21,10 +22,11 @@ File Structure
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
 | internal/middleware/auth.go              | AuthRequired - User JWT validation         |
-| internal/middleware/internal.go          | InternalAuthRequired - Service JWT         |
-| internal/middleware/api_key.go           | APIKeyRequired - validates against API keys in PostgreSQL     |
-| internal/middleware/auth_or_apikey.go    | AuthOrAPIKeyRequired - JWT fallback to DB-backed API key|
+| internal/middleware/internal_auth.go     | InternalAuthRequired - Service JWT         |
+| internal/middleware/api_key.go           | APIKeyRequired - validates against API keys|
+| internal/middleware/auth_or_apikey.go    | AuthOrAPIKeyRequired - JWT fallback to API |
 | internal/middleware/common.go            | Logger, ErrorHandler                       |
+| internal/middleware/rbac.go              | RequireRoles - role-based access control   |
 | internal/server/server.go                | Global middleware registration             |
 | internal/router/router.go                | Per-route middleware                       |
 +------------------------------------------+--------------------------------------------+
@@ -117,7 +119,7 @@ InternalAuthRequired Middleware (Service JWT)
     │         { "error": "Forbidden: Invalid service identity" }
     └─ (6) c.Locals("agent_id", claims["sub"]) -> c.Next()
 
-  Source code: internal/middleware/internal.go
+  Source code: internal/middleware/internal_auth.go
 
 Logger Middleware
 -----------------
@@ -171,11 +173,14 @@ Entry Points & Exports
 +-------------------------+-------------------+------------------------------------+
 | Symbol                  | Kind              | Path                               |
 +-------------------------+-------------------+------------------------------------+
-| AuthRequired(secret)    | Middleware factory | middleware/auth.go:12              |
-| InternalAuthRequired    | Middleware factory | middleware/internal.go:12          |
+| AuthRequired(secret)    | Middleware factory | middleware/auth.go                  |
+| InternalAuthRequired    | Middleware factory | middleware/internal_auth.go         |
 | (secret)                |                   |                                    |
-| Logger()                | Middleware factory | middleware/common.go:11            |
-| ErrorHandler(c, err)    | Error handler     | middleware/common.go:29            |
+| Logger()                | Middleware factory | middleware/common.go                |
+| ErrorHandler(c, err)    | Error handler     | middleware/common.go                |
+| RequireRoles(roles...)  | Middleware factory | middleware/rbac.go                  |
+| AuthOrAPIKeyRequired    | Middleware factory | middleware/auth_or_apikey.go        |
+| (cfg, apiKeyRepo)       |                   |                                    |
 +-------------------------+-------------------+------------------------------------+
 
 Dependencies
@@ -195,10 +200,11 @@ Source References
 -----------------
 
 - internal/middleware/auth.go - AuthRequired (user JWT) middleware
-- internal/middleware/internal.go - InternalAuthRequired (service JWT) middleware
+- internal/middleware/internal_auth.go - InternalAuthRequired (service JWT)
 - internal/middleware/common.go - Logger, ErrorHandler
-- internal/server/server.go:26-36 - Global middleware registration
-- internal/router/router.go:50-55 - Internal route group with service JWT
+- internal/middleware/rbac.go - Role-based access control
+- internal/server/server.go - Global middleware registration
+- internal/router/router.go - Per-route middleware binding
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

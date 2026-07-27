@@ -26,7 +26,7 @@ calls. The frontend uses React Query with a custom hook.
 | Location                           | Role                                       |
 +------------------------------------+--------------------------------------------+
 | backend/internal/handler/          |                                            |
-|   auth_handler.go                  | Login handler, JWT creation, cookie set    |
+|   auth/handler.go                  | Login handler, JWT creation, cookie set    |
 | backend/internal/middleware/       |                                            |
 |   auth.go                         | AuthRequired middleware (User JWT)         |
 |   service_auth.go                 | ServiceAuthRequired middleware (Service    |
@@ -34,8 +34,8 @@ calls. The frontend uses React Query with a custom hook.
 | backend/internal/constants/auth/   |                                            |
 |   jwt.go                          | Cookie name, header, error constants       |
 | backend/internal/service/         |                                            |
-|   auth_service.go                  | Auth service interface                     |
-| agent/src/app/middleware/auth.ts   | Agent auth middleware (internal token)     |
+|   auth/service.go                  | Auth service interface                     |
+| agent/src/adapter/inbound/middleware/auth.ts   | Agent auth middleware (internal token)     |
 | agent/src/core/agent/plugins/     |                                            |
 |   memory-plugin.ts                | Service JWT signing + memory fetch         |
 | agent/src/shared/constants/       |                                            |
@@ -369,13 +369,13 @@ export const authApi = {
 
 ## Entry Points & Exports
 
-- **Go auth handler**: `backend/internal/handler/auth_handler.go` —
+- **Go auth handler**: `backend/internal/handler/auth/handler.go` —
   `HandleRegister`, `HandleLogin`
 - **Go auth middleware**: `backend/internal/middleware/auth.go` —
   `AuthRequired`
 - **Go auth constants**: `backend/internal/constants/auth/jwt.go` —
   header/cookie names, error messages
-- **Agent auth middleware**: `agent/src/app/middleware/auth.ts` — internal
+- **Agent auth middleware**: `agent/src/adapter/inbound/middleware/auth.ts` — internal
   token validation
 - **Agent auth constants**: `agent/src/shared/constants/middleware.ts` —
   `AUTH_CONSTANTS`
@@ -394,13 +394,13 @@ export const authApi = {
 +-------------------------------------------------------+-------+--------------------------------------+
 | File                                                  | Lines | Role                                 |
 +-------------------------------------------------------+-------+--------------------------------------+
-| backend/internal/handler/auth_handler.go              | 30-68 | Login handler, JWT creation, cookie  |
+| backend/internal/handler/auth/handler.go              | 30-68 | Login handler, JWT creation, cookie  |
 |                                                       |       |   set                                |
 | backend/internal/middleware/auth.go                   | 12-48 | AuthRequired middleware (User JWT)   |
 | backend/internal/middleware/service_auth.go           | 1-52  | ServiceAuthRequired middleware       |
 |                                                       |       |   (Service JWT)                      |
 | backend/internal/constants/auth/jwt.go                | 1-12  | Cookie name, header, error constants |
-| agent/src/app/middleware/auth.ts                      | 6-32  | Agent auth middleware                |
+| agent/src/adapter/inbound/middleware/auth.ts                      | 6-32  | Agent auth middleware                |
 | agent/src/core/agent/plugins/memory-plugin.ts         | 1-35  | Service JWT signing + memory fetch   |
 | agent/src/shared/constants/middleware.ts              | 1-9   | AUTH_CONSTANTS                       |
 | frontend/web/src/features/auth/services/auth-api.ts   | 1-17  | Auth API service                     |

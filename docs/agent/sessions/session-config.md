@@ -71,7 +71,7 @@ config provides defaults that sessions can override.
 
 ## Zod Schema
 
-The mission request schema is defined in `app/api/missions/mission.schema.ts`
+The mission request schema is defined in `adapter/inbound/api/missions/mission.schema.ts`
 and validated per-request at the controller level.
 
 ```typescript
@@ -307,7 +307,7 @@ export const createMissionSchema = z.object({
 +----------------------------+------------------------------------------+--------------------------------------------+
 | Export                     | Source                                   | Type                                       |
 +----------------------------+------------------------------------------+--------------------------------------------+
-| `createMissionSchema`      | `app/api/missions/mission.schema.ts`      | Zod validation schema                      |
+| `createMissionSchema`      | `adapter/inbound/api/missions/mission.schema.ts` | Zod validation schema                      |
 | `HarnessOverrides`         | `core/agent/harness/types.ts`             | Partial harness parameters                 |
 +----------------------------+------------------------------------------+--------------------------------------------+
 
@@ -332,10 +332,10 @@ export const createMissionSchema = z.object({
 | Ref                        | File                                     | Key Lines                                   |
 +----------------------------+------------------------------------------+---------------------------------------------+
 | Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*    |
-| Mission schema             | `app/api/missions/mission.schema.ts`     | Full mission request validation            |
+| Mission schema             | `adapter/inbound/api/missions/mission.schema.ts` | Full mission request validation            |
 | Provider config dispatch   | `infrastructure/providers/factory.ts:15-27`| `fromConfig()` reads session provider config|
 | Harness defaults           | `harness/nlah/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |
-| Stream transport           | `app/api/missions/stream.transport.ts`   | Packet serialization                        |
+| Stream transport           | `adapter/inbound/api/missions/stream.transport.ts` | Packet serialization                        |
 +----------------------------+------------------------------------------+---------------------------------------------+
 
 ===============================================================================

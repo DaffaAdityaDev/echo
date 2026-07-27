@@ -149,7 +149,7 @@ Stream Phase 3 - Usage (after stream ends)
 | `zod`                             | Schema definitions                                           |
 | `shared/types`                    | `LLMProvider`, `ToolDefinition`, `ProviderEvent`             |
 | `shared/constants`                | `LLM_CONFIG` (temperature)                                   |
-| `utils/langfuse`                  | LangChain callbacks for tracing                              |
+| `shared/utils/langfuse`           | LangChain callbacks for tracing                              |
 +-----------------------------------+--------------------------------------------------------------+
 
 ---

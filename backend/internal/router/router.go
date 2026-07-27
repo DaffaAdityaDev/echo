@@ -6,14 +6,26 @@ import (
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/constants/routes"
 	"echo-backend/internal/database"
-	"echo-backend/internal/handler"
-	llmopsHandler "echo-backend/internal/handler/llmops"
+	authhdl "echo-backend/internal/handler/auth"
+	adminhdl "echo-backend/internal/handler/admin"
+	chathdl "echo-backend/internal/handler/chat"
+	memhdl "echo-backend/internal/handler/memory"
+	aimodelhdl "echo-backend/internal/handler/aimodel"
+	sessionhdl "echo-backend/internal/handler/session"
+	setthdl "echo-backend/internal/handler/settings"
+	"echo-backend/internal/handler/llmops"
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository"
+	authrepo "echo-backend/internal/repository/auth"
+	adminrepo "echo-backend/internal/repository/admin"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
-	"echo-backend/internal/service"
+	sessrepo "echo-backend/internal/repository/session"
+	setrepo "echo-backend/internal/repository/settings"
+	authsvc "echo-backend/internal/service/auth"
+	consolid "echo-backend/internal/service/consolidation"
 	llmopsSvc "echo-backend/internal/service/llmops"
+	aimodelSvc "echo-backend/internal/service/aimodel"
+	settsvc "echo-backend/internal/service/settings"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -30,35 +42,35 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	}
 
 	// 2. Initialize Repositories
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	userRepo := authrepo.NewRepository(pool)
+	sessionRepo := sessrepo.NewRepository(pool)
+	apiKeyRepo := adminrepo.NewRepository(pool)
+	settingsRepo := setrepo.NewRepository(pool)
 
 	// 3. Initialize Services
-	authSvc := service.NewAuthService(cfg, userRepo)
-	settingsRepo := repository.NewSettingsRepository(pool)
-	settingsSvc := service.NewSettingsService(cfg, settingsRepo)
-	modelSvc := service.NewModelService(cfg, settingsSvc)
-	consolidationSvc := service.NewConsolidationService(cfg, sessionRepo)
+	authSvc := authsvc.NewService(cfg, userRepo)
+	settingsSvc := settsvc.NewService(cfg, settingsRepo)
+	aimodelSvcInstance := aimodelSvc.NewService(cfg, settingsSvc)
+	consolidationSvc := consolid.NewService(cfg, sessionRepo)
 
 	// 4. Initialize Handlers
-	authHandler := &handler.AuthHandler{Cfg: cfg, AuthSvc: authSvc}
-	chatHandler := &handler.ChatHandler{Cfg: cfg, RedisClient: rdb, HonoAPIURL: cfg.AgentHTTPURL, ModelSvc: modelSvc, SessionRepo: sessionRepo, ConsolidationSvc: consolidationSvc}
-	sessionHandler := &handler.SessionHandler{Cfg: cfg, SessionRepo: sessionRepo, ConsolidationSvc: consolidationSvc, ModelSvc: modelSvc}
-	modelHandler := &handler.ModelHandler{ModelSvc: modelSvc}
-	adminHandler := handler.NewAdminHandler(cfg, apiKeyRepo)
-	memoryHandler := handler.NewMemoryHandler(rdb, pool)
-	settingsHandler := &handler.SettingsHandler{Cfg: cfg, SettingsSvc: settingsSvc}
+	authHandler := authhdl.NewHandler(cfg, authSvc)
+	chatHandler := chathdl.NewHandler(cfg, rdb, aimodelSvcInstance, sessionRepo, consolidationSvc)
+	sessionHandler := sessionhdl.NewHandler(cfg, sessionRepo, consolidationSvc, aimodelSvcInstance)
+	aimodelHandler := aimodelhdl.NewHandler(aimodelSvcInstance)
+	adminHandler := adminhdl.NewHandler(cfg, apiKeyRepo)
+	memoryHandler := memhdl.NewHandler(rdb, pool)
+	settingsHandler := setthdl.NewHandler(cfg, settingsSvc)
 
 	// 5. Initialize LLMOps Module
 	llmopsPromptRepo := propsrepo.NewRepository(pool)
 
 	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo)
 
-	llmopsPlaygroundSvc := llmopsSvc.NewPlaygroundService(modelSvc, cfg.AgentHTTPURL, cfg.InternalAuthToken)
+	llmopsPlaygroundSvc := llmopsSvc.NewPlaygroundService(aimodelSvcInstance, cfg.AgentHTTPURL, cfg.InternalAuthToken)
 
-	llmopsPromptHandler := llmopsHandler.NewPromptHandler(llmopsPromptSvc)
-	llmopsStudioHandler := llmopsHandler.NewStudioHandler(llmopsPlaygroundSvc)
+	llmopsPromptHandler := llmops.NewPromptHandler(llmopsPromptSvc)
+	llmopsStudioHandler := llmops.NewStudioHandler(llmopsPlaygroundSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {
@@ -107,7 +119,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 	api.Get("/missions/:missionId/stream", chatHandler.StreamMissionLogs)
-	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), modelHandler.HandleGetModels)
+	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
 	api.Get(routes.V1PathFeatures, chatHandler.HandleGetFeatures)
 
 	// Settings routes

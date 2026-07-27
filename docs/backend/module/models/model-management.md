@@ -22,8 +22,8 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
-| internal/handler/model_handler.go        | ModelHandler - HTTP handler for GET /models|
-| internal/service/model_service.go        | ModelService - listing, resolution, caching|
+| internal/handler/aimodel/handler.go        | ModelHandler - HTTP handler for GET /models|
+| internal/service/aimodel/service.go        | ModelService - listing, resolution, caching|
 | internal/models/models.go                | ModelInfo, ProviderConfig, ProviderType    |
 | internal/config/config.go                | Config loading - model lists from env vars |
 +------------------------------------------+--------------------------------------------+
@@ -151,15 +151,15 @@ Entry Points & Exports
 +-----------------------------------+--------------+-------------------------------+
 | Symbol                            | Kind         | Path                          |
 +-----------------------------------+--------------+-------------------------------+
-| NewModelHandler(modelSvc)         | Constructor  | handler/model_handler.go:12   |
-| HandleGetModels(c)                | Method       | handler/model_handler.go:16   |
-| NewModelService(cfg)              | Constructor  | service/model_service.go:42   |
-| ModelService                      | Interface    | service/model_service.go:30   |
-| GetModels(ctx)                    | Method       | service/model_service.go:46   |
-| ResolveModel(modelID)             | Method       | service/model_service.go:84   |
-| GetDefault()                      | Method       | service/model_service.go:143  |
-| fetchOpenCodeGoModels(ctx)        | Private      | service/model_service.go:207  |
-| fetchLMStudioModels(ctx)          | Private      | service/model_service.go:252  |
+| NewModelHandler(modelSvc)         | Constructor  | handler/aimodel/handler.go:12   |
+| HandleGetModels(c)                | Method       | handler/aimodel/handler.go:16   |
+| NewModelService(cfg)              | Constructor  | service/aimodel/service.go:42   |
+| ModelService                      | Interface    | service/aimodel/service.go:30   |
+| GetModels(ctx)                    | Method       | service/aimodel/service.go:46   |
+| ResolveModel(modelID)             | Method       | service/aimodel/service.go:84   |
+| GetDefault()                      | Method       | service/aimodel/service.go:143  |
+| fetchOpenCodeGoModels(ctx)        | Private      | service/aimodel/service.go:207  |
+| fetchLMStudioModels(ctx)          | Private      | service/aimodel/service.go:252  |
 +-----------------------------------+--------------+-------------------------------+
 
 Dependencies
@@ -177,8 +177,8 @@ Dependencies
 Source References
 -----------------
 
-- internal/handler/model_handler.go - Model listing HTTP handler
-- internal/service/model_service.go - ModelService interface + implementation
+- internal/handler/aimodel/handler.go - Model listing HTTP handler
+- internal/service/aimodel/service.go - ModelService interface + implementation
 - internal/models/models.go:25-30 - ModelInfo struct
 - internal/models/models.go:9-16 - ProviderType constants
 - internal/router/router.go:50 - Route registration

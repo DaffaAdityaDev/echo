@@ -436,9 +436,9 @@ SESSION_MANAGEMENT = {
 | Export                      | Source                           | Type                                       |
 +-----------------------------+----------------------------------+--------------------------------------------+
 | SessionHandler              | backend/internal/handler/        | Go Fiber handler (CRUD endpoints)          |
-|                             |   session_handler.go             |                                            |
+|                             |   session/handler.go             |                                            |
 | SessionRepository           | backend/internal/repository/     | 16 methods: CreateSession, ListByUser,        |
-|                             |   session_repository.go          | GetByID, DeleteSession, UpdateContextSummary,|
+|                             |   session/repository.go          | GetByID, DeleteSession, UpdateContextSummary,|
 |                             |                                | GetSessionMessages, GetSessionTokenCount,   |
 |                             |                                | GetMaxTurnNumber, DeleteMessagesUpToTurn,   |
 |                             |                                | SaveTurnMessages, InsertMessage,            |
@@ -447,12 +447,12 @@ SESSION_MANAGEMENT = {
 |                             |                                | MarkStreamingAsInterrupted,                 |
 |                             |                                | UpdateSessionTimestamp                      |
 | streamContent               | backend/internal/handler/        | struct in HandleChat SendStreamWriter:      |
-|                             |   chat_handler.go               | content, thinking (strings.Builder),       |
+|                             |   chat/handler.go               | content, thinking (strings.Builder),       |
 |                             |                                | toolCalls, toolResults slices,             |
 |                             |                                | isComplete bool, sync.RWMutex              |
 | ConsolidationService        | backend/internal/service/        | Orchestrates threshold check → Agent call  |
-|                             |   consolidation_service.go      |                                            |
-| SummarizeEndpoint           | agent/src/app/api/internal/      | Hono endpoint for LLM summarization        |
+|                             |   consolidation/service.go      |                                            |
+| SummarizeEndpoint           | agent/src/adapter/inbound/api/internal/ | Hono endpoint for LLM summarization        |
 |                             |   summarize.ts                  |                                            |
 +-----------------------------+----------------------------------+--------------------------------------------+
 
@@ -465,10 +465,10 @@ SESSION_MANAGEMENT = {
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Current state storage    | agent/src/core/agent/storage/            | Existing IStateStore — to be replaced by session      |
 |                          |   backend.ts + memory.ts                 |   loading from Go                                     |
-| Current mission          | agent/src/app/api/missions/              | Controller that currently loads from stateStorage     |
-| controller               |   mission.controller.ts                  |   → will receive messages[] from Go instead           |
-| Chat handler (Go)        | backend/internal/handler/                | Existing proxy — will add session loading + commit    |
-|                          |   chat_handler.go                        |                                                       |
+| Current mission          | agent/src/adapter/inbound/api/missions/ | Controller that currently loads from stateStorage     |
+| controller               |   mission.controller.ts          |   → will receive messages[] from Go instead           |
+| Chat handler (Go)        | backend/internal/handler/        | Existing proxy — will add session loading + commit    |
+|                          |   chat/handler.go                |                                                       |
 | Circuit breaker          | docs/agent/application/features/         | Observation compression applied before commit         |
 |                          |   execution/circuit-breaker-pattern.md   |                                                       |
 | 5-block cache layout     | docs/shared/architecture/headless-       | BLOCK 4 now loaded from session store                 |

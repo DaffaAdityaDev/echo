@@ -22,7 +22,7 @@ File Structure
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
 | internal/observability/tracer.go         | Tracer init, globals, span helpers         |
-| internal/handler/chat_handler.go         | Span creation, traceparent propagation     |
+| internal/handler/chat/handler.go         | Span creation, traceparent propagation     |
 | internal/config/config.go                | OTel configuration (endpoint, enable flag) |
 +------------------------------------------+--------------------------------------------+
 
@@ -184,8 +184,8 @@ Source References
 -----------------
 
 - internal/observability/tracer.go - Tracer setup, helpers
-- internal/handler/chat_handler.go:104-109 - Span creation in chat handler
-- internal/handler/chat_handler.go:189-191 - Traceparent propagation
+- internal/handler/chat/handler.go:104-109 - Span creation in chat handler
+- internal/handler/chat/handler.go:189-191 - Traceparent propagation
 - cmd/server/main.go:24-38 - Tracer initialization on startup
 
 ================================================================================

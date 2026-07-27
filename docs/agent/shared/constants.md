@@ -83,7 +83,7 @@ ERROR_MESSAGES = {
 };
 ```
 
-Used by `errorHandler` middleware (`src/app/middleware/error.ts`) to classify and
+Used by `errorHandler` middleware (`src/adapter/inbound/middleware/error.ts`) to classify and
 respond to errors.
 
 ---

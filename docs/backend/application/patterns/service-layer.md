@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Service Layer
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-27
 ================================================================================
 
 Overview
@@ -14,21 +14,29 @@ The Service layer separates business logic from HTTP handlers. Services have
 no dependency on Fiber context — they only accept and return pure data (Go
 structs/primitives). This enables logic to be tested without HTTP, leaving
 handlers responsible solely for request parsing and response formatting.
-AuthService is fully implemented with bcrypt hashing, credential validation,
-and JWT generation.
+
+Each domain gets its own sub-package under service/:
+
+  service/auth/           Authentication logic
+  service/aimodel/          Model resolution & caching
+  service/consolidation/  Token threshold & memory consolidation
+  service/settings/       User preferences management
+  service/llmops/         Prompt & playground business logic
 
 File Structure
 --------------
 
-+------------------------------------------+--------------------------------------------+
-| Path                                     | Description                                |
-+------------------------------------------+--------------------------------------------+
-| internal/service/auth_service.go         | AuthService - authentication logic         |
-| internal/service/model_service.go        | ModelService - listing, resolution, cache  |
-| internal/handler/auth_handler.go         | AuthHandler - HTTP wrapper around service  |
-| internal/handler/model_handler.go        | ModelHandler - HTTP wrapper around service |
-| internal/handler/chat_handler.go         | ChatHandler - uses ModelService directly   |
-+------------------------------------------+--------------------------------------------+
++------------------------------------------------+--------------------------------------------+
+| Path                                           | Description                                |
++------------------------------------------------+--------------------------------------------+
+| internal/service/auth/service.go               | AuthService - authentication logic         |
+| internal/service/aimodel/service.go           | AiModelService - listing, resolution, cache|
+| internal/service/consolidation/service.go      | ConsolidationService - token management    |
+| internal/service/settings/service.go           | SettingsService - user preferences         |
+| internal/handler/auth/handler.go               | AuthHandler - HTTP wrapper around service  |
+| internal/handler/aimodel/handler.go           | AiModelHandler - HTTP wrapper around service|
+| internal/handler/chat/handler.go               | ChatHandler - uses ModelService directly   |
++------------------------------------------------+--------------------------------------------+
 
 Principles
 ----------
@@ -53,19 +61,19 @@ Principles
 AuthService
 -----------
 
-  type AuthService interface {
+  type Service interface {
       Login(ctx context.Context, email, password string) (*models.User, string, error)
       Register(ctx context.Context, email, password, name string) (*models.User, string, error)
       GetUserByID(ctx context.Context, id int) (*models.User, error)
   }
 
-  type authService struct {
+  type service struct {
       cfg      *models.Config
-      userRepo repository.UserRepository
+      userRepo authrepo.Repository
   }
 
-  func NewAuthService(cfg *models.Config, userRepo repository.UserRepository) AuthService {
-      return &authService{cfg: cfg, userRepo: userRepo}
+  func NewService(cfg *models.Config, userRepo authrepo.Repository) Service {
+      return &service{cfg: cfg, userRepo: userRepo}
   }
 
 Implemented methods:
@@ -87,20 +95,20 @@ Implemented methods:
 ModelService
 ------------
 
-  type ModelService interface {
+  type Service interface {
       GetModels(ctx context.Context) ([]models.ModelInfo, error)
       ResolveModel(modelID string) (*models.ProviderConfig, error)
       GetDefault() *models.ProviderConfig
   }
 
-  type modelService struct {
+  type service struct {
       cfg     *models.Config
       goCache openCodeGoCache
       lmCache lmStudioCache
   }
 
-  func NewModelService(cfg *models.Config) ModelService {
-      return &modelService{cfg: cfg}
+  func NewService(cfg *models.Config) Service {
+      return &service{cfg: cfg}
   }
 
 Key behaviors:
@@ -114,15 +122,15 @@ Dependency Injection Flow
 
   router.go
     │
-    ├─ database.NewInfrastructure(cfg)           -> infra
-    ├─ repository.NewUserRepository(infra)       -> userRepo
+    ├─ database.NewPostgresPool(cfg)              -> pool
+    ├─ repository/auth.NewRepository(pool)        -> userRepo
     │
-    ├─ service.NewAuthService(cfg, userRepo)     -> authSvc
-    ├─ service.NewModelService(cfg)              -> modelSvc
+    ├─ service/auth.NewService(cfg, userRepo)     -> authSvc
+    ├─ service/aimodel.NewService(cfg, settingsSvc) -> aimodelSvc
     │
-    ├─ handler.NewAuthHandler(cfg, authSvc)      -> authHandler
-    ├─ handler.NewChatHandler(cfg, infra.Redis, modelSvc) -> chatHandler
-    └─ handler.NewModelHandler(modelSvc)         -> modelHandler
+    ├─ handler/auth.NewHandler(cfg, authSvc)      -> authHandler
+    ├─ handler/chat.NewHandler(cfg, rdb, aimodelSvc, ...) -> chatHandler
+    └─ handler/aimodel.NewHandler(aimodelSvc)   -> aimodelHandler
 
 Entry Points & Exports
 ----------------------
@@ -130,10 +138,12 @@ Entry Points & Exports
 +-----------------------------------+--------------+------------------------------------+
 | Symbol                            | Kind         | Path                               |
 +-----------------------------------+--------------+------------------------------------+
-| AuthService                       | Interface    | service/auth_service.go:15         |
-| NewAuthService(cfg, userRepo)     | Constructor  | service/auth_service.go:26         |
-| ModelService                      | Interface    | service/model_service.go:30        |
-| NewModelService(cfg)              | Constructor  | service/model_service.go:42        |
+| Service (interface)               | Interface    | service/auth/service.go            |
+| NewService(cfg, userRepo)         | Constructor  | service/auth/service.go            |
+| Service                            | Struct       | service/aimodel/service.go        |
+| NewService(cfg, settingsSvc)       | Constructor  | service/aimodel/service.go        |
+| Service (interface)               | Interface    | service/consolidation/service.go   |
+| NewService(cfg, sessionRepo)      | Constructor  | service/consolidation/service.go   |
 +-----------------------------------+--------------+------------------------------------+
 
 Dependencies
@@ -142,8 +152,8 @@ Dependencies
 +----------------------------+-----------------------------------------------+
 | Dependency                 | Used For                                      |
 +----------------------------+-----------------------------------------------+
-| repository.UserRepository  | Data access for AuthService                   |
-| models.Config              | Configuration access                          |
+| repository/*               | Data access for Service                        |
+| models.Config              | Configuration access                           |
 | net/http                   | Fetching remote model lists (ModelService)    |
 | sync.RWMutex               | Thread-safe caching (ModelService)            |
 +----------------------------+-----------------------------------------------+
@@ -151,9 +161,10 @@ Dependencies
 Source References
 -----------------
 
-- internal/service/auth_service.go - AuthService interface + struct
-- internal/service/model_service.go - ModelService full implementation
-- internal/router/router.go:23-24 - Service instantiation in DI graph
+- internal/service/auth/service.go - AuthService interface + struct
+- internal/service/aimodel/service.go - AiModelService full implementation
+- internal/service/consolidation/service.go - ConsolidationService
+- internal/router/router.go - Service instantiation in DI graph
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

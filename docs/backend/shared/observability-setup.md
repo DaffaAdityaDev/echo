@@ -21,7 +21,7 @@ File Structure
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
 | internal/observability/tracer.go         | Tracer init & helper functions             |
-| internal/handler/chat_handler.go         | Span usage + traceparent propagation       |
+| internal/handler/chat/handler.go         | Span usage + traceparent propagation       |
 | cmd/server/main.go                       | Conditional tracer init                    |
 +------------------------------------------+--------------------------------------------+
 
@@ -98,7 +98,7 @@ Span Creation Patterns
   Handler Span (Chat)
   ~~~~~~~~~~~~~~~~~~~
 
-  // chat_handler.go:104
+  // chat/handler.go:104
   ctx, span := observability.Tracer.Start(ctx, "HandleChat",
       trace.WithAttributes(
           attribute.String("agent.session_id", req.MissionID),
@@ -124,7 +124,7 @@ Span Creation Patterns
   Error Recording
   ~~~~~~~~~~~~~~~
 
-  // chat_handler.go:128 - Record error on span
+  // chat/handler.go:128 - Record error on span
   span.RecordError(fmt.Errorf("access denied: feature %s requires pro", feat.Name))
 
 Trace Context Propagation
@@ -133,7 +133,7 @@ Trace Context Propagation
   Parsing Incoming traceparent
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  // chat_handler.go:68-90
+  // chat/handler.go:68-90
   func parseTraceparent(tp string) (trace.SpanContext, bool) {
       // Format: 00-<traceID>-<spanID>-<traceFlags>
       if !strings.HasPrefix(tp, "00-") { return zero, false }
@@ -145,7 +145,7 @@ Trace Context Propagation
   Propagating Downstream
   ~~~~~~~~~~~~~~~~~~~~~~
 
-  // chat_handler.go:189-191
+  // chat/handler.go:189-191
   newTraceContext := span.SpanContext()
   agentTraceparent := fmt.Sprintf("00-%s-%s-01",
       newTraceContext.TraceID().String(),
@@ -183,10 +183,10 @@ Source References
 -----------------
 
 - internal/observability/tracer.go - Full tracer setup
-- internal/handler/chat_handler.go:68-90 - traceparent parsing
-- internal/handler/chat_handler.go:104-109 - Span creation
-- internal/handler/chat_handler.go:128 - Error recording
-- internal/handler/chat_handler.go:189-191 - Downstream propagation
+- internal/handler/chat/handler.go:68-90 - traceparent parsing
+- internal/handler/chat/handler.go:104-109 - Span creation
+- internal/handler/chat/handler.go:128 - Error recording
+- internal/handler/chat/handler.go:189-191 - Downstream propagation
 - cmd/server/main.go:24-38 - Conditional tracer init
 
 ================================================================================

@@ -13,7 +13,7 @@ State persistence layer for agent missions using a factory-pattern storage
 abstraction. Provides an in-memory implementation with JSON serialization.
 External persistence (backend-backed storage) is handled by the
 [Adapter Layer](../adapter/adapter-architecture.md) — specifically
-`adapter/backend/memory.adapter.ts`.
+`adapter/outbound/backend/memory.adapter.ts`.
 
 ---
 
@@ -26,7 +26,7 @@ storage/                     ← Agent-local state cache
   memory.ts                  # InMemoryStateProvider implementation
   serializer.ts              # AgentState serialization/deserialization
 
-adapter/backend/             ← External persistence (via adapter layer)
+adapter/outbound/backend/    ← External persistence (via adapter layer)
   memory.adapter.ts          # BackendStateProvider — calls Go backend API
 ```
 
@@ -136,7 +136,7 @@ adapter/backend/             ← External persistence (via adapter layer)
 | Controller usage           | `mission.controller.ts:62`             | `stateStorage.get(missionId)` on mission start     |
 | Harness persistence        | `nlah/harness.ts:528`                  | `stateStorage.set()` after each turn               |
 | Final save                 | `nlah/harness.ts:554`                  | `stateStorage.set()` after loop ends               |
-| Backend persistence        | `adapter/backend/memory.adapter.ts`    | External persistence via Go backend API            |
+| Backend persistence        | `adapter/outbound/backend/memory.adapter.ts` | External persistence via Go backend API            |
 +----------------------------+----------------------------------------+----------------------------------------------------+
 
 ================================================================================

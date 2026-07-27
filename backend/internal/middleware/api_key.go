@@ -4,14 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository"
+	adminrepo "echo-backend/internal/repository/admin"
 	"encoding/hex"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-func APIKeyAuthRequired(cfg *models.Config, apiKeyRepo *repository.ApiKeyRepository) fiber.Handler {
+func APIKeyAuthRequired(cfg *models.Config, apiKeyRepo *adminrepo.Repository) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {

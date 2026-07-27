@@ -1,17 +1,17 @@
 import "./config/env";
-import "./utils/telemetry";
+import "./shared/utils/telemetry";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { ENV } from "./config/env";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "./shared/utils/logger";
-import routes from "./app/api/routes";
-import { monitorMiddleware } from "./app/middleware/monitor";
-import { authMiddleware } from "./app/middleware/auth";
-import { errorHandler } from "./app/middleware/error";
+import routes from "./adapter/inbound/api/routes";
+import { monitorMiddleware } from "./adapter/inbound/middleware/monitor";
+import { authMiddleware } from "./adapter/inbound/middleware/auth";
+import { errorHandler } from "./adapter/inbound/middleware/error";
 import { toolRegistry } from "./core/agent/tools/registry";
-import { MemoryAdapter } from "./adapter/backend/memory.adapter";
+import { MemoryAdapter } from "./adapter/outbound/backend/memory.adapter";
 import { CredentialManager } from "./core/agent/credentials/manager";
 
 import { fileURLToPath } from "node:url";
@@ -39,7 +39,7 @@ if (ENV.ENABLE_MCP && ENV.MCP_SERVER_URL) {
   logger.info(`MCP server configured at ${ENV.MCP_SERVER_URL}`);
 }
 
-import docsRouter from "./app/api/docs/docs";
+import docsRouter from "./adapter/inbound/api/docs/docs";
 
 const app = new Hono();
 

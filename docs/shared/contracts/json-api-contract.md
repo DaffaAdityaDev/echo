@@ -19,14 +19,14 @@ convention.
 | Location                      | Role                                       |
 +-------------------------------+--------------------------------------------+
 | backend/internal/handler/     |                                            |
-|   auth_handler.go             | Login response shape                       |
-|   chat_handler.go             | Chat request/response, feature response    |
+|   auth/handler.go             | Login response shape                       |
+|   chat/handler.go             | Chat request/response, feature response    |
 | backend/internal/models/      |                                            |
 |   models.go                   | ProviderCfg struct                         |
 | backend/internal/constants/   |                                            |
 |   routes/v1.go                | Path constants                             |
 |   auth/jwt.go                 | Header constants                           |
-| agent/src/app/api/missions/   |                                            |
+| agent/src/adapter/inbound/api/missions/   |                                            |
 |   mission.schema.ts           | Zod validation with dual naming            |
 |   mission.controller.ts       | Schema usage, error format                 |
 | agent/src/shared/types/       |                                            |
@@ -425,7 +425,7 @@ offset-based:
 ## Entry Points & Exports
 
 - **Go request structs**: `ChatRequest`, `HistoryMessage`, `Feature`,
-  `FeatureResponse` in `chat_handler.go`
+  `FeatureResponse` in `chat/handler.go`
 - **Agent Zod schema**: `createMissionSchema` in `mission.schema.ts`
 - **Frontend types**: `StreamPacket`, `Message`, `ThoughtStep` in
   `chat/types/index.ts`
@@ -445,11 +445,11 @@ offset-based:
 +-------------------------------------------------------+-------+--------------------------------------+
 | File                                                  | Lines | Role                                 |
 +-------------------------------------------------------+-------+--------------------------------------+
-| backend/internal/handler/auth_handler.go              | 60-67 | Login response shape                 |
-| backend/internal/handler/chat_handler.go              | 45-66,| Chat request/response, feature       |
+| backend/internal/handler/auth/handler.go              | 60-67 | Login response shape                 |
+| backend/internal/handler/chat/handler.go              | 45-66,| Chat request/response, feature       |
 |                                                       | 92-233|   response                            |
-| agent/src/app/api/missions/mission.schema.ts          | 9-61  | Zod validation with dual naming      |
-| agent/src/app/api/missions/mission.controller.ts      | 20-121| Schema usage, error format           |
+| agent/src/adapter/inbound/api/missions/mission.schema.ts          | 9-61  | Zod validation with dual naming      |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 20-121| Schema usage, error format           |
 | agent/src/shared/types/index.ts                       | 56-80 | HarnessPacket discriminated union    |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy                  |
 | frontend/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket frontend type           |

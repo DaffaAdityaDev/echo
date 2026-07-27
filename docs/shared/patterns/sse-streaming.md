@@ -19,13 +19,13 @@ taxonomy.
 +-------------------------------------+---------------------------------------------+
 | Location                            | Role                                        |
 +-------------------------------------+---------------------------------------------+
-| agent/src/app/api/missions/         |                                             |
+| agent/src/adapter/inbound/api/missions/         |                                             |
 |   mission.controller.ts             | SSE stream creation                         |
 |   stream.transport.ts               | HttpStreamTransport packet writer           |
 | agent/src/core/agent/harness/       |                                             |
 |   cancel_manager.ts                 | Abort signal per mission                    |
 | backend/internal/handler/           |                                             |
-|   chat_handler.go                   | HandleChat SSE proxy, StreamMissionLogs     |
+|   chat/handler.go                   | HandleChat SSE proxy, StreamMissionLogs     |
 | backend/internal/router/router.go   | Route wiring                                |
 | frontend/web/src/features/chat/     |                                             |
 |   api/useChatStream.ts              | SSE packet dispatch                         |
@@ -287,9 +287,9 @@ console noise on intentional cancellation.
 - **Agent stream writer**: `stream.transport.ts` -> `HttpStreamTransport.send()`
 - **Agent mission controller**: `mission.controller.ts` -> `createMission()`
   wraps SSE stream
-- **Go SSE proxy**: `chat_handler.go` -> `HandleChat()` streams from agent to
+- **Go SSE proxy**: `chat/handler.go` -> `HandleChat()` streams from agent to
   client
-- **Go mission log stream**: `chat_handler.go` -> `StreamMissionLogs()` dual-mode
+- **Go mission log stream**: `chat/handler.go` -> `StreamMissionLogs()` dual-mode
 - **Frontend SSE consumer**: `useChatStream.ts` -> `sendMessage()` calls
   `api.stream()`
 - **Frontend API streaming**: `api-client.ts` -> `stream()` ReadableStream
@@ -300,11 +300,11 @@ console noise on intentional cancellation.
 +-------------------------------------------------------+-------+---------------------------------------+
 | File                                                  | Lines | Role                                  |
 +-------------------------------------------------------+-------+---------------------------------------+
-| agent/src/app/api/missions/mission.controller.ts      | 85-116| SSE stream creation                   |
-| agent/src/app/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 85-116| SSE stream creation                   |
+| agent/src/adapter/inbound/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
 | agent/src/core/agent/harness/cancel_manager.ts        | 1-40  | Abort signal per mission              |
-| backend/internal/handler/chat_handler.go              | 92-233| HandleChat SSE proxy                  |
-| backend/internal/handler/chat_handler.go              | 236-  | StreamMissionLogs dual mode           |
+| backend/internal/handler/chat/handler.go              | 92-233| HandleChat SSE proxy                  |
+| backend/internal/handler/chat/handler.go              | 236-  | StreamMissionLogs dual mode           |
 |                                                       | 340   |                                       |
 | frontend/web/src/features/chat/api/useChatStream.ts   | 38-270| SSE packet dispatch, AbortController   |
 | frontend/web/src/lib/api-client.ts                    | 56-121| ReadableStream SSE parser             |

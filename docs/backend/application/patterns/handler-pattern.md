@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Handler Pattern
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-27
 ================================================================================
 
 Overview
@@ -18,28 +18,34 @@ error mapping.
 File Structure
 --------------
 
-+------------------------------------------+--------------------------------------------+
-| Path                                     | Description                                |
-+------------------------------------------+--------------------------------------------+
-| internal/handler/auth_handler.go         | Auth routes handler                        |
-| internal/handler/chat_handler.go         | Chat, stream, features handler             |
-| internal/handler/model_handler.go        | Model listing handler                      |
-| internal/router/router.go                | Route registration & DI wiring             |
-+------------------------------------------+--------------------------------------------+
++------------------------------------------------+--------------------------------------------+
+| Path                                           | Description                                |
++------------------------------------------------+--------------------------------------------+
+| internal/handler/auth/handler.go               | Auth routes handler                        |
+| internal/handler/chat/handler.go               | Chat, stream, features handler             |
+| internal/handler/aimodel/handler.go           | Model listing handler                      |
+| internal/handler/admin/handler.go              | Admin API key management handler           |
+| internal/handler/session/handler.go            | Session CRUD + title generation handler    |
+| internal/handler/memory/handler.go             | Episodic/semantic/procedural memory API    |
+| internal/handler/settings/handler.go           | User preferences handler                   |
+| internal/handler/handlerutil/helpers.go        | Shared utilities (GetUserID, GenerateUUID) |
+| internal/handler/llmops/                       | Prompt & studio handlers (sub-package)     |
+| internal/router/router.go                      | Route registration & DI wiring             |
++------------------------------------------------+--------------------------------------------+
 
 Handler Pattern
 ---------------
 
-  type AuthHandler struct {
+  type Handler struct {
       Cfg     *models.Config
-      AuthSvc service.AuthService
+      AuthSvc authsvc.Service
   }
 
-  func NewAuthHandler(cfg *models.Config, authSvc service.AuthService) *AuthHandler {
-      return &AuthHandler{Cfg: cfg, AuthSvc: authSvc}
+  func NewHandler(cfg *models.Config, authSvc authsvc.Service) *Handler {
+      return &Handler{Cfg: cfg, AuthSvc: authSvc}
   }
 
-  func (h *AuthHandler) HandleLogin(c fiber.Ctx) error {
+  func (h *Handler) HandleLogin(c fiber.Ctx) error {
       // 1. Parse request (JSON body, params, headers)
       // 2. Call service layer
       // 3. Format response (JSON, cookies, status codes)
@@ -124,9 +130,13 @@ Entry Points & Exports
 +----------------------------------+------------------------------------+
 | Constructor                      | File                               |
 +----------------------------------+------------------------------------+
-| NewAuthHandler(cfg, authSvc)     | handler/auth_handler.go:17         |
-| NewChatHandler(cfg, rdb, modelSvc)| handler/chat_handler.go:31        |
-| NewModelHandler(modelSvc)        | handler/model_handler.go:12        |
+| auth.NewHandler(cfg, authSvc)    | handler/auth/handler.go            |
+| chat.NewHandler(cfg, rdb, ...)   | handler/chat/handler.go            |
+| aimodel.NewHandler(aimodelSvc) | handler/aimodel/handler.go        |
+| admin.NewHandler(cfg, apiKeyRepo)| handler/admin/handler.go           |
+| session.NewHandler(cfg, ...)     | handler/session/handler.go         |
+| memory.NewHandler(rdb, pool)     | handler/memory/handler.go          |
+| settings.NewHandler(cfg, svc)    | handler/settings/handler.go        |
 +----------------------------------+------------------------------------+
 
 Dependencies
@@ -137,15 +147,18 @@ Dependencies
 +-----------------------------+-----------------------------------------------+
 | github.com/gofiber/fiber/v3 | HTTP context, JSON, cookies, streaming        |
 | bufio                       | Stream writer for SSE relay                   |
-| service.*                   | Business logic interfaces                     |
+| *service/*                  | Business logic interfaces                     |
+| *repository/*               | Data access interfaces                        |
+| handlerutil                 | Shared HTTP utilities (GetUserID, etc.)       |
 +-----------------------------+-----------------------------------------------+
 
 Source References
 -----------------
 
-- internal/handler/auth_handler.go - Auth handler pattern
-- internal/handler/chat_handler.go - Chat + SSE handler pattern
-- internal/handler/model_handler.go - Model handler pattern
+- internal/handler/auth/handler.go - Auth handler pattern
+- internal/handler/chat/handler.go - Chat + SSE handler pattern
+- internal/handler/aimodel/handler.go - Model handler pattern
+- internal/handler/handlerutil/helpers.go - Shared utilities
 - internal/router/router.go - Handler registration
 
 ================================================================================

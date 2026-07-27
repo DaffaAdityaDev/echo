@@ -3,7 +3,7 @@ import { SystemMessage, HumanMessage, AIMessage, ToolMessage } from "@langchain/
 import { zodV4ToOpenAISchema, calculateUsageCost } from "../utils";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../../../shared/types";
 import { ReasoningInterceptor } from "../utils";
-import { langfuseStorage } from "../../../utils/langfuse";
+import { langfuseStorage } from "../../../shared/utils/langfuse";
 
 import { logger } from "../../../shared/utils/logger";
 

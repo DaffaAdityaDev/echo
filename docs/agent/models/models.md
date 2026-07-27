@@ -29,12 +29,12 @@ for clients is the Go backend.
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                model_handler.go → HandleGetModels()                    │
+│                handler/aimodel/handler.go → HandleGetModels()            │
 └────────────────────────────────┬─────────────────────────────────────┘
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│              model_service.go → GetModels(ctx, userID)                │
+│              service/aimodel/service.go → GetModels(ctx, userID)        │
 └────────────────────────────────┬─────────────────────────────────────┘
                                  │
             ┌────────────────────┴────────────────────┐
@@ -72,9 +72,9 @@ func modelsURL(baseURL string) string {
 | Export             | Source                      | Type                       |
 +--------------------+-----------------------------+----------------------------+
 | Go GET /models     | backend/router.go:121       | JWT-protected route        |
-| Go GetModels()     | model_service.go:55         | Per-user model fetch       |
-| Go modelsURL()     | model_service.go:110        | URL constructor helper     |
-| Agent GET /models  | model.routes.ts:6           | Internal proxy (secondary) |
+| Go GetModels()     | service/aimodel/service.go:55 | Per-user model fetch       |
+| Go modelsURL()     | service/aimodel/service.go:110| URL constructor helper     |
+| Agent GET /models  | adapter/inbound/api/models/model.routes.ts:6 | Internal proxy (secondary) |
 +--------------------+-----------------------------+----------------------------+
 
 ## Dependencies
@@ -94,12 +94,12 @@ func modelsURL(baseURL string) string {
 | Ref                   | File                        | Key Lines                                    |
 +-----------------------+-----------------------------+----------------------------------------------+
 | Go route              | router.go:121               | GET /api/v1/models (JWT required)            |
-| Go handler            | model_handler.go:30         | HandleGetModels — extracts userID from JWT   |
-| Go service            | model_service.go:55         | GetModels(ctx, userID)                       |
-| modelsURL()           | model_service.go:110        | URL construction logic                       |
-| Cache                 | model_service.go:28         | 30s TTL, shared across all users             |
-| Agent route           | model.routes.ts:6           | GET /api/models (Internal auth)              |
-| Agent controller      | model.controller.ts:9-11    | Proxies to LLM_MODEL_API_URL                 |
+| Go handler            | handler/aimodel/handler.go:30 | HandleGetModels — extracts userID from JWT   |
+| Go service            | service/aimodel/service.go:55 | GetModels(ctx, userID)                       |
+| modelsURL()           | service/aimodel/service.go:110| URL construction logic                       |
+| Cache                 | service/aimodel/service.go:28 | 30s TTL, shared across all users             |
+| Agent route           | adapter/inbound/api/models/model.routes.ts:6 | GET /api/models (Internal auth)              |
+| Agent controller      | adapter/inbound/api/models/model.controller.ts:9-11 | Proxies to LLM_MODEL_API_URL                 |
 +-----------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

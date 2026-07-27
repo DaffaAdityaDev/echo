@@ -6,7 +6,7 @@ import (
 	"echo-backend/internal/config"
 	"echo-backend/internal/database"
 	"echo-backend/internal/models"
-	"echo-backend/internal/repository"
+	authrepo "echo-backend/internal/repository/auth"
 	"log"
 	"os"
 	"strings"
@@ -45,7 +45,7 @@ func main() {
 	defer pool.Close()
 
 	ctx := context.Background()
-	userRepo := repository.NewUserRepository(pool)
+	userRepo := authrepo.NewRepository(pool)
 
 	email := "admin@gmail.com"
 	existingUser, err := userRepo.GetByEmail(ctx, email)

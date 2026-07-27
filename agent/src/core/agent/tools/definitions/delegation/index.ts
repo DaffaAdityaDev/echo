@@ -10,7 +10,7 @@ import {
     DELEGATION_DEFAULTS 
 } from './constants';
 import { OPERATION_STATUS, PACKET_TYPES } from '../../../harness/nlah/constants';
-import { langfuseStorage } from '../../../../../utils/langfuse';
+import { langfuseStorage } from '../../../../../shared/utils/langfuse';
 
 
 export const delegate_task: ToolDefinition = {

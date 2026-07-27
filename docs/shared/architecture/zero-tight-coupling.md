@@ -26,14 +26,15 @@ zero domain logic changes.
 | models/           | shared/types/            | lib/                              |
 |   models.go       |   index.ts               |   api-client.ts                   |
 | service/          | api/                     | features/                         |
-|   auth_service.go  |   routes.ts             |   auth/                           |
-|   model_service.go |   middleware/           |     services/                     |
+|   auth/service.go |   routes.ts             |   auth/                           |
+|   aimodel/service.|   middleware/           |     services/                     |
+|   go              |   missions/             |       auth-api.ts                 |
 | repository/       |   missions/              |       auth-api.ts                 |
-|   user_repository.| infrastructure/          |     hooks/                        |
+|   auth/repository.| infrastructure/          |     hooks/                        |
 |   go              |   providers/             |       useAuth.ts                  |
 | handler/          |     openai/              |   chat/                           |
-|   auth_handler.go  |     anthropic/           |     api/                          |
-|   chat_handler.go  |   transports/           |       useChatStream.ts            |
+|   auth/handler.go |     anthropic/           |     api/                          |
+|   chat/handler.go |   transports/           |       useChatStream.ts            |
 | middleware/       |     mcp/                 |       useFeatures.ts              |
 |   auth.go         |     rest/                |                                   |
 +-------------------+--------------------------+-----------------------------------+
@@ -88,7 +89,7 @@ zero domain logic changes.
 ### Go: Service Layer Interface
 
 ┌────────────────────────────────────────────────────────────────┐
-│                      auth_service.go                            │
+│                      auth/service.go                            │
 │                                                                 │
 │  type AuthService interface {              (Programming to      │
 │    Register(ctx, RegisterReq) (User, err)    interface)         │
@@ -103,7 +104,7 @@ zero domain logic changes.
 └────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────┐
-│                      model_service.go                           │
+│                      aimodel/service.go                         │
 │                                                                 │
 │  type ModelService interface {                                  │
 │    GetModels(ctx) ([]ModelInfo, error)                         │
@@ -237,9 +238,9 @@ The `IStateStore` interface abstracts both implementations.
 ```
 backend/internal/repositories/
   postgres/                    # Current
-    user_repository.go         # implements UserRepository
+    auth/repository.go         # implements UserRepository
   mongo/                       # Future
-    user_repository.go         # implements same UserRepository interface
+    auth/repository.go         # implements same UserRepository interface
 
 backend/config:
   DRIVER=mongo                 # config change
@@ -265,8 +266,8 @@ backend/config:
 +-------------------------------------------------------+--------------------------------------+
 | File                                                  | Role                                 |
 +-------------------------------------------------------+--------------------------------------+
-| backend/internal/service/model_service.go             | ModelService interface + impl        |
-| backend/internal/handler/chat_handler.go              | Injects ModelService, Redis, Config  |
+| backend/internal/service/aimodel/service.go             | ModelService interface + impl        |
+| backend/internal/handler/chat/handler.go              | Injects ModelService, Redis, Config  |
 | agent/src/shared/types/index.ts                       | LLMProvider, AgentStrategy,          |
 |                                                       |   IStateStore, ToolDefinition        |
 | agent/src/infrastructure/providers/openai/index.ts    | OpenAI provider implementation       |

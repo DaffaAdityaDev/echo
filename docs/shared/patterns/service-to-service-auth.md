@@ -140,7 +140,7 @@ Three approaches were evaluated for agent → backend auth:
 Uses the `jsonwebtoken` library to sign a fresh JWT per request:
 
 ```typescript
-// agent/src/adapter/backend/memory.adapter.ts
+// agent/src/adapter/outbound/backend/memory.adapter.ts
 import { sign } from "jsonwebtoken";
 import { ENV } from "../../config/env";
 
@@ -269,7 +269,7 @@ internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 
 ## Entry Points & Exports
 
-- **Agent signing**: `agent/src/adapter/backend/memory.adapter.ts`
+- **Agent signing**: `agent/src/adapter/outbound/backend/memory.adapter.ts`
 - **Backend verification**: `backend/internal/middleware/internal_auth.go`
 - **Route wiring**: `backend/internal/router/router.go`
 - **Secret config**: `backend/internal/models/models.go` (ServiceJWTSecret field)
@@ -283,7 +283,7 @@ internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 +---------------------------------------------------------------+-------+------------------------------+
 | backend/internal/middleware/internal_auth.go                   | 1-52  | Service JWT verification MW  |
 | backend/internal/router/router.go                             | 40-52 | Internal route wiring        |
-| agent/src/adapter/backend/memory.adapter.ts                  | 1-35  | Service JWT signing + fetch  |
+| agent/src/adapter/outbound/backend/memory.adapter.ts                  | 1-35  | Service JWT signing + fetch  |
 | agent/src/config/env.schema.ts                                | 18-20 | SERVICE_JWT_SECRET,          |
 |                                                               |       | BACKEND_INTERNAL_URL         |
 | backend/internal/models/models.go                             | 32-56 | Config struct with           |

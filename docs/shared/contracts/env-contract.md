@@ -123,7 +123,7 @@ Note: PRUNE_THRESHOLD (100000), PRUNE_KEEP_LATEST_TURNS (10), SUMMARIZE_MAX_TOKE
 and ENCRYPTION_KEY have inline defaults in config.go — no corresponding named constants.
 
 Provider defaults removed (DefaultOpenAIBaseURL, DefaultAnthropicBaseURL, DefaultLMStudioBaseURL).
-Provider base URLs are now user-level defaults in model_service.go / settings_service.go.
+Provider base URLs are now user-level defaults in service/aimodel/service.go / service/settings/service.go.
 
 ## Agent (Hono/Bun)
 

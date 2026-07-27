@@ -2,7 +2,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { LLMProvider, ToolDefinition, ProviderEvent } from "../../../shared/types";
 import { LLM_CONFIG } from "../../../shared/constants";
-import { getLangChainCallbacks } from "../../../utils/langfuse";
+import { getLangChainCallbacks } from "../../../shared/utils/langfuse";
 import { ReasoningInterceptor } from "../utils";
 
 /**
