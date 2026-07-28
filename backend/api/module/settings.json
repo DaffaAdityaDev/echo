@@ -31,7 +31,76 @@
                         "python",
                         "research"
                     ]
+                },
+                "harness_toggles": {
+                    "$ref": "#/definitions/HarnessFeatureToggles"
                 }
+            }
+        },
+        "HarnessFeatureToggles": {
+            "type": "object",
+            "description": "Granular feature toggles for harness guard modules",
+            "properties": {
+                "loopDetection": { "$ref": "#/definitions/LoopDetectionConfig" },
+                "budgetMonitor": { "$ref": "#/definitions/BudgetMonitorConfig" },
+                "systemNotices": { "$ref": "#/definitions/SystemNoticesConfig" },
+                "hitlGuard": { "$ref": "#/definitions/HitlGuardConfig" },
+                "contextOptimization": { "$ref": "#/definitions/ContextOptimizationConfig" }
+            }
+        },
+        "LoopDetectionConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enableExactMatch": { "type": "boolean", "example": true },
+                "enableCosineSimilarity": { "type": "boolean", "example": false },
+                "maxConsecutiveIdenticalCalls": { "type": "integer", "example": 3 },
+                "similarityThreshold": { "type": "number", "example": 0.92 },
+                "windowSize": { "type": "integer", "example": 10 }
+            }
+        },
+        "BudgetMonitorConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enforceMaxSteps": { "type": "boolean", "example": true },
+                "maxSteps": { "type": "integer", "example": 15 },
+                "enforceTimeout": { "type": "boolean", "example": true },
+                "maxDurationMs": { "type": "integer", "example": 120000 },
+                "enforceCostCap": { "type": "boolean", "example": true },
+                "maxCostUsd": { "type": "number", "example": 1.0 }
+            }
+        },
+        "SystemNoticesConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "emitLoopWarnings": { "type": "boolean", "example": true },
+                "emitCompactionNotices": { "type": "boolean", "example": true },
+                "emitBudgetWarnings": { "type": "boolean", "example": true },
+                "emitPacingWarnings": { "type": "boolean", "example": true }
+            }
+        },
+        "HitlGuardConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "protectedTools": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["execute_sql_write", "delete_file"]
+                },
+                "ttlMinutes": { "type": "integer", "example": 5 }
+            }
+        },
+        "ContextOptimizationConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enablePrefixCachingLayout": { "type": "boolean", "example": true },
+                "enableAutoCompaction": { "type": "boolean", "example": true },
+                "compactionThresholdRatio": { "type": "number", "example": 0.7 },
+                "keepLastTurnsCount": { "type": "integer", "example": 4 }
             }
         }
     },

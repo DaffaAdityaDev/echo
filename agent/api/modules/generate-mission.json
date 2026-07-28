@@ -285,6 +285,18 @@
           "loopDetection": {
             "$ref": "#/components/schemas/LoopDetectionConfig"
           },
+          "budgetMonitor": {
+            "$ref": "#/components/schemas/BudgetMonitorConfig"
+          },
+          "systemNotices": {
+            "$ref": "#/components/schemas/SystemNoticesConfig"
+          },
+          "hitlGuard": {
+            "$ref": "#/components/schemas/HitlGuardConfig"
+          },
+          "contextOptimization": {
+            "$ref": "#/components/schemas/ContextOptimizationConfig"
+          },
           "maxIterations": {
             "type": "integer",
             "default": 15,
@@ -324,6 +336,24 @@
             "default": true,
             "example": true
           },
+          "enableExactMatch": {
+            "type": "boolean",
+            "default": true,
+            "description": "Exact MD5 hash match loop detection",
+            "example": true
+          },
+          "enableCosineSimilarity": {
+            "type": "boolean",
+            "default": false,
+            "description": "Cosine similarity fuzzy loop detection",
+            "example": false
+          },
+          "maxConsecutiveIdenticalCalls": {
+            "type": "integer",
+            "default": 3,
+            "description": "Consecutive identical calls before loop is declared",
+            "example": 3
+          },
           "similarityThreshold": {
             "type": "number",
             "minimum": 0,
@@ -331,7 +361,58 @@
             "default": 0.92,
             "description": "Cosine similarity threshold for loop detection",
             "example": 0.92
+          },
+          "windowSize": {
+            "type": "integer",
+            "default": 10,
+            "description": "Ring buffer window for tracking recent calls",
+            "example": 10
           }
+        }
+      },
+      "BudgetMonitorConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "enforceMaxSteps": { "type": "boolean", "default": true, "example": true },
+          "maxSteps": { "type": "integer", "default": 15, "example": 15 },
+          "enforceTimeout": { "type": "boolean", "default": true, "example": true },
+          "maxDurationMs": { "type": "integer", "default": 120000, "example": 120000 },
+          "enforceCostCap": { "type": "boolean", "default": true, "example": true },
+          "maxCostUsd": { "type": "number", "default": 1.0, "example": 1.0 }
+        }
+      },
+      "SystemNoticesConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "emitLoopWarnings": { "type": "boolean", "default": true, "example": true },
+          "emitCompactionNotices": { "type": "boolean", "default": true, "example": true },
+          "emitBudgetWarnings": { "type": "boolean", "default": true, "example": true },
+          "emitPacingWarnings": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "HitlGuardConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "protectedTools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names requiring HITL approval before execution",
+            "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure", "write_file"]
+          },
+          "ttlMinutes": { "type": "integer", "default": 5, "description": "Approval window TTL in minutes", "example": 5 }
+        }
+      },
+      "ContextOptimizationConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "enablePrefixCachingLayout": { "type": "boolean", "default": true, "example": true },
+          "enableAutoCompaction": { "type": "boolean", "default": true, "example": true },
+          "compactionThresholdRatio": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7, "example": 0.7 },
+          "keepLastTurnsCount": { "type": "integer", "default": 4, "example": 4 }
         }
       },
       "McpServerConfig": {
@@ -541,7 +622,8 @@
               "metadata", "reasoning", "content", "tool_call", "tool_result",
               "error", "checkpoint", "usage", "todo", "subagent_call",
               "subagent_result", "swarm_status", "debug", "tool_skip",
-              "degraded", "state_change", "progress", "heartbeat", "turn_complete"
+              "degraded", "state_change", "progress", "heartbeat", "turn_complete",
+              "system_notice", "token_metrics", "hitl_approval_required", "mission_completed"
             ],
             "example": "content"
           },
@@ -560,6 +642,11 @@
           "from": {"type": "string", "description": "Previous state (for state_change/degraded)"},
           "to": {"type": "string", "description": "New state (for state_change/degraded)"},
           "reason": {"type": "string", "description": "Transition reason (for state_change/degraded)"},
+          "level": {"type": "string", "enum": ["info", "warning", "error"], "description": "Notice severity level (for system_notice)"},
+          "code": {"type": "string", "description": "Notice or warning code (for system_notice)"},
+          "approvalId": {"type": "string", "description": "HITL approval request ID (for hitl_approval_required)"},
+          "riskLevel": {"type": "string", "enum": ["medium", "high", "critical"], "description": "Risk level of the pending tool (for hitl_approval_required)"},
+          "totalTokens": {"type": "integer", "description": "Total tokens consumed (for mission_completed)"},
           "completed": {"type": "boolean", "description": "Turn completion flag (for turn_complete)"},
           "totalIterations": {"type": "integer", "description": "Total iterations used (for turn_complete)"},
           "totalCost": {"type": "number", "description": "Total USD cost (for turn_complete)"},

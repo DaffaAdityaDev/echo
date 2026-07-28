@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import echoTheme from '@/lib/docs/echoTheme';
 import { cn } from '@/utils/cn';
 import { Copy, Check, Terminal } from 'lucide-react';
 import 'katex/dist/katex.min.css';
@@ -107,31 +107,21 @@ function CodeBlock({ language, value }: CodeBlockProps) {
   };
 
   return (
-    <div className="relative group my-6 rounded-xl overflow-hidden border border-white/5 bg-surface/50 glass animate-in">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/5">
-        <div className="flex items-center gap-4">
-          {/* macOS Style Dots */}
-          <div className="flex gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-error/20" />
-            <div className="w-2.5 h-2.5 rounded-full bg-warning/20" />
-            <div className="w-2.5 h-2.5 rounded-full bg-success/20" />
-          </div>
-          <div className="flex items-center gap-1.5 text-muted select-none">
-            <Terminal size={12} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">{language}</span>
-          </div>
+    <div className="relative group my-6 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950/80 animate-in">
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/50 border-b border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Terminal size={12} className="text-zinc-500" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{language}</span>
         </div>
-        
-        <button 
+        <button
           onClick={copyToClipboard}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted hover:text-white transition-all active:scale-95"
+          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all active:scale-95"
           aria-label={copied ? "Copied" : "Copy code"}
         >
           {copied ? (
             <>
-              <Check size={12} className="text-success" />
-              <span className="text-success">Copied</span>
+              <Check size={12} className="text-emerald-500" />
+              <span className="text-emerald-500">Copied</span>
             </>
           ) : (
             <>
@@ -141,17 +131,14 @@ function CodeBlock({ language, value }: CodeBlockProps) {
           )}
         </button>
       </div>
-
       <SyntaxHighlighter
-        style={vscDarkPlus}
+        style={echoTheme}
         language={language}
         PreTag="div"
         customStyle={{
           margin: 0,
-          padding: '1.5rem',
+          padding: '1.25rem',
           background: 'transparent',
-          fontSize: '0.85rem',
-          lineHeight: '1.7',
         }}
         translate="no"
       >

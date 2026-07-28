@@ -1466,9 +1466,70 @@
                     }
                 }
             }
+        },
+        "/api/v1/missions/{id}/approve": {
+            "post": {
+                "security": [{ "BearerAuth": [] }],
+                "description": "Proxies the approval decision to the agent's HITL endpoint. Returns SSE stream of resumed mission execution.",
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"],
+                "tags": ["Chat"],
+                "summary": "Approve pending HITL tool call",
+                "parameters": [
+                    { "type": "string", "description": "Mission ID", "name": "id", "in": "path", "required": true },
+                    {
+                        "description": "Approval payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": { "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "SSE stream of resumed execution", "schema": { "type": "string" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": { "type": "string" } } },
+                    "404": { "description": "Approval expired", "schema": { "type": "object", "additionalProperties": { "type": "string" } } },
+                    "502": { "description": "Agent unreachable", "schema": { "type": "object", "additionalProperties": { "type": "string" } } }
+                }
+            }
+        },
+        "/api/v1/missions/{id}/deny": {
+            "post": {
+                "security": [{ "BearerAuth": [] }],
+                "description": "Proxies the denial decision to the agent's HITL endpoint. Returns SSE stream of resumed mission execution with agent informed of denial.",
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"],
+                "tags": ["Chat"],
+                "summary": "Deny pending HITL tool call",
+                "parameters": [
+                    { "type": "string", "description": "Mission ID", "name": "id", "in": "path", "required": true },
+                    {
+                        "description": "Denial payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": { "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "SSE stream of resumed execution", "schema": { "type": "string" } },
+                    "400": { "description": "Invalid request", "schema": { "type": "object", "additionalProperties": { "type": "string" } } },
+                    "404": { "description": "Approval expired", "schema": { "type": "object", "additionalProperties": { "type": "string" } } },
+                    "502": { "description": "Agent unreachable", "schema": { "type": "object", "additionalProperties": { "type": "string" } } }
+                }
+            }
         }
     },
     "definitions": {
+        "internal_handler.ApproveOrDenyRequest": {
+            "type": "object",
+            "required": ["approvalId", "decision"],
+            "properties": {
+                "approvalId": { "type": "string", "description": "Approval ID from hitl_approval_required event", "example": "appr_a1b2c3d4" },
+                "decision": { "type": "string", "enum": ["approve", "deny"], "description": "approve or deny" },
+                "reason": { "type": "string", "description": "Optional justification" }
+            }
+        },
         "echo-backend_internal_models.ApiKey": {
             "type": "object",
             "properties": {
@@ -1664,6 +1725,14 @@
                         "python",
                         "research"
                     ]
+                },
+                "config": {
+                    "type": "object",
+                    "description": "Harness feature toggles and agent configuration overrides (passed through to agent as-is)",
+                    "example": {
+                        "loopDetection": { "enabled": true, "maxConsecutiveIdenticalCalls": 5 },
+                        "budgetMonitor": { "enabled": true, "maxSteps": 20 }
+                    }
                 }
             }
         },
@@ -1743,7 +1812,76 @@
                         "python",
                         "research"
                     ]
+                },
+                "harness_toggles": {
+                    "$ref": "#/definitions/HarnessFeatureToggles"
                 }
+            }
+        },
+        "HarnessFeatureToggles": {
+            "type": "object",
+            "description": "Granular feature toggles for harness guard modules",
+            "properties": {
+                "loopDetection": { "$ref": "#/definitions/LoopDetectionConfig" },
+                "budgetMonitor": { "$ref": "#/definitions/BudgetMonitorConfig" },
+                "systemNotices": { "$ref": "#/definitions/SystemNoticesConfig" },
+                "hitlGuard": { "$ref": "#/definitions/HitlGuardConfig" },
+                "contextOptimization": { "$ref": "#/definitions/ContextOptimizationConfig" }
+            }
+        },
+        "LoopDetectionConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enableExactMatch": { "type": "boolean", "example": true },
+                "enableCosineSimilarity": { "type": "boolean", "example": false },
+                "maxConsecutiveIdenticalCalls": { "type": "integer", "example": 3 },
+                "similarityThreshold": { "type": "number", "example": 0.92 },
+                "windowSize": { "type": "integer", "example": 10 }
+            }
+        },
+        "BudgetMonitorConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enforceMaxSteps": { "type": "boolean", "example": true },
+                "maxSteps": { "type": "integer", "example": 15 },
+                "enforceTimeout": { "type": "boolean", "example": true },
+                "maxDurationMs": { "type": "integer", "example": 120000 },
+                "enforceCostCap": { "type": "boolean", "example": true },
+                "maxCostUsd": { "type": "number", "example": 1.0 }
+            }
+        },
+        "SystemNoticesConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "emitLoopWarnings": { "type": "boolean", "example": true },
+                "emitCompactionNotices": { "type": "boolean", "example": true },
+                "emitBudgetWarnings": { "type": "boolean", "example": true },
+                "emitPacingWarnings": { "type": "boolean", "example": true }
+            }
+        },
+        "HitlGuardConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "protectedTools": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["execute_sql_write", "delete_file"]
+                },
+                "ttlMinutes": { "type": "integer", "example": 5 }
+            }
+        },
+        "ContextOptimizationConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "example": true },
+                "enablePrefixCachingLayout": { "type": "boolean", "example": true },
+                "enableAutoCompaction": { "type": "boolean", "example": true },
+                "compactionThresholdRatio": { "type": "number", "example": 0.7 },
+                "keepLastTurnsCount": { "type": "integer", "example": 4 }
             }
         },
         "internal_handler.createAPIKeyRequest": {

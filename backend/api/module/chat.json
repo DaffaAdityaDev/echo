@@ -40,6 +40,14 @@
                     "type": "string",
                     "example": "sess_abc123"
                 },
+                "config": {
+                    "type": "object",
+                    "description": "Harness feature toggles and agent configuration overrides (passed through to agent as-is)",
+                    "example": {
+                        "loopDetection": { "enabled": true, "maxConsecutiveIdenticalCalls": 5 },
+                        "budgetMonitor": { "enabled": true, "maxSteps": 20 }
+                    }
+                },
                 "skills": {
                     "type": "array",
                     "items": {
@@ -276,6 +284,116 @@
                     "text/event-stream"
                 ]
             }
+        },
+        "/api/v1/missions/{id}/approve": {
+            "post": {
+                "tags": ["Chat"],
+                "summary": "Approve pending HITL tool call (proxy to agent)",
+                "description": "Proxies the approval decision to the agent's HITL endpoint. Returns SSE stream of the resumed mission execution.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Approval payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream of resumed execution events",
+                        "schema": { "type": "string" }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing mission ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    },
+                    "404": {
+                        "description": "Approval expired or not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    },
+                    "502": {
+                        "description": "Agent unreachable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }],
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"]
+            }
+        },
+        "/api/v1/missions/{id}/deny": {
+            "post": {
+                "tags": ["Chat"],
+                "summary": "Deny pending HITL tool call (proxy to agent)",
+                "description": "Proxies the denial decision to the agent's HITL endpoint. Returns SSE stream of the resumed mission execution with agent informed of denial.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Denial payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream of resumed execution events",
+                        "schema": { "type": "string" }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing mission ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    },
+                    "404": {
+                        "description": "Approval expired or not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    },
+                    "502": {
+                        "description": "Agent unreachable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }],
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"]
+            }
         }
     },
     "securityDefinitions": {
@@ -284,6 +402,28 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        }
+    },
+    "definitions": {
+        "internal_handler.ApproveOrDenyRequest": {
+            "type": "object",
+            "required": ["approvalId", "decision"],
+            "properties": {
+                "approvalId": {
+                    "type": "string",
+                    "description": "Approval ID from a previous hitl_approval_required event",
+                    "example": "appr_a1b2c3d4"
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": ["approve", "deny"],
+                    "description": "Decision to approve or deny the tool execution"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Optional justification, included in the denial message to the agent"
+                }
+            }
         }
     },
     "swagger": "2.0",

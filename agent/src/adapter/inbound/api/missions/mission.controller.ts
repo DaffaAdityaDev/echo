@@ -164,7 +164,7 @@ export class MissionController {
     }
   }
 
-  public async approveMissionTool(c: Context) {
+  public async handleHitlDecision(c: Context) {
     const missionId = c.req.param('id')!;
     const body = await c.req.json() as { approvalId: string; decision: 'approve' | 'deny'; reason?: string };
 

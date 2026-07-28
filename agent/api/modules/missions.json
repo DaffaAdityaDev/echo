@@ -1,0 +1,305 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ApproveOrDenyRequest": {
+        "type": "object",
+        "required": ["approvalId", "decision"],
+        "properties": {
+          "approvalId": {
+            "type": "string",
+            "description": "Approval ID from a previous hitl_approval_required event",
+            "example": "appr_a1b2c3d4"
+          },
+          "decision": {
+            "type": "string",
+            "enum": ["approve", "deny"],
+            "description": "Decision: approve to execute the tool, deny to reject",
+            "example": "approve"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional justification, included in the denial message to the agent",
+            "example": "This query contains sensitive PII"
+          }
+        }
+      },
+      "PausedMissionState": {
+        "type": "object",
+        "description": "Snapshotted mission state while awaiting HITL decision",
+        "properties": {
+          "state": {
+            "type": "object",
+            "description": "Full agent execution state (messages, objective, tasks, memory)"
+          },
+          "pendingToolCall": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "call_xyz" },
+              "name": { "type": "string", "example": "execute_sql_write" },
+              "args": { "type": "object", "example": { "query": "DELETE FROM users" } }
+            }
+          },
+          "harnessSnapshot": {
+            "$ref": "#/components/schemas/HarnessSnapshot"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "totalCostUsd": { "type": "number", "example": 0.42 },
+              "loopDetectorHistory": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "History of tool call hashes to restore loop detector state"
+              }
+            }
+          }
+        }
+      },
+      "HarnessSnapshot": {
+        "type": "object",
+        "description": "Snapshot of harness configuration and active tool set for mission resume",
+        "properties": {
+          "strategyName": {
+            "type": "string",
+            "example": "agent"
+          },
+          "toolNames": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["web_search", "file_system", "execute_sql_write"]
+          },
+          "providerConfig": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "example": "openai" },
+              "base_url": { "type": "string", "example": "https://api.openai.com/v1" },
+              "api_key": { "type": "string", "nullable": true },
+              "model": { "type": "string", "example": "gpt-4o" }
+            }
+          },
+          "delegationDepth": {
+            "type": "integer",
+            "example": 3
+          },
+          "featureToggles": {
+            "$ref": "#/components/schemas/HarnessFeatureToggles"
+          }
+        }
+      },
+      "HarnessFeatureToggles": {
+        "type": "object",
+        "description": "Granular feature toggles for harness guard modules",
+        "properties": {
+          "loopDetection": { "$ref": "#/components/schemas/LoopDetectionConfig" },
+          "budgetMonitor": { "$ref": "#/components/schemas/BudgetMonitorConfig" },
+          "systemNotices": { "$ref": "#/components/schemas/SystemNoticesConfig" },
+          "hitlGuard": { "$ref": "#/components/schemas/HitlGuardConfig" },
+          "contextOptimization": { "$ref": "#/components/schemas/ContextOptimizationConfig" }
+        }
+      },
+      "LoopDetectionConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "enableExactMatch": { "type": "boolean", "default": true, "example": true },
+          "enableCosineSimilarity": { "type": "boolean", "default": false, "example": false },
+          "maxConsecutiveIdenticalCalls": { "type": "integer", "default": 3, "example": 3 },
+          "similarityThreshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.92, "example": 0.92 },
+          "windowSize": { "type": "integer", "default": 10, "example": 10 }
+        }
+      },
+      "BudgetMonitorConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "enforceMaxSteps": { "type": "boolean", "default": true, "example": true },
+          "maxSteps": { "type": "integer", "default": 15, "example": 15 },
+          "enforceTimeout": { "type": "boolean", "default": true, "example": true },
+          "maxDurationMs": { "type": "integer", "default": 120000, "example": 120000 },
+          "enforceCostCap": { "type": "boolean", "default": true, "example": true },
+          "maxCostUsd": { "type": "number", "default": 1.0, "example": 1.0 }
+        }
+      },
+      "SystemNoticesConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "emitLoopWarnings": { "type": "boolean", "default": true, "example": true },
+          "emitCompactionNotices": { "type": "boolean", "default": true, "example": true },
+          "emitBudgetWarnings": { "type": "boolean", "default": true, "example": true },
+          "emitPacingWarnings": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "HitlGuardConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "protectedTools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names requiring human approval before execution",
+            "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure"]
+          },
+          "ttlMinutes": { "type": "integer", "default": 5, "description": "Approval window TTL in minutes", "example": 5 }
+        }
+      },
+      "ContextOptimizationConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true, "example": true },
+          "enablePrefixCachingLayout": { "type": "boolean", "default": true, "example": true },
+          "enableAutoCompaction": { "type": "boolean", "default": true, "example": true },
+          "compactionThresholdRatio": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7, "example": 0.7 },
+          "keepLastTurnsCount": { "type": "integer", "default": 4, "example": 4 }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/missions/{id}/approve": {
+      "post": {
+        "summary": "Approve pending HITL tool call and resume mission",
+        "description": "Approves a tool execution that was paused by the HITL Guard. If the approvalId is expired or not found, returns 404. On success, resumes the mission execution loop via SSE stream.",
+        "security": [
+          { "InternalTokenAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Mission ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ApproveOrDenyRequest" },
+              "example": {
+                "approvalId": "appr_a1b2c3d4",
+                "decision": "approve",
+                "reason": "Safe query, approved"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of resume execution events",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "data: {HarnessPacket}\\n\\n"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Approval ID expired or not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "example": "APPROVAL_EXPIRED_OR_NOT_FOUND" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/missions/{id}/deny": {
+      "post": {
+        "summary": "Deny pending HITL tool call and resume mission",
+        "description": "Denies a tool execution paused by the HITL Guard. The agent is informed of the denial and asked to find an alternative solution. Resumes the mission execution loop via SSE stream.",
+        "security": [
+          { "InternalTokenAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Mission ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ApproveOrDenyRequest" },
+              "example": {
+                "approvalId": "appr_a1b2c3d4",
+                "decision": "deny",
+                "reason": "This query contains sensitive PII"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of resume execution events",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "data: {HarnessPacket}\\n\\n"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Approval ID expired or not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "example": "APPROVAL_EXPIRED_OR_NOT_FOUND" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ import {
   FlaskConical,
   ScrollText,
   MessageSquare,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChatStore } from "../stores/chatStore";
@@ -89,6 +90,7 @@ export function SessionSidebar({
     { label: "AI Maturity", icon: Layers, href: "/maturity" },
     { label: "Playground", icon: FlaskConical, href: "/playground" },
     { label: "Prompts", icon: ScrollText, href: "/prompts" },
+    { label: "Docs", icon: BookOpen, href: "/docs" },
   ];
 
   return (
