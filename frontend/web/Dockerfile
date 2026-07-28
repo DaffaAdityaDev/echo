@@ -1,12 +1,14 @@
 # Stage 1: Dependencies
 FROM oven/bun:1-alpine AS deps
 RUN apk add --no-cache libc6-compat
+RUN ln -sf $(which bun) /usr/local/bin/npm
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install
 
 # Stage 2: Builder
 FROM oven/bun:1-alpine AS builder
+RUN ln -sf $(which bun) /usr/local/bin/npm
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
