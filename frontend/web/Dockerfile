@@ -4,7 +4,6 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-RUN npm install @tailwindcss/oxide-linux-x64-musl lightningcss-linux-x64-musl
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
