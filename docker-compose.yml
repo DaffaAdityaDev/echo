@@ -146,13 +146,12 @@ services:
       resources:
         limits:
           memory: 512M
-    # Optional Sablier Scale-to-Zero Labels (Uncomment if Sablier plugin is configured in Traefik)
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.echo-backend.middlewares=sablier-middleware@file"
-    #   - "sablier.enable=true"
-    #   - "sablier.group=echo-backend"
-    #   - "sablier.timeout=15m"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.echo-backend.middlewares=sablier-middleware@file"
+      - "sablier.enable=true"
+      - "sablier.group=echo-backend"
+      - "sablier.timeout=1m"
 
   echo-frontend:
     build:
@@ -182,13 +181,12 @@ services:
       resources:
         limits:
           memory: 512M
-    # Optional Sablier Scale-to-Zero Labels (Uncomment if Sablier plugin is configured in Traefik)
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.echo-frontend.middlewares=sablier-middleware@file"
-    #   - "sablier.enable=true"
-    #   - "sablier.group=echo-frontend"
-    #   - "sablier.timeout=15m"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.echo-frontend.middlewares=sablier-middleware@file"
+      - "sablier.enable=true"
+      - "sablier.group=echo-frontend"
+      - "sablier.timeout=1m"
 
 volumes:
   postgres_data:
