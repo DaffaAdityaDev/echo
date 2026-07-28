@@ -53,10 +53,7 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "python",
-              "nodejs"
-            ]
+            "example": ["python", "nodejs"]
           },
           "mcpServers": {
             "type": "array",
@@ -144,9 +141,7 @@
           },
           "classifier": {
             "type": "string",
-            "enum": [
-              "tfidf"
-            ],
+            "enum": ["tfidf"],
             "default": "tfidf",
             "example": "tfidf"
           },
@@ -181,10 +176,7 @@
       },
       "GenerateMissionRequest": {
         "type": "object",
-        "required": [
-          "prompt",
-          "provider_config"
-        ],
+        "required": ["prompt", "provider_config"],
         "properties": {
           "prompt": {
             "type": "string",
@@ -196,10 +188,7 @@
           },
           "strategy": {
             "type": "string",
-            "enum": [
-              "standard",
-              "agent"
-            ],
+            "enum": ["standard", "agent"],
             "default": "agent",
             "description": "Execution strategy: 'agent' for tool-using autonomous mode, 'standard' for direct LLM response",
             "example": "agent"
@@ -241,11 +230,7 @@
             },
             "nullable": true,
             "description": "Feature flags to enable specific agent capabilities",
-            "example": [
-              "web-browsing",
-              "code-interpreter",
-              "file-system"
-            ]
+            "example": ["web-browsing", "code-interpreter", "file-system"]
           },
           "skills": {
             "type": "array",
@@ -254,11 +239,7 @@
             },
             "nullable": true,
             "description": "Skill names to activate for specialized behavior",
-            "example": [
-              "nodejs",
-              "express",
-              "prisma"
-            ]
+            "example": ["nodejs", "express", "prisma"]
           },
           "history": {
             "type": "array",
@@ -400,9 +381,20 @@
             "type": "array",
             "items": { "type": "string" },
             "description": "Tool names requiring HITL approval before execution",
-            "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure", "write_file"]
+            "example": [
+              "execute_sql_write",
+              "delete_file",
+              "send_external_email",
+              "deploy_infrastructure",
+              "write_file"
+            ]
           },
-          "ttlMinutes": { "type": "integer", "default": 5, "description": "Approval window TTL in minutes", "example": 5 }
+          "ttlMinutes": {
+            "type": "integer",
+            "default": 5,
+            "description": "Approval window TTL in minutes",
+            "example": 5
+          }
         }
       },
       "ContextOptimizationConfig": {
@@ -435,16 +427,11 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "server.js"
-            ]
+            "example": ["server.js"]
           },
           "transport": {
             "type": "string",
-            "enum": [
-              "sse",
-              "stdio"
-            ],
+            "enum": ["sse", "stdio"],
             "default": "sse"
           },
           "credentials": {
@@ -508,11 +495,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "bearer",
-              "basic",
-              "header"
-            ],
+            "enum": ["bearer", "basic", "header"],
             "example": "bearer"
           },
           "credentials": {
@@ -539,12 +522,7 @@
           },
           "method": {
             "type": "string",
-            "enum": [
-              "GET",
-              "POST",
-              "PUT",
-              "DELETE"
-            ],
+            "enum": ["GET", "POST", "PUT", "DELETE"],
             "default": "POST"
           },
           "description": {
@@ -589,8 +567,8 @@
             "enum": ["starting", "running", "stalled", "looping", "degraded", "completed", "aborted"],
             "example": "running"
           },
-          "step": {"type": "integer", "example": 3},
-          "maxSteps": {"type": "integer", "example": 15},
+          "step": { "type": "integer", "example": 3 },
+          "maxSteps": { "type": "integer", "example": 15 },
           "strategy": {
             "type": "string",
             "enum": ["agent", "standard", "restricted"],
@@ -601,15 +579,15 @@
             "format": "date-time",
             "example": "2026-01-15T10:35:00.000Z"
           },
-          "currentTool": {"type": "string", "example": "file_system"},
-          "currentThought": {"type": "string", "example": "Need to create the Express server file..."},
-          "consecutiveFailures": {"type": "integer", "example": 0},
+          "currentTool": { "type": "string", "example": "file_system" },
+          "currentThought": { "type": "string", "example": "Need to create the Express server file..." },
+          "consecutiveFailures": { "type": "integer", "example": 0 },
           "activeCircuitBreakers": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": { "type": "string" },
             "example": []
           },
-          "throughput": {"type": "number", "example": 142.5}
+          "throughput": { "type": "number", "example": 142.5 }
         }
       },
       "HarnessPacket": {
@@ -619,45 +597,89 @@
           "type": {
             "type": "string",
             "enum": [
-              "metadata", "reasoning", "content", "tool_call", "tool_result",
-              "error", "checkpoint", "usage", "todo", "subagent_call",
-              "subagent_result", "swarm_status", "debug", "tool_skip",
-              "degraded", "state_change", "progress", "heartbeat", "turn_complete",
-              "system_notice", "token_metrics", "hitl_approval_required", "mission_completed"
+              "metadata",
+              "reasoning",
+              "content",
+              "tool_call",
+              "tool_result",
+              "error",
+              "checkpoint",
+              "usage",
+              "todo",
+              "subagent_call",
+              "subagent_result",
+              "swarm_status",
+              "debug",
+              "tool_skip",
+              "degraded",
+              "state_change",
+              "progress",
+              "heartbeat",
+              "turn_complete",
+              "system_notice",
+              "token_metrics",
+              "hitl_approval_required",
+              "mission_completed"
             ],
             "example": "content"
           },
-          "missionId": {"type": "string", "example": "mission_a1b2c3d4"},
-          "step": {"type": "integer", "example": 2},
-          "seq": {"type": "integer", "example": 14},
-          "timestamp": {"type": "integer", "example": 1700000000000},
-          "agentStatus": {"$ref": "#/components/schemas/AgentStatus"},
-          "content": {"type": "string", "example": "I'll start by creating the project structure with Express and Prisma."},
-          "toolName": {"type": "string", "example": "file_system"},
-          "toolInput": {"type": "object", "example": {"action": "write", "path": "/app/src/index.js", "content": "..."}},
+          "missionId": { "type": "string", "example": "mission_a1b2c3d4" },
+          "step": { "type": "integer", "example": 2 },
+          "seq": { "type": "integer", "example": 14 },
+          "timestamp": { "type": "integer", "example": 1700000000000 },
+          "agentStatus": { "$ref": "#/components/schemas/AgentStatus" },
+          "content": {
+            "type": "string",
+            "example": "I'll start by creating the project structure with Express and Prisma."
+          },
+          "toolName": { "type": "string", "example": "file_system" },
+          "toolInput": {
+            "type": "object",
+            "example": { "action": "write", "path": "/app/src/index.js", "content": "..." }
+          },
           "toolResult": {},
-          "todos": {"type": "array", "items": {"type": "object"}},
-          "subagent": {"type": "object", "properties": {"name": {"type": "string"}, "instruction": {"type": "string"}, "result": {"type": "string"}, "status": {"type": "string", "enum": ["calling", "completed", "failed"]}}},
-          "usage": {"type": "object", "description": "Token usage stats (flat, not inside meta)"},
-          "from": {"type": "string", "description": "Previous state (for state_change/degraded)"},
-          "to": {"type": "string", "description": "New state (for state_change/degraded)"},
-          "reason": {"type": "string", "description": "Transition reason (for state_change/degraded)"},
-          "level": {"type": "string", "enum": ["info", "warning", "error"], "description": "Notice severity level (for system_notice)"},
-          "code": {"type": "string", "description": "Notice or warning code (for system_notice)"},
-          "approvalId": {"type": "string", "description": "HITL approval request ID (for hitl_approval_required)"},
-          "riskLevel": {"type": "string", "enum": ["medium", "high", "critical"], "description": "Risk level of the pending tool (for hitl_approval_required)"},
-          "totalTokens": {"type": "integer", "description": "Total tokens consumed (for mission_completed)"},
-          "completed": {"type": "boolean", "description": "Turn completion flag (for turn_complete)"},
-          "totalIterations": {"type": "integer", "description": "Total iterations used (for turn_complete)"},
-          "totalCost": {"type": "number", "description": "Total USD cost (for turn_complete)"},
-          "phase": {"type": "string", "description": "Progress phase (for progress)"},
-          "tokensUsed": {"type": "integer", "description": "Tokens consumed so far (for progress)"},
-          "tokensTotal": {"type": "integer", "description": "Max context tokens (for progress)"},
-          "strategy": {"type": "string", "description": "Execution strategy name (for metadata)"},
-          "historyDepth": {"type": "integer", "description": "Number of history messages (for metadata)"},
-          "toolsAvailable": {"type": "array", "items": {"type": "string"}, "description": "Tool names in scope (for metadata)"},
-          "objective": {"type": "string", "description": "Mission objective (for metadata)"},
-          "maxIterations": {"type": "integer", "description": "Maximum allowed iterations (for metadata)"}
+          "todos": { "type": "array", "items": { "type": "object" } },
+          "subagent": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "instruction": { "type": "string" },
+              "result": { "type": "string" },
+              "status": { "type": "string", "enum": ["calling", "completed", "failed"] }
+            }
+          },
+          "usage": { "type": "object", "description": "Token usage stats (flat, not inside meta)" },
+          "from": { "type": "string", "description": "Previous state (for state_change/degraded)" },
+          "to": { "type": "string", "description": "New state (for state_change/degraded)" },
+          "reason": { "type": "string", "description": "Transition reason (for state_change/degraded)" },
+          "level": {
+            "type": "string",
+            "enum": ["info", "warning", "error"],
+            "description": "Notice severity level (for system_notice)"
+          },
+          "code": { "type": "string", "description": "Notice or warning code (for system_notice)" },
+          "approvalId": { "type": "string", "description": "HITL approval request ID (for hitl_approval_required)" },
+          "riskLevel": {
+            "type": "string",
+            "enum": ["medium", "high", "critical"],
+            "description": "Risk level of the pending tool (for hitl_approval_required)"
+          },
+          "totalTokens": { "type": "integer", "description": "Total tokens consumed (for mission_completed)" },
+          "completed": { "type": "boolean", "description": "Turn completion flag (for turn_complete)" },
+          "totalIterations": { "type": "integer", "description": "Total iterations used (for turn_complete)" },
+          "totalCost": { "type": "number", "description": "Total USD cost (for turn_complete)" },
+          "phase": { "type": "string", "description": "Progress phase (for progress)" },
+          "tokensUsed": { "type": "integer", "description": "Tokens consumed so far (for progress)" },
+          "tokensTotal": { "type": "integer", "description": "Max context tokens (for progress)" },
+          "strategy": { "type": "string", "description": "Execution strategy name (for metadata)" },
+          "historyDepth": { "type": "integer", "description": "Number of history messages (for metadata)" },
+          "toolsAvailable": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names in scope (for metadata)"
+          },
+          "objective": { "type": "string", "description": "Mission objective (for metadata)" },
+          "maxIterations": { "type": "integer", "description": "Maximum allowed iterations (for metadata)" }
         }
       }
     }
@@ -694,16 +716,8 @@
                   "api_key": "sk-proj-xxxxxxxxxxxxxxxx",
                   "model": "gpt-4o"
                 },
-                "features": [
-                  "web-browsing",
-                  "code-interpreter",
-                  "file-system"
-                ],
-                "skills": [
-                  "nodejs",
-                  "express",
-                  "prisma"
-                ],
+                "features": ["web-browsing", "code-interpreter", "file-system"],
+                "skills": ["nodejs", "express", "prisma"],
                 "config": {
                   "memory": {
                     "episodic": true,

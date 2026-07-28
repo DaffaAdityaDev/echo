@@ -62,5 +62,4 @@ export const settingsApi = {
     const data = await api.put<UserPreferencesDTO>("/settings", toDTO(config));
     return toAgentConfig(data);
   },
-
 };

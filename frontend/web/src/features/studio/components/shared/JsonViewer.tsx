@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import React, { useState } from "react";
 
 interface JsonViewerProps {
-  data: unknown
-  maxHeight?: string
+  data: unknown;
+  maxHeight?: string;
 }
 
 export function JsonViewer({ data, maxHeight = "max-h-96" }: JsonViewerProps) {
-  const [expanded, setExpanded] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const json = JSON.stringify(data, null, 2)
+  const json = JSON.stringify(data, null, 2);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(json)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+    await navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="border border-zinc-200 bg-zinc-50 rounded-xl overflow-hidden">
@@ -44,5 +44,5 @@ export function JsonViewer({ data, maxHeight = "max-h-96" }: JsonViewerProps) {
         </pre>
       )}
     </div>
-  )
+  );
 }

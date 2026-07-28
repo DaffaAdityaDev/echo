@@ -1,39 +1,39 @@
-"use client"
+"use client";
 
-import { Layers, Map, HelpCircle, AlertTriangle, Sparkles } from "lucide-react"
-import { MaturityMatrix } from "./MaturityMatrix"
-import { MaturityRoadmap } from "./MaturityRoadmap"
-import { MaturityScoringGuide } from "./MaturityScoringGuide"
+import { AlertTriangle, HelpCircle, Layers, Map, Sparkles } from "lucide-react";
 import type {
-  MaturityLevel,
-  MaturityDimensionKey,
-  MaturityLevelInfo,
+  ClientCompanyAssessment,
   MaturityDimension,
-  SystemMaturityAssessment,
+  MaturityDimensionKey,
+  MaturityLevel,
+  MaturityLevelInfo,
   RoadmapItem,
   ScoringQuestion,
-  ClientCompanyAssessment,
-} from "../../types"
+  SystemMaturityAssessment,
+} from "../../types";
+import { MaturityMatrix } from "./MaturityMatrix";
+import { MaturityRoadmap } from "./MaturityRoadmap";
+import { MaturityScoringGuide } from "./MaturityScoringGuide";
 
 interface MaturityDashboardProps {
-  activeTab: 'matrix' | 'scoring' | 'roadmap' | 'client'
-  setActiveTab: (tab: 'matrix' | 'scoring' | 'roadmap' | 'client') => void
-  echoAssessment: SystemMaturityAssessment
-  clientAssessment: ClientCompanyAssessment
-  clientName: string
-  setClientName: (name: string) => void
-  setClientScore: (dimension: MaturityDimensionKey, level: MaturityLevel) => void
-  setClientEvidence: (dimension: MaturityDimensionKey, text: string) => void
-  roadmap: RoadmapItem[]
-  toggleRoadmapStatus: (id: string) => void
-  questionAnswers: Record<string, boolean>
-  toggleQuestion: (qId: string) => void
-  levelsInfo: readonly MaturityLevelInfo[]
-  dimensions: readonly MaturityDimension[]
-  questions: readonly ScoringQuestion[]
-  serverAssessment: SystemMaturityAssessment | null
-  isSaving: boolean
-  onSaveClient: () => void
+  activeTab: "matrix" | "scoring" | "roadmap" | "client";
+  setActiveTab: (tab: "matrix" | "scoring" | "roadmap" | "client") => void;
+  echoAssessment: SystemMaturityAssessment;
+  clientAssessment: ClientCompanyAssessment;
+  clientName: string;
+  setClientName: (name: string) => void;
+  setClientScore: (dimension: MaturityDimensionKey, level: MaturityLevel) => void;
+  setClientEvidence: (dimension: MaturityDimensionKey, text: string) => void;
+  roadmap: RoadmapItem[];
+  toggleRoadmapStatus: (id: string) => void;
+  questionAnswers: Record<string, boolean>;
+  toggleQuestion: (qId: string) => void;
+  levelsInfo: readonly MaturityLevelInfo[];
+  dimensions: readonly MaturityDimension[];
+  questions: readonly ScoringQuestion[];
+  serverAssessment: SystemMaturityAssessment | null;
+  isSaving: boolean;
+  onSaveClient: () => void;
 }
 
 export function MaturityDashboard({
@@ -56,7 +56,6 @@ export function MaturityDashboard({
   isSaving,
   onSaveClient,
 }: MaturityDashboardProps) {
-
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header Banner */}
@@ -71,24 +70,21 @@ export function MaturityDashboard({
               System Maturity & AI Readiness
             </h1>
             <p className="text-xs md:text-sm text-slate-600 max-w-2xl mt-1 leading-relaxed">
-              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule â€” a system is only as mature as its lowest dimension.
+              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule â€” a
+              system is only as mature as its lowest dimension.
             </p>
           </div>
 
           <div className="flex items-center gap-4 shrink-0 font-mono">
             <div className="border border-gb-bright-blue/40 bg-blue-50 rounded-xs px-4 py-3 text-center">
               <div className="text-[10px] text-gb-blue font-bold uppercase tracking-wider">Overall Echo Level</div>
-              <div className="text-3xl font-black text-foreground mt-0.5">
-                {echoAssessment.overallLevel}
-              </div>
+              <div className="text-3xl font-black text-foreground mt-0.5">{echoAssessment.overallLevel}</div>
               <div className="text-[10px] text-slate-600 font-medium mt-0.5">Structured Baseline</div>
             </div>
 
             <div className="border border-amber-300 bg-amber-50 rounded-xs px-4 py-3 text-center">
               <div className="text-[10px] text-amber-800 font-bold uppercase tracking-wider">Weakest Link</div>
-              <div className="text-sm font-bold text-amber-900 mt-1 capitalize">
-                {echoAssessment.weakestDimension}
-              </div>
+              <div className="text-sm font-bold text-amber-900 mt-1 capitalize">{echoAssessment.weakestDimension}</div>
               <div className="text-[10px] text-amber-700 mt-0.5 flex items-center justify-center gap-1 font-semibold">
                 <AlertTriangle className="h-3 w-3" /> Bottleneck
               </div>
@@ -136,7 +132,6 @@ export function MaturityDashboard({
         </button>
       </div>
 
-
       {/* Main Content View */}
       {activeTab === "matrix" && (
         <MaturityMatrix
@@ -146,9 +141,7 @@ export function MaturityDashboard({
         />
       )}
 
-      {activeTab === "roadmap" && (
-        <MaturityRoadmap items={roadmap} onToggleStatus={toggleRoadmapStatus} />
-      )}
+      {activeTab === "roadmap" && <MaturityRoadmap items={roadmap} onToggleStatus={toggleRoadmapStatus} />}
 
       {activeTab === "scoring" && (
         <MaturityScoringGuide
@@ -164,5 +157,5 @@ export function MaturityDashboard({
         />
       )}
     </div>
-  )
+  );
 }

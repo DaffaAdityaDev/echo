@@ -1,16 +1,14 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { CodeBlock } from '@/components/docs/CodeBlock'
-import { useSpec } from '@/components/docs/OpenApiSpecProvider'
-import { EndpointDetail } from '@/components/docs/EndpointDetail'
-import { Info, CheckCircle2, ShieldCheck, Zap } from 'lucide-react'
+import { CheckCircle2, Info, ShieldCheck, Zap } from "lucide-react";
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
+import { EndpointDetail } from "@/components/docs/EndpointDetail";
+import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function SettingsGuide() {
-  const { spec } = useSpec()
-  const settingsEndpoints = spec?.tags
-    .flatMap((t) => t.endpoints)
-    .filter((ep) => ep.tags.includes('Settings'))
+  const { spec } = useSpec();
+  const settingsEndpoints = spec?.tags.flatMap((t) => t.endpoints).filter((ep) => ep.tags.includes("Settings"));
 
   return (
     <div className="space-y-12 max-w-4xl font-mono">
@@ -18,12 +16,10 @@ export default function SettingsGuide() {
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xs bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold uppercase tracking-wider mb-3">
           <ShieldCheck size={12} /> Integration & Architecture Guide
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-          Settings & Configuration
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Settings & Configuration</h1>
         <p className="text-xs text-muted mt-2 leading-relaxed">
-          Manage user preferences, default features, skills, models, and harness feature toggles
-          through the Settings API.
+          Manage user preferences, default features, skills, models, and harness feature toggles through the Settings
+          API.
         </p>
       </div>
 
@@ -45,11 +41,31 @@ export default function SettingsGuide() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-xs">
-              <tr className="hover:bg-slate-50/50"><td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_mode</td><td className="px-4 py-2.5 text-purple-600">string</td><td className="px-4 py-2.5 text-muted">agent | standard | nlah | react</td></tr>
-              <tr className="hover:bg-slate-50/50"><td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_model</td><td className="px-4 py-2.5 text-purple-600">string</td><td className="px-4 py-2.5 text-muted">LLM model ID (e.g. gpt-4o)</td></tr>
-              <tr className="hover:bg-slate-50/50"><td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_features</td><td className="px-4 py-2.5 text-purple-600">array&lt;string&gt;</td><td className="px-4 py-2.5 text-muted">Enabled feature IDs (web-browsing, code-interpreter)</td></tr>
-              <tr className="hover:bg-slate-50/50"><td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_skills</td><td className="px-4 py-2.5 text-purple-600">array&lt;string&gt;</td><td className="px-4 py-2.5 text-muted">Active skill IDs</td></tr>
-              <tr className="hover:bg-slate-50/50"><td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">harness_toggles</td><td className="px-4 py-2.5 text-purple-600">object</td><td className="px-4 py-2.5 text-muted">Feature toggles for harness guard modules</td></tr>
+              <tr className="hover:bg-slate-50/50">
+                <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_mode</td>
+                <td className="px-4 py-2.5 text-purple-600">string</td>
+                <td className="px-4 py-2.5 text-muted">agent | standard | nlah | react</td>
+              </tr>
+              <tr className="hover:bg-slate-50/50">
+                <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_model</td>
+                <td className="px-4 py-2.5 text-purple-600">string</td>
+                <td className="px-4 py-2.5 text-muted">LLM model ID (e.g. gpt-4o)</td>
+              </tr>
+              <tr className="hover:bg-slate-50/50">
+                <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_features</td>
+                <td className="px-4 py-2.5 text-purple-600">array&lt;string&gt;</td>
+                <td className="px-4 py-2.5 text-muted">Enabled feature IDs (web-browsing, code-interpreter)</td>
+              </tr>
+              <tr className="hover:bg-slate-50/50">
+                <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">default_skills</td>
+                <td className="px-4 py-2.5 text-purple-600">array&lt;string&gt;</td>
+                <td className="px-4 py-2.5 text-muted">Active skill IDs</td>
+              </tr>
+              <tr className="hover:bg-slate-50/50">
+                <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">harness_toggles</td>
+                <td className="px-4 py-2.5 text-purple-600">object</td>
+                <td className="px-4 py-2.5 text-muted">Feature toggles for harness guard modules</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -61,15 +77,19 @@ export default function SettingsGuide() {
           Harness Feature Toggles
         </h2>
         <p className="text-xs text-muted leading-relaxed">
-          The <code className="text-blue-600 font-bold bg-slate-100 px-1 py-0.5 rounded-xs border border-border">harness_toggles</code> object controls granular guard module execution. Each module can be independently enabled or configured:
+          The{" "}
+          <code className="text-blue-600 font-bold bg-slate-100 px-1 py-0.5 rounded-xs border border-border">
+            harness_toggles
+          </code>{" "}
+          object controls granular guard module execution. Each module can be independently enabled or configured:
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
-            ['loopDetection', 'Detect and break infinite identical execution loops'],
-            ['budgetMonitor', 'Enforce step limits, timeouts, and cost caps'],
-            ['systemNotices', 'Emit system notices & warnings via SSE stream'],
-            ['hitlGuard', 'Human-in-the-loop protection for high-risk tools'],
-            ['contextOptimization', 'Manage prompt compaction & context window'],
+            ["loopDetection", "Detect and break infinite identical execution loops"],
+            ["budgetMonitor", "Enforce step limits, timeouts, and cost caps"],
+            ["systemNotices", "Emit system notices & warnings via SSE stream"],
+            ["hitlGuard", "Human-in-the-loop protection for high-risk tools"],
+            ["contextOptimization", "Manage prompt compaction & context window"],
           ].map(([name, desc]) => (
             <div key={name} className="p-4 border border-border bg-white rounded-xs crosshair-container">
               <h3 className="text-xs font-bold text-blue-600 font-mono">{name}</h3>
@@ -87,13 +107,13 @@ export default function SettingsGuide() {
             Best Practice: Load Config Batching vs. Per-Module Loading
           </h2>
         </div>
-        
+
         <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-xs text-xs space-y-3">
-          <p className="font-bold text-blue-900">
-            Is loading config one-by-one per module a best practice?
-          </p>
+          <p className="font-bold text-blue-900">Is loading config one-by-one per module a best practice?</p>
           <p className="text-slate-700 leading-relaxed">
-            <strong className="text-blue-800">No. Centralized batch loading is the recommended best practice.</strong> Fetching or updating configuration item-by-item (or endpoint-by-endpoint) creates unnecessary network roundtrips, risks state inconsistency, and slows down initialization.
+            <strong className="text-blue-800">No. Centralized batch loading is the recommended best practice.</strong>{" "}
+            Fetching or updating configuration item-by-item (or endpoint-by-endpoint) creates unnecessary network
+            roundtrips, risks state inconsistency, and slows down initialization.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
@@ -102,7 +122,9 @@ export default function SettingsGuide() {
                 <CheckCircle2 size={12} /> Best Practice: Single Batch Endpoint
               </span>
               <p className="text-[11px] text-slate-600 leading-normal">
-                Load full user preferences & harness toggles via <code className="text-blue-600 font-semibold">GET /api/v1/settings</code> during app startup, and save changes via <code className="text-blue-600 font-semibold">PUT /api/v1/settings</code>.
+                Load full user preferences & harness toggles via{" "}
+                <code className="text-blue-600 font-semibold">GET /api/v1/settings</code> during app startup, and save
+                changes via <code className="text-blue-600 font-semibold">PUT /api/v1/settings</code>.
               </p>
             </div>
             <div className="p-3 bg-white border border-slate-200 rounded-xs space-y-1">
@@ -110,7 +132,9 @@ export default function SettingsGuide() {
                 Per-Request Dynamic Overrides
               </span>
               <p className="text-[11px] text-slate-600 leading-normal">
-                Use per-request <code className="text-blue-600 font-semibold">config</code> payload in <code className="text-blue-600 font-semibold">POST /api/v1/chat</code> only when overriding default settings temporarily for a single request.
+                Use per-request <code className="text-blue-600 font-semibold">config</code> payload in{" "}
+                <code className="text-blue-600 font-semibold">POST /api/v1/chat</code> only when overriding default
+                settings temporarily for a single request.
               </p>
             </div>
           </div>
@@ -191,7 +215,9 @@ async function saveHarnessToggles(toggles: Record<string, any>) {
       <div className="p-4 border border-border bg-slate-50/80 rounded-xs flex gap-3.5 items-start">
         <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
         <p className="text-xs text-muted leading-relaxed">
-          Settings are persisted per authenticated user account. Updates to <code className="text-blue-600">harness_toggles</code> immediately take effect across all new agent execution sessions.
+          Settings are persisted per authenticated user account. Updates to{" "}
+          <code className="text-blue-600">harness_toggles</code> immediately take effect across all new agent execution
+          sessions.
         </p>
       </div>
 
@@ -212,6 +238,5 @@ async function saveHarnessToggles(toggles: Record<string, any>) {
         </section>
       )}
     </div>
-  )
+  );
 }
-

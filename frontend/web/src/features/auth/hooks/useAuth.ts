@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { authApi } from "../services/auth-api";
 import { AUTH_QUERY_KEYS } from "../constants";
+import { authApi } from "../services/auth-api";
 import { useAuthStore } from "../stores/authStore";
 import type { LoginCredentials, LoginResponse, User } from "../types";
 
@@ -33,7 +33,7 @@ export function useAuth() {
     onSuccess: () => {
       clearAuth();
       queryClient.clear();
-      router.push('/login');
+      router.push("/login");
     },
   });
 

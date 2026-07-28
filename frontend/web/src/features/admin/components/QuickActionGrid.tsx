@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import { ArrowUpRight, Cpu, Key, Terminal } from "lucide-react";
 import Link from "next/link";
-import { Key, Terminal, ArrowUpRight, Cpu } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 export function QuickActionGrid() {
   const actions = [
@@ -36,16 +36,16 @@ export function QuickActionGrid() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-          Quick Management Actions
-        </h3>
+        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Quick Management Actions</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {actions.map((action, idx) => {
           const Icon = action.icon;
           return (
             <Link key={idx} href={action.href} className="group block">
-              <Card className={`h-full border border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 ${action.accent} p-5 flex flex-col justify-between`}>
+              <Card
+                className={`h-full border border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 ${action.accent} p-5 flex flex-col justify-between`}
+              >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className={`p-2.5 rounded-xl ${action.accent.split(" ")[1]} ${action.accent.split(" ")[2]}`}>
@@ -60,9 +60,7 @@ export function QuickActionGrid() {
                     <h4 className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors">
                       {action.title}
                     </h4>
-                    <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                      {action.description}
-                    </p>
+                    <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{action.description}</p>
                   </div>
                 </div>
               </Card>

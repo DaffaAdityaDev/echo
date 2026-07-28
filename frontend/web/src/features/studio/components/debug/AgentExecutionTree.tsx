@@ -1,59 +1,49 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { cn } from "@/utils/cn"
-import { GitBranch, UserCheck, XCircle, Loader2, ChevronRight, ChevronDown } from "lucide-react"
+import { ChevronDown, ChevronRight, GitBranch, Loader2, UserCheck, XCircle } from "lucide-react";
+import React, { useState } from "react";
+import { cn } from "@/utils/cn";
 
 interface TreeNode {
-  id: string
-  name: string
-  instruction: string
-  status: "calling" | "completed" | "failed"
-  children: TreeNode[]
-  result?: string
+  id: string;
+  name: string;
+  instruction: string;
+  status: "calling" | "completed" | "failed";
+  children: TreeNode[];
+  result?: string;
 }
 
 interface AgentExecutionTreeProps {
-  tree: TreeNode[]
-  isRunning: boolean
-  className?: string
+  tree: TreeNode[];
+  isRunning: boolean;
+  className?: string;
 }
 
-function TreeNodeCard({
-  node,
-  depth,
-  isRunning,
-}: {
-  node: TreeNode
-  depth: number
-  isRunning: boolean
-}) {
-  const [collapsed, setCollapsed] = useState(false)
-  const hasChildren = node.children.length > 0
+function TreeNodeCard({ node, depth, isRunning }: { node: TreeNode; depth: number; isRunning: boolean }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const hasChildren = node.children.length > 0;
 
   const statusIcon = () => {
     switch (node.status) {
       case "completed":
-        return <UserCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+        return <UserCheck className="h-4 w-4 text-emerald-600 shrink-0" />;
       case "failed":
-        return <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+        return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
       case "calling":
-        return (
-          <Loader2 className="h-4 w-4 text-blue-600 shrink-0 animate-spin" />
-        )
+        return <Loader2 className="h-4 w-4 text-blue-600 shrink-0 animate-spin" />;
     }
-  }
+  };
 
   const statusDot = () => {
     switch (node.status) {
       case "completed":
-        return "bg-emerald-500"
+        return "bg-emerald-500";
       case "failed":
-        return "bg-red-500"
+        return "bg-red-500";
       case "calling":
-        return "bg-blue-500 animate-pulse"
+        return "bg-blue-500 animate-pulse";
     }
-  }
+  };
 
   return (
     <div>
@@ -87,43 +77,27 @@ function TreeNodeCard({
             <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot())} />
           </div>
           <p className="text-xs text-zinc-500 leading-relaxed">{node.instruction}</p>
-          {node.result && (
-            <p className="text-xs text-zinc-400 font-mono mt-1 line-clamp-2">{node.result}</p>
-          )}
+          {node.result && <p className="text-xs text-zinc-400 font-mono mt-1 line-clamp-2">{node.result}</p>}
         </div>
       </div>
       {hasChildren && !collapsed && (
         <div className="ml-4 pl-4 border-l-2 border-zinc-200 space-y-2 mt-2">
           {node.children.map((child) => (
-            <TreeNodeCard
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              isRunning={isRunning}
-            />
+            <TreeNodeCard key={child.id} node={child} depth={depth + 1} isRunning={isRunning} />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function AgentExecutionTree({ tree, isRunning, className }: AgentExecutionTreeProps) {
   return (
-    <div
-      className={cn(
-        "border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4",
-        className,
-      )}
-    >
+    <div className={cn("border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4", className)}>
       <div className="flex items-center gap-2">
         <GitBranch className="h-4 w-4 text-zinc-600" />
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Agent Execution Tree
-        </h3>
-        {isRunning && (
-          <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin ml-auto" />
-        )}
+        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Agent Execution Tree</h3>
+        {isRunning && <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin ml-auto" />}
       </div>
       {tree.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -133,15 +107,10 @@ export function AgentExecutionTree({ tree, isRunning, className }: AgentExecutio
       ) : (
         <div className="space-y-2">
           {tree.map((node) => (
-            <TreeNodeCard
-              key={node.id}
-              node={node}
-              depth={0}
-              isRunning={isRunning}
-            />
+            <TreeNodeCard key={node.id} node={node} depth={0} isRunning={isRunning} />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }

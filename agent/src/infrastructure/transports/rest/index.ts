@@ -1,2 +1,2 @@
-export { RestAdapter, RestToolAdapter } from './adapter'
-export type { RestToolConfig, RestAdapterConfig, RestAuthConfig } from './types'
+export { RestAdapter, RestToolAdapter } from "./adapter";
+export type { RestAdapterConfig, RestAuthConfig, RestToolConfig } from "./types";

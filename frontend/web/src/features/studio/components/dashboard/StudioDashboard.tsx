@@ -1,33 +1,33 @@
-"use client"
+"use client";
 
-import React from "react"
-import Link from "next/link"
 import {
-  FlaskConical,
-  ScrollText,
   AlertCircle,
-  RefreshCw,
-  Layers,
-  ArrowRight,
-  Shield,
-  FileText,
   AlertTriangle,
+  ArrowRight,
   ChevronDown,
-  Database,
   Clock,
+  Database,
   Eye,
-} from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import type { MaturityLevel, MaturityDimensionKey } from "../../types"
+  FileText,
+  FlaskConical,
+  Layers,
+  RefreshCw,
+  ScrollText,
+  Shield,
+} from "lucide-react";
+import Link from "next/link";
+import React from "react";
+import { Button } from "@/components/ui/Button";
+import type { MaturityDimensionKey, MaturityLevel } from "../../types";
 
 export interface StudioDashboardProps {
-  promptCount: number
-  maturityLevel?: MaturityLevel
-  weakestDimension?: MaturityDimensionKey
-  roadmapProgress?: { completed: number; total: number }
-  isLoading: boolean
-  error: Error | null
-  onRefresh?: () => void
+  promptCount: number;
+  maturityLevel?: MaturityLevel;
+  weakestDimension?: MaturityDimensionKey;
+  roadmapProgress?: { completed: number; total: number };
+  isLoading: boolean;
+  error: Error | null;
+  onRefresh?: () => void;
 }
 
 export function StudioDashboard({
@@ -58,7 +58,7 @@ export function StudioDashboard({
           </Button>
         )}
       </div>
-    )
+    );
   }
 
   const cards = [
@@ -76,7 +76,7 @@ export function StudioDashboard({
       description: "Versioned prompt templates managed",
       href: "/prompts",
     },
-  ]
+  ];
 
   const problemItems = [
     {
@@ -103,7 +103,7 @@ export function StudioDashboard({
       desc: "Limited red team capacity struggles to match attackers' pace in crafting sophisticated injections.",
       icon: Clock,
     },
-  ]
+  ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 font-mono text-foreground pb-16">
@@ -116,7 +116,9 @@ export function StudioDashboard({
           <span className="font-bold text-sm tracking-tight text-foreground">Guardbase</span>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-[11px] font-semibold text-muted tracking-wider uppercase">
-          <span className="hover:text-foreground cursor-pointer flex items-center gap-1">Products <ChevronDown className="h-3 w-3" /></span>
+          <span className="hover:text-foreground cursor-pointer flex items-center gap-1">
+            Products <ChevronDown className="h-3 w-3" />
+          </span>
           <span className="hover:text-foreground cursor-pointer">Company</span>
           <span className="hover:text-foreground cursor-pointer">Blog</span>
           <span className="hover:text-foreground cursor-pointer">Docs</span>
@@ -130,7 +132,14 @@ export function StudioDashboard({
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-4">
         <div className="lg:col-span-7 space-y-6">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-foreground leading-[1.08]">
-            AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-gb-bright-blue to-gb-blue">deserves</span> the same security <span className="text-transparent bg-clip-text bg-gradient-to-r from-gb-bright-blue to-gb-periwinkle">as software.</span>
+            AI{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gb-bright-blue to-gb-blue">
+              deserves
+            </span>{" "}
+            the same security{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gb-bright-blue to-gb-periwinkle">
+              as software.
+            </span>
           </h1>
           <p className="text-xs sm:text-sm text-muted max-w-lg leading-relaxed">
             Monitor how agents behave, what attackers could exploit, and which risks actually matter.
@@ -159,7 +168,12 @@ export function StudioDashboard({
               {/* Mountain silhouettes */}
               <polygon points="0,240 120,120 220,190 310,80 400,240" fill="url(#dot-matrix)" />
               <polygon points="180,240 280,100 350,150 400,60 400,240" fill="url(#dot-dense)" />
-              <path d="M0,240 L120,120 L220,190 L310,80 L400,240" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="3 3" />
+              <path
+                d="M0,240 L120,120 L220,190 L310,80 L400,240"
+                stroke="#3b82f6"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+              />
             </svg>
             <div className="absolute top-3 left-3 text-[10px] text-muted tracking-wider uppercase font-semibold">
               // THREAT TOPOLOGY MATRIX
@@ -178,7 +192,10 @@ export function StudioDashboard({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 items-center py-4 border-y border-dashed border-border">
           {["Logoipsum", "Logoipsum", "Logoipsum", "logoipsum", "logoipsum", "logoipsum"].map((brand, i) => (
-            <div key={i} className="flex items-center justify-center gap-2 text-xs font-bold text-muted tracking-tight opacity-75 hover:opacity-100 transition-opacity">
+            <div
+              key={i}
+              className="flex items-center justify-center gap-2 text-xs font-bold text-muted tracking-tight opacity-75 hover:opacity-100 transition-opacity"
+            >
               <div className="w-4 h-4 rounded-[1px] bg-foreground flex items-center justify-center text-white text-[9px] font-mono">
                 {i % 2 === 0 ? "â—†" : "â–²"}
               </div>
@@ -201,7 +218,8 @@ export function StudioDashboard({
             What Keeps Security Teams Up At Night
           </h2>
           <p className="text-xs text-muted leading-relaxed max-w-md">
-            Enterprises deploy robust controlsâ€”guardrails, identities, authorizations, data restrictionsâ€”but attackers expose gaps.
+            Enterprises deploy robust controlsâ€”guardrails, identities, authorizations, data restrictionsâ€”but
+            attackers expose gaps.
           </p>
         </div>
 
@@ -214,9 +232,7 @@ export function StudioDashboard({
                   <h3 className="text-sm font-bold text-foreground group-hover:text-gb-blue transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-muted max-w-lg leading-relaxed">
-                    {item.desc}
-                  </p>
+                  <p className="text-xs text-muted max-w-lg leading-relaxed">{item.desc}</p>
                 </div>
               </div>
               <div className="gb-icon-bracket shrink-0 bg-white group-hover:border-gb-bright-blue group-hover:bg-blue-50 group-hover:text-gb-blue text-slate-400">
@@ -257,7 +273,8 @@ export function StudioDashboard({
                 </span>
               </div>
               <p className="text-xs text-muted max-w-xl">
-                Pattern-agnostic evaluation across 7 dimensions (Tools, Skills, Prompts, Security, Data Models, Observability, Documentation).
+                Pattern-agnostic evaluation across 7 dimensions (Tools, Skills, Prompts, Security, Data Models,
+                Observability, Documentation).
               </p>
             </div>
 
@@ -310,6 +327,5 @@ export function StudioDashboard({
         </div>
       </section>
     </div>
-  )
+  );
 }
-

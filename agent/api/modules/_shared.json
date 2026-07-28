@@ -41,13 +41,7 @@
           },
           "error_type": {
             "type": "string",
-            "enum": [
-              "APPLICATION_ERROR",
-              "RATE_LIMIT_ERROR",
-              "TIMEOUT_ERROR",
-              "BAD_REQUEST",
-              "INTERNAL_SERVER_ERROR"
-            ],
+            "enum": ["APPLICATION_ERROR", "RATE_LIMIT_ERROR", "TIMEOUT_ERROR", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"],
             "example": "BAD_REQUEST"
           },
           "message": {
@@ -74,20 +68,11 @@
       },
       "ProviderConfig": {
         "type": "object",
-        "required": [
-          "type",
-          "base_url",
-          "model"
-        ],
+        "required": ["type", "base_url", "model"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "openai",
-              "anthropic",
-              "lm-studio",
-              "opencode-go"
-            ],
+            "enum": ["openai", "anthropic", "lm-studio", "opencode-go"],
             "description": "LLM provider type",
             "example": "openai"
           },

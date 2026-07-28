@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useChatStore } from "../stores/chatStore";
-import { useModels } from "./useModels";
-import { useChatStream } from "./useChatStream";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSessions } from "./useSessions";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
-import { sessionApi } from "../services/chat-api";
 import { CHAT_MODES } from "../constants";
+import { sessionApi } from "../services/chat-api";
+import { useChatStore } from "../stores/chatStore";
 import type { DbMessage, Message, ThoughtStep } from "../types";
+import { useChatStream } from "./useChatStream";
+import { useModels } from "./useModels";
+import { useSessions } from "./useSessions";
 
 function groupMessagesByTurn(messages: DbMessage[]): Message[] {
   const turnMap = new Map<number, DbMessage[]>();
@@ -21,9 +21,9 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
   }
   const result: Message[] = [];
   for (const [, group] of turnMap) {
-    const userMsg = group.find(m => m.role === "user");
-    const assistantMsg = group.find(m => m.role === "assistant");
-    const systemMsg = group.find(m => m.role === "system");
+    const userMsg = group.find((m) => m.role === "user");
+    const assistantMsg = group.find((m) => m.role === "assistant");
+    const systemMsg = group.find((m) => m.role === "system");
     if (systemMsg) {
       result.push({ id: crypto.randomUUID(), role: "assistant", content: `[System]: ${systemMsg.content}`, steps: [] });
       continue;
@@ -40,7 +40,9 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
           steps.push({ type: "reasoning", content: m.content });
         } else if (m.role === "tool_call") {
           let parsed = { toolName: "", toolInput: {} };
-          try { parsed = JSON.parse(m.content) } catch {}
+          try {
+            parsed = JSON.parse(m.content);
+          } catch {}
           steps.push({ type: "tool_call", toolName: parsed.toolName, toolInput: parsed.toolInput });
         } else if (m.role === "tool_result") {
           const colonIdx = m.content.indexOf(" result: ");
@@ -51,7 +53,12 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
       }
     }
     const hasSteps = steps.length > 0;
-    const hasContent = Boolean(assistantMsg?.content || hasSteps || assistantMsg?.status === "streaming" || assistantMsg?.status === "interrupted");
+    const hasContent = Boolean(
+      assistantMsg?.content ||
+        hasSteps ||
+        assistantMsg?.status === "streaming" ||
+        assistantMsg?.status === "interrupted",
+    );
     if (hasContent) {
       result.push({
         id: crypto.randomUUID(),
@@ -111,15 +118,18 @@ export function useChatPage() {
     if (initialised.current) return;
     if (sessionsList && sessionsList.length === 0) {
       initialised.current = true;
-      sessionApi.create().then((session) => {
-        setSessions([session]);
-        setActiveSession(session.id);
-        clearMessages();
-        queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      }).catch((err) => {
-        console.error("[Chat] Failed to create initial session:", err);
-        initialised.current = false;
-      });
+      sessionApi
+        .create()
+        .then((session) => {
+          setSessions([session]);
+          setActiveSession(session.id);
+          clearMessages();
+          queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        })
+        .catch((err) => {
+          console.error("[Chat] Failed to create initial session:", err);
+          initialised.current = false;
+        });
     }
   }, [sessionsList, setSessions, setActiveSession, clearMessages]);
 
@@ -135,22 +145,17 @@ export function useChatPage() {
         m.id === defaultModel ||
         m.name === defaultModel ||
         (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
-        (defaultModel && defaultModel.endsWith(`/${m.name}`))
+        (defaultModel && defaultModel.endsWith(`/${m.name}`)),
     );
 
-    const initialModel = matchedModel
-      ? matchedModel.id
-      : models.length > 0
-      ? models[0].id
-      : defaultModel || "";
+    const initialModel = matchedModel ? matchedModel.id : models.length > 0 ? models[0].id : defaultModel || "";
 
     if (initialModel) {
       setSelectedModel(initialModel);
     }
     setMode(settingsConfig.defaultMode || CHAT_MODES.STANDARD);
-    const defaultFeatures = settingsConfig.defaultFeatures.length > 0
-      ? settingsConfig.defaultFeatures
-      : ["web_search", "write_todos"];
+    const defaultFeatures =
+      settingsConfig.defaultFeatures.length > 0 ? settingsConfig.defaultFeatures : ["web_search", "write_todos"];
     setSelectedFeatures(defaultFeatures);
   }, [settingsConfig, models, setSelectedModel, setMode, setSelectedFeatures]);
 

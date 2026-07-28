@@ -1,24 +1,24 @@
 "use client";
 
-import React, { useState, useRef } from "react";
 import {
-  X,
   Bug,
-  Terminal,
-  FileText,
-  Coins,
-  Database,
-  Trash2,
-  Download,
-  ChevronRight,
-  ChevronDown,
-  Copy,
   Check,
+  ChevronDown,
+  ChevronRight,
+  Coins,
+  Copy,
+  Database,
+  Download,
+  FileText,
   Search,
+  Terminal,
+  Trash2,
+  X,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { useChatStore, LoggedPacket } from "../stores/chatStore";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/utils/cn";
+import { LoggedPacket, useChatStore } from "../stores/chatStore";
 
 interface DebugDrawerProps {
   isOpen: boolean;
@@ -88,15 +88,24 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
   const filteredPackets = packetLogs.filter((p) => {
     const pType = (p as { type?: string }).type;
     const matchesType = packetFilter === "all" || pType === packetFilter;
-    const matchesSearch =
-      !packetSearch || JSON.stringify(p).toLowerCase().includes(packetSearch.toLowerCase());
+    const matchesSearch = !packetSearch || JSON.stringify(p).toLowerCase().includes(packetSearch.toLowerCase());
     return matchesType && matchesSearch;
   });
 
   const tabs = [
     { id: "packets", label: "Packets", icon: Terminal, count: packetLogs.length },
-    { id: "prompt", label: "Prompt", icon: FileText, badge: debugPacketHistory.length > 0 ? `${debugPacketHistory.length}` : undefined },
-    { id: "usage", label: "Usage", icon: Coins, badge: cumulativeUsage ? `${cumulativeUsage.totalTokens}t` : undefined },
+    {
+      id: "prompt",
+      label: "Prompt",
+      icon: FileText,
+      badge: debugPacketHistory.length > 0 ? `${debugPacketHistory.length}` : undefined,
+    },
+    {
+      id: "usage",
+      label: "Usage",
+      icon: Coins,
+      badge: cumulativeUsage ? `${cumulativeUsage.totalTokens}t` : undefined,
+    },
     { id: "state", label: "State", icon: Database },
   ] as const;
 
@@ -139,7 +148,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                 "flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-xl border-b-2 transition-all cursor-pointer",
                 active
                   ? "border-purple-600 text-purple-600 dark:text-purple-400 bg-purple-500/5 font-bold"
-                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200",
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -222,7 +231,9 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
                           )}
-                          <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border", badgeStyle)}>
+                          <span
+                            className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border", badgeStyle)}
+                          >
                             {pktType}
                           </span>
                           <span className="text-[10px] text-zinc-400 font-sans shrink-0">{dateStr}</span>
@@ -355,7 +366,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                         style={{
                           width: `${Math.min(
                             (cumulativeUsage.promptTokens / Math.max(cumulativeUsage.totalTokens, 1)) * 100,
-                            100
+                            100,
                           )}%`,
                         }}
                       />
@@ -373,7 +384,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                         style={{
                           width: `${Math.min(
                             (cumulativeUsage.completionTokens / Math.max(cumulativeUsage.totalTokens, 1)) * 100,
-                            100
+                            100,
                           )}%`,
                         }}
                       />
@@ -401,12 +412,14 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                 {JSON.stringify(
                   {
                     agentState: storeState.agentState,
-                    agentProgress: storeState.agentProgress ? {
-                      iteration: storeState.agentProgress.iteration,
-                      totalIterations: storeState.agentProgress.totalIterations,
-                      currentTool: storeState.agentProgress.currentTool,
-                      statusMessage: storeState.agentProgress.statusMessage,
-                    } : null,
+                    agentProgress: storeState.agentProgress
+                      ? {
+                          iteration: storeState.agentProgress.iteration,
+                          totalIterations: storeState.agentProgress.totalIterations,
+                          currentTool: storeState.agentProgress.currentTool,
+                          statusMessage: storeState.agentProgress.statusMessage,
+                        }
+                      : null,
                     selectedModel: storeState.selectedModel,
                     mode: storeState.mode,
                     selectedFeatures: storeState.selectedFeatures,
@@ -420,7 +433,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
                     missionMeta: storeState.missionMeta,
                   },
                   null,
-                  2
+                  2,
                 )}
               </pre>
             </div>

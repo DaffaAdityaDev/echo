@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import React from "react"
-import { CheckCircle2, Clock, Circle, ArrowUpRight, ShieldCheck } from "lucide-react"
-import type { RoadmapItem } from "../../types"
+import { ArrowUpRight, CheckCircle2, Circle, Clock, ShieldCheck } from "lucide-react";
+import React from "react";
+import type { RoadmapItem } from "../../types";
 
 export interface MaturityRoadmapProps {
-  items: readonly RoadmapItem[]
-  onToggleStatus?: (id: string) => void
+  items: readonly RoadmapItem[];
+  onToggleStatus?: (id: string) => void;
 }
 
 export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps) {
-  const completedCount = items.filter((i) => i.status === "completed").length
-  const progressPercent = Math.round((completedCount / items.length) * 100)
+  const completedCount = items.filter((i) => i.status === "completed").length;
+  const progressPercent = Math.round((completedCount / items.length) * 100);
 
   return (
     <div className="space-y-6 font-mono text-foreground">
@@ -30,7 +30,9 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-foreground">{progressPercent}% Completed</div>
-              <div className="text-[10px] text-slate-600">{completedCount} of {items.length} milestones</div>
+              <div className="text-[10px] text-slate-600">
+                {completedCount} of {items.length} milestones
+              </div>
             </div>
             <div className="h-9 w-24 bg-surface rounded-xs p-1 border border-border flex items-center">
               <div
@@ -44,8 +46,8 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
         {/* Roadmap Items List */}
         <div className="space-y-3">
           {items.map((item) => {
-            const isCompleted = item.status === "completed"
-            const isInProgress = item.status === "in_progress"
+            const isCompleted = item.status === "completed";
+            const isInProgress = item.status === "in_progress";
 
             return (
               <div
@@ -55,8 +57,8 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                   isCompleted
                     ? "border-success bg-emerald-50 text-emerald-700"
                     : isInProgress
-                    ? "border-gb-bright-blue bg-blue-50 text-gb-dark-blue"
-                    : "border-border bg-surface hover:bg-white text-foreground"
+                      ? "border-gb-bright-blue bg-blue-50 text-gb-dark-blue"
+                      : "border-border bg-surface hover:bg-white text-foreground"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -78,16 +80,14 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                           item.priority === "high"
                             ? "bg-rose-100 text-rose-800 border-rose-300"
                             : item.priority === "medium"
-                            ? "bg-amber-100 text-amber-900 border-amber-300"
-                            : "bg-slate-100 text-slate-600 border-slate-300"
+                              ? "bg-amber-100 text-amber-900 border-amber-300"
+                              : "bg-slate-100 text-slate-600 border-slate-300"
                         }`}
                       >
                         {item.priority}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                      {item.description}
-                    </p>
+                    <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">{item.description}</p>
                   </div>
                 </div>
 
@@ -97,8 +97,8 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                       isCompleted
                         ? "bg-success text-white"
                         : isInProgress
-                        ? "bg-gb-blue text-white"
-                        : "bg-border text-foreground"
+                          ? "bg-gb-blue text-white"
+                          : "bg-border text-foreground"
                     }`}
                   >
                     Target: {item.targetLevel}
@@ -106,11 +106,10 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                   <ArrowUpRight className="h-4 w-4 text-slate-400" />
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </div>
     </div>
-  )
+  );
 }
-

@@ -1,22 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  Search,
-  Check,
-  Cpu,
-  Bot,
-  Sparkles,
-  Cloud,
-  Image,
-  X,
-} from "lucide-react";
-import { Modal } from "@/components/ui/Modal";
+import { Bot, Check, Cloud, Cpu, Image, Search, Sparkles, X } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
 import { useModels } from "../hooks/useModels";
 import { useChatStore } from "../stores/chatStore";
-import type { Model } from "@/lib/queries";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -57,7 +49,11 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const getModelTags = (m: Model) => {
     const tags: Array<{ label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = [];
     if (m.supports_multimodal) {
-      tags.push({ label: "Multimodal", icon: Image, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" });
+      tags.push({
+        label: "Multimodal",
+        icon: Image,
+        color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      });
     }
     return tags;
   };
@@ -81,9 +77,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
               <Cpu className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-display tracking-tight">
-                Select Intelligence Model
-              </h3>
+              <h3 className="text-lg font-bold font-display tracking-tight">Select Intelligence Model</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Choose cloud or local models for session queries and agent loops.
               </p>
@@ -124,7 +118,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border",
                   active
                     ? "bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-600/20"
-                    : "bg-zinc-100 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                    : "bg-zinc-100 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white",
                 )}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -137,9 +131,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
         {/* Model Cards List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-0">
           {filteredModels.length === 0 ? (
-            <div className="text-center py-10 text-xs text-zinc-400">
-              No models match your search query.
-            </div>
+            <div className="text-center py-10 text-xs text-zinc-400">No models match your search query.</div>
           ) : (
             filteredModels.map((m) => {
               const isSelected = selectedModel === m.id;
@@ -158,7 +150,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                     "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative group",
                     isSelected
                       ? "bg-purple-500/10 border-purple-500/40 text-purple-600 dark:text-purple-400 shadow-md"
-                      : "bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200/80 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-200 hover:border-purple-500/30 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                      : "bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200/80 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-200 hover:border-purple-500/30 hover:bg-zinc-100 dark:hover:bg-zinc-900",
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -168,7 +160,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                           "p-2 rounded-xl border shrink-0",
                           isSelected
                             ? "bg-purple-600 text-white border-purple-500"
-                            : "bg-zinc-200/80 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+                            : "bg-zinc-200/80 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300",
                         )}
                       >
                         <ProviderIcon className="h-4 w-4" />
@@ -177,9 +169,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                         <h4 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
                           {m.name}
                         </h4>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
-                          {m.id}
-                        </span>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">{m.id}</span>
                       </div>
                     </div>
 
@@ -208,7 +198,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                           key={idx}
                           className={cn(
                             "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border",
-                            tag.color
+                            tag.color,
                           )}
                         >
                           <TagIcon className="h-3 w-3" />

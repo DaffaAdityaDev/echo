@@ -1,25 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
-  Plus,
-  Search,
+  BookOpen,
+  FlaskConical,
+  Layers,
   LogOut,
+  MessageSquare,
+  Plus,
+  ScrollText,
+  Search,
+  Settings,
   Trash2,
   X,
-  Settings,
-  Layers,
-  FlaskConical,
-  ScrollText,
-  MessageSquare,
-  BookOpen,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { useChatStore } from "../stores/chatStore";
-import { useSessions } from "../hooks/useSessions";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { cn } from "@/utils/cn";
+import { useSessions } from "../hooks/useSessions";
+import { useChatStore } from "../stores/chatStore";
 
 interface SessionSidebarProps {
   createSession?: () => void;
@@ -42,7 +42,11 @@ export function SessionSidebar({
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const { sessions, activeSessionId } = useChatStore();
-  const { createSession: storeCreateSession, deleteSession: storeDeleteSession, selectSession: storeSelectSession } = useSessions();
+  const {
+    createSession: storeCreateSession,
+    deleteSession: storeDeleteSession,
+    selectSession: storeSelectSession,
+  } = useSessions();
   const { user, logout } = useAuth();
 
   const handleCreateSession = async () => {
@@ -70,9 +74,7 @@ export function SessionSidebar({
   };
 
   // Filter sessions by search term
-  const filteredSessions = sessions.filter((s) =>
-    s.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSessions = sessions.filter((s) => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
   // Group sessions by recency
   const now = new Date();
@@ -108,7 +110,7 @@ export function SessionSidebar({
         className={cn(
           "w-64 bg-zinc-50/80 dark:bg-zinc-950/60 border-r border-zinc-200/60 dark:border-zinc-800/60 flex flex-col h-full transition-transform duration-300 z-50 shrink-0 select-none",
           "fixed inset-y-0 left-0 md:static md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Header */}
@@ -172,7 +174,7 @@ export function SessionSidebar({
                   "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150",
                   isActive
                     ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50",
                 )}
               >
                 <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-purple-500" : "text-zinc-500")} />
@@ -190,9 +192,7 @@ export function SessionSidebar({
             <>
               {todaySessions.length > 0 && (
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">
-                    Today
-                  </h4>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">Today</h4>
                   <div className="space-y-0.5">
                     {todaySessions.map((session) => (
                       <div
@@ -202,7 +202,7 @@ export function SessionSidebar({
                           "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
                           session.id === activeSessionId
                             ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold"
-                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40"
+                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40",
                         )}
                       >
                         <span className="truncate pr-2">{session.title}</span>
@@ -223,9 +223,7 @@ export function SessionSidebar({
 
               {olderSessions.length > 0 && (
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">
-                    Recent
-                  </h4>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">Recent</h4>
                   <div className="space-y-0.5">
                     {olderSessions.map((session) => (
                       <div
@@ -235,7 +233,7 @@ export function SessionSidebar({
                           "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
                           session.id === activeSessionId
                             ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold"
-                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40"
+                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40",
                         )}
                       >
                         <span className="truncate pr-2">{session.title}</span>
@@ -267,9 +265,7 @@ export function SessionSidebar({
               <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
                 {user?.email?.split("@")[0] || "Guest User"}
               </p>
-              <p className="text-[10px] text-zinc-400 truncate">
-                {user?.email || "guest@echo.ai"}
-              </p>
+              <p className="text-[10px] text-zinc-400 truncate">{user?.email || "guest@echo.ai"}</p>
             </div>
             {onOpenSettings ? (
               <button

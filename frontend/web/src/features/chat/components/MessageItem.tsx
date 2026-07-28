@@ -1,31 +1,29 @@
 "use client";
 
-import React, { memo, useState } from "react";
 import {
-  User,
-  Lightbulb,
-  ChevronDown,
-  Search,
-  CheckCircle2,
-  ListTodo,
-  Terminal,
   AlertTriangle,
-  Copy,
   Check,
-  Sparkles,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  Lightbulb,
+  ListTodo,
   Loader2,
+  Search,
+  Sparkles,
+  Terminal,
+  User,
 } from "lucide-react";
-
 import dynamic from "next/dynamic";
+import React, { memo, useState } from "react";
 import { cn } from "@/utils/cn";
-import { Message, ThoughtStep } from "../types";
+import type { Message, ThoughtStep } from "../types";
 
 const Markdown = dynamic(() => import("@/components/Markdown"), {
   ssr: false,
-  loading: () => (
-    <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
-  ),
+  loading: () => <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />,
 });
+
 import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 
 interface MessageItemProps {
@@ -34,11 +32,7 @@ interface MessageItemProps {
   isLoading: boolean;
 }
 
-export const MessageItem = memo(function MessageItem({
-  msg,
-  isLast,
-  isLoading,
-}: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }: MessageItemProps) {
   const isAssistant = msg.role === CHAT_ROLES.ASSISTANT;
   const [copied, setCopied] = useState(false);
 
@@ -53,7 +47,7 @@ export const MessageItem = memo(function MessageItem({
     <div
       className={cn(
         "flex gap-3 md:gap-4 group animate-in py-2 max-w-5xl mx-auto w-full",
-        !isAssistant ? "flex-row-reverse" : "flex-row"
+        !isAssistant ? "flex-row-reverse" : "flex-row",
       )}
     >
       {/* Avatar Icon */}
@@ -62,7 +56,7 @@ export const MessageItem = memo(function MessageItem({
           "w-8 h-8 rounded-xs flex items-center justify-center shrink-0 shadow-xs border font-mono font-bold text-xs",
           !isAssistant
             ? "bg-foreground text-white border-foreground"
-            : "bg-blue-50 text-gb-blue border-gb-bright-blue/30"
+            : "bg-blue-50 text-gb-blue border-gb-bright-blue/30",
         )}
       >
         {!isAssistant ? (
@@ -76,9 +70,7 @@ export const MessageItem = memo(function MessageItem({
       <div
         className={cn(
           "max-w-[90%] sm:max-w-[85%] rounded-xs px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-xs border font-mono",
-          !isAssistant
-            ? "bg-slate-50 text-foreground border-slate-300"
-            : "bg-white border-border text-foreground"
+          !isAssistant ? "bg-slate-50 text-foreground border-slate-300" : "bg-white border-border text-foreground",
         )}
       >
         {/* Mission metadata bar */}
@@ -89,16 +81,14 @@ export const MessageItem = memo(function MessageItem({
                 "px-2 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider",
                 msg.meta.strategy === "react"
                   ? "bg-blue-50 text-gb-blue border border-gb-bright-blue/30"
-                  : "bg-surface-hover text-slate-600 border border-border"
+                  : "bg-surface-hover text-slate-600 border border-border",
               )}
             >
               {msg.meta.strategy === "react" ? "âš¡ Agent Mode" : "ðŸ’¬ Standard"}
             </span>
 
             {msg.usage && (
-              <span className="text-[10px] font-mono text-muted ml-auto">
-                {msg.usage.totalTokens} tokens
-              </span>
+              <span className="text-[10px] font-mono text-muted ml-auto">{msg.usage.totalTokens} tokens</span>
             )}
           </div>
         )}
@@ -130,13 +120,13 @@ export const MessageItem = memo(function MessageItem({
         ) : null}
 
         {/* Streaming/interrupted status indicator */}
-        {isAssistant && msg.status === 'streaming' && (
+        {isAssistant && msg.status === "streaming" && (
           <div className="flex items-center gap-1.5 py-1 text-[10px] text-amber-600 italic font-mono">
             <Loader2 className="h-3 w-3 animate-spin" />
             Receiving...
           </div>
         )}
-        {isAssistant && msg.status === 'interrupted' && (
+        {isAssistant && msg.status === "interrupted" && (
           <div className="flex items-center gap-1.5 py-1 text-[10px] text-muted italic border-t border-dashed border-slate-300 mt-1 font-mono">
             <AlertTriangle className="h-3 w-3" />
             Response was interrupted â€” send a reply to continue
@@ -213,8 +203,8 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
     const todosList = Array.isArray(step.todos)
       ? step.todos
       : typeof step.todos === "object" && step.todos !== null
-      ? [step.todos]
-      : [];
+        ? [step.todos]
+        : [];
 
     if (todosList.length === 0) return null;
 
@@ -241,22 +231,17 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
                     isDone
                       ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500"
                       : isProgress
-                      ? "bg-purple-500/20 border-purple-500/50 text-purple-500 animate-pulse"
-                      : isFailed
-                      ? "bg-red-500/20 border-red-500/50 text-red-500"
-                      : "border-zinc-400 text-transparent"
+                        ? "bg-purple-500/20 border-purple-500/50 text-purple-500 animate-pulse"
+                        : isFailed
+                          ? "bg-red-500/20 border-red-500/50 text-red-500"
+                          : "border-zinc-400 text-transparent",
                   )}
                 >
                   {isDone && <span className="text-[10px]">âœ“</span>}
                   {isProgress && <span className="text-[10px] animate-spin">âš¡</span>}
                   {isFailed && <span className="text-[10px]">!</span>}
                 </div>
-                <span
-                  className={cn(
-                    "font-semibold truncate",
-                    isDone && "line-through text-zinc-400"
-                  )}
-                >
+                <span className={cn("font-semibold truncate", isDone && "line-through text-zinc-400")}>
                   {todo.description}
                 </span>
               </div>
@@ -267,11 +252,7 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
     );
   }
 
-  if (
-    (step.type === PACKET_TYPES.SUBAGENT_CALL ||
-      step.type === PACKET_TYPES.SUBAGENT_RESULT) &&
-    step.subagent
-  ) {
+  if ((step.type === PACKET_TYPES.SUBAGENT_CALL || step.type === PACKET_TYPES.SUBAGENT_RESULT) && step.subagent) {
     const s = step.subagent;
     const isCalling = s.status === "calling";
     const isFailed = s.status === "failed";
@@ -283,8 +264,8 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
           isCalling
             ? "bg-purple-500/5 border-purple-500/20"
             : isFailed
-            ? "bg-red-500/5 border-red-500/20"
-            : "bg-emerald-500/5 border-emerald-500/20"
+              ? "bg-red-500/5 border-red-500/20"
+              : "bg-emerald-500/5 border-emerald-500/20",
         )}
       >
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest border-b border-zinc-200 dark:border-zinc-800 pb-2">

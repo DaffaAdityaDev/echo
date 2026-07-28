@@ -1,25 +1,19 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { cn } from "@/utils/cn"
-import {
-  Code2,
-  Copy,
-  MessagesSquare,
-  ChevronRight,
-  Check,
-} from "lucide-react"
+import { Check, ChevronRight, Code2, Copy, MessagesSquare } from "lucide-react";
+import React, { useState } from "react";
+import { cn } from "@/utils/cn";
 
 interface DebugInfo {
-  iteration: number
-  systemPrompt: string
-  messages: { role: string; content: string }[]
+  iteration: number;
+  systemPrompt: string;
+  messages: { role: string; content: string }[];
 }
 
 interface DebugPromptPanelProps {
-  debugInfos: DebugInfo[]
-  isRunning: boolean
-  className?: string
+  debugInfos: DebugInfo[];
+  isRunning: boolean;
+  className?: string;
 }
 
 const roleStyles: Record<string, string> = {
@@ -27,65 +21,51 @@ const roleStyles: Record<string, string> = {
   assistant: "bg-emerald-50 border-emerald-200 text-emerald-700",
   system: "bg-purple-50 border-purple-200 text-purple-700",
   tool: "bg-orange-50 border-orange-200 text-orange-700",
-}
+};
 
 const roleLabels: Record<string, string> = {
   user: "User",
   assistant: "Assistant",
   system: "System",
   tool: "Tool",
-}
+};
 
-export function DebugPromptPanel({
-  debugInfos,
-  isRunning,
-  className,
-}: DebugPromptPanelProps) {
-  const [expandedTurn, setExpandedTurn] = useState<number | null>(null)
-  const [copiedPayload, setCopiedPayload] = useState<number | null>(null)
-  const [copiedSystem, setCopiedSystem] = useState<number | null>(null)
+export function DebugPromptPanel({ debugInfos, isRunning, className }: DebugPromptPanelProps) {
+  const [expandedTurn, setExpandedTurn] = useState<number | null>(null);
+  const [copiedPayload, setCopiedPayload] = useState<number | null>(null);
+  const [copiedSystem, setCopiedSystem] = useState<number | null>(null);
 
   const toggleTurn = (iteration: number) => {
-    setExpandedTurn((prev) => (prev === iteration ? null : iteration))
-  }
+    setExpandedTurn((prev) => (prev === iteration ? null : iteration));
+  };
 
   const handleCopyPayload = async (info: DebugInfo) => {
     const payload = {
       systemPrompt: info.systemPrompt,
       messages: info.messages,
-    }
-    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
-    setCopiedPayload(info.iteration)
-    setTimeout(() => setCopiedPayload(null), 2000)
-  }
+    };
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    setCopiedPayload(info.iteration);
+    setTimeout(() => setCopiedPayload(null), 2000);
+  };
 
   const handleCopySystem = async (text: string, iteration: number) => {
-    await navigator.clipboard.writeText(text)
-    setCopiedSystem(iteration)
-    setTimeout(() => setCopiedSystem(null), 2000)
-  }
+    await navigator.clipboard.writeText(text);
+    setCopiedSystem(iteration);
+    setTimeout(() => setCopiedSystem(null), 2000);
+  };
 
   const totalTokens = (info: DebugInfo) => {
-    const systemLen = info.systemPrompt.length
-    const messagesLen = info.messages.reduce(
-      (acc, m) => acc + m.content.length,
-      0,
-    )
-    return Math.round((systemLen + messagesLen) / 4)
-  }
+    const systemLen = info.systemPrompt.length;
+    const messagesLen = info.messages.reduce((acc, m) => acc + m.content.length, 0);
+    return Math.round((systemLen + messagesLen) / 4);
+  };
 
   return (
-    <div
-      className={cn(
-        "border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4",
-        className,
-      )}
-    >
+    <div className={cn("border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4", className)}>
       <div className="flex items-center gap-2">
         <Code2 className="h-4 w-4 text-zinc-600" />
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Debug Prompts
-        </h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Debug Prompts</h3>
       </div>
 
       {debugInfos.length === 0 ? (
@@ -96,14 +76,11 @@ export function DebugPromptPanel({
       ) : (
         <div className="space-y-2">
           {debugInfos.map((info) => {
-            const isExpanded = expandedTurn === info.iteration
-            const tokenEstimate = totalTokens(info)
+            const isExpanded = expandedTurn === info.iteration;
+            const tokenEstimate = totalTokens(info);
 
             return (
-              <div
-                key={info.iteration}
-                className="border border-zinc-200 bg-white rounded-xl overflow-hidden"
-              >
+              <div key={info.iteration} className="border border-zinc-200 bg-white rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggleTurn(info.iteration)}
                   className="flex items-center justify-between w-full px-4 py-3 hover:bg-zinc-50 transition-colors text-left"
@@ -112,22 +89,15 @@ export function DebugPromptPanel({
                 >
                   <div className="flex items-center gap-2">
                     <ChevronRight
-                      className={cn(
-                        "h-4 w-4 text-zinc-400 transition-transform",
-                        isExpanded && "rotate-90",
-                      )}
+                      className={cn("h-4 w-4 text-zinc-400 transition-transform", isExpanded && "rotate-90")}
                     />
-                    <span className="text-xs font-medium text-zinc-700">
-                      Turn {info.iteration}
-                    </span>
-                    <span className="text-xs text-zinc-400 tabular-nums">
-                      ~{tokenEstimate} tokens
-                    </span>
+                    <span className="text-xs font-medium text-zinc-700">Turn {info.iteration}</span>
+                    <span className="text-xs text-zinc-400 tabular-nums">~{tokenEstimate} tokens</span>
                   </div>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      handleCopyPayload(info)
+                      e.stopPropagation();
+                      handleCopyPayload(info);
                     }}
                     className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 transition-colors"
                     aria-label="Copy entire payload as JSON"
@@ -167,22 +137,17 @@ export function DebugPromptPanel({
                     </div>
 
                     <div className="p-4 space-y-3">
-                      <span className="text-xs font-medium text-zinc-500">
-                        Message History
-                      </span>
+                      <span className="text-xs font-medium text-zinc-500">Message History</span>
                       <div className="space-y-2">
                         {info.messages.map((msg, idx) => (
                           <div
                             key={idx}
                             className={cn(
                               "border rounded-xl p-3 space-y-1",
-                              roleStyles[msg.role] ??
-                                "bg-zinc-50 border-zinc-200 text-zinc-600",
+                              roleStyles[msg.role] ?? "bg-zinc-50 border-zinc-200 text-zinc-600",
                             )}
                           >
-                            <span className="text-xs font-semibold">
-                              {roleLabels[msg.role] ?? msg.role}
-                            </span>
+                            <span className="text-xs font-semibold">{roleLabels[msg.role] ?? msg.role}</span>
                             <p className="text-xs font-mono whitespace-pre-wrap break-all leading-relaxed">
                               {msg.content}
                             </p>
@@ -193,10 +158,10 @@ export function DebugPromptPanel({
                   </div>
                 )}
               </div>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }

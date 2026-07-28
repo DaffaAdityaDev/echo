@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import { ArrowLeft, Key, LayoutDashboard, ShieldCheck, Terminal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Key, ArrowLeft, Terminal, ShieldCheck } from "lucide-react";
+import type React from "react";
 import { cn } from "@/utils/cn";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -36,9 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="font-display font-bold text-sm tracking-tight block text-zinc-900 dark:text-white">
                 ECHO Admin
               </span>
-              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
-                Management Console
-              </span>
+              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Management Console</span>
             </div>
           </div>
 
@@ -55,16 +53,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative",
                     active
                       ? "text-purple-600 dark:text-purple-400 bg-purple-500/10 font-bold"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50"
+                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50",
                   )}
                 >
-                  {active && (
-                    <div className="absolute left-0 top-1/4 bottom-1/4 w-[3px] bg-purple-500 rounded-r" />
-                  )}
+                  {active && <div className="absolute left-0 top-1/4 bottom-1/4 w-[3px] bg-purple-500 rounded-r" />}
                   <Icon
                     className={cn(
                       "h-4 w-4 shrink-0 transition-transform group-hover:scale-105",
-                      active ? "text-purple-500" : "text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300"
+                      active
+                        ? "text-purple-500"
+                        : "text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300",
                     )}
                   />
                   {item.label}

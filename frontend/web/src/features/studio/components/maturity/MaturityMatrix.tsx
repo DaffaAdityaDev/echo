@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import React from "react"
-import { ShieldCheck, Sparkles, AlertTriangle, Layers } from "lucide-react"
-import type { MaturityDimension, MaturityLevelInfo } from "../../types"
+import { AlertTriangle, Layers, ShieldCheck, Sparkles } from "lucide-react";
+import React from "react";
+import type { MaturityDimension, MaturityLevelInfo } from "../../types";
 
 export interface MaturityMatrixProps {
-  dimensions: readonly MaturityDimension[]
-  levels: readonly MaturityLevelInfo[]
-  weakestDimension?: string
+  dimensions: readonly MaturityDimension[];
+  levels: readonly MaturityLevelInfo[];
+  weakestDimension?: string;
 }
 
 export function MaturityMatrix({ dimensions, levels, weakestDimension }: MaturityMatrixProps) {
@@ -21,7 +21,8 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
               AI-Ready 7-Dimension Maturity Matrix
             </h3>
             <p className="text-xs text-slate-600 mt-1">
-              Pattern-agnostic evaluation matrix. Current placement maps to Structured (L3) baseline with Validated (L4) guardrails.
+              Pattern-agnostic evaluation matrix. Current placement maps to Structured (L3) baseline with Validated (L4)
+              guardrails.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono bg-surface px-3 py-1.5 rounded-xs border border-border text-foreground font-semibold">
@@ -44,13 +45,11 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
             </thead>
             <tbody className="divide-y divide--border">
               {dimensions.map((dim) => {
-                const isWeakest = dim.key === weakestDimension
+                const isWeakest = dim.key === weakestDimension;
                 return (
                   <tr
                     key={dim.key}
-                    className={`transition-colors hover:bg-slate-50 ${
-                      isWeakest ? "bg-amber-50/80" : ""
-                    }`}
+                    className={`transition-colors hover:bg-slate-50 ${isWeakest ? "bg-amber-50/80" : ""}`}
                   >
                     <td className="py-4 px-4 font-bold text-foreground">
                       <div className="flex items-center gap-2">
@@ -76,8 +75,8 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
                           dim.currentLevel === "L4"
                             ? "bg-emerald-50 border border-success text-emerald-700"
                             : dim.currentLevel === "L3"
-                            ? "bg-blue-50 border border-gb-bright-blue text-gb-dark-blue"
-                            : "bg-amber-100 border border-amber-400 text-amber-900"
+                              ? "bg-blue-50 border border-gb-bright-blue text-gb-dark-blue"
+                              : "bg-amber-100 border border-amber-400 text-amber-900"
                         }`}
                       >
                         <ShieldCheck className="h-3.5 w-3.5" />
@@ -100,7 +99,7 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
                       </span>
                     </td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
@@ -118,16 +117,11 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
               <span className="text-gb-blue">{lvl.level}</span>
               <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600">{lvl.name}</span>
             </div>
-            <p className="text-[11px] font-bold text-foreground mt-2 line-clamp-2 leading-tight">
-              {lvl.definition}
-            </p>
-            <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-              {lvl.description}
-            </p>
+            <p className="text-[11px] font-bold text-foreground mt-2 line-clamp-2 leading-tight">{lvl.definition}</p>
+            <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">{lvl.description}</p>
           </div>
         ))}
       </div>
     </div>
-  )
+  );
 }
-

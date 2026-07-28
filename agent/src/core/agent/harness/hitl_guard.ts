@@ -1,9 +1,9 @@
 export const DEFAULT_PROTECTED_TOOLS = new Set([
-  'execute_sql_write',
-  'delete_file',
-  'send_external_email',
-  'deploy_infrastructure',
-  'write_file',
+  "execute_sql_write",
+  "delete_file",
+  "send_external_email",
+  "deploy_infrastructure",
+  "write_file",
 ]);
 
 export interface HitlGuardConfig {
@@ -33,9 +33,7 @@ export class HitlGuard {
   constructor(config?: Partial<HitlGuardConfig>) {
     this.enabled = config?.enabled ?? true;
     this.ttlMinutes = config?.ttlMinutes ?? 5;
-    this.protectedTools = config?.protectedTools
-      ? new Set(config.protectedTools)
-      : DEFAULT_PROTECTED_TOOLS;
+    this.protectedTools = config?.protectedTools ? new Set(config.protectedTools) : DEFAULT_PROTECTED_TOOLS;
   }
 
   public isEnabled(): boolean {
@@ -50,7 +48,7 @@ export class HitlGuard {
   public createApprovalPayload(
     missionId: string,
     sessionId: string,
-    toolCall: { id: string; name: string; args: Record<string, unknown> }
+    toolCall: { id: string; name: string; args: Record<string, unknown> },
   ): PendingApprovalState {
     const now = Date.now();
     return {

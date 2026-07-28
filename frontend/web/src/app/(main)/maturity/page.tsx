@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useMaturityPage, MaturityDashboard } from "@/features/studio"
+import { MaturityDashboard, useMaturityPage } from "@/features/studio";
 
 export default function MaturityRoute() {
-  const props = useMaturityPage()
-  return <MaturityDashboard {...props} />
+  const props = useMaturityPage();
+  return <MaturityDashboard {...props} />;
 }

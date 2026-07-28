@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { CodeBlock } from '@/components/docs/CodeBlock'
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function ExamplesPage() {
   return (
@@ -14,39 +14,60 @@ export default function ExamplesPage() {
       </div>
 
       <section id="curl" className="space-y-4 scroll-mt-24">
-        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">cURL</h2>
+        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
+          cURL
+        </h2>
 
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted">Login</h3>
-        <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/auth/login \\
+        <CodeBlock
+          language="bash"
+          code={`curl -X POST http://localhost:8080/api/v1/auth/login \\
   -H "Content-Type: application/json" \\
-  -d '{"email": "user@example.com", "password": "password123"}'`} />
+  -d '{"email": "user@example.com", "password": "password123"}'`}
+        />
 
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted mt-6">Chat Stream</h3>
-        <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/chat \\
+        <CodeBlock
+          language="bash"
+          code={`curl -X POST http://localhost:8080/api/v1/chat \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "Hello!", "model": "gpt-4o", "mode": "agent"}'`} />
+  -d '{"message": "Hello!", "model": "gpt-4o", "mode": "agent"}'`}
+        />
 
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted mt-6">List Sessions</h3>
-        <CodeBlock language="bash" code={`curl -X GET http://localhost:8080/api/v1/sessions \\
-  -H "Authorization: Bearer <token>"`} />
+        <CodeBlock
+          language="bash"
+          code={`curl -X GET http://localhost:8080/api/v1/sessions \\
+  -H "Authorization: Bearer <token>"`}
+        />
 
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted mt-6">Approve HITL</h3>
-        <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/missions/{id}/approve \\
+        <CodeBlock
+          language="bash"
+          code={`curl -X POST http://localhost:8080/api/v1/missions/{id}/approve \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"approvalId": "appr_id", "decision": "approve"}'`} />
+  -d '{"approvalId": "appr_id", "decision": "approve"}'`}
+        />
 
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted mt-6">Update Settings</h3>
-        <CodeBlock language="bash" code={`curl -X PUT http://localhost:8080/api/v1/settings \\
+        <CodeBlock
+          language="bash"
+          code={`curl -X PUT http://localhost:8080/api/v1/settings \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"default_mode": "agent", "default_model": "gpt-4o"}'`} />
+  -d '{"default_mode": "agent", "default_model": "gpt-4o"}'`}
+        />
       </section>
 
       <section id="python" className="space-y-4 scroll-mt-24">
-        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">Python</h2>
-        <CodeBlock language="python" code={`import requests
+        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
+          Python
+        </h2>
+        <CodeBlock
+          language="python"
+          code={`import requests
 import json
 
 BASE = "http://localhost:8080/api/v1"
@@ -91,12 +112,17 @@ for event in client.chat_stream("Explain quantum computing"):
     if event["type"] == "content":
         print(event["content"], end="")
     elif event["type"] == "error":
-        print(f"\\nError: {event['content']}")`} />
+        print(f"\\nError: {event['content']}")`}
+        />
       </section>
 
       <section id="nodejs" className="space-y-4 scroll-mt-24">
-        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">Node.js / TypeScript</h2>
-        <CodeBlock language="typescript" code={`const BASE = "http://localhost:8080/api/v1";
+        <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
+          Node.js / TypeScript
+        </h2>
+        <CodeBlock
+          language="typescript"
+          code={`const BASE = "http://localhost:8080/api/v1";
 
 interface StreamEvent {
   type: string;
@@ -161,9 +187,9 @@ class EchoClient {
 const client = new EchoClient("<your-token>");
 for await (const event of client.chatStream("Hello!")) {
   if (event.type === "content") process.stdout.write(event.content!);
-}`} />
+}`}
+        />
       </section>
     </div>
-  )
+  );
 }
-

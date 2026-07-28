@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import { ApiKey } from "../types";
+import type { ApiKey } from "../types";
 
 export function useApiKeys() {
   const queryClient = useQueryClient();
@@ -23,8 +23,7 @@ export function useApiKeys() {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) =>
-      api.delete<void>(`/admin/api-keys/${id}`),
+    mutationFn: (id: string) => api.delete<void>(`/admin/api-keys/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] });
     },

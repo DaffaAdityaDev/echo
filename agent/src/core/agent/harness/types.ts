@@ -1,16 +1,22 @@
-import { LLMProvider, AgentStrategy, AgentState, ToolDefinition, HarnessFeatureToggles } from '../../../shared/types';
+import {
+  AgentState,
+  type AgentStrategy,
+  type HarnessFeatureToggles,
+  type LLMProvider,
+  type ToolDefinition,
+} from "../../../shared/types";
 
 export interface HarnessConfig {
-    provider: LLMProvider;
-    strategy: AgentStrategy;
-    missionId?: string;
-    tenantId?: string;
-    harnessType?: string;
-    tools?: ToolDefinition[];
-    skills?: string[];
-    harnessConfig?: any;
-    delegationDepth?: number;
-    initialCostUsd?: number;
+  provider: LLMProvider;
+  strategy: AgentStrategy;
+  missionId?: string;
+  tenantId?: string;
+  harnessType?: string;
+  tools?: ToolDefinition[];
+  skills?: string[];
+  harnessConfig?: any;
+  delegationDepth?: number;
+  initialCostUsd?: number;
 }
 
 export const DEFAULT_HARNESS_TOGGLES: HarnessFeatureToggles = {
@@ -29,7 +35,7 @@ export const DEFAULT_HARNESS_TOGGLES: HarnessFeatureToggles = {
     enforceTimeout: true,
     maxDurationMs: 120_000,
     enforceCostCap: true,
-    maxCostUsd: 1.00,
+    maxCostUsd: 1.0,
   },
   systemNotices: {
     enabled: true,
@@ -40,22 +46,14 @@ export const DEFAULT_HARNESS_TOGGLES: HarnessFeatureToggles = {
   },
   hitlGuard: {
     enabled: true,
-    protectedTools: [
-      'execute_sql_write',
-      'delete_file',
-      'send_external_email',
-      'deploy_infrastructure',
-      'write_file',
-    ],
+    protectedTools: ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure", "write_file"],
     ttlMinutes: 5,
   },
   contextOptimization: {
     enabled: true,
     enablePrefixCachingLayout: true,
     enableAutoCompaction: true,
-    compactionThresholdRatio: 0.70,
+    compactionThresholdRatio: 0.7,
     keepLastTurnsCount: 4,
   },
 };
-
-

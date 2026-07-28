@@ -1,14 +1,14 @@
 "use client";
 
+import { AlertTriangle, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { X, AlertTriangle } from "lucide-react";
 import { useChatStore } from "../stores/chatStore";
 
 export function DegradationToast() {
   const agentState = useChatStore((s) => s.agentState);
   const [dismissed, setDismissed] = useState(false);
 
-  const visible = agentState === 'degraded' && !dismissed;
+  const visible = agentState === "degraded" && !dismissed;
 
   useEffect(() => {
     if (visible) {
@@ -27,9 +27,7 @@ export function DegradationToast() {
         <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-red-400">Agent Degraded</p>
-          <p className="text-xs text-red-300/70 mt-1">
-            Agent is operating in degraded mode
-          </p>
+          <p className="text-xs text-red-300/70 mt-1">Agent is operating in degraded mode</p>
         </div>
         <button
           onClick={dismiss}

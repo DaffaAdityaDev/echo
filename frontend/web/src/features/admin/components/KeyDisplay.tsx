@@ -1,8 +1,8 @@
 "use client";
 
+import { AlertTriangle, Check, Copy, Eye, EyeOff } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Copy, Check, Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 interface KeyDisplayProps {
   apiKey: string;
@@ -26,7 +26,7 @@ export function KeyDisplay({ apiKey, onClose }: KeyDisplayProps) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl relative overflow-hidden animate-in">
       <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-blue-500 to-indigo-500" />
-      
+
       <div className="flex items-center gap-3 text-amber-500 mb-4">
         <AlertTriangle className="h-5 w-5" />
         <h4 className="font-semibold text-zinc-100 font-display">Save your API key</h4>

@@ -1,9 +1,9 @@
 "use client";
 
+import { Activity, RefreshCw, Server, ShieldCheck } from "lucide-react";
 import React from "react";
-import { ShieldCheck, RefreshCw, Server, Activity } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/utils/cn";
 
 export interface SystemStatusBannerProps {
@@ -40,9 +40,7 @@ export function SystemStatusBanner({
         </div>
         <div className="space-y-1">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h4 className="text-sm font-semibold text-zinc-100 tracking-tight">
-              System Gateway Operational
-            </h4>
+            <h4 className="text-sm font-semibold text-zinc-100 tracking-tight">System Gateway Operational</h4>
             <Badge variant="success" className="gap-1.5 py-0.5 text-[11px]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -52,7 +50,8 @@ export function SystemStatusBanner({
             </Badge>
           </div>
           <p className="text-xs text-zinc-400 leading-relaxed max-w-2xl">
-            All background agent routines, task dispatchers, and Redis instances are running normally. Average memory latency is currently <span className="text-zinc-200 font-medium">{latencyMs}ms</span>.
+            All background agent routines, task dispatchers, and Redis instances are running normally. Average memory
+            latency is currently <span className="text-zinc-200 font-medium">{latencyMs}ms</span>.
           </p>
         </div>
       </div>
@@ -70,9 +69,7 @@ export function SystemStatusBanner({
         </div>
 
         {formattedTime && (
-          <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
-            Updated {formattedTime}
-          </span>
+          <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">Updated {formattedTime}</span>
         )}
 
         {onRefresh && (

@@ -1,18 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
-import { useAuth, LoginForm } from "@/features/auth";
 import { ShieldCheck } from "lucide-react";
+import { Suspense } from "react";
+import { LoginForm, useAuth } from "@/features/auth";
 
 function LoginContent() {
   const { loginAsync, isLoggingIn, loginError } = useAuth();
-  return (
-    <LoginForm
-      loginAsync={loginAsync}
-      isLoggingIn={isLoggingIn}
-      loginError={loginError}
-    />
-  );
+  return <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />;
 }
 
 export default function LoginRoute() {
@@ -27,9 +21,7 @@ export default function LoginRoute() {
           <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-1">
             <ShieldCheck className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-extrabold font-display tracking-tight text-white">
-            Welcome to ECHO
-          </h1>
+          <h1 className="text-3xl font-extrabold font-display tracking-tight text-white">Welcome to ECHO</h1>
           <p className="text-xs text-zinc-400 max-w-xs mx-auto">
             Sign in to access the agent execution harness and management dashboard.
           </p>
@@ -41,9 +33,7 @@ export default function LoginRoute() {
           </Suspense>
         </div>
 
-        <p className="text-center text-[11px] text-zinc-600">
-          © 2026 Echo Engine — Autonomous AI Harness Platform
-        </p>
+        <p className="text-center text-[11px] text-zinc-600">© 2026 Echo Engine — Autonomous AI Harness Platform</p>
       </div>
     </div>
   );

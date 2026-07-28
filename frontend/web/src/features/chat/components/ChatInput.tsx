@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Send, Loader2, Sparkles, Paperclip, Globe, Sliders, X } from "lucide-react";
+import { Globe, Loader2, Paperclip, Send, Sliders, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type React from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/utils/cn";
-import { useChatStore } from "../stores/chatStore";
 import { CHAT_MODES } from "../constants";
+import { useChatStore } from "../stores/chatStore";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -39,9 +40,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
       reader.onload = (event) => {
         const content = event.target?.result as string;
         setInput((prev) =>
-          prev
-            ? `${prev}\n\n[Attached File: ${file.name}]\n${content}`
-            : `[Attached File: ${file.name}]\n${content}`
+          prev ? `${prev}\n\n[Attached File: ${file.name}]\n${content}` : `[Attached File: ${file.name}]\n${content}`,
         );
       };
       reader.readAsText(file);
@@ -81,12 +80,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Hidden File Input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
       <form
         onSubmit={handleSubmit}
@@ -123,16 +117,12 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
             {/* Mode Toggle Pill */}
             <button
               type="button"
-              onClick={() =>
-                setMode(
-                  mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT
-                )
-              }
+              onClick={() => setMode(mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider",
                 mode === CHAT_MODES.AGENT
                   ? "bg-blue-50 border-gb-bright-blue text-gb-blue shadow-xs"
-                  : "bg-slate-50 border-border text-slate-600 hover:text-foreground hover:bg-surface-hover"
+                  : "bg-slate-50 border-border text-slate-600 hover:text-foreground hover:bg-surface-hover",
               )}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -147,7 +137,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
                 "p-1.5 rounded-lg transition-colors border cursor-pointer",
                 isWebSearchActive
                   ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                  : "bg-transparent border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  : "bg-transparent border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",
               )}
               title={isWebSearchActive ? "Web Search Active" : "Enable Web Search"}
             >
@@ -181,14 +171,10 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
                 "p-2 rounded-full transition-all shrink-0 cursor-pointer",
                 input.trim() && !isLoading
                   ? "bg-purple-600 text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
-                  : "bg-purple-600/20 text-purple-400/50 cursor-not-allowed"
+                  : "bg-purple-600/20 text-purple-400/50 cursor-not-allowed",
               )}
             >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
         </div>

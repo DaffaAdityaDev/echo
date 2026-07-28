@@ -1,14 +1,14 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { Check, Clock, Shield, ShieldAlert, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { useChatStore } from "../stores/chatStore";
 import { api } from "@/lib/api-client";
-import { ShieldAlert, Shield, Clock, X, Check } from "lucide-react";
+import { useChatStore } from "../stores/chatStore";
 
 export function HitlApprovalModal() {
   const hitlPending = useChatStore((s) => s.hitlPendingApproval);
   const clearHitl = useChatStore((s) => s.clearHitlPendingApproval);
-  const [decision, setDecision] = useState<'approve' | 'deny' | null>(null);
+  const [decision, setDecision] = useState<"approve" | "deny" | null>(null);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState("");
@@ -27,13 +27,13 @@ export function HitlApprovalModal() {
 
   const handleApprove = useCallback(async () => {
     if (!hitlPending || decision) return;
-    setDecision('approve');
+    setDecision("approve");
     setLoading(true);
     try {
       await api.stream(
         `/api/v1/missions/${hitlPending.missionId}/approve`,
-        { approvalId: hitlPending.approvalId, decision: 'approve' },
-        () => {}
+        { approvalId: hitlPending.approvalId, decision: "approve" },
+        () => {},
       );
     } catch (e) {
       console.error("HITL approve stream error:", e);
@@ -49,8 +49,8 @@ export function HitlApprovalModal() {
     try {
       await api.stream(
         `/api/v1/missions/${hitlPending.missionId}/deny`,
-        { approvalId: hitlPending.approvalId, decision: 'deny', reason },
-        () => {}
+        { approvalId: hitlPending.approvalId, decision: "deny", reason },
+        () => {},
       );
     } catch (e) {
       console.error("HITL deny stream error:", e);
@@ -79,7 +79,9 @@ export function HitlApprovalModal() {
   return (
     <Modal
       isOpen={!!hitlPending && !decision}
-      onClose={() => { if (!loading) clearHitl(); }}
+      onClose={() => {
+        if (!loading) clearHitl();
+      }}
       title="Tool Approval Required"
       description="Agent requires approval for protected tool"
     >
@@ -92,17 +94,13 @@ export function HitlApprovalModal() {
               {countdown}
             </span>
           </div>
-          <code className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">
-            {hitlPending.toolName}
-          </code>
+          <code className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">{hitlPending.toolName}</code>
         </div>
 
         <div className={`p-3 rounded-lg border ${riskColors[hitlPending.riskLevel] || riskColors.medium}`}>
           <div className="flex items-center gap-2">
             <RiskIcon className="h-4 w-4" />
-            <span className="text-xs font-bold uppercase tracking-wider">
-              {hitlPending.riskLevel} Risk
-            </span>
+            <span className="text-xs font-bold uppercase tracking-wider">{hitlPending.riskLevel} Risk</span>
           </div>
         </div>
 
@@ -113,9 +111,11 @@ export function HitlApprovalModal() {
           </pre>
         </div>
 
-        {decision === 'deny' && (
+        {decision === "deny" && (
           <div>
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1 block">Reason (optional)</span>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1 block">
+              Reason (optional)
+            </span>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -126,9 +126,9 @@ export function HitlApprovalModal() {
         )}
 
         <div className="flex gap-2 pt-2">
-          {decision !== 'deny' && (
+          {decision !== "deny" && (
             <button
-              onClick={() => setDecision('deny')}
+              onClick={() => setDecision("deny")}
               disabled={loading}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold hover:bg-red-500/20 transition-colors disabled:opacity-50 cursor-pointer"
             >
@@ -136,7 +136,7 @@ export function HitlApprovalModal() {
               Deny
             </button>
           )}
-          {decision === 'deny' && (
+          {decision === "deny" && (
             <button
               onClick={handleDeny}
               disabled={loading}
@@ -155,7 +155,7 @@ export function HitlApprovalModal() {
             disabled={loading}
             className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {loading && decision === 'approve' ? (
+            {loading && decision === "approve" ? (
               <span className="animate-spin h-3 w-3 border-2 border-emerald-500 border-t-transparent rounded-full" />
             ) : (
               <Check className="h-3.5 w-3.5" />

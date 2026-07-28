@@ -1,9 +1,9 @@
-import { HARNESS_CONFIG } from './constants';
+import { HARNESS_CONFIG } from "./constants";
 
 export interface CircuitState {
   failures: number;
   lastFailureAt: number;
-  state: 'closed' | 'open';
+  state: "closed" | "open";
 }
 
 export class CircuitBreaker {
@@ -20,30 +20,30 @@ export class CircuitBreaker {
   isOpen(toolName: string): boolean {
     const state = this.states.get(toolName);
     if (!state) return false;
-    return state.state === 'open';
+    return state.state === "open";
   }
 
   recordSuccess(toolName: string): void {
     const state = this.states.get(toolName);
     if (state) {
       state.failures = 0;
-      state.state = 'closed';
+      state.state = "closed";
     }
   }
 
   recordFailure(toolName: string): boolean {
     let state = this.states.get(toolName);
     if (!state) {
-      state = { failures: 0, lastFailureAt: 0, state: 'closed' };
+      state = { failures: 0, lastFailureAt: 0, state: "closed" };
       this.states.set(toolName, state);
     }
     state.failures++;
     state.lastFailureAt = Date.now();
 
     if (state.failures >= this.openAfter || state.failures >= this.maxRetriesPerTool) {
-      state.state = 'open';
+      state.state = "open";
     }
-    return state.state === 'open';
+    return state.state === "open";
   }
 
   reset(): void {
@@ -57,7 +57,7 @@ export class CircuitBreaker {
   getAllOpenCircuits(): string[] {
     const open: string[] = [];
     for (const [tool, state] of this.states.entries()) {
-      if (state.state === 'open') {
+      if (state.state === "open") {
         open.push(tool);
       }
     }

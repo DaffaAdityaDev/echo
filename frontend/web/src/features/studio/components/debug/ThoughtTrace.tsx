@@ -1,43 +1,37 @@
-"use client"
+"use client";
 
-import React, { useEffect, useCallback } from "react"
-import { cn } from "@/utils/cn"
-import { Brain, X, Sparkles } from "lucide-react"
+import { Brain, Sparkles, X } from "lucide-react";
+import React, { useCallback, useEffect } from "react";
+import { cn } from "@/utils/cn";
 
 interface ThoughtTraceProps {
-  reasoning: string
-  toolName?: string
-  toolArgs?: Record<string, unknown>
-  isOpen: boolean
-  onClose: () => void
+  reasoning: string;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function ThoughtTrace({
-  reasoning,
-  toolName,
-  toolArgs,
-  isOpen,
-  onClose,
-}: ThoughtTraceProps) {
+export function ThoughtTrace({ reasoning, toolName, toolArgs, isOpen, onClose }: ThoughtTraceProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape") onClose();
     },
     [onClose],
-  )
+  );
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown)
-      document.body.style.overflow = "hidden"
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
     }
     return () => {
-      document.removeEventListener("keydown", handleKeyDown)
-      document.body.style.overflow = ""
-    }
-  }, [isOpen, handleKeyDown])
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div
@@ -46,10 +40,7 @@ export function ThoughtTrace({
       aria-modal="true"
       aria-label="Reasoning trace"
     >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative bg-white border border-zinc-200 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
           <div className="flex items-center gap-2">
@@ -71,9 +62,7 @@ export function ThoughtTrace({
           {!reasoning ? (
             <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
               <Sparkles className="h-8 w-8 text-zinc-300" />
-              <p className="text-sm text-zinc-500">
-                No reasoning trace available for this step
-              </p>
+              <p className="text-sm text-zinc-500">No reasoning trace available for this step</p>
             </div>
           ) : (
             <>
@@ -105,5 +94,5 @@ export function ThoughtTrace({
         </div>
       </div>
     </div>
-  )
+  );
 }

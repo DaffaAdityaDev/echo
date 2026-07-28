@@ -51,4 +51,3 @@ export function SchemaTable({ fields }: SchemaTableProps) {
     </div>
   );
 }
-

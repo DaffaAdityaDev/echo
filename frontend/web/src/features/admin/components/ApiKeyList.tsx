@@ -1,10 +1,10 @@
 "use client";
 
+import { Calendar, Key, Shield, Trash2 } from "lucide-react";
 import React from "react";
-import { ApiKey } from "../types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Calendar, Shield, Trash2, Key } from "lucide-react";
+import type { ApiKey } from "../types";
 
 interface ApiKeyListProps {
   keys: ApiKey[];
@@ -59,9 +59,7 @@ export function ApiKeyList({ keys, onRevoke, isRevoking }: ApiKeyListProps) {
                   {key.name}
                 </div>
               </td>
-              <td className="px-6 py-4 font-mono text-xs text-zinc-400">
-                {key.prefix}••••••••••••••••
-              </td>
+              <td className="px-6 py-4 font-mono text-xs text-zinc-400">{key.prefix}••••••••••••••••</td>
               <td className="px-6 py-4">
                 <div className="flex flex-wrap gap-1.5">
                   {key.scopes.map((scope) => (
@@ -80,9 +78,9 @@ export function ApiKeyList({ keys, onRevoke, isRevoking }: ApiKeyListProps) {
                 <span className="flex items-center gap-1.5">
                   <Calendar size={12} />
                   {new Date(key.createdAt).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
                   })}
                 </span>
               </td>

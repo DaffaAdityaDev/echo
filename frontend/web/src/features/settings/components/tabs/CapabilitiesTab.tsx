@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/utils/cn";
 import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/utils/cn";
 import type { AgentConfig } from "../../types";
 
 interface FeatureItem {
@@ -25,8 +25,11 @@ interface CapabilitiesTabProps {
 }
 
 export function CapabilitiesTab({
-  config, features, skills,
-  handleFeatureToggle, handleSkillToggle,
+  config,
+  features,
+  skills,
+  handleFeatureToggle,
+  handleSkillToggle,
 }: CapabilitiesTabProps) {
   return (
     <>
@@ -40,7 +43,7 @@ export function CapabilitiesTab({
               key={f.id}
               className={cn(
                 "flex items-start gap-3 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-400 dark:hover:border-zinc-700",
-                f.locked && "opacity-50 cursor-not-allowed"
+                f.locked && "opacity-50 cursor-not-allowed",
               )}
             >
               <input
@@ -53,7 +56,11 @@ export function CapabilitiesTab({
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 truncate">
                   {f.name}
-                  {f.locked && <Badge variant="warning" className="text-[9px]">PRO</Badge>}
+                  {f.locked && (
+                    <Badge variant="warning" className="text-[9px]">
+                      PRO
+                    </Badge>
+                  )}
                 </span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
                   {f.description}
@@ -81,9 +88,7 @@ export function CapabilitiesTab({
                 className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-purple-600 focus:ring-0 w-4 h-4 mt-0.5"
               />
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                  {s.name}
-                </span>
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{s.name}</span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
                   {s.description}
                 </span>

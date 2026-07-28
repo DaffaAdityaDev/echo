@@ -1,97 +1,92 @@
-"use client"
+"use client";
 
-import React from 'react'
-import type { Endpoint, SchemaObject } from '@/lib/docs/types'
-import { SchemaViewer } from './SchemaViewer'
-import { CodeBlock } from './CodeBlock'
+import React from "react";
+import type { Endpoint, SchemaObject } from "@/lib/docs/types";
+import { CodeBlock } from "./CodeBlock";
+import { SchemaViewer } from "./SchemaViewer";
 
 interface EndpointDetailProps {
-  endpoint: Endpoint
-  baseUrl?: string
-  definitions?: Record<string, SchemaObject>
+  endpoint: Endpoint;
+  baseUrl?: string;
+  definitions?: Record<string, SchemaObject>;
 }
 
 const methodStyles: Record<string, string> = {
-  get: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30',
-  post: 'bg-blue-500/10 text-blue-500 border border-blue-500/30',
-  put: 'bg-amber-500/10 text-amber-500 border border-amber-500/30',
-  delete: 'bg-rose-500/10 text-rose-500 border border-rose-500/30',
-  patch: 'bg-purple-500/10 text-purple-500 border border-purple-500/30',
-}
+  get: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30",
+  post: "bg-blue-500/10 text-blue-500 border border-blue-500/30",
+  put: "bg-amber-500/10 text-amber-500 border border-amber-500/30",
+  delete: "bg-rose-500/10 text-rose-500 border border-rose-500/30",
+  patch: "bg-purple-500/10 text-purple-500 border border-purple-500/30",
+};
 
 function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
-  const method = endpoint.method.toUpperCase()
-  const rawBase = (baseUrl || 'http://localhost:8080/api/v1').replace(/\/+$/, '')
-  
-  let cleanPath = endpoint.path.replace(/\{(\w+)\}/g, '<$1>')
-  if (!cleanPath.startsWith('/')) {
-    cleanPath = '/' + cleanPath
+  const method = endpoint.method.toUpperCase();
+  const rawBase = (baseUrl || "http://localhost:8080/api/v1").replace(/\/+$/, "");
+
+  let cleanPath = endpoint.path.replace(/\{(\w+)\}/g, "<$1>");
+  if (!cleanPath.startsWith("/")) {
+    cleanPath = "/" + cleanPath;
   }
 
   // Deduplicate base path prefix e.g. rawBase "http://localhost:8080/api/v1" and cleanPath "/api/v1/sessions/<id>"
   try {
-    const urlObj = new URL(rawBase)
-    const basePrefix = urlObj.pathname.replace(/\/+$/, '')
-    if (basePrefix && basePrefix !== '/' && cleanPath.startsWith(basePrefix)) {
-      cleanPath = cleanPath.substring(basePrefix.length)
+    const urlObj = new URL(rawBase);
+    const basePrefix = urlObj.pathname.replace(/\/+$/, "");
+    if (basePrefix && basePrefix !== "/" && cleanPath.startsWith(basePrefix)) {
+      cleanPath = cleanPath.substring(basePrefix.length);
     }
   } catch {
-    if (rawBase.endsWith('/api/v1') && cleanPath.startsWith('/api/v1')) {
-      cleanPath = cleanPath.substring(7)
+    if (rawBase.endsWith("/api/v1") && cleanPath.startsWith("/api/v1")) {
+      cleanPath = cleanPath.substring(7);
     }
   }
 
-  const pathParams = endpoint.parameters.filter((p) => p.in === 'path')
-  const queryParams = endpoint.parameters.filter((p) => p.in === 'query')
-  const headerParams = endpoint.parameters.filter((p) => p.in === 'header')
-  const hasBody = endpoint.method === 'post' || endpoint.method === 'put' || endpoint.method === 'patch'
+  const pathParams = endpoint.parameters.filter((p) => p.in === "path");
+  const queryParams = endpoint.parameters.filter((p) => p.in === "query");
+  const headerParams = endpoint.parameters.filter((p) => p.in === "header");
+  const hasBody = endpoint.method === "post" || endpoint.method === "put" || endpoint.method === "patch";
 
-  const headers: string[] = []
+  const headers: string[] = [];
   if (hasBody) {
-    headers.push('-H "Content-Type: application/json"')
+    headers.push('-H "Content-Type: application/json"');
   }
 
   for (const h of headerParams) {
-    headers.push(`-H "${h.name}: <${h.name}>"`)
+    headers.push(`-H "${h.name}: <${h.name}>"`);
   }
 
   if (endpoint.security.length > 0) {
-    headers.push('-H "Authorization: Bearer <token>"')
+    headers.push('-H "Authorization: Bearer <token>"');
   }
 
-  const queryStr = queryParams.length > 0
-    ? '?' + queryParams.map((p) => `${p.name}=<${p.name}>`).join('&')
-    : ''
+  const queryStr = queryParams.length > 0 ? "?" + queryParams.map((p) => `${p.name}=<${p.name}>`).join("&") : "";
 
-  const fullUrl = `${rawBase}${cleanPath}${queryStr}`
-  let lines: string[] = []
-  lines.push(`curl -X ${method} "${fullUrl}" \\`)
+  const fullUrl = `${rawBase}${cleanPath}${queryStr}`;
+  const lines: string[] = [];
+  lines.push(`curl -X ${method} "${fullUrl}" \\`);
 
   for (const h of headers) {
-    lines.push(`  ${h} \\`)
+    lines.push(`  ${h} \\`);
   }
 
   if (hasBody && endpoint.requestBodySchema) {
     const props = endpoint.requestBodySchema.properties
-      ? Object.keys(endpoint.requestBodySchema.properties).reduce(
-          (acc, key) => ({ ...acc, [key]: `<${key}>` }),
-          {}
-        )
-      : { message: '<string>' }
-    lines.push(`  -d '${JSON.stringify(props, null, 2).replace(/\n/g, '\n  ')}'`)
+      ? Object.keys(endpoint.requestBodySchema.properties).reduce((acc, key) => ({ ...acc, [key]: `<${key}>` }), {})
+      : { message: "<string>" };
+    lines.push(`  -d '${JSON.stringify(props, null, 2).replace(/\n/g, "\n  ")}'`);
   } else {
-    lines[lines.length - 1] = lines[lines.length - 1].replace(/ \\$/, '')
+    lines[lines.length - 1] = lines[lines.length - 1].replace(/ \\$/, "");
   }
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetailProps) {
-  const curl = generateCurl(endpoint, baseUrl)
-  const methodColor = methodStyles[endpoint.method] || 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
+  const curl = generateCurl(endpoint, baseUrl);
+  const methodColor = methodStyles[endpoint.method] || "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20";
 
-  const pathParams = endpoint.parameters.filter((p) => p.in === 'path')
-  const queryParams = endpoint.parameters.filter((p) => p.in === 'query')
+  const pathParams = endpoint.parameters.filter((p) => p.in === "path");
+  const queryParams = endpoint.parameters.filter((p) => p.in === "query");
 
   return (
     <div className="border border-border bg-white rounded-xs p-5 md:p-6 space-y-6 shadow-xs font-mono crosshair-container relative">
@@ -104,9 +99,7 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         </span>
       </div>
 
-      {endpoint.summary && (
-        <p className="text-xs text-muted leading-relaxed max-w-3xl font-mono">{endpoint.summary}</p>
-      )}
+      {endpoint.summary && <p className="text-xs text-muted leading-relaxed max-w-3xl font-mono">{endpoint.summary}</p>}
 
       {endpoint.description && endpoint.description !== endpoint.summary && (
         <p className="text-xs text-muted/80 leading-relaxed font-mono">{endpoint.description}</p>
@@ -124,7 +117,7 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
               >
                 <span className="text-blue-600 font-semibold">{p.name}</span>
                 <span className="text-muted">:</span>
-                <span className="text-purple-600">{p.type || 'string'}</span>
+                <span className="text-purple-600">{p.type || "string"}</span>
                 {p.required && <span className="text-rose-500 text-[10px]">*</span>}
               </span>
             ))}
@@ -144,7 +137,7 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
               >
                 <span className="text-amber-600 font-semibold">{p.name}</span>
                 <span className="text-muted">:</span>
-                <span className="text-purple-600">{p.type || 'string'}</span>
+                <span className="text-purple-600">{p.type || "string"}</span>
                 {p.required && <span className="text-rose-500 text-[10px]">*</span>}
               </span>
             ))}
@@ -154,11 +147,7 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
 
       {/* Request Body Schema */}
       {endpoint.requestBodySchema && (
-        <SchemaViewer
-          schema={endpoint.requestBodySchema}
-          title="Request Body"
-          definitions={definitions}
-        />
+        <SchemaViewer schema={endpoint.requestBodySchema} title="Request Body" definitions={definitions} />
       )}
 
       {/* Responses */}
@@ -177,25 +166,25 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         <CodeBlock language="bash" code={curl} />
       </div>
     </div>
-  )
+  );
 }
 
 function ResponseCard({
   response,
   definitions,
 }: {
-  response: { statusCode: string; description: string; schema: SchemaObject | null }
-  definitions?: Record<string, SchemaObject>
+  response: { statusCode: string; description: string; schema: SchemaObject | null };
+  definitions?: Record<string, SchemaObject>;
 }) {
-  const statusNum = parseInt(response.statusCode)
+  const statusNum = parseInt(response.statusCode);
   const colorClass =
     statusNum >= 200 && statusNum < 300
-      ? 'text-emerald-600 font-bold'
+      ? "text-emerald-600 font-bold"
       : statusNum >= 400 && statusNum < 500
-        ? 'text-amber-600 font-bold'
+        ? "text-amber-600 font-bold"
         : statusNum >= 500
-          ? 'text-rose-600 font-bold'
-          : 'text-muted font-bold'
+          ? "text-rose-600 font-bold"
+          : "text-muted font-bold";
 
   return (
     <div className="border border-border bg-slate-50/50 rounded-xs p-4 font-mono">
@@ -203,10 +192,7 @@ function ResponseCard({
         <span className={`font-mono text-xs ${colorClass}`}>{response.statusCode}</span>
         <span className="text-xs text-muted">{response.description}</span>
       </div>
-      {response.schema && (
-        <SchemaViewer schema={response.schema} definitions={definitions} />
-      )}
+      {response.schema && <SchemaViewer schema={response.schema} definitions={definitions} />}
     </div>
-  )
+  );
 }
-

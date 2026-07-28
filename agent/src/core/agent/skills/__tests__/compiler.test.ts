@@ -1,4 +1,3 @@
-
 import { SkillCompiler } from "../compiler";
 import type { SkillDefinition } from "../types";
 

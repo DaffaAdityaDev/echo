@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { missionController } from "./mission.controller";
 import { MISSION_ROUTES } from "./mission.constants";
+import { missionController } from "./mission.controller";
 
 const missionRouter = new Hono();
 

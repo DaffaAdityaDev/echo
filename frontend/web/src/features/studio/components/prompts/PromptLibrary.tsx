@@ -1,35 +1,35 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { ScrollText, Plus, Search, ChevronRight, AlertCircle } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import { EmptyState } from "../shared/EmptyState"
-import type { PromptTemplate } from "../../types"
+import { AlertCircle, ChevronRight, Plus, ScrollText, Search } from "lucide-react";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import type { PromptTemplate } from "../../types";
+import { EmptyState } from "../shared/EmptyState";
 
 export interface PromptLibraryProps {
-  templates: PromptTemplate[]
-  isLoading: boolean
-  error: Error | null
-  onSelect: (id: string) => void
-  onCreate: (name: string, description: string) => Promise<void>
-  isCreating: boolean
+  templates: PromptTemplate[];
+  isLoading: boolean;
+  error: Error | null;
+  onSelect: (id: string) => void;
+  onCreate: (name: string, description: string) => Promise<void>;
+  isCreating: boolean;
 }
 
 export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate, isCreating }: PromptLibraryProps) {
-  const [showCreate, setShowCreate] = useState(false)
-  const [name, setName] = useState("")
-  const [desc, setDesc] = useState("")
-  const [search, setSearch] = useState("")
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [search, setSearch] = useState("");
 
-  const filtered = templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = templates.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = async () => {
-    if (!name.trim()) return
-    await onCreate(name.trim(), desc.trim())
-    setName("")
-    setDesc("")
-    setShowCreate(false)
-  }
+    if (!name.trim()) return;
+    await onCreate(name.trim(), desc.trim());
+    setName("");
+    setDesc("");
+    setShowCreate(false);
+  };
 
   if (error) {
     return (
@@ -37,7 +37,7 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
         <AlertCircle className="h-5 w-5 mx-auto mb-2" />
         {error.message}
       </div>
-    )
+    );
   }
 
   return (
@@ -72,21 +72,31 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
             className="w-full h-9 px-3 rounded-xl bg-white border border-zinc-300 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
           />
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleCreate} isLoading={isCreating} disabled={!name.trim()}>Create</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleCreate} isLoading={isCreating} disabled={!name.trim()}>
+              Create
+            </Button>
           </div>
         </div>
       )}
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           title={search ? "No templates match your search" : "No prompt templates yet"}
           description="Create your first prompt template to start versioning and testing."
-          action={<Button size="sm" onClick={() => setShowCreate(true)} className="gap-2"><Plus className="h-4 w-4" /> Create Template</Button>}
+          action={
+            <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Create Template
+            </Button>
+          }
         />
       ) : (
         <div className="border border-zinc-300 bg-zinc-50/50 rounded-2xl overflow-hidden divide-y divide-zinc-300">
@@ -103,12 +113,12 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
                 <div className="text-sm font-semibold text-zinc-900 truncate">{t.name}</div>
                 <div className="text-xs text-zinc-500 truncate">{t.description || "No description"}</div>
               </div>
-                  <div className="text-xs text-zinc-500 shrink-0 font-medium">v{t.active_version}</div>
-                  <ChevronRight className="h-4 w-4 text-zinc-500 shrink-0" />
+              <div className="text-xs text-zinc-500 shrink-0 font-medium">v{t.active_version}</div>
+              <ChevronRight className="h-4 w-4 text-zinc-500 shrink-0" />
             </button>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }

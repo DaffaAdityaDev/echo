@@ -1,6 +1,6 @@
 import { api } from "@/lib/api-client";
-import { Session, DbMessage } from "../types";
 import { SESSION_ENDPOINTS } from "../constants";
+import type { DbMessage, Session } from "../types";
 
 function mapSession(s: Record<string, unknown>): Session {
   return {
@@ -38,5 +38,5 @@ export const sessionApi = {
   },
   delete: async (id: string): Promise<void> => {
     return api.delete(SESSION_ENDPOINTS.DELETE(id));
-  }
+  },
 };

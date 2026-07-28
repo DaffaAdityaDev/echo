@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import React from "react"
-import { PackageOpen } from "lucide-react"
+import { PackageOpen } from "lucide-react";
+import type React from "react";
 
 interface EmptyStateProps {
-  title: string
-  description: string
-  action?: React.ReactNode
+  title: string;
+  description: string;
+  action?: React.ReactNode;
 }
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
@@ -21,5 +21,5 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
       </div>
       {action && <div>{action}</div>}
     </div>
-  )
+  );
 }

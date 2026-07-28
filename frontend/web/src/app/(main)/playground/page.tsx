@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { usePlayground, PlaygroundPage } from "@/features/studio"
+import { PlaygroundPage, usePlayground } from "@/features/studio";
 
 export default function PlaygroundRoute() {
-  const props = usePlayground()
-  return <PlaygroundPage {...props} />
+  const props = usePlayground();
+  return <PlaygroundPage {...props} />;
 }

@@ -1,37 +1,35 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { cn } from "@/utils/cn"
 import {
-  ListChecks,
-  Clock,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
-  XCircle,
+  Clock,
+  ListChecks,
   Loader2,
   SkipForward,
-} from "lucide-react"
+  XCircle,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import { cn } from "@/utils/cn";
 
 interface TimelineEvent {
-  name: string
-  args: Record<string, unknown>
-  startedAt: number
-  duration?: number
-  result?: string
-  status: "running" | "completed" | "failed" | "skipped"
+  name: string;
+  args: Record<string, unknown>;
+  startedAt: number;
+  duration?: number;
+  result?: string;
+  status: "running" | "completed" | "failed" | "skipped";
 }
 
 interface ToolTimelineProps {
-  toolCalls: TimelineEvent[]
-  isRunning: boolean
-  className?: string
+  toolCalls: TimelineEvent[];
+  isRunning: boolean;
+  className?: string;
 }
 
-const statusConfig: Record<
-  string,
-  { icon: React.ReactNode; dot: string; bar: string }
-> = {
+const statusConfig: Record<string, { icon: React.ReactNode; dot: string; bar: string }> = {
   running: {
     icon: <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />,
     dot: "bg-blue-500",
@@ -52,31 +50,22 @@ const statusConfig: Record<
     dot: "bg-zinc-300",
     bar: "bg-zinc-300",
   },
-}
+};
 
 export function ToolTimeline({ toolCalls, isRunning, className }: ToolTimelineProps) {
-  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({})
-  const maxDuration = Math.max(...toolCalls.map((t) => t.duration ?? 0), 1)
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+  const maxDuration = Math.max(...toolCalls.map((t) => t.duration ?? 0), 1);
 
   const toggleExpand = (name: string) => {
-    setExpandedMap((prev) => ({ ...prev, [name]: !prev[name] }))
-  }
+    setExpandedMap((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
   return (
-    <div
-      className={cn(
-        "border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4",
-        className,
-      )}
-    >
+    <div className={cn("border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4", className)}>
       <div className="flex items-center gap-2">
         <ListChecks className="h-4 w-4 text-zinc-600" />
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Tool Timeline
-        </h3>
-        {isRunning && (
-          <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin ml-auto" />
-        )}
+        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Tool Timeline</h3>
+        {isRunning && <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin ml-auto" />}
       </div>
 
       {toolCalls.length === 0 ? (
@@ -89,12 +78,9 @@ export function ToolTimeline({ toolCalls, isRunning, className }: ToolTimelinePr
           <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-zinc-200" />
           <div className="space-y-3">
             {toolCalls.map((event, idx) => {
-              const cfg = statusConfig[event.status] ?? statusConfig.skipped
-              const isExpanded = expandedMap[`${event.name}-${idx}`] ?? false
-              const barWidth =
-                event.duration != null
-                  ? (event.duration / maxDuration) * 100
-                  : 0
+              const cfg = statusConfig[event.status] ?? statusConfig.skipped;
+              const isExpanded = expandedMap[`${event.name}-${idx}`] ?? false;
+              const barWidth = event.duration != null ? (event.duration / maxDuration) * 100 : 0;
 
               return (
                 <div key={`${event.name}-${idx}`} className="relative pl-8">
@@ -118,10 +104,7 @@ export function ToolTimeline({ toolCalls, isRunning, className }: ToolTimelinePr
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {event.duration != null && (
-                          <span
-                            className="text-xs text-zinc-400 tabular-nums"
-                            title={`${event.duration}ms`}
-                          >
+                          <span className="text-xs text-zinc-400 tabular-nums" title={`${event.duration}ms`}>
                             <Clock className="h-3 w-3 inline mr-0.5" />
                             {event.duration}ms
                           </span>
@@ -157,18 +140,14 @@ export function ToolTimeline({ toolCalls, isRunning, className }: ToolTimelinePr
                       </pre>
                     )}
 
-                    {event.result && (
-                      <p className="text-xs text-zinc-400 font-mono line-clamp-2">
-                        {event.result}
-                      </p>
-                    )}
+                    {event.result && <p className="text-xs text-zinc-400 font-mono line-clamp-2">{event.result}</p>}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

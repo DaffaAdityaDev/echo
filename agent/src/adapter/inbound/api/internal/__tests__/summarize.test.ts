@@ -1,4 +1,3 @@
-
 import { Hono } from "hono";
 import { handleSummarize } from "../summarize";
 
@@ -15,9 +14,9 @@ describe("Agent Summarization Endpoint", () => {
         provider_config: {
           type: "openai",
           base_url: "http://localhost",
-          model: "gpt-4o"
-        }
-      })
+          model: "gpt-4o",
+        },
+      }),
     });
 
     expect(res.status).toBe(400);
@@ -34,8 +33,8 @@ describe("Agent Summarization Endpoint", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: "test-session",
-        messages: [{ role: "user", content: "hello" }]
-      })
+        messages: [{ role: "user", content: "hello" }],
+      }),
     });
 
     expect(res.status).toBe(400);

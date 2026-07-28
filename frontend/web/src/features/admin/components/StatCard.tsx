@@ -1,8 +1,8 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import React from "react";
-import { LucideIcon } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/utils/cn";
 
@@ -31,16 +31,14 @@ export function StatCard({
     <Card
       className={cn(
         "relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border bg-zinc-900/60 backdrop-blur-md group",
-        glowColor
+        glowColor,
       )}
     >
       {/* Background Accent Glow */}
       <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-blue-500/5 blur-2xl group-hover:bg-blue-500/10 transition-all" />
 
       <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-        <CardTitle className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-          {title}
-        </CardTitle>
+        <CardTitle className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{title}</CardTitle>
         <div className={cn("p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110", iconColor)}>
           <Icon className="h-4 w-4" />
         </div>
@@ -61,9 +59,7 @@ export function StatCard({
             )}
           </div>
         )}
-        <p className="text-xs text-zinc-500 mt-2 font-medium leading-relaxed">
-          {description}
-        </p>
+        <p className="text-xs text-zinc-500 mt-2 font-medium leading-relaxed">{description}</p>
       </CardContent>
     </Card>
   );

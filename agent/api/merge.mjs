@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,13 +35,11 @@ if (!existsSync(modulesDir)) {
   process.exit(1);
 }
 
-const files = readdirSync(modulesDir).filter(
-  (f) => f.endsWith(".json") && f !== "_base.json"
-);
+const files = readdirSync(modulesDir).filter((f) => f.endsWith(".json") && f !== "_base.json");
 files.sort();
 
 const base = readJSON(join(modulesDir, "_base.json"));
-let result = JSON.parse(JSON.stringify(base));
+const result = JSON.parse(JSON.stringify(base));
 
 for (const file of files) {
   const mod = readJSON(join(modulesDir, file));

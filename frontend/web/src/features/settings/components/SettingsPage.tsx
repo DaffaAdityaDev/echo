@@ -1,18 +1,18 @@
 "use client";
 
-import React from "react";
-import { Settings as SettingsIcon, Save, RotateCcw, ChevronLeft, Sliders, Cpu, Zap, Code } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ChevronLeft, Code, Cpu, RotateCcw, Save, Settings as SettingsIcon, Sliders, Zap } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/utils/cn";
-import { CHAT_MODES } from "@/features/chat/constants";
-import { Button } from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
+import React from "react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Toast } from "@/components/ui/Toast";
-import type { AgentConfig } from "../types";
+import { CHAT_MODES } from "@/features/chat/constants";
 import type { AgentFeature } from "@/features/shared/hooks/useFeatures";
 import type { AgentSkill } from "@/features/shared/hooks/useSkills";
 import type { Model } from "@/lib/queries";
+import { cn } from "@/utils/cn";
+import type { AgentConfig } from "../types";
 
 interface SettingsPageProps {
   config: AgentConfig;
@@ -81,9 +81,7 @@ export function SettingsPage({
               <SettingsIcon size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-bold font-display tracking-tight text-zinc-100">
-                Agent Settings
-              </h1>
+              <h1 className="text-xl font-bold font-display tracking-tight text-zinc-100">Agent Settings</h1>
               <p className="text-xs text-zinc-400">Manage defaults, capabilities, and active skills.</p>
             </div>
           </div>
@@ -115,13 +113,15 @@ export function SettingsPage({
                   "p-4 rounded-xl text-left transition-all border font-medium text-xs flex flex-col gap-1 cursor-pointer",
                   config.defaultMode === value
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-500/5"
-                    : "bg-zinc-950/40 border-zinc-800/60 text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+                    : "bg-zinc-950/40 border-zinc-800/60 text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200",
                 )}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm capitalize">{value} Mode</span>
                   {config.defaultMode === value && (
-                    <Badge variant="success" className="text-[10px] py-0">Default</Badge>
+                    <Badge variant="success" className="text-[10px] py-0">
+                      Default
+                    </Badge>
                   )}
                 </div>
                 <span className="text-[11px] text-zinc-500 leading-relaxed font-normal">
@@ -188,12 +188,14 @@ export function SettingsPage({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-zinc-300">API Key</label>
-              <span className={cn(
-                "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                config.hasApiKey
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-zinc-800/60 text-zinc-500 border border-zinc-700/60"
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                  config.hasApiKey
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-zinc-800/60 text-zinc-500 border border-zinc-700/60",
+                )}
+              >
                 {config.hasApiKey ? "Active" : "Not Set"}
               </span>
             </div>
@@ -230,19 +232,27 @@ export function SettingsPage({
           </div>
 
           {/* Dynamic helper text based on provider */}
-          <div className={cn(
-            "p-3 rounded-xl border text-xs leading-relaxed",
-            config.providerType === "opencode-go"
-              ? "bg-amber-500/5 border-amber-500/20 text-amber-300"
-              : config.providerType === "lm-studio"
-              ? "bg-blue-500/5 border-blue-500/20 text-blue-300"
-              : "bg-zinc-800/40 border-zinc-700/60 text-zinc-400"
-          )}>
+          <div
+            className={cn(
+              "p-3 rounded-xl border text-xs leading-relaxed",
+              config.providerType === "opencode-go"
+                ? "bg-amber-500/5 border-amber-500/20 text-amber-300"
+                : config.providerType === "lm-studio"
+                  ? "bg-blue-500/5 border-blue-500/20 text-blue-300"
+                  : "bg-zinc-800/40 border-zinc-700/60 text-zinc-400",
+            )}
+          >
             {config.providerType === "opencode-go" && (
-              <>API Key OpenCode Go <span className="font-semibold text-amber-200">wajib diisi</span> di Settings untuk menggunakan provider ini.</>
+              <>
+                API Key OpenCode Go <span className="font-semibold text-amber-200">wajib diisi</span> di Settings untuk
+                menggunakan provider ini.
+              </>
             )}
             {config.providerType === "lm-studio" && (
-              <>Pastikan LM Studio berjalan. Gunakan <span className="font-semibold text-blue-200">IP lokal</span> (contoh: http://192.168.1.10:1234/v1) jika backend di server cloud.</>
+              <>
+                Pastikan LM Studio berjalan. Gunakan <span className="font-semibold text-blue-200">IP lokal</span>{" "}
+                (contoh: http://192.168.1.10:1234/v1) jika backend di server cloud.
+              </>
             )}
             {config.providerType === "openai" && (
               <>Kosongkan jika ingin menggunakan API Key server. Key yang dimasukkan akan dienkripsi (AES-256-GCM).</>
@@ -269,7 +279,7 @@ export function SettingsPage({
                   key={f.id}
                   className={cn(
                     "flex items-start gap-3 p-3.5 rounded-xl border border-zinc-800/60 bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-700/80",
-                    f.locked && "opacity-50 cursor-not-allowed"
+                    f.locked && "opacity-50 cursor-not-allowed",
                   )}
                 >
                   <input
@@ -282,7 +292,11 @@ export function SettingsPage({
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
                       {f.name}
-                      {f.locked && <Badge variant="warning" className="text-[9px] py-0">PRO</Badge>}
+                      {f.locked && (
+                        <Badge variant="warning" className="text-[9px] py-0">
+                          PRO
+                        </Badge>
+                      )}
                     </span>
                     <span className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{f.description}</span>
                   </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import { Shield, X } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { X, Shield } from "lucide-react";
 
 interface CreateKeyModalProps {
   isOpen: boolean;
@@ -53,17 +54,11 @@ export function CreateKeyModal({ isOpen, onClose, onSubmit, isSubmitting }: Crea
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       {/* Modal Content */}
       <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl z-10 animate-in">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
-        >
+        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors">
           <X size={18} />
         </button>
 
@@ -77,9 +72,7 @@ export function CreateKeyModal({ isOpen, onClose, onSubmit, isSubmitting }: Crea
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
-              Key Name
-            </label>
+            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">Key Name</label>
             <Input
               type="text"
               placeholder="e.g. Production Service"
@@ -91,9 +84,7 @@ export function CreateKeyModal({ isOpen, onClose, onSubmit, isSubmitting }: Crea
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-              Scopes
-            </label>
+            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">Scopes</label>
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
               {AVAILABLE_SCOPES.map((scope) => {
                 const checked = selectedScopes.includes(scope.id);
@@ -124,18 +115,11 @@ export function CreateKeyModal({ isOpen, onClose, onSubmit, isSubmitting }: Crea
           </div>
 
           {error && (
-            <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-              {error}
-            </div>
+            <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg p-3">{error}</div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" isLoading={isSubmitting}>

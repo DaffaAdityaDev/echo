@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Key, LogOut } from "lucide-react";
+import Link from "next/link";
 
 interface AccountTabProps {
   user: { email?: string; role?: string } | null;
@@ -18,9 +18,7 @@ export function AccountTab({ user, logout, onClose }: AccountTabProps) {
             {user?.email ? user.email[0].toUpperCase() : "U"}
           </div>
           <div>
-            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-              {user?.email || "Guest Account"}
-            </h4>
+            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">{user?.email || "Guest Account"}</h4>
             <p className="text-xs text-zinc-400">
               Role: <span className="font-semibold text-purple-500 uppercase">{user?.role || "User"}</span>
             </p>
@@ -44,7 +42,10 @@ export function AccountTab({ user, logout, onClose }: AccountTabProps) {
         </Link>
 
         <button
-          onClick={() => { logout(); onClose(); }}
+          onClick={() => {
+            logout();
+            onClose();
+          }}
           className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all flex items-center gap-3 text-left cursor-pointer"
         >
           <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">

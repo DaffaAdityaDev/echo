@@ -1,12 +1,12 @@
 "use client";
 
+import { Activity, AlertCircle, Key, RefreshCw } from "lucide-react";
 import React from "react";
-import { Activity, Key, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import type { AdminStats } from "../types";
+import { QuickActionGrid } from "./QuickActionGrid";
 import { StatCard } from "./StatCard";
 import { SystemStatusBanner } from "./SystemStatusBanner";
-import { QuickActionGrid } from "./QuickActionGrid";
-import type { AdminStats } from "../types";
 
 export interface AdminDashboardPageProps {
   stats: AdminStats | null;
@@ -34,7 +34,8 @@ export function AdminDashboardPage({
         <div>
           <h4 className="text-base font-semibold text-zinc-100">Failed to load admin metrics</h4>
           <p className="text-xs text-zinc-400 mt-1 max-w-md">
-            {error?.message || "An unexpected network or authorization error occurred while fetching dashboard telemetry."}
+            {error?.message ||
+              "An unexpected network or authorization error occurred while fetching dashboard telemetry."}
           </p>
         </div>
         {onRefresh && (

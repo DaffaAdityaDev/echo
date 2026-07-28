@@ -1,80 +1,80 @@
-"use client"
+"use client";
 
-import React from 'react'
-import type { SchemaObject } from '@/lib/docs/types'
+import React from "react";
+import type { SchemaObject } from "@/lib/docs/types";
 
 function flattenProperties(
   schema: SchemaObject | null,
-  definitions?: Record<string, SchemaObject>
+  definitions?: Record<string, SchemaObject>,
 ): { name: string; type: string; required: boolean; description: string; example?: unknown; nested?: SchemaObject }[] {
-  if (!schema || !schema.properties) return []
+  if (!schema || !schema.properties) return [];
 
-  const requiredFields = new Set<string>(schema.required || [])
+  const requiredFields = new Set<string>(schema.required || []);
 
   return Object.entries(schema.properties).map(([name, raw]) => {
-    const prop = raw as SchemaObject
+    const prop = raw as SchemaObject;
 
-    let typeStr = prop.type || 'object'
-    let nested: SchemaObject | undefined
+    let typeStr = prop.type || "object";
+    let nested: SchemaObject | undefined;
 
     if (prop.$ref) {
-      const refName = prop.$ref.replace('#/definitions/', '').replace('#/components/schemas/', '')
-      const resolved = definitions?.[refName]
+      const refName = prop.$ref.replace("#/definitions/", "").replace("#/components/schemas/", "");
+      const resolved = definitions?.[refName];
       if (resolved) {
-        nested = resolved
-        typeStr = resolved.type || 'object'
+        nested = resolved;
+        typeStr = resolved.type || "object";
       } else {
-        typeStr = refName
+        typeStr = refName;
       }
     }
 
     if (prop.enum) {
-      typeStr = `enum (${prop.enum.join(', ')})`
+      typeStr = `enum (${prop.enum.join(", ")})`;
     }
 
     if (prop.items) {
-      const items = prop.items as SchemaObject
+      const items = prop.items as SchemaObject;
       if (items.$ref) {
-        const refName = items.$ref.replace('#/definitions/', '').replace('#/components/schemas/', '')
-        typeStr = `array<${refName}>`
+        const refName = items.$ref.replace("#/definitions/", "").replace("#/components/schemas/", "");
+        typeStr = `array<${refName}>`;
       } else {
-        typeStr = `array<${items.type || 'object'}>`
+        typeStr = `array<${items.type || "object"}>`;
       }
     }
 
-    if (prop.type === 'object' && prop.properties) {
-      nested = prop
+    if (prop.type === "object" && prop.properties) {
+      nested = prop;
     }
 
     if (prop.additionalProperties) {
-      typeStr = `map<string, ${typeof prop.additionalProperties === 'object' ? ((prop.additionalProperties as SchemaObject).type || 'any') : 'any'}>`
+      typeStr = `map<string, ${typeof prop.additionalProperties === "object" ? (prop.additionalProperties as SchemaObject).type || "any" : "any"}>`;
     }
 
     return {
       name,
       type: typeStr,
       required: requiredFields.has(name),
-      description: prop.description || '',
+      description: prop.description || "",
       example: prop.example,
       nested,
-    }
-  })
+    };
+  });
 }
 
 interface SchemaViewerProps {
-  schema: SchemaObject | null
-  title?: string
-  definitions?: Record<string, SchemaObject>
-  maxDepth?: number
+  schema: SchemaObject | null;
+  title?: string;
+  definitions?: Record<string, SchemaObject>;
+  maxDepth?: number;
 }
 
 export function SchemaViewer({ schema, title, definitions, maxDepth = 2 }: SchemaViewerProps) {
-  if (!schema) return null
+  if (!schema) return null;
 
-  const fields = flattenProperties(schema, definitions)
-  if (fields.length === 0) return null
+  const fields = flattenProperties(schema, definitions);
+  if (fields.length === 0) return null;
 
-  return <SchemaTable fields={fields} title={title} definitions={definitions} depth={0} maxDepth={maxDepth} />
+  return <SchemaTable fields={fields} title={title} definitions={definitions} depth={0} maxDepth={maxDepth} />;
 }
 
 function SchemaTable({
@@ -84,11 +84,18 @@ function SchemaTable({
   depth,
   maxDepth,
 }: {
-  fields: { name: string; type: string; required: boolean; description: string; example?: unknown; nested?: SchemaObject }[]
-  title?: string
-  definitions?: Record<string, SchemaObject>
-  depth: number
-  maxDepth: number
+  fields: {
+    name: string;
+    type: string;
+    required: boolean;
+    description: string;
+    example?: unknown;
+    nested?: SchemaObject;
+  }[];
+  title?: string;
+  definitions?: Record<string, SchemaObject>;
+  depth: number;
+  maxDepth: number;
 }) {
   return (
     <div className="my-4 border border-border bg-white rounded-xs overflow-hidden font-mono shadow-xs">
@@ -137,11 +144,7 @@ function SchemaTable({
                   <tr>
                     <td colSpan={4} className="px-4 pb-2">
                       <div className="ml-4 border-l-2 border-border pl-4">
-                        <SchemaViewer
-                          schema={field.nested}
-                          definitions={definitions}
-                          maxDepth={maxDepth}
-                        />
+                        <SchemaViewer schema={field.nested} definitions={definitions} maxDepth={maxDepth} />
                       </div>
                     </td>
                   </tr>
@@ -152,6 +155,5 @@ function SchemaTable({
         </table>
       </div>
     </div>
-  )
+  );
 }
-

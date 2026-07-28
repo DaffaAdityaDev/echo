@@ -11,4 +11,3 @@ export function getBackendApiUrl(): string {
   const trimmed = rawUrl.replace(/\/$/, "");
   return trimmed.endsWith("/api/v1") ? trimmed : `${trimmed}/api/v1`;
 }
-

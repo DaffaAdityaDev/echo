@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ENV_DEFAULTS, ENV_VALUES, ENV_VALIDATION_MESSAGES } from "./env.constants";
+import { ENV_DEFAULTS, ENV_VALIDATION_MESSAGES, ENV_VALUES } from "./env.constants";
 
 /**
  * Agent Environment Schema.
@@ -12,11 +12,9 @@ export const envSchema = z.object({
   LLM_MODEL_API_URL: z.string().default(ENV_DEFAULTS.LLM_MODEL_API_URL),
   STATE_BACKEND: z.enum(ENV_VALUES.STATE_BACKENDS).default(ENV_VALUES.STATE_BACKENDS[0]),
   NODE_ENV: z.enum(ENV_VALUES.ENVIRONMENTS).default(ENV_VALUES.ENVIRONMENTS[0]),
-  DEBUG_PROMPT: z
-    .preprocess((val) => val === "true" || val === true, z.boolean())
-    .default(false),
+  DEBUG_PROMPT: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
   INTERNAL_AUTH_TOKEN: z.string({
-    message: ENV_VALIDATION_MESSAGES.INTERNAL_AUTH_TOKEN
+    message: ENV_VALIDATION_MESSAGES.INTERNAL_AUTH_TOKEN,
   }),
   LANGFUSE_PUBLIC_KEY: z.string().default("pk-lf-dummy"),
   LANGFUSE_SECRET_KEY: z.string().default("sk-lf-dummy"),

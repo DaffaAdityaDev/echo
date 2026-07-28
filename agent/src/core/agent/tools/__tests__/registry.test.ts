@@ -1,7 +1,6 @@
-
 import { z } from "zod";
-import { ToolRegistry, LAZY_TOOLS } from "../registry";
 import type { ToolDefinition } from "../../../../shared/types";
+import { LAZY_TOOLS, ToolRegistry } from "../registry";
 
 const mockWebSearchTool: ToolDefinition = {
   name: "web_search",

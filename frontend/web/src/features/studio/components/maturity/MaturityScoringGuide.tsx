@@ -1,25 +1,20 @@
-"use client"
+"use client";
 
-import React from "react"
-import { CheckSquare, Square, Building2, AlertTriangle, Save, HelpCircle } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import type {
-  ScoringQuestion,
-  MaturityDimensionKey,
-  MaturityLevel,
-  ClientCompanyAssessment,
-} from "../../types"
+import { AlertTriangle, Building2, CheckSquare, HelpCircle, Save, Square } from "lucide-react";
+import React from "react";
+import { Button } from "@/components/ui/Button";
+import type { ClientCompanyAssessment, MaturityDimensionKey, MaturityLevel, ScoringQuestion } from "../../types";
 
 export interface MaturityScoringGuideProps {
-  questions: readonly ScoringQuestion[]
-  questionAnswers: Record<string, boolean>
-  onToggleQuestion: (qId: string) => void
-  clientAssessment: ClientCompanyAssessment
-  clientName: string
-  onClientNameChange: (name: string) => void
-  onClientScoreChange: (dimension: MaturityDimensionKey, level: MaturityLevel) => void
-  onClientEvidenceChange: (dimension: MaturityDimensionKey, text: string) => void
-  onSaveClientAssessment?: () => void
+  questions: readonly ScoringQuestion[];
+  questionAnswers: Record<string, boolean>;
+  onToggleQuestion: (qId: string) => void;
+  clientAssessment: ClientCompanyAssessment;
+  clientName: string;
+  onClientNameChange: (name: string) => void;
+  onClientScoreChange: (dimension: MaturityDimensionKey, level: MaturityLevel) => void;
+  onClientEvidenceChange: (dimension: MaturityDimensionKey, text: string) => void;
+  onSaveClientAssessment?: () => void;
 }
 
 const DIMENSION_LABELS: Record<MaturityDimensionKey, string> = {
@@ -30,9 +25,9 @@ const DIMENSION_LABELS: Record<MaturityDimensionKey, string> = {
   data: "Data Models",
   observability: "Observability",
   documentation: "Documentation",
-}
+};
 
-const LEVELS_LIST: MaturityLevel[] = ["L1", "L2", "L3", "L4", "L5"]
+const LEVELS_LIST: MaturityLevel[] = ["L1", "L2", "L3", "L4", "L5"];
 
 export function MaturityScoringGuide({
   questions,
@@ -45,7 +40,7 @@ export function MaturityScoringGuide({
   onClientEvidenceChange,
   onSaveClientAssessment,
 }: MaturityScoringGuideProps) {
-  const [subTab, setSubTab] = React.useState<"self" | "client">("self")
+  const [subTab, setSubTab] = React.useState<"self" | "client">("self");
 
   return (
     <div className="space-y-6">
@@ -54,9 +49,7 @@ export function MaturityScoringGuide({
         <button
           onClick={() => setSubTab("self")}
           className={`pb-3 text-sm font-semibold transition-all border-b-2 ${
-            subTab === "self"
-              ? "border-blue-500 text-blue-400"
-              : "border-transparent text-zinc-400 hover:text-zinc-200"
+            subTab === "self" ? "border-blue-500 text-blue-400" : "border-transparent text-zinc-400 hover:text-zinc-200"
           }`}
         >
           Internal Self-Assessment Questions
@@ -81,13 +74,14 @@ export function MaturityScoringGuide({
               Dimension Self-Assessment Checklist
             </h3>
             <p className="text-xs text-zinc-400 mt-1">
-              Answer key criteria questions to evaluate whether a dimension meets L3 (Structured) or L4 (Validated) status.
+              Answer key criteria questions to evaluate whether a dimension meets L3 (Structured) or L4 (Validated)
+              status.
             </p>
           </div>
 
           <div className="space-y-2 mt-4">
             {questions.map((q) => {
-              const isChecked = !!questionAnswers[q.id]
+              const isChecked = !!questionAnswers[q.id];
               return (
                 <div
                   key={q.id}
@@ -116,7 +110,7 @@ export function MaturityScoringGuide({
                     </span>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -157,9 +151,7 @@ export function MaturityScoringGuide({
             <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-4 flex flex-col justify-center">
               <span className="text-xs text-zinc-400">Calculated Client Maturity Level</span>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-2xl font-bold font-mono text-purple-400">
-                  {clientAssessment.overallLevel}
-                </span>
+                <span className="text-2xl font-bold font-mono text-purple-400">{clientAssessment.overallLevel}</span>
                 <span className="text-xs text-amber-400 flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Weakest: {DIMENSION_LABELS[clientAssessment.weakestDimension]}
@@ -175,16 +167,11 @@ export function MaturityScoringGuide({
             </h4>
 
             {(Object.keys(clientAssessment.scores) as MaturityDimensionKey[]).map((dimKey) => {
-              const item = clientAssessment.scores[dimKey]
+              const item = clientAssessment.scores[dimKey];
               return (
-                <div
-                  key={dimKey}
-                  className="border border-zinc-800/60 bg-zinc-950/60 rounded-xl p-4 space-y-3"
-                >
+                <div key={dimKey} className="border border-zinc-800/60 bg-zinc-950/60 rounded-xl p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-zinc-200">
-                      {DIMENSION_LABELS[dimKey]}
-                    </span>
+                    <span className="text-sm font-bold text-zinc-200">{DIMENSION_LABELS[dimKey]}</span>
 
                     {/* Level selector */}
                     <div className="flex items-center gap-1.5">
@@ -213,11 +200,11 @@ export function MaturityScoringGuide({
                     className="w-full bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500"
                   />
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

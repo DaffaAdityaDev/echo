@@ -15,5 +15,3 @@ export const authApi = {
     return api.get<User>(AUTH_ENDPOINTS.ME);
   },
 };
-
-

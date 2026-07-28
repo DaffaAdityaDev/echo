@@ -1,24 +1,27 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
-import { SessionSidebar } from "@/features/chat/components/SessionSidebar"
-import { AuthGuard } from "@/features/auth"
-import { SidebarContext } from "@/lib/sidebar-context"
+import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { AuthGuard } from "@/features/auth";
+import { SessionSidebar } from "@/features/chat/components/SessionSidebar";
+import { SidebarContext } from "@/lib/sidebar-context";
 
 export default function MainAppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const isChatRoute = pathname === "/"
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname();
+  const isChatRoute = pathname === "/";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const toggleSidebar = () => setSidebarOpen((v) => !v)
-  const closeSidebar = () => setSidebarOpen(false)
+  const toggleSidebar = () => setSidebarOpen((v) => !v);
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <AuthGuard>
       <SidebarContext.Provider value={{ sidebarOpen, toggleSidebar }}>
-        <div className={`flex bg-white bg-grid-tech font-mono text-foreground ${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+        <div
+          className={`flex bg-white bg-grid-tech font-mono text-foreground ${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"}`}
+        >
           <SessionSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
           {isChatRoute ? (
             children
@@ -37,8 +40,5 @@ export default function MainAppLayout({ children }: { children: React.ReactNode 
         </div>
       </SidebarContext.Provider>
     </AuthGuard>
-  )
+  );
 }
-
-
-

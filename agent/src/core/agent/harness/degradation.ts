@@ -1,6 +1,6 @@
-import { HARNESS_CONFIG } from './constants';
+import { HARNESS_CONFIG } from "./constants";
 
-export type DegradationLevel = 'normal' | 'restricted' | 'standard';
+export type DegradationLevel = "normal" | "restricted" | "standard";
 
 export class DegradationManager {
   private consecutiveFailedIterations = 0;
@@ -24,16 +24,16 @@ export class DegradationManager {
 
   getLevel(): DegradationLevel {
     if (this.consecutiveFailedIterations >= this.degradeAfter && this.consecutiveFailedIterations < 5) {
-      return 'restricted';
+      return "restricted";
     }
     if (this.consecutiveFailedIterations >= 5) {
-      return 'standard';
+      return "standard";
     }
-    return 'normal';
+    return "normal";
   }
 
   isDegraded(): boolean {
-    return this.getLevel() !== 'normal';
+    return this.getLevel() !== "normal";
   }
 
   shouldAbort(): boolean {

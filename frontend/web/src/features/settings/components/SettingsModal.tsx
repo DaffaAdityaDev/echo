@@ -1,15 +1,15 @@
 "use client";
 
+import { CheckCircle2, RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
 import React, { useState } from "react";
-import { X, Sliders, Zap, Save, RotateCcw, User, Shield, CheckCircle2 } from "lucide-react";
-import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/Button";
-import { useSettingsPage } from "../hooks/useSettingsPage";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { PreferencesTab } from "./tabs/PreferencesTab";
+import { cn } from "@/utils/cn";
+import { useSettingsPage } from "../hooks/useSettingsPage";
+import { AccountTab } from "./tabs/AccountTab";
 import { CapabilitiesTab } from "./tabs/CapabilitiesTab";
 import { HarnessTab } from "./tabs/HarnessTab";
-import { AccountTab } from "./tabs/AccountTab";
+import { PreferencesTab } from "./tabs/PreferencesTab";
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -19,11 +19,22 @@ export interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "harness" | "account">("preferences");
   const {
-    config, loaded, features, skills, groupedModels, saved,
-    handleSave, handleModeChange, handleModelChange,
-    handleFeatureToggle, handleSkillToggle,
-    handleProviderTypeChange, handleApiKeyChange, handleBaseUrlChange,
-    setConfig, resetConfig,
+    config,
+    loaded,
+    features,
+    skills,
+    groupedModels,
+    saved,
+    handleSave,
+    handleModeChange,
+    handleModelChange,
+    handleFeatureToggle,
+    handleSkillToggle,
+    handleProviderTypeChange,
+    handleApiKeyChange,
+    handleBaseUrlChange,
+    setConfig,
+    resetConfig,
   } = useSettingsPage();
   const { user, logout } = useAuth();
 
@@ -38,7 +49,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
 
       <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 p-6 md:p-8 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-2xl transition-all duration-300 max-h-[85vh] flex flex-col select-none">
         {/* Header */}
@@ -94,7 +108,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   "flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all cursor-pointer",
                   active
                     ? "border-purple-600 text-purple-600 dark:text-purple-400 bg-purple-500/5 font-bold"
-                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -110,7 +124,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="text-center py-10 text-xs text-zinc-400">Loading settings...</div>
           ) : activeTab === "preferences" ? (
             <PreferencesTab
-              config={config} setConfig={setConfig}
+              config={config}
+              setConfig={setConfig}
               groupedModels={groupedModels}
               handleModeChange={handleModeChange}
               handleModelChange={handleModelChange}
@@ -120,7 +135,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             />
           ) : activeTab === "capabilities" ? (
             <CapabilitiesTab
-              config={config} features={features} skills={skills}
+              config={config}
+              features={features}
+              skills={skills}
               handleFeatureToggle={handleFeatureToggle}
               handleSkillToggle={handleSkillToggle}
             />

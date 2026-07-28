@@ -1,6 +1,6 @@
-import { Context, Next } from "hono";
-import { logger } from "../../../shared/utils/logger";
+import type { Context, Next } from "hono";
 import { MONITOR_CONSTANTS } from "../../../shared/constants/middleware";
+import { logger } from "../../../shared/utils/logger";
 
 export async function monitorMiddleware(c: Context, next: Next) {
   const start = Date.now();
@@ -10,7 +10,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
   const traceparent = c.req.header(MONITOR_CONSTANTS.HEADER_TRACEPARENT) || MONITOR_CONSTANTS.DEFAULT_TRACEPARENT;
   const shortId = requestId.slice(0, 8);
 
-  let bodySummary: any = undefined;
+  let bodySummary: any;
   if (method === MONITOR_CONSTANTS.METHOD_POST || method === MONITOR_CONSTANTS.METHOD_PUT) {
     try {
       const clonedReq = c.req.raw.clone();
@@ -29,7 +29,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
     method,
     path,
     traceparent,
-    payload: bodySummary
+    payload: bodySummary,
   });
 
   await next();
@@ -42,7 +42,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
     path,
     status,
     durationMs: duration,
-    requestId
+    requestId,
   };
 
   const statusMsg = `${status} ${status >= 400 ? MONITOR_CONSTANTS.STATUS_ERR : MONITOR_CONSTANTS.STATUS_OK}`;

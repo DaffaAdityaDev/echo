@@ -1,10 +1,14 @@
-import { Context, Next } from "hono";
-import { logger } from "../../../shared/utils/logger";
+import type { Context, Next } from "hono";
 import { ENV } from "../../../config/env";
 import { AUTH_CONSTANTS } from "../../../shared/constants/middleware";
+import { logger } from "../../../shared/utils/logger";
 
 export async function authMiddleware(c: Context, next: Next) {
-  if (c.req.path === AUTH_CONSTANTS.BYPASS_PATH || c.req.path.startsWith("/api/docs") || c.req.path.startsWith("/docs")) {
+  if (
+    c.req.path === AUTH_CONSTANTS.BYPASS_PATH ||
+    c.req.path.startsWith("/api/docs") ||
+    c.req.path.startsWith("/docs")
+  ) {
     return await next();
   }
 
@@ -20,11 +24,16 @@ export async function authMiddleware(c: Context, next: Next) {
   }
 
   if (!receivedToken || receivedToken !== tokenToUse) {
-    logger.warn(`Unauthorized access attempt to Agent endpoint: ${c.req.path} from IP: ${c.req.header(AUTH_CONSTANTS.HEADER_FORWARDED_FOR) || AUTH_CONSTANTS.DEFAULT_IP}`);
-    return c.json({
-      status: "error",
-      message: AUTH_CONSTANTS.FORBIDDEN_MESSAGE
-    }, 403);
+    logger.warn(
+      `Unauthorized access attempt to Agent endpoint: ${c.req.path} from IP: ${c.req.header(AUTH_CONSTANTS.HEADER_FORWARDED_FOR) || AUTH_CONSTANTS.DEFAULT_IP}`,
+    );
+    return c.json(
+      {
+        status: "error",
+        message: AUTH_CONSTANTS.FORBIDDEN_MESSAGE,
+      },
+      403,
+    );
   }
 
   await next();

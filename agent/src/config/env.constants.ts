@@ -20,5 +20,4 @@ export const ENV_VALIDATION_MESSAGES = {
   SERVICE_JWT_SECRET: "⚠️ SERVICE_JWT_SECRET is required for inter-service JWT authentication!",
 } as const;
 
-export const SERVICE_JWT_ALGORITHM = 'HS256' as const;
-
+export const SERVICE_JWT_ALGORITHM = "HS256" as const;

@@ -2,8 +2,8 @@
 
 import React from "react";
 import { cn } from "@/utils/cn";
-import type { AgentState } from "../types";
 import { useChatStore } from "../stores/chatStore";
+import type { AgentState } from "../types";
 
 interface AgentStatusBadgeProps {
   state?: AgentState;
@@ -27,11 +27,13 @@ export function AgentStatusBadge({ state, className }: AgentStatusBadgeProps) {
   const config = stateConfig[resolvedState];
 
   return (
-    <span className={cn(
-      "text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider border",
-      config.className,
-      className
-    )}>
+    <span
+      className={cn(
+        "text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider border",
+        config.className,
+        className,
+      )}
+    >
       {config.label}
     </span>
   );

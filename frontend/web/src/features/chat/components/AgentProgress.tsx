@@ -1,10 +1,9 @@
 "use client";
 
+import { CheckCircle2, ChevronDown, ChevronUp, Loader, RefreshCw, XCircle } from "lucide-react";
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, CheckCircle2, XCircle, RefreshCw, Loader } from "lucide-react";
-
-import { AgentProgress as AgentProgressType, AgentState } from "../types";
 import { cn } from "@/utils/cn";
+import type { AgentProgress as AgentProgressType, AgentState } from "../types";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 
 interface AgentProgressProps {
@@ -66,9 +65,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <Loader size={16} className="text-gb-blue animate-spin shrink-0" />
-            <span className="text-xs font-bold text-foreground truncate">
-              {statusMessage}
-            </span>
+            <span className="text-xs font-bold text-foreground truncate">{statusMessage}</span>
             {(progress.agentStatus || state) && (
               <AgentStatusBadge state={state || progress.agentStatus?.state} className="shrink-0" />
             )}
@@ -92,11 +89,12 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
               style={{ width: `${percentage}%` }}
             />
           </div>
-          
+
           {/* Sub-status Stats */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11px] text-slate-600">
             <div>
-              Iteration <span className="font-bold text-foreground">{iteration}</span>{totalIterations > 0 ? `/${totalIterations}` : ""}
+              Iteration <span className="font-bold text-foreground">{iteration}</span>
+              {totalIterations > 0 ? `/${totalIterations}` : ""}
               {swarm && (
                 <>
                   <span className="mx-2 text-slate-300">|</span>
@@ -104,7 +102,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
                 </>
               )}
             </div>
-            
+
             {swarm && (
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
@@ -127,21 +125,19 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
         {/* URL Detail Collapse Section */}
         {swarm && activeUrls.length > 0 && (
           <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}
           >
             <div className="border-t border-border pt-3 mt-1 space-y-2">
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">
-                URL Details
-              </div>
-              
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">URL Details</div>
+
               <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1.5 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {activeUrls.map((item) => {
                   const displayUrl = item.url.replace(/^https?:\/\/(www\.)?/, "");
-                  
+
                   let statusIcon = <Loader size={12} className="text-gb-blue animate-spin shrink-0 mt-0.5" />;
                   let statusLabel = "crawling";
                   let colorClass = "text-slate-600";
-                  
+
                   if (item.status === "critic_passed") {
                     statusIcon = <CheckCircle2 size={12} className="text-success shrink-0 mt-0.5" />;
                     statusLabel = `${item.dataSize ? Math.ceil(item.dataSize / 1000) + "k" : ""} chars, ${item.factsCount || 0} facts`;
@@ -165,7 +161,10 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
                   }
 
                   return (
-                    <div key={item.url} className="flex items-start justify-between gap-3 text-xs bg-white border border-border px-2.5 py-1.5 rounded-xs">
+                    <div
+                      key={item.url}
+                      className="flex items-start justify-between gap-3 text-xs bg-white border border-border px-2.5 py-1.5 rounded-xs"
+                    >
                       <span className="truncate text-foreground font-mono text-[11px]" title={item.url}>
                         {displayUrl}
                       </span>

@@ -1,32 +1,44 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { Save, Rocket, Undo2, AlertCircle } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import { PromptLibrary } from "./PromptLibrary"
-import { PromptVersionTimeline } from "./PromptVersionTimeline"
-import { VersionDiffViewer } from "./VersionDiffViewer"
-import { VersionStatusBadge } from "./VersionStatusBadge"
-import type { usePromptLibrary } from "../../hooks/usePromptLibrary"
+import { AlertCircle, Rocket, Save, Undo2 } from "lucide-react";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import type { usePromptLibrary } from "../../hooks/usePromptLibrary";
+import { PromptLibrary } from "./PromptLibrary";
+import { PromptVersionTimeline } from "./PromptVersionTimeline";
+import { VersionDiffViewer } from "./VersionDiffViewer";
+import { VersionStatusBadge } from "./VersionStatusBadge";
 
-type Props = ReturnType<typeof usePromptLibrary>
+type Props = ReturnType<typeof usePromptLibrary>;
 
 export function PromptsPage(props: Props) {
   const {
-    templates, versions, activeTemplate, activeVersionData,
-    selectedTemplateId, selectedVersion, draftPrompt,
-    isLoading, error, isCreatingTemplate, isSavingVersion,
-    isPromoting, isRollingBack,
-    handleSelectTemplate, setSelectedVersion, setDraftPrompt,
-    handleCreateTemplate, handleSaveVersion, handlePromote, handleRollback,
-  } = props
+    templates,
+    versions,
+    activeTemplate,
+    activeVersionData,
+    selectedTemplateId,
+    selectedVersion,
+    draftPrompt,
+    isLoading,
+    error,
+    isCreatingTemplate,
+    isSavingVersion,
+    isPromoting,
+    isRollingBack,
+    handleSelectTemplate,
+    setSelectedVersion,
+    setDraftPrompt,
+    handleCreateTemplate,
+    handleSaveVersion,
+    handlePromote,
+    handleRollback,
+  } = props;
 
-  const [showDiff, setShowDiff] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "rollback"; version: number } | null>(null)
+  const [showDiff, setShowDiff] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "rollback"; version: number } | null>(null);
 
-  const currentLiveVersion = activeTemplate
-    ? versions.find(v => v.version === activeTemplate.active_version)
-    : null
+  const currentLiveVersion = activeTemplate ? versions.find((v) => v.version === activeTemplate.active_version) : null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -93,16 +105,20 @@ export function PromptsPage(props: Props) {
                           Diff vs v{currentLiveVersion.version}
                         </Button>
                       )}
-                      {currentLiveVersion && currentLiveVersion.version !== 1 && activeVersionData.status === "production" && (
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          className="gap-1.5 text-xs"
-                          onClick={() => setConfirmAction({ type: "rollback", version: currentLiveVersion.version - 1 })}
-                        >
-                          <Undo2 className="h-3.5 w-3.5" /> Rollback
-                        </Button>
-                      )}
+                      {currentLiveVersion &&
+                        currentLiveVersion.version !== 1 &&
+                        activeVersionData.status === "production" && (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            className="gap-1.5 text-xs"
+                            onClick={() =>
+                              setConfirmAction({ type: "rollback", version: currentLiveVersion.version - 1 })
+                            }
+                          >
+                            <Undo2 className="h-3.5 w-3.5" /> Rollback
+                          </Button>
+                        )}
                     </div>
                   </div>
                   <pre className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-800 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -148,7 +164,9 @@ export function PromptsPage(props: Props) {
               <AlertCircle className="h-8 w-8 text-zinc-500" />
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">Select a template</h3>
-                <p className="text-xs text-zinc-500 mt-1">Choose a prompt template from the library to view and edit its versions.</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Choose a prompt template from the library to view and edit its versions.
+                </p>
               </div>
             </div>
           )}
@@ -169,15 +187,17 @@ export function PromptsPage(props: Props) {
                 : `This will revert the live prompt to version ${confirmAction.version}. The current production version will be marked as rolled back.`}
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>Cancel</Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>
+                Cancel
+              </Button>
               <Button
                 size="sm"
                 variant={confirmAction.type === "rollback" ? "danger" : "primary"}
                 isLoading={isPromoting || isRollingBack}
                 onClick={async () => {
-                  if (confirmAction.type === "promote") await handlePromote(confirmAction.version)
-                  else await handleRollback(confirmAction.version)
-                  setConfirmAction(null)
+                  if (confirmAction.type === "promote") await handlePromote(confirmAction.version);
+                  else await handleRollback(confirmAction.version);
+                  setConfirmAction(null);
                 }}
               >
                 {confirmAction.type === "promote" ? "Promote" : "Rollback"}
@@ -187,5 +207,5 @@ export function PromptsPage(props: Props) {
         </div>
       )}
     </div>
-  )
+  );
 }

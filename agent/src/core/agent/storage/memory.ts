@@ -1,21 +1,21 @@
-import { AgentState } from '../../../shared/types';
-import { serializeAgentState, deserializeAgentState } from './serializer';
+import type { AgentState } from "../../../shared/types";
+import { deserializeAgentState, serializeAgentState } from "./serializer";
 
 export class InMemoryStateProvider {
-    private cache = new Map<string, string>();
+  private cache = new Map<string, string>();
 
-    async get(missionId: string): Promise<AgentState | null> {
-        const raw = this.cache.get(missionId);
-        if (!raw) return null;
-        return deserializeAgentState(JSON.parse(raw));
-    }
+  async get(missionId: string): Promise<AgentState | null> {
+    const raw = this.cache.get(missionId);
+    if (!raw) return null;
+    return deserializeAgentState(JSON.parse(raw));
+  }
 
-    async set(missionId: string, state: AgentState, _ttlSeconds?: number): Promise<void> {
-        const serialized = serializeAgentState(state);
-        this.cache.set(missionId, JSON.stringify(serialized));
-    }
+  async set(missionId: string, state: AgentState, _ttlSeconds?: number): Promise<void> {
+    const serialized = serializeAgentState(state);
+    this.cache.set(missionId, JSON.stringify(serialized));
+  }
 
-    async delete(missionId: string): Promise<void> {
-        this.cache.delete(missionId);
-    }
+  async delete(missionId: string): Promise<void> {
+    this.cache.delete(missionId);
+  }
 }

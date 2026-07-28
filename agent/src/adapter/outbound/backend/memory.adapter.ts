@@ -1,25 +1,25 @@
-import { AgentState } from '../../../shared/types';
-import { signServiceJwt } from '../../../shared/utils/jwt';
-import { ENV } from '../../../config/env';
-import { serializeAgentState, deserializeAgentState } from '../../../core/agent/storage';
+import { ENV } from "../../../config/env";
+import { deserializeAgentState, serializeAgentState } from "../../../core/agent/storage";
+import type { AgentState } from "../../../shared/types";
+import { signServiceJwt } from "../../../shared/utils/jwt";
 
 const ENDPOINTS = {
-  store: '/api/v1/internal/memory/episodic/store',
-  recall: '/api/v1/internal/memory/episodic/recall',
+  store: "/api/v1/internal/memory/episodic/store",
+  recall: "/api/v1/internal/memory/episodic/recall",
 };
 
 export class MemoryAdapter {
-  readonly type = 'memory';
+  readonly type = "memory";
   private baseUrl: string;
   private connected = false;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || ENV.BACKEND_URL || 'http://localhost:8080';
+    this.baseUrl = baseUrl || ENV.BACKEND_URL || "http://localhost:8080";
   }
 
   async connect() {
     try {
-      await this.request('GET', '/health');
+      await this.request("GET", "/health");
       this.connected = true;
     } catch {
       throw new Error(`Cannot connect to backend at ${this.baseUrl}`);
@@ -33,7 +33,7 @@ export class MemoryAdapter {
   async health() {
     const start = Date.now();
     try {
-      await this.request('GET', '/health');
+      await this.request("GET", "/health");
       return { ok: true, latency: Date.now() - start };
     } catch {
       return { ok: false, latency: Date.now() - start };
@@ -53,13 +53,13 @@ export class MemoryAdapter {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
+      const text = await res.text().catch(() => "");
       throw new Error(`Memory request failed: ${res.status} ${text}`);
     }
     return res.json();
@@ -67,11 +67,11 @@ export class MemoryAdapter {
 
   async get(missionId: string): Promise<AgentState | null> {
     try {
-      const data = await this.request('POST', ENDPOINTS.recall, {
+      const data = await this.request("POST", ENDPOINTS.recall, {
         session_id: missionId,
       });
       if (!data || !data.content) return null;
-      const parsed = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
+      const parsed = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
       return deserializeAgentState(parsed);
     } catch {
       return null;
@@ -80,13 +80,12 @@ export class MemoryAdapter {
 
   async set(missionId: string, state: AgentState, ttlSeconds?: number): Promise<void> {
     const serialized = serializeAgentState(state);
-    await this.request('POST', ENDPOINTS.store, {
+    await this.request("POST", ENDPOINTS.store, {
       session_id: missionId,
       content: JSON.stringify(serialized),
       ttl_seconds: ttlSeconds,
     });
   }
 
-  async delete(missionId: string): Promise<void> {
-  }
+  async delete(missionId: string): Promise<void> {}
 }

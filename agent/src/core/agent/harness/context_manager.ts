@@ -1,4 +1,4 @@
-import { SystemMessage, BaseMessage } from "@langchain/core/messages";
+import { type BaseMessage, SystemMessage } from "@langchain/core/messages";
 
 export interface ContextOptimizationConfig {
   enabled: boolean;
@@ -17,7 +17,7 @@ export class ContextManager {
       enabled: config?.enabled ?? true,
       enablePrefixCachingLayout: config?.enablePrefixCachingLayout ?? true,
       enableAutoCompaction: config?.enableAutoCompaction ?? true,
-      compactionThresholdRatio: config?.compactionThresholdRatio ?? 0.70,
+      compactionThresholdRatio: config?.compactionThresholdRatio ?? 0.7,
       keepLastTurnsCount: config?.keepLastTurnsCount ?? 4,
     };
   }
@@ -25,13 +25,10 @@ export class ContextManager {
   public prepareMessagesPayload(
     staticSystemPrompt: string,
     dynamicEnvContext: string,
-    canonicalMessages: BaseMessage[]
+    canonicalMessages: BaseMessage[],
   ): BaseMessage[] {
     if (!this.config.enabled || !this.config.enablePrefixCachingLayout) {
-      return [
-        new SystemMessage(`${staticSystemPrompt}\n\n${dynamicEnvContext}`),
-        ...canonicalMessages,
-      ];
+      return [new SystemMessage(`${staticSystemPrompt}\n\n${dynamicEnvContext}`), ...canonicalMessages];
     }
 
     return [

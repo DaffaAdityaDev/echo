@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import React from "react"
-import { Wrench, Brain, Loader2 } from "lucide-react"
-import type { AgentFeature } from "@/features/shared/hooks/useFeatures"
-import type { AgentSkill } from "@/features/shared/hooks/useSkills"
+import { Brain, Loader2, Wrench } from "lucide-react";
+import React from "react";
+import type { AgentFeature } from "@/features/shared/hooks/useFeatures";
+import type { AgentSkill } from "@/features/shared/hooks/useSkills";
 
 interface FeatureSkillPickerProps {
-  features: AgentFeature[]
-  skills: AgentSkill[]
-  selectedFeatures: string[]
-  selectedSkills: string[]
-  onFeaturesChange: (ids: string[]) => void
-  onSkillsChange: (names: string[]) => void
-  isLoading?: boolean
+  features: AgentFeature[];
+  skills: AgentSkill[];
+  selectedFeatures: string[];
+  selectedSkills: string[];
+  onFeaturesChange: (ids: string[]) => void;
+  onSkillsChange: (names: string[]) => void;
+  isLoading?: boolean;
 }
 
 export function FeatureSkillPicker({
@@ -26,19 +26,19 @@ export function FeatureSkillPicker({
 }: FeatureSkillPickerProps) {
   const toggleFeature = (id: string) => {
     if (selectedFeatures.includes(id)) {
-      onFeaturesChange(selectedFeatures.filter((f) => f !== id))
+      onFeaturesChange(selectedFeatures.filter((f) => f !== id));
     } else {
-      onFeaturesChange([...selectedFeatures, id])
+      onFeaturesChange([...selectedFeatures, id]);
     }
-  }
+  };
 
   const toggleSkill = (name: string) => {
     if (selectedSkills.includes(name)) {
-      onSkillsChange(selectedSkills.filter((s) => s !== name))
+      onSkillsChange(selectedSkills.filter((s) => s !== name));
     } else {
-      onSkillsChange([...selectedSkills, name])
+      onSkillsChange([...selectedSkills, name]);
     }
-  }
+  };
 
   return (
     <details className="group text-sm">
@@ -63,12 +63,9 @@ export function FeatureSkillPicker({
           ) : (
             <div className="space-y-1.5">
               {features.map((f) => {
-                const isSelected = selectedFeatures.includes(f.id)
+                const isSelected = selectedFeatures.includes(f.id);
                 return (
-                  <label
-                    key={f.id}
-                    className="flex items-start gap-2 cursor-pointer group/label"
-                  >
+                  <label key={f.id} className="flex items-start gap-2 cursor-pointer group/label">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -84,7 +81,7 @@ export function FeatureSkillPicker({
                       {f.locked && <span className="text-[10px] text-amber-500 ml-1.5">locked</span>}
                     </div>
                   </label>
-                )
+                );
               })}
             </div>
           )}
@@ -104,12 +101,9 @@ export function FeatureSkillPicker({
           ) : (
             <div className="space-y-1.5">
               {skills.map((s) => {
-                const isSelected = selectedSkills.includes(s.name)
+                const isSelected = selectedSkills.includes(s.name);
                 return (
-                  <label
-                    key={s.name}
-                    className="flex items-start gap-2 cursor-pointer group/label"
-                  >
+                  <label key={s.name} className="flex items-start gap-2 cursor-pointer group/label">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -117,18 +111,16 @@ export function FeatureSkillPicker({
                       className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-amber-600 focus:ring-amber-500"
                     />
                     <div className="flex-1 min-w-0">
-                      <span className={isSelected ? "text-zinc-800" : "text-zinc-600"}>
-                        {s.name}
-                      </span>
+                      <span className={isSelected ? "text-zinc-800" : "text-zinc-600"}>{s.name}</span>
                       <span className="text-[10px] text-zinc-400 ml-1.5">{s.description}</span>
                     </div>
                   </label>
-                )
+                );
               })}
             </div>
           )}
         </div>
       </div>
     </details>
-  )
+  );
 }

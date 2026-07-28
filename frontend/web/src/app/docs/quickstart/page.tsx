@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { CodeBlock } from '@/components/docs/CodeBlock'
-import { Info, Rocket } from 'lucide-react'
+import { Info, Rocket } from "lucide-react";
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function QuickStartPage() {
   return (
@@ -23,12 +23,15 @@ export default function QuickStartPage() {
           1. Get Your Credentials
         </h2>
         <p className="text-xs text-muted leading-relaxed">
-          Every API request requires authentication. You can authenticate using either a JWT token (for user-facing apps)
-          or an API key (for server-to-server integration).
+          Every API request requires authentication. You can authenticate using either a JWT token (for user-facing
+          apps) or an API key (for server-to-server integration).
         </p>
         <p className="text-xs text-muted leading-relaxed">
-          To get started, log in via the{' '}
-          <a href="/login" className="text-blue-600 font-bold hover:underline">web interface</a> or call the login endpoint directly:
+          To get started, log in via the{" "}
+          <a href="/login" className="text-blue-600 font-bold hover:underline">
+            web interface
+          </a>{" "}
+          or call the login endpoint directly:
         </p>
         <CodeBlock
           language="bash"
@@ -37,7 +40,8 @@ export default function QuickStartPage() {
   -d '{"email": "your@email.com", "password": "your-password"}'`}
         />
         <p className="text-xs text-muted">
-          The response includes a <code className="text-blue-600 font-bold">token</code> field — this is your JWT bearer token.
+          The response includes a <code className="text-blue-600 font-bold">token</code> field — this is your JWT bearer
+          token.
         </p>
       </section>
 
@@ -76,8 +80,10 @@ export default function QuickStartPage() {
   }'`}
         />
         <p className="text-xs text-muted">
-          The response is an SSE stream. Each event contains a JSON payload with fields like <code className="text-blue-600 font-semibold">type</code>,{' '}
-          <code className="text-blue-600 font-semibold">content</code>, and <code className="text-blue-600 font-semibold">usage</code>.
+          The response is an SSE stream. Each event contains a JSON payload with fields like{" "}
+          <code className="text-blue-600 font-semibold">type</code>,{" "}
+          <code className="text-blue-600 font-semibold">content</code>, and{" "}
+          <code className="text-blue-600 font-semibold">usage</code>.
         </p>
       </section>
 
@@ -152,14 +158,37 @@ for line in response.iter_lines():
       <div className="p-4 border border-border bg-slate-50/80 rounded-xs flex gap-3.5 font-mono shadow-xs">
         <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-muted space-y-1">
-          <p><strong className="text-foreground uppercase tracking-wider text-[11px]">Next steps:</strong></p>
-          <p>• Browse the <a href="/docs/reference" className="text-blue-600 font-bold hover:underline">API Reference</a> for all available endpoints</p>
-          <p>• Learn about <a href="/docs/guides/authentication" className="text-blue-600 font-bold hover:underline">authentication methods</a></p>
-          <p>• Understand <a href="/docs/guides/settings" className="text-blue-600 font-bold hover:underline">Settings Batching & Harness Toggles</a></p>
-          <p>• Set up <a href="/docs/guides/sessions" className="text-blue-600 font-bold hover:underline">sessions</a> for persistent conversations</p>
+          <p>
+            <strong className="text-foreground uppercase tracking-wider text-[11px]">Next steps:</strong>
+          </p>
+          <p>
+            • Browse the{" "}
+            <a href="/docs/reference" className="text-blue-600 font-bold hover:underline">
+              API Reference
+            </a>{" "}
+            for all available endpoints
+          </p>
+          <p>
+            • Learn about{" "}
+            <a href="/docs/guides/authentication" className="text-blue-600 font-bold hover:underline">
+              authentication methods
+            </a>
+          </p>
+          <p>
+            • Understand{" "}
+            <a href="/docs/guides/settings" className="text-blue-600 font-bold hover:underline">
+              Settings Batching & Harness Toggles
+            </a>
+          </p>
+          <p>
+            • Set up{" "}
+            <a href="/docs/guides/sessions" className="text-blue-600 font-bold hover:underline">
+              sessions
+            </a>{" "}
+            for persistent conversations
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
-

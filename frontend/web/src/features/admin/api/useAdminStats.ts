@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import { AdminStats } from "../types";
+import type { AdminStats } from "../types";
 
 export function useAdminStats() {
   return useQuery<AdminStats>({

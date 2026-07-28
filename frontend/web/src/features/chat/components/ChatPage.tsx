@@ -1,41 +1,41 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
-import Link from "next/link";
-import dynamic from "next/dynamic";
 import {
-  Trash2,
-  Menu,
+  Bug,
   ChevronDown,
+  Cpu,
   Download,
-  ShieldAlert,
+  FileText,
   HelpCircle,
   Languages,
-  FileText,
   Lightbulb,
-  ShieldCheck,
+  Menu,
   Settings,
-  Cpu,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
-  Wrench,
   Target,
-  Bug,
+  Trash2,
+  Wrench,
 } from "lucide-react";
-import { AgentStatusBadge } from "./AgentStatusBadge";
-import { DegradationToast } from "./DegradationToast";
-import { HitlApprovalModal } from "./HitlApprovalModal";
-import { SystemNoticeToast } from "./SystemNoticeToast";
-import { ToolCallTimeline } from "./ToolCallTimeline";
-import { MessageList, type MessageListHandle } from "./MessageList";
-import { ChatInput } from "./ChatInput";
-import { AgentProgress } from "./AgentProgress";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
-import { useChatStore } from "../stores/chatStore";
-import { useChatPage } from "../hooks/useChatPage";
-import { useModels } from "../hooks/useModels";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSidebar } from "@/lib/sidebar-context";
+import { useChatPage } from "../hooks/useChatPage";
+import { useModels } from "../hooks/useModels";
+import { useChatStore } from "../stores/chatStore";
+import { AgentProgress } from "./AgentProgress";
+import { AgentStatusBadge } from "./AgentStatusBadge";
+import { ChatInput } from "./ChatInput";
+import { DegradationToast } from "./DegradationToast";
+import { HitlApprovalModal } from "./HitlApprovalModal";
+import { MessageList, type MessageListHandle } from "./MessageList";
+import { SystemNoticeToast } from "./SystemNoticeToast";
+import { ToolCallTimeline } from "./ToolCallTimeline";
 
 const ModelSelectorModal = dynamic(() => import("./ModelSelectorModal").then((m) => m.ModelSelectorModal), {
   ssr: false,
@@ -47,14 +47,16 @@ const DebugDrawer = dynamic(() => import("./DebugDrawer").then((m) => m.DebugDra
   loading: () => null,
 });
 
-const SettingsModal = dynamic(() => import("@/features/settings/components/SettingsModal").then((m) => m.SettingsModal), {
-  ssr: false,
-  loading: () => null,
-});
+const SettingsModal = dynamic(
+  () => import("@/features/settings/components/SettingsModal").then((m) => m.SettingsModal),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
 
 export function ChatPage() {
-  const { sendMessage, clearMessages, createSession, deleteSession, selectSession } =
-    useChatPage();
+  const { sendMessage, clearMessages, createSession, deleteSession, selectSession } = useChatPage();
   const { user } = useAuth();
   const { models } = useModels();
   const { toggleSidebar } = useSidebar();
@@ -133,30 +135,16 @@ export function ChatPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
       {/* Toast Feedback */}
-      <Toast
-        show={!!toastMessage}
-        message={toastMessage || ""}
-        type="info"
-        onClose={() => setToastMessage(null)}
-      />
+      <Toast show={!!toastMessage} message={toastMessage || ""} type="info" onClose={() => setToastMessage(null)} />
 
       {/* Settings Overlay Modal */}
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-      />
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
 
       {/* Model Selector Modal */}
-      <ModelSelectorModal
-        isOpen={isWorkspaceModalOpen}
-        onClose={() => setIsWorkspaceModalOpen(false)}
-      />
+      <ModelSelectorModal isOpen={isWorkspaceModalOpen} onClose={() => setIsWorkspaceModalOpen(false)} />
 
       {/* Slide-out Developer Debug Drawer */}
-      <DebugDrawer
-        isOpen={isDebugDrawerOpen}
-        onClose={() => setIsDebugDrawerOpen(false)}
-      />
+      <DebugDrawer isOpen={isDebugDrawerOpen} onClose={() => setIsDebugDrawerOpen(false)} />
 
       {/* Help & Shortcuts Modal */}
       <Modal
@@ -218,8 +206,6 @@ export function ChatPage() {
 
           {/* Header Right Actions */}
           <div className="flex items-center gap-2">
-
-
             {/* Debug Drawer Toggle Button */}
             <button
               onClick={() => setIsDebugDrawerOpen((v) => !v)}
@@ -228,9 +214,7 @@ export function ChatPage() {
             >
               <Bug className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Debug</span>
-              {packetLogs.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              )}
+              {packetLogs.length > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
             </button>
 
             <button
@@ -279,9 +263,7 @@ export function ChatPage() {
             {/* Objective Pill */}
             <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 text-[11px] font-medium truncate max-w-xs md:max-w-md">
               <Target className="h-3 w-3 text-purple-500 shrink-0" />
-              <span className="truncate">
-                {missionMeta?.objective || "Autonomous AI Harness Engine"}
-              </span>
+              <span className="truncate">{missionMeta?.objective || "Autonomous AI Harness Engine"}</span>
             </div>
           </div>
 
@@ -297,7 +279,7 @@ export function ChatPage() {
         {/* Main Body: Welcome Hero or Message Stream */}
         {messages.length === 0 ? (
           <div className="flex-1 overflow-y-auto p-6 md:p-10 flex flex-col justify-between items-center text-center">
-              <div className="w-full max-w-5xl my-auto space-y-8 flex flex-col items-center">
+            <div className="w-full max-w-5xl my-auto space-y-8 flex flex-col items-center">
               {/* Pure SVG Ambient Orb Graphic */}
               <div className="relative w-24 h-24 flex items-center justify-center my-2">
                 <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl animate-pulse" />
@@ -367,10 +349,7 @@ export function ChatPage() {
 
             {/* Bottom Footer Line */}
             <div className="w-full max-w-5xl flex items-center justify-between pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 text-[11px] text-zinc-400">
-              <a
-                href="/docs"
-                className="hover:text-purple-500 transition-colors font-medium"
-              >
+              <a href="/docs" className="hover:text-purple-500 transition-colors font-medium">
                 Explore Echo Developer Documentation & APIs
               </a>
               <div className="flex items-center gap-3">

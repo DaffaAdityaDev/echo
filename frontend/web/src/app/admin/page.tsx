@@ -1,6 +1,6 @@
 "use client";
 
-import { useAdminDashboardPage, AdminDashboardPage } from "@/features/admin";
+import { AdminDashboardPage, useAdminDashboardPage } from "@/features/admin";
 
 export default function AdminRoute() {
   const admin = useAdminDashboardPage();

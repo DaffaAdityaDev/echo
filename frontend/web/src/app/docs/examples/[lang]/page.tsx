@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import { CodeBlock } from '@/components/docs/CodeBlock'
-import { ArrowLeft, Terminal, Code } from 'lucide-react'
+import { ArrowLeft, Code, Terminal } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function LanguageExamplePage() {
-  const params = useParams()
-  const lang = ((params?.lang as string) || 'curl').toLowerCase()
+  const params = useParams();
+  const lang = ((params?.lang as string) || "curl").toLowerCase();
 
-  if (lang === 'python') {
+  if (lang === "python") {
     return (
       <div className="space-y-8 max-w-4xl font-mono">
         <div>
@@ -29,7 +29,8 @@ export default function LanguageExamplePage() {
             Python Integration Example
           </h1>
           <p className="text-xs text-muted mt-2 leading-relaxed font-mono">
-            Complete Python client implementation for SSE chat streaming, session management, and HITL approvals using <code className="text-blue-600 font-bold">requests</code>.
+            Complete Python client implementation for SSE chat streaming, session management, and HITL approvals using{" "}
+            <code className="text-blue-600 font-bold">requests</code>.
           </p>
         </div>
 
@@ -88,10 +89,10 @@ for event in client.chat_stream("Explain quantum computing"):
           />
         </section>
       </div>
-    )
+    );
   }
 
-  if (lang === 'nodejs' || lang === 'typescript' || lang === 'node') {
+  if (lang === "nodejs" || lang === "typescript" || lang === "node") {
     return (
       <div className="space-y-8 max-w-4xl font-mono">
         <div>
@@ -189,7 +190,7 @@ for await (const event of client.chatStream("Hello!")) {
           />
         </section>
       </div>
-    )
+    );
   }
 
   // Default: cURL
@@ -207,9 +208,7 @@ for await (const event of client.chatStream("Hello!")) {
             cURL CLI
           </span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase mt-2">
-          cURL API Examples
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase mt-2">cURL API Examples</h1>
         <p className="text-xs text-muted mt-2 leading-relaxed font-mono">
           Command line HTTP examples for common Echo API operations.
         </p>
@@ -218,41 +217,56 @@ for await (const event of client.chatStream("Hello!")) {
       <section className="space-y-6">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">1. Authentication / Login</h3>
-          <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/auth/login \\
+          <CodeBlock
+            language="bash"
+            code={`curl -X POST http://localhost:8080/api/v1/auth/login \\
   -H "Content-Type: application/json" \\
-  -d '{"email": "user@example.com", "password": "password123"}'`} />
+  -d '{"email": "user@example.com", "password": "password123"}'`}
+          />
         </div>
 
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">2. Chat Stream</h3>
-          <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/chat \\
+          <CodeBlock
+            language="bash"
+            code={`curl -X POST http://localhost:8080/api/v1/chat \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "Hello!", "model": "gpt-4o", "mode": "agent"}'`} />
+  -d '{"message": "Hello!", "model": "gpt-4o", "mode": "agent"}'`}
+          />
         </div>
 
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">3. List Sessions</h3>
-          <CodeBlock language="bash" code={`curl -X GET http://localhost:8080/api/v1/sessions \\
-  -H "Authorization: Bearer <token>"`} />
+          <CodeBlock
+            language="bash"
+            code={`curl -X GET http://localhost:8080/api/v1/sessions \\
+  -H "Authorization: Bearer <token>"`}
+          />
         </div>
 
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">4. Approve HITL Mission</h3>
-          <CodeBlock language="bash" code={`curl -X POST http://localhost:8080/api/v1/missions/{id}/approve \\
+          <CodeBlock
+            language="bash"
+            code={`curl -X POST http://localhost:8080/api/v1/missions/{id}/approve \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"approvalId": "appr_id", "decision": "approve"}'`} />
+  -d '{"approvalId": "appr_id", "decision": "approve"}'`}
+          />
         </div>
 
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">5. Update Settings</h3>
-          <CodeBlock language="bash" code={`curl -X PUT http://localhost:8080/api/v1/settings \\
+          <CodeBlock
+            language="bash"
+            code={`curl -X PUT http://localhost:8080/api/v1/settings \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"default_mode": "agent", "default_model": "gpt-4o"}'`} />
+  -d '{"default_mode": "agent", "default_model": "gpt-4o"}'`}
+          />
         </div>
       </section>
     </div>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import { Context } from 'hono';
-import { ProviderFactory } from '../../../../infrastructure/providers/factory';
-import { mapHistoryToMessages } from '../../../../shared/utils/messages';
-import { logger } from '../../../../shared/utils/logger';
+import type { Context } from "hono";
+import { ProviderFactory } from "../../../../infrastructure/providers/factory";
+import { logger } from "../../../../shared/utils/logger";
+import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 
 export async function handleSummarize(c: Context) {
   try {
@@ -47,7 +47,7 @@ Do NOT include any pleasantries, conversational filler, or formatting other than
     return c.json({
       summary: summary.trim(),
       token_count: compTokens,
-      messages_summarized: messages.length
+      messages_summarized: messages.length,
     });
   } catch (err: any) {
     logger.error(`[SUMMARIZE] Summarization failed: ${err.message}`, err);

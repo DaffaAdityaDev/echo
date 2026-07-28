@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import React from "react"
+import React from "react";
 
 export const SidebarContext = React.createContext<{
-  sidebarOpen: boolean
-  toggleSidebar: () => void
-}>({ sidebarOpen: false, toggleSidebar: () => {} })
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}>({ sidebarOpen: false, toggleSidebar: () => {} });
 
 export function useSidebar() {
-  return React.useContext(SidebarContext)
+  return React.useContext(SidebarContext);
 }

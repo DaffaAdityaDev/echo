@@ -1,13 +1,13 @@
 "use client";
 
+import { AlertCircle, Plus } from "lucide-react";
 import React from "react";
+import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
+import type { ApiKey } from "../types";
 import { ApiKeyList } from "./ApiKeyList";
 import { CreateKeyModal } from "./CreateKeyModal";
 import { KeyDisplay } from "./KeyDisplay";
-import { Button } from "@/components/ui/Button";
-import { Plus, AlertCircle } from "lucide-react";
-import { Skeleton } from "@/components/ui/Skeleton";
-import type { ApiKey } from "../types";
 
 interface AdminApiKeysPageProps {
   keys: ApiKey[];
@@ -55,15 +55,13 @@ export function AdminApiKeysPage({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold font-display tracking-tight text-zinc-100">
-            API Keys
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-bold font-display tracking-tight text-zinc-100">API Keys</h1>
           <p className="text-sm text-zinc-500 mt-1">
             Manage authorization tokens for accessing the Echo orchestrator services programmatically.
           </p>
         </div>
         {!createdKey && (
-          <Button 
+          <Button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 self-start sm:self-auto shrink-0"
           >
@@ -76,10 +74,7 @@ export function AdminApiKeysPage({
       {/* Created Key Display Alert */}
       {createdKey?.key && (
         <div className="max-w-xl">
-          <KeyDisplay 
-            apiKey={createdKey.key} 
-            onClose={handleCloseDisplay} 
-          />
+          <KeyDisplay apiKey={createdKey.key} onClose={handleCloseDisplay} />
         </div>
       )}
 
@@ -92,11 +87,7 @@ export function AdminApiKeysPage({
             <Skeleton className="h-16 w-full bg-zinc-800" />
           </div>
         ) : (
-          <ApiKeyList 
-            keys={keys} 
-            onRevoke={revokeKey} 
-            isRevoking={isRevoking} 
-          />
+          <ApiKeyList keys={keys} onRevoke={revokeKey} isRevoking={isRevoking} />
         )}
       </div>
 

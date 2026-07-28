@@ -1,5 +1,5 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -14,157 +14,187 @@ const CYAN = "\x1b[36m";
 const GRAY = "\x1b[90m";
 
 function getTimestamp(): string {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const ms = String(now.getMilliseconds()).padStart(3, '0');
-    return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${ms}`;
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const ms = String(now.getMilliseconds()).padStart(3, "0");
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${ms}`;
 }
 
 function serializeMeta(meta: any): any {
-    if (!meta) return undefined;
-    if (meta instanceof Error) {
-        return { name: meta.name, message: meta.message, stack: meta.stack };
+  if (!meta) return undefined;
+  if (meta instanceof Error) {
+    return { name: meta.name, message: meta.message, stack: meta.stack };
+  }
+  if (typeof meta === "object") {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(meta)) {
+      if (value instanceof Error) {
+        result[key] = { name: value.name, message: value.message, stack: value.stack };
+      } else {
+        result[key] = value;
+      }
     }
-    if (typeof meta === 'object') {
-        const result: Record<string, any> = {};
-        for (const [key, value] of Object.entries(meta)) {
-            if (value instanceof Error) {
-                result[key] = { name: value.name, message: value.message, stack: value.stack };
-            } else {
-                result[key] = value;
-            }
-        }
-        return result;
-    }
-    return meta;
+    return result;
+  }
+  return meta;
 }
 
 function formatMeta(meta?: any): string {
-    const cleanMeta = serializeMeta(meta);
-    if (!cleanMeta || typeof cleanMeta !== 'object') return '';
-    try {
-        const keys = Object.keys(cleanMeta);
-        if (keys.length === 0) return '';
-        
-        // Specially format HTTP request/response meta if it exists
-        if (cleanMeta.method && (cleanMeta.url !== undefined || cleanMeta.path !== undefined)) {
-            const parts: string[] = [];
-            if (cleanMeta.traceparent && cleanMeta.traceparent !== 'none') {
-                parts.push(`traceparent: ${cleanMeta.traceparent}`);
-            }
-            if (cleanMeta.payload && Object.keys(cleanMeta.payload).length > 0) {
-                parts.push(`payload: ${JSON.stringify(cleanMeta.payload)}`);
-            }
-            return parts.length > 0 ? ` ${DIM}(${parts.join(', ')})${RESET}` : '';
-        }
+  const cleanMeta = serializeMeta(meta);
+  if (!cleanMeta || typeof cleanMeta !== "object") return "";
+  try {
+    const keys = Object.keys(cleanMeta);
+    if (keys.length === 0) return "";
 
-        // Standard metadata formatting
-        const entries = Object.entries(cleanMeta).map(([k, v]) => {
-            const valStr = typeof v === 'object' ? JSON.stringify(v) : String(v);
-            return `${k}=${valStr}`;
-        });
-        return ` ${GRAY}[${entries.join(' ')}]${RESET}`;
-    } catch {
-        return '';
+    // Specially format HTTP request/response meta if it exists
+    if (cleanMeta.method && (cleanMeta.url !== undefined || cleanMeta.path !== undefined)) {
+      const parts: string[] = [];
+      if (cleanMeta.traceparent && cleanMeta.traceparent !== "none") {
+        parts.push(`traceparent: ${cleanMeta.traceparent}`);
+      }
+      if (cleanMeta.payload && Object.keys(cleanMeta.payload).length > 0) {
+        parts.push(`payload: ${JSON.stringify(cleanMeta.payload)}`);
+      }
+      return parts.length > 0 ? ` ${DIM}(${parts.join(", ")})${RESET}` : "";
     }
+
+    // Standard metadata formatting
+    const entries = Object.entries(cleanMeta).map(([k, v]) => {
+      const valStr = typeof v === "object" ? JSON.stringify(v) : String(v);
+      return `${k}=${valStr}`;
+    });
+    return ` ${GRAY}[${entries.join(" ")}]${RESET}`;
+  } catch {
+    return "";
+  }
 }
 
 function writeToFile(level: string, msg: string, meta?: any) {
-    try {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const logDir = join(process.cwd(), 'logs');
-        mkdirSync(logDir, { recursive: true });
-        const logPath = join(logDir, `${dateStr}.log`);
+  try {
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const logDir = join(process.cwd(), "logs");
+    mkdirSync(logDir, { recursive: true });
+    const logPath = join(logDir, `${dateStr}.log`);
 
-        let metaStr = '';
-        const cleanMeta = serializeMeta(meta);
-        if (cleanMeta && typeof cleanMeta === 'object') {
-            metaStr = ' ' + JSON.stringify(cleanMeta);
-        }
-        const line = `[${level}] [${getTimestamp()}] ${msg}${metaStr}\n`;
-        appendFileSync(logPath, line, 'utf-8');
-    } catch {
-        // Fail silently to prevent crashing application
+    let metaStr = "";
+    const cleanMeta = serializeMeta(meta);
+    if (cleanMeta && typeof cleanMeta === "object") {
+      metaStr = " " + JSON.stringify(cleanMeta);
     }
+    const line = `[${level}] [${getTimestamp()}] ${msg}${metaStr}\n`;
+    appendFileSync(logPath, line, "utf-8");
+  } catch {
+    // Fail silently to prevent crashing application
+  }
 }
 
-const LEVEL_CONFIG: Record<string, { color: string; consoleFn: 'log' | 'warn' | 'error' | 'debug'; fmt: (msg: string) => string }> = {
-    INFO: { color: CYAN, consoleFn: 'log', fmt: (m) => m },
-    WARN: { color: YELLOW, consoleFn: 'warn', fmt: (m) => `${YELLOW}${m}${RESET}` },
-    ERROR: { color: RED, consoleFn: 'error', fmt: (m) => `${RED}${BOLD}${m}${RESET}` },
-    DEBUG: { color: GRAY, consoleFn: 'debug', fmt: (m) => `${GRAY}${m}${RESET}` },
+const LEVEL_CONFIG: Record<
+  string,
+  { color: string; consoleFn: "log" | "warn" | "error" | "debug"; fmt: (msg: string) => string }
+> = {
+  INFO: { color: CYAN, consoleFn: "log", fmt: (m) => m },
+  WARN: { color: YELLOW, consoleFn: "warn", fmt: (m) => `${YELLOW}${m}${RESET}` },
+  ERROR: { color: RED, consoleFn: "error", fmt: (m) => `${RED}${BOLD}${m}${RESET}` },
+  DEBUG: { color: GRAY, consoleFn: "debug", fmt: (m) => `${GRAY}${m}${RESET}` },
 };
 
 export class Logger {
-    private log(level: string, msg: string, meta?: any) {
-        const config = LEVEL_CONFIG[level];
-        if (config) {
-            console[config.consoleFn](`${config.color}${BOLD}[${level}]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${config.fmt(msg)}${formatMeta(meta)}`);
-        }
-        writeToFile(level, msg, meta);
+  private log(level: string, msg: string, meta?: any) {
+    const config = LEVEL_CONFIG[level];
+    if (config) {
+      console[config.consoleFn](
+        `${config.color}${BOLD}[${level}]${RESET}  ${DIM}[${getTimestamp()}]${RESET} ${config.fmt(msg)}${formatMeta(meta)}`,
+      );
     }
+    writeToFile(level, msg, meta);
+  }
 
-    info(msg: string, meta?: any) { this.log('INFO', msg, meta); }
-    warn(msg: string, meta?: any) { this.log('WARN', msg, meta); }
-    error(msg: string, meta?: any) { this.log('ERROR', msg, meta); }
-    debug(msg: string, meta?: any) { this.log('DEBUG', msg, meta); }
+  info(msg: string, meta?: any) {
+    this.log("INFO", msg, meta);
+  }
+  warn(msg: string, meta?: any) {
+    this.log("WARN", msg, meta);
+  }
+  error(msg: string, meta?: any) {
+    this.log("ERROR", msg, meta);
+  }
+  debug(msg: string, meta?: any) {
+    this.log("DEBUG", msg, meta);
+  }
 
-    langfuse(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', msg: string, meta?: any) {
-        this.log(level, msg, meta);
-        try {
-            import('../../utils/langfuse').then(({ langfuseStorage }) => {
-                const store = langfuseStorage.getStore();
-                const activeObservation = store?.span || store?.trace;
-                if (activeObservation) {
-                    const levelMap: Record<string, string> = {
-                        INFO: 'DEFAULT', WARN: 'WARNING', ERROR: 'ERROR', DEBUG: 'DEBUG'
-                    };
-                    activeObservation.startObservation(msg, {
-                        input: msg,
-                        level: levelMap[level] || 'DEFAULT',
-                        metadata: meta
-                    }, { asType: "event" });
-                }
-            }).catch(() => {});
-        } catch { /* fail silently */ }
+  langfuse(level: "INFO" | "WARN" | "ERROR" | "DEBUG", msg: string, meta?: any) {
+    this.log(level, msg, meta);
+    try {
+      import("../../utils/langfuse")
+        .then(({ langfuseStorage }) => {
+          const store = langfuseStorage.getStore();
+          const activeObservation = store?.span || store?.trace;
+          if (activeObservation) {
+            const levelMap: Record<string, string> = {
+              INFO: "DEFAULT",
+              WARN: "WARNING",
+              ERROR: "ERROR",
+              DEBUG: "DEBUG",
+            };
+            activeObservation.startObservation(
+              msg,
+              {
+                input: msg,
+                level: levelMap[level] || "DEFAULT",
+                metadata: meta,
+              },
+              { asType: "event" },
+            );
+          }
+        })
+        .catch(() => {});
+    } catch {
+      /* fail silently */
     }
+  }
 
-    telemetry(type: string, payload: Record<string, any>) {
-        const spanId = payload.spanId || "unknown";
-        const sessionId = payload.sessionId || "unknown";
-        const messagesCount = payload.input?.messages?.length || 0;
-        const cost = payload.metadata?.monetary_cost_usd || 0;
-        console.log(`${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`);
-        writeToFile('TELEMETRY', `${type.toUpperCase()} | Span: ${spanId} | Session: ${sessionId} | MsgCount: ${messagesCount} | Cost: $${cost.toFixed(5)}`, payload);
-    }
+  telemetry(type: string, payload: Record<string, any>) {
+    const spanId = payload.spanId || "unknown";
+    const sessionId = payload.sessionId || "unknown";
+    const messagesCount = payload.input?.messages?.length || 0;
+    const cost = payload.metadata?.monetary_cost_usd || 0;
+    console.log(
+      `${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`,
+    );
+    writeToFile(
+      "TELEMETRY",
+      `${type.toUpperCase()} | Span: ${spanId} | Session: ${sessionId} | MsgCount: ${messagesCount} | Cost: $${cost.toFixed(5)}`,
+      payload,
+    );
+  }
 
-    agentActivity(missionId: string, event: string, msg: string, meta?: any) {
-        const timestamp = getTimestamp();
-        console.log(`${MAGENTA}${BOLD}[AGENT:${event}]${RESET} ${DIM}[${timestamp}]${RESET} [${missionId.slice(0, 8)}] ${msg}${formatMeta(meta)}`);
-        writeToFile('AGENT_' + event, `[${missionId}] ${msg}`, meta);
-        writeToAgentActivityFile(missionId, event, msg, meta);
-    }
+  agentActivity(missionId: string, event: string, msg: string, meta?: any) {
+    const timestamp = getTimestamp();
+    console.log(
+      `${MAGENTA}${BOLD}[AGENT:${event}]${RESET} ${DIM}[${timestamp}]${RESET} [${missionId.slice(0, 8)}] ${msg}${formatMeta(meta)}`,
+    );
+    writeToFile("AGENT_" + event, `[${missionId}] ${msg}`, meta);
+    writeToAgentActivityFile(missionId, event, msg, meta);
+  }
 }
 
 function writeToAgentActivityFile(missionId: string, event: string, msg: string, meta?: any) {
-    try {
-        const logDir = join(process.cwd(), 'logs');
-        mkdirSync(logDir, { recursive: true });
-        const logPath = join(logDir, 'agent-activity.log');
+  try {
+    const logDir = join(process.cwd(), "logs");
+    mkdirSync(logDir, { recursive: true });
+    const logPath = join(logDir, "agent-activity.log");
 
-        let metaStr = '';
-        const cleanMeta = serializeMeta(meta);
-        if (cleanMeta && typeof cleanMeta === 'object') {
-            metaStr = ' ' + JSON.stringify(cleanMeta);
-        }
-        const line = `[${getTimestamp()}] [Mission:${missionId.slice(0, 8)}] [${event}] ${msg}${metaStr}\n`;
-        appendFileSync(logPath, line, 'utf-8');
-    } catch {
-        // Fail silently
+    let metaStr = "";
+    const cleanMeta = serializeMeta(meta);
+    if (cleanMeta && typeof cleanMeta === "object") {
+      metaStr = " " + JSON.stringify(cleanMeta);
     }
+    const line = `[${getTimestamp()}] [Mission:${missionId.slice(0, 8)}] [${event}] ${msg}${metaStr}\n`;
+    appendFileSync(logPath, line, "utf-8");
+  } catch {
+    // Fail silently
+  }
 }
 
 export const logger = new Logger();
-
-

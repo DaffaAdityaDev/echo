@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { usePromptLibrary, PromptsPage } from "@/features/studio"
+import { PromptsPage, usePromptLibrary } from "@/features/studio";
 
 export default function PromptsRoute() {
-  const props = usePromptLibrary()
-  return <PromptsPage {...props} />
+  const props = usePromptLibrary();
+  return <PromptsPage {...props} />;
 }

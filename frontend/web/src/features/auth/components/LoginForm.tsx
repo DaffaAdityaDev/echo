@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-
-import { cn } from "@/utils/cn";
-import { Input } from "@/components/ui/Input";
+import type React from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/utils/cn";
 export interface LoginFormProps {
   loginAsync: (data: { email: string; password: string }) => Promise<unknown>;
   isLoggingIn: boolean;
@@ -63,16 +63,15 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={cn("pl-10", errors.email && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/30")}
+            className={cn(
+              "pl-10",
+              errors.email && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/30",
+            )}
             autoComplete="email"
             autoFocus
           />
         </div>
-        {errors.email && (
-          <p className="text-xs text-red-400 animate-in">
-            {errors.email}
-          </p>
-        )}
+        {errors.email && <p className="text-xs text-red-400 animate-in">{errors.email}</p>}
       </div>
 
       <div className="space-y-2">
@@ -87,7 +86,10 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={cn("pl-10 pr-10", errors.password && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/30")}
+            className={cn(
+              "pl-10 pr-10",
+              errors.password && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/30",
+            )}
             autoComplete="current-password"
           />
           <button
@@ -99,11 +101,7 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
-        {errors.password && (
-          <p className="text-xs text-red-400 animate-in">
-            {errors.password}
-          </p>
-        )}
+        {errors.password && <p className="text-xs text-red-400 animate-in">{errors.password}</p>}
       </div>
 
       {loginError && (

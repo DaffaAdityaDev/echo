@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import React from "react"
-import { cn } from "@/utils/cn"
-import { Brain, DollarSign, BarChart3 } from "lucide-react"
+import { BarChart3, Brain, DollarSign } from "lucide-react";
+import React from "react";
+import { cn } from "@/utils/cn";
 
 interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-  reasoningTokens?: number
-  cachedTokens?: number
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  reasoningTokens?: number;
+  cachedTokens?: number;
 }
 
 interface TokenCostMeterProps {
-  cumulativeUsage: TokenUsage | null
-  totalCost: number
-  maxContextTokens: number
-  maxIterations: number
-  currentIteration: number
-  isRunning: boolean
-  className?: string
+  cumulativeUsage: TokenUsage | null;
+  totalCost: number;
+  maxContextTokens: number;
+  maxIterations: number;
+  currentIteration: number;
+  isRunning: boolean;
+  className?: string;
 }
 
 function formatNumber(n: number): string {
-  return n.toLocaleString()
+  return n.toLocaleString();
 }
 
 export function TokenCostMeter({
@@ -39,32 +39,21 @@ export function TokenCostMeter({
     promptTokens: 0,
     completionTokens: 0,
     totalTokens: 0,
-  }
+  };
 
-  const promptPct = maxContextTokens > 0 ? (usage.promptTokens / maxContextTokens) * 100 : 0
-  const completionPct = maxContextTokens > 0 ? (usage.completionTokens / maxContextTokens) * 100 : 0
+  const promptPct = maxContextTokens > 0 ? (usage.promptTokens / maxContextTokens) * 100 : 0;
+  const completionPct = maxContextTokens > 0 ? (usage.completionTokens / maxContextTokens) * 100 : 0;
   const reasoningPct =
-    usage.reasoningTokens && maxContextTokens > 0
-      ? (usage.reasoningTokens / maxContextTokens) * 100
-      : 0
-  const totalPct = Math.min(promptPct + completionPct, 100)
-  const compactionThreshold = 90
+    usage.reasoningTokens && maxContextTokens > 0 ? (usage.reasoningTokens / maxContextTokens) * 100 : 0;
+  const totalPct = Math.min(promptPct + completionPct, 100);
+  const compactionThreshold = 90;
 
   return (
-    <div
-      className={cn(
-        "border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4",
-        className,
-      )}
-    >
+    <div className={cn("border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4", className)}>
       <div className="flex items-center gap-2">
         <BarChart3 className="h-4 w-4 text-zinc-600" />
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Token &amp; Cost
-        </h3>
-        {isRunning && (
-          <Brain className="h-3.5 w-3.5 text-blue-600 animate-pulse ml-auto" />
-        )}
+        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Token &amp; Cost</h3>
+        {isRunning && <Brain className="h-3.5 w-3.5 text-blue-600 animate-pulse ml-auto" />}
       </div>
 
       <div className="space-y-3">
@@ -116,9 +105,7 @@ export function TokenCostMeter({
             <span>
               {totalPct.toFixed(1)}% used
               {totalPct > compactionThreshold && (
-                <span className="text-red-500 ml-1 font-medium">
-                  &middot; Compaction threshold
-                </span>
+                <span className="text-red-500 ml-1 font-medium">&middot; Compaction threshold</span>
               )}
             </span>
           </div>
@@ -130,9 +117,7 @@ export function TokenCostMeter({
               <DollarSign className="h-3.5 w-3.5 text-zinc-400" />
               <span className="text-xs text-zinc-500">Total Cost</span>
             </div>
-            <p className="text-sm font-semibold text-zinc-800 tabular-nums">
-              ${totalCost.toFixed(4)}
-            </p>
+            <p className="text-sm font-semibold text-zinc-800 tabular-nums">${totalCost.toFixed(4)}</p>
           </div>
 
           <div className="border border-zinc-200 bg-white rounded-xl p-3 space-y-1.5">
@@ -150,36 +135,27 @@ export function TokenCostMeter({
           <span className="text-xs text-zinc-500">Token Breakdown</span>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
             <span className="text-zinc-700">
-              Prompt:{" "}
-              <span className="font-mono font-medium text-emerald-600">
-                {formatNumber(usage.promptTokens)}
-              </span>
+              Prompt: <span className="font-mono font-medium text-emerald-600">{formatNumber(usage.promptTokens)}</span>
             </span>
             <span className="text-zinc-700">
               Completion:{" "}
-              <span className="font-mono font-medium text-blue-600">
-                {formatNumber(usage.completionTokens)}
-              </span>
+              <span className="font-mono font-medium text-blue-600">{formatNumber(usage.completionTokens)}</span>
             </span>
             {usage.reasoningTokens !== undefined && (
               <span className="text-zinc-700">
                 Reasoning:{" "}
-                <span className="font-mono font-medium text-amber-600">
-                  {formatNumber(usage.reasoningTokens)}
-                </span>
+                <span className="font-mono font-medium text-amber-600">{formatNumber(usage.reasoningTokens)}</span>
               </span>
             )}
             {usage.cachedTokens !== undefined && usage.cachedTokens > 0 && (
               <span className="text-zinc-700">
                 Cached:{" "}
-                <span className="font-mono font-medium text-purple-600">
-                  {formatNumber(usage.cachedTokens)}
-                </span>
+                <span className="font-mono font-medium text-purple-600">{formatNumber(usage.cachedTokens)}</span>
               </span>
             )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

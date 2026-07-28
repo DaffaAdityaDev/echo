@@ -1,25 +1,21 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { CodeBlock } from '@/components/docs/CodeBlock'
-import { useSpec } from '@/components/docs/OpenApiSpecProvider'
-import { EndpointDetail } from '@/components/docs/EndpointDetail'
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
+import { EndpointDetail } from "@/components/docs/EndpointDetail";
+import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function SessionsGuide() {
-  const { spec } = useSpec()
-  const sessionEndpoints = spec?.tags
-    .flatMap((t) => t.endpoints)
-    .filter((ep) => ep.tags.includes('Sessions'))
+  const { spec } = useSpec();
+  const sessionEndpoints = spec?.tags.flatMap((t) => t.endpoints).filter((ep) => ep.tags.includes("Sessions"));
 
   return (
     <div className="space-y-12 max-w-4xl font-mono">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-          Session Management
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Session Management</h1>
         <p className="text-xs text-muted mt-2 leading-relaxed font-mono">
-          Sessions maintain conversation context across multiple chat requests. Each session stores
-          message history, context summaries, and metadata.
+          Sessions maintain conversation context across multiple chat requests. Each session stores message history,
+          context summaries, and metadata.
         </p>
       </div>
 
@@ -28,8 +24,8 @@ export default function SessionsGuide() {
           Basic Usage
         </h2>
         <p className="text-xs text-muted leading-relaxed font-mono">
-          Create a session, then pass the <code className="text-blue-600 font-bold">sessionId</code> in subsequent chat requests
-          to maintain conversation continuity:
+          Create a session, then pass the <code className="text-blue-600 font-bold">sessionId</code> in subsequent chat
+          requests to maintain conversation continuity:
         </p>
         <CodeBlock
           language="python"
@@ -78,7 +74,9 @@ print(messages["messages"])`}
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Use</h3>
-              <p className="text-xs text-muted">Include sessionId in chat requests. The agent builds context from previous messages.</p>
+              <p className="text-xs text-muted">
+                Include sessionId in chat requests. The agent builds context from previous messages.
+              </p>
             </div>
           </div>
           <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
@@ -87,7 +85,7 @@ print(messages["messages"])`}
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Update</h3>
-              <p className="text-xs text-muted">PATCH /sessions/{'{id}'} — Update title or context summary.</p>
+              <p className="text-xs text-muted">PATCH /sessions/{"{id}"} — Update title or context summary.</p>
             </div>
           </div>
           <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
@@ -96,7 +94,7 @@ print(messages["messages"])`}
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Delete</h3>
-              <p className="text-xs text-muted">DELETE /sessions/{'{id}'} — Permanently remove session and messages.</p>
+              <p className="text-xs text-muted">DELETE /sessions/{"{id}"} — Permanently remove session and messages.</p>
             </div>
           </div>
         </div>
@@ -118,6 +116,5 @@ print(messages["messages"])`}
         </section>
       )}
     </div>
-  )
+  );
 }
-

@@ -3,13 +3,7 @@
 import { AlertCircle, RefreshCcw } from "lucide-react";
 import { useEffect } from "react";
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
@@ -22,7 +16,9 @@ export default function Error({
       </div>
       <div className="space-y-2">
         <h2 className="text-xl font-bold">Something went wrong!</h2>
-        <p className="text-white/40 max-w-sm">{error.message || "An unexpected error occurred while processing your request."}</p>
+        <p className="text-white/40 max-w-sm">
+          {error.message || "An unexpected error occurred while processing your request."}
+        </p>
       </div>
       <button
         onClick={() => reset()}

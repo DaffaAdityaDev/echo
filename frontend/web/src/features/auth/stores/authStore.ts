@@ -1,13 +1,13 @@
-import { create } from "zustand"
-import { User } from "../types"
-import { STORAGE_KEYS } from "@/constants"
+import { create } from "zustand";
+import { STORAGE_KEYS } from "@/constants";
+import type { User } from "../types";
 
 interface AuthState {
-  user: User | null
-  token: string | null
-  setUser: (user: User | null) => void
-  setToken: (token: string | null) => void
-  clearAuth: () => void
+  user: User | null;
+  token: string | null;
+  setUser: (user: User | null) => void;
+  setToken: (token: string | null) => void;
+  clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -16,14 +16,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user }),
   setToken: (token) => {
     if (token) {
-      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token)
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
     } else {
-      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN)
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     }
-    set({ token })
+    set({ token });
   },
   clearAuth: () => {
-    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN)
-    set({ user: null, token: null })
+    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    set({ user: null, token: null });
   },
-}))
+}));

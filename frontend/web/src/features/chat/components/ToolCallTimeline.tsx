@@ -1,9 +1,9 @@
 "use client";
 
+import { CheckCircle2, ChevronDown, ChevronRight, Search, SkipForward } from "lucide-react";
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Search, CheckCircle2, SkipForward } from "lucide-react";
-import type { ThoughtStep } from "../types";
 import { PACKET_TYPES } from "../constants";
+import type { ThoughtStep } from "../types";
 
 interface ToolCallTimelineProps {
   steps: ThoughtStep[];
@@ -15,7 +15,8 @@ export function ToolCallTimeline({ steps }: ToolCallTimelineProps) {
   if (steps.length === 0) return null;
 
   const toolSteps = steps.filter(
-    (s) => s.type === PACKET_TYPES.TOOL_CALL || s.type === PACKET_TYPES.TOOL_SKIP || s.type === PACKET_TYPES.TOOL_RESULT
+    (s) =>
+      s.type === PACKET_TYPES.TOOL_CALL || s.type === PACKET_TYPES.TOOL_SKIP || s.type === PACKET_TYPES.TOOL_RESULT,
   );
 
   if (toolSteps.length === 0) return null;

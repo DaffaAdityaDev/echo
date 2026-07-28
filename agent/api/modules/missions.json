@@ -157,7 +157,12 @@
             "description": "Tool names requiring human approval before execution",
             "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure"]
           },
-          "ttlMinutes": { "type": "integer", "default": 5, "description": "Approval window TTL in minutes", "example": 5 }
+          "ttlMinutes": {
+            "type": "integer",
+            "default": 5,
+            "description": "Approval window TTL in minutes",
+            "example": 5
+          }
         }
       },
       "ContextOptimizationConfig": {
@@ -177,10 +182,7 @@
       "post": {
         "summary": "Approve pending HITL tool call and resume mission",
         "description": "Approves a tool execution that was paused by the HITL Guard. If the approvalId is expired or not found, returns 404. On success, resumes the mission execution loop via SSE stream.",
-        "security": [
-          { "InternalTokenAuth": [] },
-          { "BearerAuth": [] }
-        ],
+        "security": [{ "InternalTokenAuth": [] }, { "BearerAuth": [] }],
         "parameters": [
           {
             "name": "id",
@@ -241,10 +243,7 @@
       "post": {
         "summary": "Deny pending HITL tool call and resume mission",
         "description": "Denies a tool execution paused by the HITL Guard. The agent is informed of the denial and asked to find an alternative solution. Resumes the mission execution loop via SSE stream.",
-        "security": [
-          { "InternalTokenAuth": [] },
-          { "BearerAuth": [] }
-        ],
+        "security": [{ "InternalTokenAuth": [] }, { "BearerAuth": [] }],
         "parameters": [
           {
             "name": "id",

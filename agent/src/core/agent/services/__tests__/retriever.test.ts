@@ -1,7 +1,6 @@
-
 import { z } from "zod";
-import { ToolRetriever } from "../retriever";
 import type { ToolDefinition } from "../../../../shared/types";
+import { ToolRetriever } from "../retriever";
 
 function makeTool(overrides: Partial<ToolDefinition> & { name: string }): ToolDefinition {
   return {

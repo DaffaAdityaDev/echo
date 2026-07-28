@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useCallback, useEffect, useState } from "react";
+import { useModels } from "@/features/chat/hooks/useModels";
 import { useFeatures } from "@/features/shared/hooks/useFeatures";
 import { useSkills } from "@/features/shared/hooks/useSkills";
-import { useModels } from "@/features/chat/hooks/useModels";
 import { settingsApi } from "../services/settings-api";
+import { useSettingsStore } from "../stores/settingsStore";
 
 export function useSettingsPage() {
   const config = useSettingsStore((s) => s.config);
@@ -51,39 +51,60 @@ export function useSettingsPage() {
     }
   };
 
-  const handleModeChange = useCallback((value: string) => {
-    setConfig({ defaultMode: value });
-  }, [setConfig]);
+  const handleModeChange = useCallback(
+    (value: string) => {
+      setConfig({ defaultMode: value });
+    },
+    [setConfig],
+  );
 
-  const handleModelChange = useCallback((value: string) => {
-    setConfig({ defaultModel: value });
-  }, [setConfig]);
+  const handleModelChange = useCallback(
+    (value: string) => {
+      setConfig({ defaultModel: value });
+    },
+    [setConfig],
+  );
 
-  const handleFeatureToggle = useCallback((id: string) => {
-    const next = config.defaultFeatures.includes(id)
-      ? config.defaultFeatures.filter((f) => f !== id)
-      : [...config.defaultFeatures, id];
-    setConfig({ defaultFeatures: next });
-  }, [config.defaultFeatures, setConfig]);
+  const handleFeatureToggle = useCallback(
+    (id: string) => {
+      const next = config.defaultFeatures.includes(id)
+        ? config.defaultFeatures.filter((f) => f !== id)
+        : [...config.defaultFeatures, id];
+      setConfig({ defaultFeatures: next });
+    },
+    [config.defaultFeatures, setConfig],
+  );
 
-  const handleSkillToggle = useCallback((name: string) => {
-    const next = config.defaultSkills.includes(name)
-      ? config.defaultSkills.filter((s) => s !== name)
-      : [...config.defaultSkills, name];
-    setConfig({ defaultSkills: next });
-  }, [config.defaultSkills, setConfig]);
+  const handleSkillToggle = useCallback(
+    (name: string) => {
+      const next = config.defaultSkills.includes(name)
+        ? config.defaultSkills.filter((s) => s !== name)
+        : [...config.defaultSkills, name];
+      setConfig({ defaultSkills: next });
+    },
+    [config.defaultSkills, setConfig],
+  );
 
-  const handleProviderTypeChange = useCallback((value: string) => {
-    setConfig({ providerType: value });
-  }, [setConfig]);
+  const handleProviderTypeChange = useCallback(
+    (value: string) => {
+      setConfig({ providerType: value });
+    },
+    [setConfig],
+  );
 
-  const handleApiKeyChange = useCallback((value: string) => {
-    setConfig({ apiKey: value });
-  }, [setConfig]);
+  const handleApiKeyChange = useCallback(
+    (value: string) => {
+      setConfig({ apiKey: value });
+    },
+    [setConfig],
+  );
 
-  const handleBaseUrlChange = useCallback((value: string) => {
-    setConfig({ baseUrl: value });
-  }, [setConfig]);
+  const handleBaseUrlChange = useCallback(
+    (value: string) => {
+      setConfig({ baseUrl: value });
+    },
+    [setConfig],
+  );
 
   const groupedModels = models.reduce<Record<string, typeof models>>((acc, m) => {
     (acc[m.provider_name] ??= []).push(m);

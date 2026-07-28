@@ -49,10 +49,7 @@
           },
           "tier_requirement": {
             "type": "string",
-            "enum": [
-              "free",
-              "pro"
-            ],
+            "enum": ["free", "pro"],
             "example": "free"
           }
         }

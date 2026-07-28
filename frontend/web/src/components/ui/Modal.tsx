@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { X } from "lucide-react";
+import * as React from "react";
 import { cn } from "@/utils/cn";
 
 export interface ModalProps {
@@ -13,14 +13,7 @@ export interface ModalProps {
   className?: string;
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  description,
-  children,
-  className,
-}: ModalProps) {
+export function Modal({ isOpen, onClose, title, description, children, className }: ModalProps) {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -49,22 +42,14 @@ export function Modal({
       <div
         className={cn(
           "relative z-10 w-full max-w-lg rounded-xs border border-border bg-white p-6 text-foreground shadow-2xl transition-all duration-300 animate-in zoom-in-95 font-mono crosshair-container",
-          className
+          className,
         )}
       >
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-border">
           <div>
-            {title && (
-              <h3 className="text-base font-bold tracking-tight text-foreground uppercase">
-                {title}
-              </h3>
-            )}
-            {description && (
-              <p className="text-xs text-muted mt-1 leading-relaxed">
-                {description}
-              </p>
-            )}
+            {title && <h3 className="text-base font-bold tracking-tight text-foreground uppercase">{title}</h3>}
+            {description && <p className="text-xs text-muted mt-1 leading-relaxed">{description}</p>}
           </div>
           <button
             onClick={onClose}
@@ -74,11 +59,9 @@ export function Modal({
           </button>
         </div>
 
-
         {/* Body */}
         <div className="pt-4">{children}</div>
       </div>
     </div>
   );
 }
-

@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { BookOpen, ArrowLeft, ShieldAlert, Menu, X } from 'lucide-react'
-import { OpenApiSpecProvider } from '@/components/docs/OpenApiSpecProvider'
-import { DocsSidebar } from '@/components/docs/DocsSidebar'
-import { cn } from '@/utils/cn'
+import { ArrowLeft, BookOpen, Menu, ShieldAlert, X } from "lucide-react";
+import Link from "next/link";
+import type React from "react";
+import { useState } from "react";
+import { DocsSidebar } from "@/components/docs/DocsSidebar";
+import { OpenApiSpecProvider } from "@/components/docs/OpenApiSpecProvider";
+import { cn } from "@/utils/cn";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <OpenApiSpecProvider>
@@ -28,7 +29,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div>
               <span className="font-bold text-sm tracking-tight block text-foreground uppercase">ECHO API DOCS</span>
-              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Reference & Integration Guide</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">
+                Reference & Integration Guide
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -62,8 +65,8 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           {/* Sidebar - Docked to Left Corner */}
           <div
             className={cn(
-              'fixed lg:sticky top-[57px] left-0 z-30 h-[calc(100vh-57px)] transition-transform duration-200 shrink-0',
-              sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+              "fixed lg:sticky top-[57px] left-0 z-30 h-[calc(100vh-57px)] transition-transform duration-200 shrink-0",
+              sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
             )}
           >
             <DocsSidebar />
@@ -71,15 +74,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
           {/* Main Content - Centered */}
           <main className="flex-1 min-w-0 px-6 md:px-12 py-8 pb-24 flex justify-center" id="main-content">
-            <div className="w-full max-w-4xl">
-              {children}
-            </div>
+            <div className="w-full max-w-4xl">{children}</div>
           </main>
         </div>
       </div>
     </OpenApiSpecProvider>
-  )
+  );
 }
-
-
-

@@ -1,52 +1,74 @@
-"use client"
+"use client";
 
-import React from "react"
-import { FlaskConical, Bug } from "lucide-react"
-import { useModels } from "@/features/chat/hooks/useModels"
-import { PromptEditor } from "./PromptEditor"
-import { FeatureSkillPicker } from "./FeatureSkillPicker"
-import { ModelComparisonGrid } from "./ModelComparisonGrid"
-import { AgentExecutionTree } from "../debug/AgentExecutionTree"
-import { StatusDashboard } from "../debug/StatusDashboard"
-import { TokenCostMeter } from "../debug/TokenCostMeter"
-import { ToolTimeline } from "../debug/ToolTimeline"
-import { ThoughtTrace } from "../debug/ThoughtTrace"
-import { DebugPromptPanel } from "../debug/DebugPromptPanel"
-import { DEBUG_TABS } from "../../constants"
-import type { usePlayground } from "../../hooks/usePlayground"
+import { Bug, FlaskConical } from "lucide-react";
+import React from "react";
+import { useModels } from "@/features/chat/hooks/useModels";
+import { DEBUG_TABS } from "../../constants";
+import type { usePlayground } from "../../hooks/usePlayground";
+import { AgentExecutionTree } from "../debug/AgentExecutionTree";
+import { DebugPromptPanel } from "../debug/DebugPromptPanel";
+import { StatusDashboard } from "../debug/StatusDashboard";
+import { ThoughtTrace } from "../debug/ThoughtTrace";
+import { TokenCostMeter } from "../debug/TokenCostMeter";
+import { ToolTimeline } from "../debug/ToolTimeline";
+import { FeatureSkillPicker } from "./FeatureSkillPicker";
+import { ModelComparisonGrid } from "./ModelComparisonGrid";
+import { PromptEditor } from "./PromptEditor";
 
-type Props = ReturnType<typeof usePlayground>
+type Props = ReturnType<typeof usePlayground>;
 
 export function PlaygroundPage(props: Props) {
   const {
-    prompt, setPrompt,
-    variables, setVariables,
-    selectedModels, setSelectedModels,
-    selectedFeatures, setSelectedFeatures,
-    selectedSkills, setSelectedSkills,
-    allFeatures, allSkills,
-    featuresLoading, skillsLoading,
-    results, isRunning: modelRunRunning, error,
+    prompt,
+    setPrompt,
+    variables,
+    setVariables,
+    selectedModels,
+    setSelectedModels,
+    selectedFeatures,
+    setSelectedFeatures,
+    selectedSkills,
+    setSelectedSkills,
+    allFeatures,
+    allSkills,
+    featuresLoading,
+    skillsLoading,
+    results,
+    isRunning: modelRunRunning,
+    error,
     streamingContent,
     streamingReasoning,
     handleRun,
     debugMode,
-    debugAgentTree, debugToolCalls, debugStateChanges,
-    debugDegradationLevel, debugMissionState,
-    debugTotalCost, debugMaxIterations,
-    debugContent, debugReasoning, debugIsRunning,
-    debugError, debugInfo,
-    debugAgentStatus, debugMissionMeta, debugCumulativeUsage,
-    handleDebugRun, handleToggleDebug,
-    activeTab, setActiveTab,
-    thoughtTraceOpen, openThoughtTrace, closeThoughtTrace,
-  } = props
+    debugAgentTree,
+    debugToolCalls,
+    debugStateChanges,
+    debugDegradationLevel,
+    debugMissionState,
+    debugTotalCost,
+    debugMaxIterations,
+    debugContent,
+    debugReasoning,
+    debugIsRunning,
+    debugError,
+    debugInfo,
+    debugAgentStatus,
+    debugMissionMeta,
+    debugCumulativeUsage,
+    handleDebugRun,
+    handleToggleDebug,
+    activeTab,
+    setActiveTab,
+    thoughtTraceOpen,
+    openThoughtTrace,
+    closeThoughtTrace,
+  } = props;
 
-  const { models } = useModels()
-  const availableModels = models.map((m) => m.id)
-  const variableSlots = Object.entries(variables).map(([key, value]) => ({ key, value }))
+  const { models } = useModels();
+  const availableModels = models.map((m) => m.id);
+  const variableSlots = Object.entries(variables).map(([key, value]) => ({ key, value }));
 
-  const isRunning = debugMode ? debugIsRunning : modelRunRunning
+  const isRunning = debugMode ? debugIsRunning : modelRunRunning;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -54,20 +76,19 @@ export function PlaygroundPage(props: Props) {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Playground</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            {debugMode ? 'Debug mode — full agent execution visualization.' : 'Test your prompts against multiple models side-by-side.'}
+            {debugMode
+              ? "Debug mode — full agent execution visualization."
+              : "Test your prompts against multiple models side-by-side."}
           </p>
         </div>
         <label className="flex items-center gap-2 cursor-pointer select-none">
-          <Bug className={`h-4 w-4 ${debugMode ? 'text-amber-500' : 'text-zinc-400'}`} />
-          <span className={`text-xs font-semibold ${debugMode ? 'text-amber-600' : 'text-zinc-500'}`}>Debug</span>
-          <input
-            type="checkbox"
-            checked={debugMode}
-            onChange={handleToggleDebug}
-            className="sr-only"
-          />
-          <div className={`w-9 h-5 rounded-full transition-colors ${debugMode ? 'bg-amber-500' : 'bg-zinc-300'}`}>
-            <div className={`w-4 h-4 bg-white rounded-full shadow-sm mt-0.5 transition-transform ${debugMode ? 'translate-x-4 ml-0.5' : 'ml-0.5'}`} />
+          <Bug className={`h-4 w-4 ${debugMode ? "text-amber-500" : "text-zinc-400"}`} />
+          <span className={`text-xs font-semibold ${debugMode ? "text-amber-600" : "text-zinc-500"}`}>Debug</span>
+          <input type="checkbox" checked={debugMode} onChange={handleToggleDebug} className="sr-only" />
+          <div className={`w-9 h-5 rounded-full transition-colors ${debugMode ? "bg-amber-500" : "bg-zinc-300"}`}>
+            <div
+              className={`w-4 h-4 bg-white rounded-full shadow-sm mt-0.5 transition-transform ${debugMode ? "translate-x-4 ml-0.5" : "ml-0.5"}`}
+            />
           </div>
         </label>
       </div>
@@ -83,9 +104,11 @@ export function PlaygroundPage(props: Props) {
               availableModels={availableModels}
               onPromptChange={setPrompt}
               onVariablesChange={(slots) => {
-                const obj: Record<string, string> = {}
-                slots.forEach(s => { if (s.key) obj[s.key] = s.value })
-                setVariables(obj)
+                const obj: Record<string, string> = {};
+                slots.forEach((s) => {
+                  if (s.key) obj[s.key] = s.value;
+                });
+                setVariables(obj);
               }}
               onModelsChange={setSelectedModels}
               onRun={debugMode ? handleDebugRun : handleRun}
@@ -115,8 +138,8 @@ export function PlaygroundPage(props: Props) {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       activeTab === tab.id
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100'
+                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                        : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100"
                     }`}
                   >
                     {tab.label}
@@ -134,7 +157,7 @@ export function PlaygroundPage(props: Props) {
                 <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{debugError}</div>
               )}
 
-              {activeTab === 'output' && (
+              {activeTab === "output" && (
                 <div className="space-y-3">
                   {debugReasoning && (
                     <details className="border border-amber-200 bg-amber-50/50 rounded-2xl overflow-hidden">
@@ -165,7 +188,7 @@ export function PlaygroundPage(props: Props) {
                     </div>
                   )}
 
-                  {debugToolCalls.filter(t => t.status === 'completed' || t.status === 'failed').length > 0 && (
+                  {debugToolCalls.filter((t) => t.status === "completed" || t.status === "failed").length > 0 && (
                     <div className="flex justify-end">
                       <button
                         onClick={openThoughtTrace}
@@ -178,15 +201,11 @@ export function PlaygroundPage(props: Props) {
                 </div>
               )}
 
-              {activeTab === 'tree' && (
-                <AgentExecutionTree tree={debugAgentTree} isRunning={debugIsRunning} />
-              )}
+              {activeTab === "tree" && <AgentExecutionTree tree={debugAgentTree} isRunning={debugIsRunning} />}
 
-              {activeTab === 'timeline' && (
-                <ToolTimeline toolCalls={debugToolCalls} isRunning={debugIsRunning} />
-              )}
+              {activeTab === "timeline" && <ToolTimeline toolCalls={debugToolCalls} isRunning={debugIsRunning} />}
 
-              {activeTab === 'status' && (
+              {activeTab === "status" && (
                 <StatusDashboard
                   agentStatus={debugAgentStatus}
                   degradationLevel={debugDegradationLevel}
@@ -196,7 +215,7 @@ export function PlaygroundPage(props: Props) {
                 />
               )}
 
-              {activeTab === 'tokens' && (
+              {activeTab === "tokens" && (
                 <TokenCostMeter
                   cumulativeUsage={debugCumulativeUsage}
                   totalCost={debugTotalCost}
@@ -207,9 +226,7 @@ export function PlaygroundPage(props: Props) {
                 />
               )}
 
-              {activeTab === 'debug' && (
-                <DebugPromptPanel debugInfos={debugInfo} isRunning={debugIsRunning} />
-              )}
+              {activeTab === "debug" && <DebugPromptPanel debugInfos={debugInfo} isRunning={debugIsRunning} />}
             </>
           ) : (
             <>
@@ -224,17 +241,19 @@ export function PlaygroundPage(props: Props) {
                   <p className="text-sm text-zinc-500">Write a prompt and run a test to see results.</p>
                 </div>
               )}
-              <ModelComparisonGrid results={results ?? []} isLoading={modelRunRunning} streamingContent={streamingContent} streamingReasoning={streamingReasoning} selectedModels={selectedModels} />
+              <ModelComparisonGrid
+                results={results ?? []}
+                isLoading={modelRunRunning}
+                streamingContent={streamingContent}
+                streamingReasoning={streamingReasoning}
+                selectedModels={selectedModels}
+              />
             </>
           )}
         </div>
       </div>
 
-      <ThoughtTrace
-        reasoning={debugReasoning}
-        isOpen={thoughtTraceOpen}
-        onClose={closeThoughtTrace}
-      />
+      <ThoughtTrace reasoning={debugReasoning} isOpen={thoughtTraceOpen} onClose={closeThoughtTrace} />
     </div>
-  )
+  );
 }

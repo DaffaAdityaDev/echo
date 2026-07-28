@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import { useSpec } from '@/components/docs/OpenApiSpecProvider'
-import { EndpointList } from '@/components/docs/EndpointList'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import React from "react";
+import { EndpointList } from "@/components/docs/EndpointList";
+import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function TagReferencePage() {
-  const params = useParams()
-  const rawTag = (params?.tag as string) || ''
-  const { spec, loading, error } = useSpec()
+  const params = useParams();
+  const rawTag = (params?.tag as string) || "";
+  const { spec, loading, error } = useSpec();
 
   if (loading) {
     return (
@@ -21,7 +21,7 @@ export default function TagReferencePage() {
           <div key={i} className="h-32 bg-slate-100 border border-border rounded-xs animate-pulse" />
         ))}
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -31,19 +31,17 @@ export default function TagReferencePage() {
           <p className="text-xs font-bold text-rose-700">Failed to load API specification: {error}</p>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!spec) return null
+  if (!spec) return null;
 
   // Find matching tag group case-insensitively
-  const tagGroup = spec.tags.find(
-    (t) => t.name.toLowerCase() === rawTag.toLowerCase()
-  )
+  const tagGroup = spec.tags.find((t) => t.name.toLowerCase() === rawTag.toLowerCase());
 
   const baseUrl = spec.info.host
-    ? `http://${spec.info.host}${spec.info.basePath || ''}api/v1`
-    : 'http://localhost:8080/api/v1'
+    ? `http://${spec.info.host}${spec.info.basePath || ""}api/v1`
+    : "http://localhost:8080/api/v1";
 
   if (!tagGroup) {
     return (
@@ -55,15 +53,11 @@ export default function TagReferencePage() {
           >
             <ArrowLeft size={14} /> Back to All Endpoints
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-            Tag "{rawTag}" Not Found
-          </h1>
-          <p className="text-xs text-muted mt-2">
-            Available tag groups: {spec.tags.map((t) => t.name).join(', ')}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Tag "{rawTag}" Not Found</h1>
+          <p className="text-xs text-muted mt-2">Available tag groups: {spec.tags.map((t) => t.name).join(", ")}</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -80,23 +74,19 @@ export default function TagReferencePage() {
             API Category
           </span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase mt-2">
-          {tagGroup.name} Reference
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase mt-2">{tagGroup.name} Reference</h1>
         <div className="flex items-center gap-3 mt-1 text-xs">
-          <p className="text-muted">{spec.info.title} — v{spec.info.version}</p>
+          <p className="text-muted">
+            {spec.info.title} — v{spec.info.version}
+          </p>
           <span className="text-slate-300">|</span>
           <span className="text-xs text-blue-600 font-bold">
-            {tagGroup.endpoints.length} {tagGroup.endpoints.length === 1 ? 'endpoint' : 'endpoints'}
+            {tagGroup.endpoints.length} {tagGroup.endpoints.length === 1 ? "endpoint" : "endpoints"}
           </span>
         </div>
       </div>
 
-      <EndpointList
-        tagGroups={[tagGroup]}
-        baseUrl={baseUrl}
-        definitions={spec.definitions}
-      />
+      <EndpointList tagGroups={[tagGroup]} baseUrl={baseUrl} definitions={spec.definitions} />
     </div>
-  )
+  );
 }

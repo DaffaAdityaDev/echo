@@ -1,2 +1,2 @@
-export { StandardContextAnchor } from './standard'
-export { ANCHOR_VERSIONS, ANCHOR_DEFAULTS, ANCHOR_TEMPLATES } from './constants'
+export { ANCHOR_DEFAULTS, ANCHOR_TEMPLATES, ANCHOR_VERSIONS } from "./constants";
+export { StandardContextAnchor } from "./standard";

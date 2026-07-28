@@ -1,5 +1,5 @@
+import { ENDPOINTS, QUERY_KEYS } from "@/constants";
 import { api } from "@/lib/api-client";
-import { QUERY_KEYS, ENDPOINTS } from "@/constants";
 
 export interface Model {
   id: string;
@@ -19,4 +19,3 @@ export const modelQueries = {
     },
   }),
 };
-

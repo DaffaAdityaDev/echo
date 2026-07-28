@@ -1,1 +1,1 @@
-export { MemoryAdapter } from './memory.adapter';
+export { MemoryAdapter } from "./memory.adapter";

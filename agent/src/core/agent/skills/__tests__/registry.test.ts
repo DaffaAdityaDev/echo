@@ -1,4 +1,3 @@
-
 import { SkillRegistry } from "../registry";
 import type { SkillDefinition } from "../types";
 
@@ -157,5 +156,4 @@ describe("SkillRegistry", () => {
       expect(result).toEqual([]);
     });
   });
-
 });

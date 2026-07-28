@@ -2,19 +2,18 @@ import "./config/env";
 import "./shared/utils/telemetry";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { ENV } from "./config/env";
+import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "./shared/utils/logger";
 import routes from "./adapter/inbound/api/routes";
-import { monitorMiddleware } from "./adapter/inbound/middleware/monitor";
 import { authMiddleware } from "./adapter/inbound/middleware/auth";
 import { errorHandler } from "./adapter/inbound/middleware/error";
-import { toolRegistry } from "./core/agent/tools";
+import { monitorMiddleware } from "./adapter/inbound/middleware/monitor";
 import { MemoryAdapter } from "./adapter/outbound/backend/memory.adapter";
+import { ENV } from "./config/env";
 import { CredentialManager } from "./core/agent/credentials";
-
-import { fileURLToPath } from "node:url";
+import { toolRegistry } from "./core/agent/tools";
+import { logger } from "./shared/utils/logger";
 
 // Autoload Agent Tools
 await toolRegistry.autoload();
@@ -63,9 +62,9 @@ logger.info(`Backend Service: Standard Modular Pattern`);
 logger.info(`Harness Service: Isolated Core Engine`);
 
 export default {
-    port: PORT,
-    fetch: app.fetch,
-    idleTimeout: 255,
+  port: PORT,
+  fetch: app.fetch,
+  idleTimeout: 255,
 };
 
-export { memoryProvider, credentialManager };
+export { credentialManager, memoryProvider };

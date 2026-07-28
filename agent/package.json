@@ -6,8 +6,10 @@
   "scripts": {
     "docs": "node api/merge.mjs",
     "build": "npm run docs && bun build ./src/index.ts --outdir ./dist --target bun",
-    "start": "node dist/index.js",
+    "start": "bun run dist/index.js",
     "dev": "bun --watch src/index.ts",
+    "lint": "biome check --write .",
+    "format": "biome format --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -39,6 +41,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.5",
     "@langfuse/langchain": "^5.4.1",
     "@types/bun": "latest",
     "@types/jsonwebtoken": "^9.0.7",

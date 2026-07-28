@@ -1,16 +1,14 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { CodeBlock } from '@/components/docs/CodeBlock'
-import { useSpec } from '@/components/docs/OpenApiSpecProvider'
-import { EndpointDetail } from '@/components/docs/EndpointDetail'
-import { ShieldAlert, ShieldCheck } from 'lucide-react'
+import { ShieldAlert, ShieldCheck } from "lucide-react";
+import React from "react";
+import { CodeBlock } from "@/components/docs/CodeBlock";
+import { EndpointDetail } from "@/components/docs/EndpointDetail";
+import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function MissionsGuide() {
-  const { spec } = useSpec()
-  const missionEndpoints = spec?.tags
-    .flatMap((t) => t.endpoints)
-    .filter((ep) => ep.path.includes('/missions/'))
+  const { spec } = useSpec();
+  const missionEndpoints = spec?.tags.flatMap((t) => t.endpoints).filter((ep) => ep.path.includes("/missions/"));
 
   return (
     <div className="space-y-12 max-w-4xl font-mono">
@@ -18,12 +16,10 @@ export default function MissionsGuide() {
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xs bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold uppercase tracking-wider mb-3">
           <ShieldCheck size={12} /> Security & Governance
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-          HITL / Missions
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">HITL / Missions</h1>
         <p className="text-xs text-muted mt-2 leading-relaxed font-mono">
-          Human-in-the-Loop (HITL) approval flow for high-risk tool executions. When the agent
-          encounters a protected tool, it pauses and requests human approval before proceeding.
+          Human-in-the-Loop (HITL) approval flow for high-risk tool executions. When the agent encounters a protected
+          tool, it pauses and requests human approval before proceeding.
         </p>
       </div>
 
@@ -37,8 +33,16 @@ export default function MissionsGuide() {
               <ShieldAlert size={14} className="text-amber-600" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">1. HITL Event Triggered</h3>
-              <p className="text-xs text-muted">During execution, the agent emits a <code className="text-blue-600 font-bold bg-slate-100 px-1 py-0.5 rounded-xs border border-border">hitl_approval_required</code> SSE event with approval details.</p>
+              <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">
+                1. HITL Event Triggered
+              </h3>
+              <p className="text-xs text-muted">
+                During execution, the agent emits a{" "}
+                <code className="text-blue-600 font-bold bg-slate-100 px-1 py-0.5 rounded-xs border border-border">
+                  hitl_approval_required
+                </code>{" "}
+                SSE event with approval details.
+              </p>
             </div>
           </div>
           <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
@@ -46,8 +50,15 @@ export default function MissionsGuide() {
               <span className="text-xs font-bold text-blue-600 font-mono">2</span>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">2. Receive Approval Request</h3>
-              <p className="text-xs text-muted">The SSE event contains <code className="text-blue-600 font-bold">approvalId</code>, <code className="text-blue-600 font-bold">toolName</code>, <code className="text-blue-600 font-bold">args</code>, and <code className="text-blue-600 font-bold">riskLevel</code>.</p>
+              <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">
+                2. Receive Approval Request
+              </h3>
+              <p className="text-xs text-muted">
+                The SSE event contains <code className="text-blue-600 font-bold">approvalId</code>,{" "}
+                <code className="text-blue-600 font-bold">toolName</code>,{" "}
+                <code className="text-blue-600 font-bold">args</code>, and{" "}
+                <code className="text-blue-600 font-bold">riskLevel</code>.
+              </p>
             </div>
           </div>
           <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
@@ -56,7 +67,10 @@ export default function MissionsGuide() {
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">3. Approve or Deny</h3>
-              <p className="text-xs text-muted">POST to approve or deny with the <code className="text-blue-600 font-bold">approvalId</code>. The mission resumes with an SSE stream.</p>
+              <p className="text-xs text-muted">
+                POST to approve or deny with the <code className="text-blue-600 font-bold">approvalId</code>. The
+                mission resumes with an SSE stream.
+              </p>
             </div>
           </div>
         </div>
@@ -67,7 +81,8 @@ export default function MissionsGuide() {
           HITL Approval Example
         </h2>
         <p className="text-xs text-muted leading-relaxed font-mono">
-          After receiving a <code className="text-blue-600 font-bold">hitl_approval_required</code> event, send the approval decision:
+          After receiving a <code className="text-blue-600 font-bold">hitl_approval_required</code> event, send the
+          approval decision:
         </p>
         <CodeBlock
           language="bash"
@@ -98,6 +113,5 @@ export default function MissionsGuide() {
         </section>
       )}
     </div>
-  )
+  );
 }
-

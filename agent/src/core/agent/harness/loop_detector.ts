@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 export interface LoopDetectorConfig {
   enabled: boolean;
@@ -30,12 +30,12 @@ export class LoopDetector {
 
   public generateHash(toolName: string, args: Record<string, unknown>): string {
     const canonicalArgs = JSON.stringify(args, Object.keys(args ?? {}).sort());
-    return createHash('md5').update(`${toolName}:${canonicalArgs}`).digest('hex');
+    return createHash("md5").update(`${toolName}:${canonicalArgs}`).digest("hex");
   }
 
   public recordAndCheck(toolName: string, args: Record<string, unknown>): LoopCheckResult {
     if (!this.config.enabled) {
-      return { isLoop: false, count: 0, hash: '' };
+      return { isLoop: false, count: 0, hash: "" };
     }
 
     const hash = this.generateHash(toolName, args);

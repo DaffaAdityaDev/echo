@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 interface AuthGuardProps {

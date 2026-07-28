@@ -1,6 +1,6 @@
 "use client";
+import { AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import { useEffect } from "react";
-import { X, Info, AlertTriangle, AlertCircle } from "lucide-react";
 import { useChatStore } from "../stores/chatStore";
 
 export function SystemNoticeToast() {

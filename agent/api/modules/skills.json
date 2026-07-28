@@ -48,18 +48,12 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "file_system",
-              "terminal",
-              "code_interpreter"
-            ]
+            "example": ["file_system", "terminal", "code_interpreter"]
           },
           "modifiers": {
             "type": "object",
             "example": {
-              "extensions": [
-                ".py"
-              ],
+              "extensions": [".py"],
               "linter": "ruff"
             }
           }
@@ -95,41 +89,24 @@
                   {
                     "name": "python",
                     "description": "Python development and scripting with package management",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "code_interpreter"
-                    ],
+                    "preferredTools": ["file_system", "terminal", "code_interpreter"],
                     "modifiers": {
-                      "extensions": [
-                        ".py"
-                      ],
+                      "extensions": [".py"],
                       "linter": "ruff"
                     }
                   },
                   {
                     "name": "nodejs",
                     "description": "Node.js and npm package ecosystem",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "npm"
-                    ],
+                    "preferredTools": ["file_system", "terminal", "npm"],
                     "modifiers": {
-                      "extensions": [
-                        ".js",
-                        ".ts",
-                        ".json"
-                      ]
+                      "extensions": [".js", ".ts", ".json"]
                     }
                   },
                   {
                     "name": "research",
                     "description": "Web research and information synthesis",
-                    "preferredTools": [
-                      "web-browsing",
-                      "file_system"
-                    ],
+                    "preferredTools": ["web-browsing", "file_system"],
                     "modifiers": {
                       "max_sources": 10
                     }
