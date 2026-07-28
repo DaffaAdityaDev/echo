@@ -16,12 +16,12 @@ RUN swag init -g cmd/server/main.go -o api/docs --parseDependency --parseInterna
 FROM deps AS builder
 WORKDIR /app
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o server ./cmd/server
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o migrate ./cmd/db/migrate
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o seed ./cmd/db/seed
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o server ./cmd/server && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o migrate ./cmd/db/migrate && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o seed ./cmd/db/seed
 
 # Stage 4: Runner
-FROM alpine:3.19 AS runner
+FROM alpine:3.21 AS runner
 WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/server .

@@ -2,7 +2,7 @@
 FROM oven/bun:1-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # Stage 2: Builder
 FROM deps AS builder
@@ -24,11 +24,13 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/src ./src
 
+USER appuser
 EXPOSE 3001
 CMD ["bun", "dist/index.js"]
