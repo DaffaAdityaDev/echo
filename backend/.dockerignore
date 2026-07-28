@@ -2,10 +2,8 @@
 .gitignore
 .env
 .env.*
-!.env.example
 *.log
 tmp/
 bin/
 node_modules/
 api/docs/
-coverage
