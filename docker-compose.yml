@@ -100,7 +100,6 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.echo-agent.loadbalancer.server.port=3001"
       - "sablier.enable=true"
       - "sablier.group=echo-app"
       - "sablier.timeout=1m"
@@ -154,7 +153,6 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.echo-backend.loadbalancer.server.port=8080"
       - "sablier.enable=true"
       - "sablier.group=echo-app"
       - "sablier.timeout=1m"
@@ -189,7 +187,6 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.echo-frontend.loadbalancer.server.port=3000"
       - "sablier.enable=true"
       - "sablier.group=echo-app"
       - "sablier.timeout=1m"
