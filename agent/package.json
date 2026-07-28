@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "docs": "node api/merge.mjs",
-    "build": "npm run docs && bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "bun run docs && bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "bun run dist/index.js",
     "dev": "bun --watch src/index.ts",
     "lint": "biome check --write .",
