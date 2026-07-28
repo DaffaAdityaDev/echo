@@ -41,7 +41,13 @@
           },
           "error_type": {
             "type": "string",
-            "enum": ["APPLICATION_ERROR", "RATE_LIMIT_ERROR", "TIMEOUT_ERROR", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"],
+            "enum": [
+              "APPLICATION_ERROR",
+              "RATE_LIMIT_ERROR",
+              "TIMEOUT_ERROR",
+              "BAD_REQUEST",
+              "INTERNAL_SERVER_ERROR"
+            ],
             "example": "BAD_REQUEST"
           },
           "message": {
@@ -68,11 +74,20 @@
       },
       "ProviderConfig": {
         "type": "object",
-        "required": ["type", "base_url", "model"],
+        "required": [
+          "type",
+          "base_url",
+          "model"
+        ],
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["openai", "anthropic", "lm-studio", "opencode-go"],
+            "enum": [
+              "openai",
+              "anthropic",
+              "lm-studio",
+              "opencode-go"
+            ],
             "description": "LLM provider type",
             "example": "openai"
           },
@@ -111,7 +126,10 @@
           },
           "tier_requirement": {
             "type": "string",
-            "enum": ["free", "pro"],
+            "enum": [
+              "free",
+              "pro"
+            ],
             "example": "free"
           }
         }
@@ -137,7 +155,10 @@
             "items": {
               "type": "string"
             },
-            "example": ["python", "nodejs"]
+            "example": [
+              "python",
+              "nodejs"
+            ]
           },
           "mcpServers": {
             "type": "array",
@@ -225,7 +246,9 @@
           },
           "classifier": {
             "type": "string",
-            "enum": ["tfidf"],
+            "enum": [
+              "tfidf"
+            ],
             "default": "tfidf",
             "example": "tfidf"
           },
@@ -260,7 +283,10 @@
       },
       "GenerateMissionRequest": {
         "type": "object",
-        "required": ["prompt", "provider_config"],
+        "required": [
+          "prompt",
+          "provider_config"
+        ],
         "properties": {
           "prompt": {
             "type": "string",
@@ -272,7 +298,10 @@
           },
           "strategy": {
             "type": "string",
-            "enum": ["standard", "agent"],
+            "enum": [
+              "standard",
+              "agent"
+            ],
             "default": "agent",
             "description": "Execution strategy: 'agent' for tool-using autonomous mode, 'standard' for direct LLM response",
             "example": "agent"
@@ -314,7 +343,11 @@
             },
             "nullable": true,
             "description": "Feature flags to enable specific agent capabilities",
-            "example": ["web-browsing", "code-interpreter", "file-system"]
+            "example": [
+              "web-browsing",
+              "code-interpreter",
+              "file-system"
+            ]
           },
           "skills": {
             "type": "array",
@@ -323,7 +356,11 @@
             },
             "nullable": true,
             "description": "Skill names to activate for specialized behavior",
-            "example": ["nodejs", "express", "prisma"]
+            "example": [
+              "nodejs",
+              "express",
+              "prisma"
+            ]
           },
           "history": {
             "type": "array",
@@ -514,7 +551,12 @@
               "type": "string"
             },
             "description": "Tool names requiring human approval before execution",
-            "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure"]
+            "example": [
+              "execute_sql_write",
+              "delete_file",
+              "send_external_email",
+              "deploy_infrastructure"
+            ]
           },
           "ttlMinutes": {
             "type": "integer",
@@ -576,11 +618,16 @@
             "items": {
               "type": "string"
             },
-            "example": ["server.js"]
+            "example": [
+              "server.js"
+            ]
           },
           "transport": {
             "type": "string",
-            "enum": ["sse", "stdio"],
+            "enum": [
+              "sse",
+              "stdio"
+            ],
             "default": "sse"
           },
           "credentials": {
@@ -644,7 +691,11 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["bearer", "basic", "header"],
+            "enum": [
+              "bearer",
+              "basic",
+              "header"
+            ],
             "example": "bearer"
           },
           "credentials": {
@@ -671,7 +722,12 @@
           },
           "method": {
             "type": "string",
-            "enum": ["GET", "POST", "PUT", "DELETE"],
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE"
+            ],
             "default": "POST"
           },
           "description": {
@@ -713,7 +769,15 @@
         "properties": {
           "state": {
             "type": "string",
-            "enum": ["starting", "running", "stalled", "looping", "degraded", "completed", "aborted"],
+            "enum": [
+              "starting",
+              "running",
+              "stalled",
+              "looping",
+              "degraded",
+              "completed",
+              "aborted"
+            ],
             "example": "running"
           },
           "step": {
@@ -726,7 +790,11 @@
           },
           "strategy": {
             "type": "string",
-            "enum": ["agent", "standard", "restricted"],
+            "enum": [
+              "agent",
+              "standard",
+              "restricted"
+            ],
             "example": "agent"
           },
           "lastActivity": {
@@ -848,7 +916,11 @@
               },
               "status": {
                 "type": "string",
-                "enum": ["calling", "completed", "failed"]
+                "enum": [
+                  "calling",
+                  "completed",
+                  "failed"
+                ]
               }
             }
           },
@@ -870,7 +942,11 @@
           },
           "level": {
             "type": "string",
-            "enum": ["info", "warning", "error"],
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
             "description": "Notice severity level (for system_notice)"
           },
           "code": {
@@ -883,7 +959,11 @@
           },
           "riskLevel": {
             "type": "string",
-            "enum": ["medium", "high", "critical"],
+            "enum": [
+              "medium",
+              "high",
+              "critical"
+            ],
             "description": "Risk level of the pending tool (for hitl_approval_required)"
           },
           "totalTokens": {
@@ -941,7 +1021,10 @@
       },
       "SummarizeRequest": {
         "type": "object",
-        "required": ["messages", "provider_config"],
+        "required": [
+          "messages",
+          "provider_config"
+        ],
         "properties": {
           "session_id": {
             "type": "string",
@@ -985,7 +1068,10 @@
       },
       "ApproveOrDenyRequest": {
         "type": "object",
-        "required": ["approvalId", "decision"],
+        "required": [
+          "approvalId",
+          "decision"
+        ],
         "properties": {
           "approvalId": {
             "type": "string",
@@ -994,7 +1080,10 @@
           },
           "decision": {
             "type": "string",
-            "enum": ["approve", "deny"],
+            "enum": [
+              "approve",
+              "deny"
+            ],
             "description": "Decision: approve to execute the tool, deny to reject",
             "example": "approve"
           },
@@ -1066,7 +1155,11 @@
             "items": {
               "type": "string"
             },
-            "example": ["web_search", "file_system", "execute_sql_write"]
+            "example": [
+              "web_search",
+              "file_system",
+              "execute_sql_write"
+            ]
           },
           "providerConfig": {
             "type": "object",
@@ -1148,12 +1241,18 @@
             "items": {
               "type": "string"
             },
-            "example": ["file_system", "terminal", "code_interpreter"]
+            "example": [
+              "file_system",
+              "terminal",
+              "code_interpreter"
+            ]
           },
           "modifiers": {
             "type": "object",
             "example": {
-              "extensions": [".py"],
+              "extensions": [
+                ".py"
+              ],
               "linter": "ruff"
             }
           }
@@ -1248,8 +1347,16 @@
                   "api_key": "sk-proj-xxxxxxxxxxxxxxxx",
                   "model": "gpt-4o"
                 },
-                "features": ["web-browsing", "code-interpreter", "file-system"],
-                "skills": ["nodejs", "express", "prisma"],
+                "features": [
+                  "web-browsing",
+                  "code-interpreter",
+                  "file-system"
+                ],
+                "skills": [
+                  "nodejs",
+                  "express",
+                  "prisma"
+                ],
                 "config": {
                   "memory": {
                     "episodic": true,
@@ -1749,24 +1856,41 @@
                   {
                     "name": "python",
                     "description": "Python development and scripting with package management",
-                    "preferredTools": ["file_system", "terminal", "code_interpreter"],
+                    "preferredTools": [
+                      "file_system",
+                      "terminal",
+                      "code_interpreter"
+                    ],
                     "modifiers": {
-                      "extensions": [".py"],
+                      "extensions": [
+                        ".py"
+                      ],
                       "linter": "ruff"
                     }
                   },
                   {
                     "name": "nodejs",
                     "description": "Node.js and npm package ecosystem",
-                    "preferredTools": ["file_system", "terminal", "npm"],
+                    "preferredTools": [
+                      "file_system",
+                      "terminal",
+                      "npm"
+                    ],
                     "modifiers": {
-                      "extensions": [".js", ".ts", ".json"]
+                      "extensions": [
+                        ".js",
+                        ".ts",
+                        ".json"
+                      ]
                     }
                   },
                   {
                     "name": "research",
                     "description": "Web research and information synthesis",
-                    "preferredTools": ["web-browsing", "file_system"],
+                    "preferredTools": [
+                      "web-browsing",
+                      "file_system"
+                    ],
                     "modifiers": {
                       "max_sources": 10
                     }
