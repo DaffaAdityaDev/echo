@@ -28,6 +28,11 @@ services:
       resources:
         limits:
           memory: 512M
+    labels:
+      - "traefik.enable=true"
+      - "sablier.enable=true"
+      - "sablier.group=echo-app"
+      - "sablier.timeout=1m"
 
   echo-backend:
     build:
@@ -71,9 +76,8 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.echo-backend.middlewares=sablier-middleware@file"
       - "sablier.enable=true"
-      - "sablier.group=echo-backend"
+      - "sablier.group=echo-app"
       - "sablier.timeout=1m"
 
   echo-frontend:
@@ -106,9 +110,8 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.echo-frontend.middlewares=sablier-middleware@file"
       - "sablier.enable=true"
-      - "sablier.group=echo-frontend"
+      - "sablier.group=echo-app"
       - "sablier.timeout=1m"
 
 networks:
