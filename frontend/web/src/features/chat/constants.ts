@@ -28,6 +28,10 @@ export const PACKET_TYPES = {
   PROGRESS: "progress",
   TURN_COMPLETE: "turn_complete",
   ERROR: "error",
+  SYSTEM_NOTICE: "system_notice",
+  TOKEN_METRICS: "token_metrics",
+  HITL_APPROVAL_REQUIRED: "hitl_approval_required",
+  MISSION_COMPLETED: "mission_completed",
 } as const;
 
 export const CHAT_ENDPOINTS = {

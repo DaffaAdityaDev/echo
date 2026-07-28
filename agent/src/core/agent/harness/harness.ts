@@ -1,5 +1,5 @@
-import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
-import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus, HarnessPacket } from '../../../shared/types';
+import { HumanMessage, AIMessage, ToolMessage, SystemMessage } from "@langchain/core/messages";
+import { LLMProvider, AgentState, AgentStrategy, ToolDefinition, AgentStatus, HarnessPacket, HarnessFeatureToggles } from '../../../shared/types';
 import { toolRegistry } from '../tools/registry';
 import { StrategyFactory } from '../strategies/factory';
 import { CircuitBreaker } from './circuit_breaker';
@@ -23,8 +23,12 @@ import { SkillRegistry } from '../skills';
 import { HARNESS_PROMPTS } from "./prompts";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
 import { queuePromptDebug } from "./debug";
-import { HarnessConfig } from './types';
+import { HarnessConfig, DEFAULT_HARNESS_TOGGLES } from './types';
 import { cancellationManager } from './cancel_manager';
+import { LoopDetector } from './loop_detector';
+import { BudgetMonitor } from './budget_monitor';
+import { HitlGuard } from './hitl_guard';
+import { ContextManager } from './context_manager';
 
 export class NlahHarness {
     private provider: LLMProvider;
@@ -43,6 +47,12 @@ export class NlahHarness {
     private static toolRetriever: ToolRetriever | null = null;
     private static skillRegistry = new SkillRegistry();
 
+    private featureToggles: HarnessFeatureToggles;
+    private loopDetector: LoopDetector;
+    private hitlGuard: HitlGuard;
+    private contextManager: ContextManager;
+    private totalCostUsd = 0;
+
     constructor(options: HarnessConfig) {
         this.provider = options.provider;
         this.strategy = options.strategy;
@@ -52,9 +62,25 @@ export class NlahHarness {
         this.explicitTools = options.tools;
         this.skills = options.skills;
         this.harnessConfig = options.harnessConfig;
+        this.totalCostUsd = options.initialCostUsd ?? 0;
+
+        this.featureToggles = { ...DEFAULT_HARNESS_TOGGLES, ...(options.harnessConfig as Partial<HarnessFeatureToggles>) };
+        this.loopDetector = new LoopDetector(this.featureToggles.loopDetection);
+        this.hitlGuard = new HitlGuard(this.featureToggles.hitlGuard);
+        this.contextManager = new ContextManager(this.featureToggles.contextOptimization);
 
         if (!NlahHarness.toolRetriever) {
             NlahHarness.toolRetriever = new ToolRetriever(toolRegistry.getAllTools());
+        }
+    }
+
+    public restoreLoopDetectorHistory(history: string[]): void {
+        this.loopDetector.restoreHistory(history);
+    }
+
+    private async emitSystemNotice(onPacket: (p: any) => Promise<void>, step: number, code: string, message: string, level: 'info' | 'warning' | 'error' = 'warning') {
+        if (this.featureToggles.systemNotices.enabled) {
+            await this.sendBase(onPacket, { type: 'system_notice', step, payload: { level, code, message } });
         }
     }
 
@@ -341,11 +367,13 @@ export class NlahHarness {
         reasoningContent: string;
         pendingToolCall: { name: string; args: Record<string, unknown> } | null;
         hasContentEmitted: boolean;
+        usage: { promptTokens: number; completionTokens: number; totalTokens: number; cachedTokens?: number } | null;
     }> {
         let assistantContent = "";
         let reasoningContent = "";
         let pendingToolCall: { name: string; args: Record<string, unknown> } | null = null;
         let hasContentEmitted = false;
+        let usageResult: { promptTokens: number; completionTokens: number; totalTokens: number; cachedTokens?: number } | null = null;
         let tokenEstimate = 0;
         const streamStart = Date.now();
         let lastChunkTime = Date.now();
@@ -390,6 +418,12 @@ export class NlahHarness {
                 }
                 if (event.usage) {
                     await this.emitUsage(onPacket, iteration, event.usage);
+                    usageResult = {
+                        promptTokens: event.usage.promptTokens,
+                        completionTokens: event.usage.completionTokens,
+                        totalTokens: event.usage.totalTokens,
+                        cachedTokens: event.usage.cachedTokens,
+                    };
                     const elapsed = (Date.now() - streamStart) / 1000;
                     this.statusTracker?.update({ throughput: elapsed > 0 ? (event.usage.completionTokens ?? 0) / elapsed : undefined });
                 }
@@ -399,7 +433,7 @@ export class NlahHarness {
         }
 
         logger.info(`[processStreamEvents] Done — hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`);
-        return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted };
+        return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage: usageResult };
     }
 
     private async executeToolCall(
@@ -580,10 +614,9 @@ export class NlahHarness {
             logger.warn(`maxContextTokens undefined for provider=${this.provider.constructor.name} model=${this.provider.modelName ?? 'unknown'}. Using fallback=${HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS}.`);
         }
 
-        let totalCost = 0;
+        const budgetMonitor = new BudgetMonitor(this.featureToggles.budgetMonitor);
         let cachedTokensSum = 0;
         let totalInputTokensSum = 0;
-        const costThreshold = HARNESS_CONFIG.COST_THRESHOLD;
         let previousThought = "";
 
         while (!isComplete && iteration < maxIterations) {
@@ -632,14 +665,47 @@ export class NlahHarness {
                             currentToolMap = new Map();
                         }
 
+                        // BUDGET CHECK
+                        const budgetCheck = budgetMonitor.checkBudget(iteration, this.totalCostUsd);
+                        if (budgetCheck.exceeded) {
+                            logger.warn(`[NlahHarness] Budget threshold crossed: ${budgetCheck.message}`);
+                            if (this.featureToggles.systemNotices.enabled && this.featureToggles.systemNotices.emitBudgetWarnings) {
+                                await this.emitSystemNotice(onPacket, iteration, 'BUDGET_WARNING', budgetCheck.message!, 'error');
+                            }
+                            await this.updateStatus(onPacket, { state: 'aborted' }, iteration);
+                            if (span) {
+                                span.update({ output: { status: 'budget_aborted', reason: budgetCheck.reason } });
+                                span.end();
+                            }
+                            isComplete = true;
+                            return;
+                        }
+
                         await this.handleCompaction(state, iteration, onPacket);
                         await this.emitDebugPackets(state, currentSystemPrompt, iteration, onPacket);
 
                         const activeTools = currentLevel !== 'normal' ? [] : tools;
-                        const eventStream = this.provider.stream(state.messages, activeTools, currentSystemPrompt);
+                        const dynamicEnvContext = `Current Time: ${new Date().toISOString()} | Session: ${state.missionId}`;
+                        const preparedMessages = this.contextManager.prepareMessagesPayload(
+                            currentSystemPrompt, dynamicEnvContext, state.messages
+                        );
+                        const eventStream = this.provider.stream(preparedMessages, activeTools, currentSystemPrompt);
 
-                        const { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted } = await this.processStreamEvents(eventStream, iteration, onPacket);
+                        const { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage } = await this.processStreamEvents(eventStream, iteration, onPacket);
 
+                        // ACCUMULATE ACTUAL COST
+                        if (usage) {
+                            const { stepCost } = calculateUsageCost(
+                                this.provider.modelName ?? 'unknown',
+                                this.provider.baseURL ?? '',
+                                usage.promptTokens,
+                                usage.completionTokens,
+                                usage.cachedTokens ?? 0
+                            );
+                            this.totalCostUsd += stepCost;
+                        }
+
+                        // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) — existing behavior preserved
                         if (previousThought && assistantContent) {
                             const sim = getCosineSimilarity(previousThought, assistantContent);
                             logger.info(`Semantic cosine similarity calculated: ${sim.toFixed(4)}`);
@@ -652,15 +718,85 @@ export class NlahHarness {
                         previousThought = assistantContent;
 
                         let toolCallResult: { name: string; args: Record<string, unknown> } | null = pendingToolCall;
+
+                        // LAYER 1: EXACT TOOL CALL LOOP DETECTION (MD5 Hash Ring Buffer)
+                        if (toolCallResult && this.featureToggles.loopDetection.enabled && this.featureToggles.loopDetection.enableExactMatch) {
+                            const loopResult = this.loopDetector.recordAndCheck(toolCallResult.name, toolCallResult.args);
+                            if (loopResult.isLoop) {
+                                logger.warn(`[NlahHarness] Exact tool call loop detected for ${toolCallResult.name}`);
+                                if (this.featureToggles.systemNotices.enabled && this.featureToggles.systemNotices.emitLoopWarnings) {
+                                    await this.emitSystemNotice(onPacket, iteration, 'LOOP_DETECTED',
+                                        `Tool "${toolCallResult.name}" called ${loopResult.count}x consecutively with identical arguments.`, 'warning');
+                                }
+                                state.messages.push(new ToolMessage({
+                                    tool_call_id: `loop_warn_${Date.now()}`,
+                                    content: `SYSTEM INTERVENTION: You called tool "${toolCallResult.name}" with identical arguments ${loopResult.count}x. Stop this call chain and try a different approach.`,
+                                }));
+                                toolCallResult = null;
+                            }
+                        }
+
+                        // HITL PROTECTION GUARD
+                        if (toolCallResult && this.hitlGuard.isProtected(toolCallResult.name)) {
+                            logger.info(`[NlahHarness] HITL approval required for protected tool: ${toolCallResult.name}`);
+                            const approval = this.hitlGuard.createApprovalPayload(
+                                this.missionId,
+                                state.missionId,
+                                { id: `tool_${Date.now()}`, name: toolCallResult.name, args: toolCallResult.args }
+                            );
+                            await stateStorage.set(`paused:${approval.approvalId}`, {
+                                approvalId: approval.approvalId,
+                                missionId: this.missionId,
+                                sessionId: state.missionId,
+                                pendingToolCall: { id: approval.toolCall.id, name: approval.toolCall.name, args: approval.toolCall.args },
+                                state,
+                                harnessSnapshot: {
+                                    strategyName: this.strategy.name,
+                                    toolNames: Array.from(currentToolMap.keys()),
+                                    providerConfig: {
+                                        type: this.provider.constructor.name,
+                                        base_url: this.provider.baseURL ?? '',
+                                        api_key: null,
+                                        model: this.provider.modelName ?? 'unknown',
+                                    },
+                                    delegationDepth: this.delegationDepth,
+                                    featureToggles: this.featureToggles,
+                                },
+                                metadata: {
+                                    totalCostUsd: this.totalCostUsd,
+                                    loopDetectorHistory: this.loopDetector.getHistory(),
+                                    pausedAt: new Date().toISOString(),
+                                    expiresAt: approval.expiresAt,
+                                },
+                            } as any, 300);
+                            await onPacket({
+                                type: 'hitl_approval_required',
+                                timestamp: Date.now(),
+                                missionId: this.missionId,
+                                step: iteration,
+                                payload: {
+                                    approvalId: approval.approvalId,
+                                    toolName: toolCallResult.name,
+                                    args: toolCallResult.args,
+                                    riskLevel: 'high',
+                                    expiresAt: approval.expiresAt,
+                                },
+                            });
+                            if (span) {
+                                span.update({ output: { status: 'PAUSED_AWAITING_APPROVAL', toolName: toolCallResult.name } });
+                                span.end();
+                            }
+                            return;
+                        }
+
                         if (toolCallResult) {
                             logger.info(`[runMission] Iter ${iteration}: executing toolCall ${toolCallResult.name}`);
                             const { isComplete: turnComplete } = await this.executeToolCall(
                                 toolCallResult, currentToolMap, assistantContent, reasoningContent,
                                 iteration, onPacket, state, circuit, degradation, totalInputTokensSum, maxContextTokens
                             );
-                            if (!toolCallResult && !hasContentEmitted && assistantContent) {
-                                await this.emitContent(onPacket, iteration, assistantContent);
-                            }
+                        } else if (!hasContentEmitted && assistantContent) {
+                            await this.emitContent(onPacket, iteration, assistantContent);
                         } else {
                             logger.info(`[runMission] Iter ${iteration}: no toolCall — entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`);
                             const { isComplete: turnComplete, retryWithTool } = await this.handleAutoRecovery(
@@ -668,7 +804,7 @@ export class NlahHarness {
                             );
                             isComplete = turnComplete;
                             if (retryWithTool) {
-                                const retryResult = await this.executeToolCall(
+                                await this.executeToolCall(
                                     retryWithTool, currentToolMap, assistantContent, reasoningContent,
                                     iteration, onPacket, state, circuit, degradation, totalInputTokensSum, maxContextTokens
                                 );
@@ -716,7 +852,7 @@ export class NlahHarness {
             await this.updateStatus(onPacket, { state: 'completed' }, iteration);
         }
 
-        await this.emitTurnComplete(onPacket, iteration, isComplete, iteration, totalCost);
+        await this.emitTurnComplete(onPacket, iteration, isComplete, iteration, this.totalCostUsd);
 
         await stateStorage.set(state.missionId, state, 600);
 

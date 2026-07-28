@@ -120,6 +120,8 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 	api.Get("/missions/:missionId/stream", chatHandler.StreamMissionLogs)
+	api.Post("/missions/:id/approve", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleApproveTool)
+	api.Post("/missions/:id/deny", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleDenyTool)
 	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
 	api.Get(routes.V1PathFeatures, chatHandler.HandleGetFeatures)
 

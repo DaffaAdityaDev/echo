@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Message, AgentProgress, Session, AgentState, StreamPacket, TokenUsage, MissionMeta } from "../types";
+import { Message, AgentProgress, Session, AgentState, StreamPacket, TokenUsage, MissionMeta, HitlApproval, SystemNotice } from "../types";
 
 export type LoggedPacket = StreamPacket & { timestamp: number };
 
@@ -28,6 +28,8 @@ interface ChatState {
   cumulativeUsage: TokenUsage | null;
   debugPacketHistory: DebugInfo[];
   missionMeta: MissionMeta | null;
+  hitlPendingApproval: HitlApproval | null;
+  systemNotices: SystemNotice[];
 
   setMessages: (updater: Message[] | ((prev: Message[]) => Message[])) => void;
   setIsLoading: (loading: boolean) => void;
@@ -47,6 +49,10 @@ interface ChatState {
   setCumulativeUsage: (usage: TokenUsage) => void;
   appendDebugInfo: (info: DebugInfo) => void;
   setMissionMeta: (meta: MissionMeta | null) => void;
+  setHitlPendingApproval: (approval: HitlApproval | null) => void;
+  clearHitlPendingApproval: () => void;
+  appendSystemNotice: (notice: SystemNotice) => void;
+  dismissSystemNotice: (id: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -66,6 +72,8 @@ export const useChatStore = create<ChatState>((set) => ({
   cumulativeUsage: null,
   debugPacketHistory: [],
   missionMeta: null,
+  hitlPendingApproval: null,
+  systemNotices: [],
 
   setMessages: (updater) =>
     set((state) => ({
@@ -88,6 +96,8 @@ export const useChatStore = create<ChatState>((set) => ({
       cumulativeUsage: null,
       debugPacketHistory: [],
       missionMeta: null,
+      hitlPendingApproval: null,
+      systemNotices: [],
     }),
   setSelectedModel: (selectedModel) => set({ selectedModel }),
   setMode: (mode) => set({ mode }),
@@ -128,4 +138,16 @@ export const useChatStore = create<ChatState>((set) => ({
       return { debugPacketHistory: next };
     }),
   setMissionMeta: (missionMeta) => set({ missionMeta }),
+  setHitlPendingApproval: (hitlPendingApproval) => set({ hitlPendingApproval }),
+  clearHitlPendingApproval: () => set({ hitlPendingApproval: null }),
+  appendSystemNotice: (notice) =>
+    set((state) => {
+      const next = [...state.systemNotices, notice];
+      if (next.length > 20) next.splice(0, next.length - 20);
+      return { systemNotices: next };
+    }),
+  dismissSystemNotice: (id) =>
+    set((state) => ({
+      systemNotices: state.systemNotices.filter((n) => n.id !== id),
+    })),
 }));

@@ -19,6 +19,8 @@ export const VALIDATION_MESSAGES = {
 
 export const MISSION_ROUTES = {
   GENERATE_MISSION: "/generate-mission",
+  APPROVE: "/:id/approve",
+  DENY: "/:id/deny",
 } as const;
 
 export const MISSION_LOG_MESSAGES = {

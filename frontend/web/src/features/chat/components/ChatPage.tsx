@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { DegradationToast } from "./DegradationToast";
+import { HitlApprovalModal } from "./HitlApprovalModal";
+import { SystemNoticeToast } from "./SystemNoticeToast";
 import { ToolCallTimeline } from "./ToolCallTimeline";
 import { MessageList, type MessageListHandle } from "./MessageList";
 import { ChatInput } from "./ChatInput";
@@ -424,6 +426,8 @@ export function ChatPage() {
       </main>
 
       <DegradationToast />
+      <HitlApprovalModal />
+      <SystemNoticeToast />
     </div>
   );
 }

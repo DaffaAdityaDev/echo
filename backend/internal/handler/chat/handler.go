@@ -85,14 +85,15 @@ type HistoryMessage struct {
 }
 
 type ChatRequest struct {
-	Message   string           `json:"message"`
-	Model     string           `json:"model"`
-	Mode      string           `json:"mode"`
-	SessionID string           `json:"sessionId"`
-	MissionID string           `json:"missionId"`
-	History   []HistoryMessage `json:"history"`
-	Features  []string         `json:"features"`
-	Skills    []string         `json:"skills"`
+	Message   string                 `json:"message"`
+	Model     string                 `json:"model"`
+	Mode      string                 `json:"mode"`
+	SessionID string                 `json:"sessionId"`
+	MissionID string                 `json:"missionId"`
+	History   []HistoryMessage       `json:"history"`
+	Features  []string               `json:"features"`
+	Skills    []string               `json:"skills"`
+	Config    map[string]interface{} `json:"config,omitempty"`
 }
 
 type Feature struct {
@@ -310,6 +311,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	}
 	if len(req.Skills) > 0 {
 		payload["skills"] = req.Skills
+	}
+	if len(req.Config) > 0 {
+		payload["config"] = req.Config
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
@@ -598,6 +602,71 @@ func (h *Handler) StreamMissionLogs(c fiber.Ctx) error {
 			}
 		})
 	}
+}
+
+func (h *Handler) HandleApproveTool(c fiber.Ctx) error {
+	return h.handleHitlAction(c, "approve")
+}
+
+func (h *Handler) HandleDenyTool(c fiber.Ctx) error {
+	return h.handleHitlAction(c, "deny")
+}
+
+func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
+	missionID := c.Params("id")
+	if missionID == "" {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "mission ID required")
+	}
+
+	var body map[string]interface{}
+	if err := c.Bind().JSON(&body); err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	agentURL := fmt.Sprintf("%s/api/v1/missions/%s/%s", h.Cfg.AgentHTTPURL, missionID, action)
+	jsonPayload, _ := json.Marshal(body)
+
+	agentReq, err := http.NewRequestWithContext(c.Context(), "POST", agentURL, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request")
+	}
+	agentReq.Header.Set("Content-Type", "application/json")
+	agentReq.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+
+	resp, err := handlerutil.HttpClient.Do(agentReq)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Agent unreachable")
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent rejected", string(bodyBytes))
+	}
+
+	c.Response().Header.Set("Content-Type", "text/event-stream")
+	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
+	c.Response().Header.Set("Connection", "keep-alive")
+	c.Response().Header.Set("Transfer-Encoding", "chunked")
+	c.Response().Header.Set("X-Accel-Buffering", "no")
+
+	return c.SendStreamWriter(func(w *bufio.Writer) {
+		reader := bufio.NewReader(resp.Body)
+		for {
+			line, rErr := reader.ReadBytes('\n')
+			if len(line) > 0 {
+				if _, wErr := w.Write(line); wErr != nil {
+					break
+				}
+				if err := w.Flush(); err != nil {
+					break
+				}
+			}
+			if rErr != nil {
+				break
+			}
+		}
+	})
 }
 
 func (h *Handler) GetFeatures(ctx context.Context) ([]Feature, error) {

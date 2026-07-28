@@ -5,5 +5,7 @@ import { MISSION_ROUTES } from "./mission.constants";
 const missionRouter = new Hono();
 
 missionRouter.post(MISSION_ROUTES.GENERATE_MISSION, (c) => missionController.createMission(c));
+missionRouter.post(MISSION_ROUTES.APPROVE, (c) => missionController.approveMissionTool(c));
+missionRouter.post(MISSION_ROUTES.DENY, (c) => missionController.approveMissionTool(c));
 
 export default missionRouter;

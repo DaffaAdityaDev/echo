@@ -1,24 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  X,
-  Sliders,
-  Zap,
-  Save,
-  RotateCcw,
-  User,
-  Key,
-  LogOut,
-  CheckCircle2,
-} from "lucide-react";
-import Link from "next/link";
+import { X, Sliders, Zap, Save, RotateCcw, User, Shield, CheckCircle2 } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { CHAT_MODES } from "@/features/chat/constants";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { useSettingsPage } from "../hooks/useSettingsPage";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { PreferencesTab } from "./tabs/PreferencesTab";
+import { CapabilitiesTab } from "./tabs/CapabilitiesTab";
+import { HarnessTab } from "./tabs/HarnessTab";
+import { AccountTab } from "./tabs/AccountTab";
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -26,23 +17,13 @@ export interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "account">("preferences");
+  const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "harness" | "account">("preferences");
   const {
-    config,
-    loaded,
-    features,
-    skills,
-    groupedModels,
-    saved,
-    handleSave,
-    handleModeChange,
-    handleModelChange,
-    handleFeatureToggle,
-    handleSkillToggle,
-    handleProviderTypeChange,
-    handleApiKeyChange,
-    handleBaseUrlChange,
-    resetConfig,
+    config, loaded, features, skills, groupedModels, saved,
+    handleSave, handleModeChange, handleModelChange,
+    handleFeatureToggle, handleSkillToggle,
+    handleProviderTypeChange, handleApiKeyChange, handleBaseUrlChange,
+    setConfig, resetConfig,
   } = useSettingsPage();
   const { user, logout } = useAuth();
 
@@ -51,18 +32,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const tabs = [
     { id: "preferences", label: "Preferences", icon: Sliders },
     { id: "capabilities", label: "Capabilities & Skills", icon: Zap },
+    { id: "harness", label: "Harness Toggles", icon: Shield },
     { id: "account", label: "Account & Security", icon: User },
   ] as const;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in" onClick={onClose} />
 
-      {/* Settings Modal Window */}
       <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 p-6 md:p-8 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-2xl transition-all duration-300 max-h-[85vh] flex flex-col select-none">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-zinc-200/80 dark:border-zinc-800/80 shrink-0">
@@ -71,9 +48,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <Sliders className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-display tracking-tight">
-                Agent Settings
-              </h3>
+              <h3 className="text-lg font-bold font-display tracking-tight">Agent Settings</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Manage default intelligence models, harness tools, and profile.
               </p>
@@ -98,7 +73,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Saved Success Toast Badge */}
+        {/* Saved Success Toast */}
         {saved && (
           <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2 shrink-0 animate-in fade-in">
             <CheckCircle2 className="h-4 w-4" />
@@ -114,7 +89,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
                   "flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all cursor-pointer",
                   active
@@ -129,287 +104,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           })}
         </div>
 
-        {/* Modal Scrollable Content Area */}
+        {/* Tab Content */}
         <div className="flex-1 overflow-y-auto py-5 space-y-6 min-h-0">
           {!loaded ? (
             <div className="text-center py-10 text-xs text-zinc-400">Loading settings...</div>
           ) : activeTab === "preferences" ? (
-            <>
-              {/* Execution Strategy Mode */}
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                  Default Execution Strategy
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {([CHAT_MODES.STANDARD, CHAT_MODES.AGENT] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => handleModeChange(value)}
-                      className={cn(
-                        "p-4 rounded-2xl text-left border transition-all text-xs font-medium flex flex-col gap-1 cursor-pointer",
-                        config.defaultMode === value
-                          ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-sm"
-                          : "bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                      )}
-                    >
-                      <div className="flex items-center justify-between font-bold capitalize text-sm">
-                        <span>{value === "standard" ? "Standard Stream" : "Deeper Research"}</span>
-                        {config.defaultMode === value && (
-                          <Badge variant="success" className="text-[10px]">Active</Badge>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
-                        {value === "standard"
-                          ? "Direct model completion streaming."
-                          : "Multi-step iterative agent execution harness."}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Default Model Selector */}
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                  Default Model
-                </label>
-                <select
-                  value={config.defaultModel}
-                  onChange={(e) => handleModelChange(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
-                  style={{ colorScheme: "dark" }}
-                >
-                  <option value="">Auto-select first available</option>
-                  {Object.entries(groupedModels).map(([provider, providerModels]) => (
-                    <optgroup key={provider} label={provider}>
-                      {providerModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              {/* LLM Provider Configuration */}
-              <div className="space-y-3 pt-2">
-                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                  LLM Provider Configuration
-                </label>
-
-                {/* Provider Type */}
-                <select
-                  value={config.providerType}
-                  onChange={(e) => handleProviderTypeChange(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
-                  style={{ colorScheme: "dark" }}
-                >
-                  <option value="opencode-go">OpenCode Go</option>
-                  <option value="lm-studio">LM Studio (Local)</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                </select>
-
-                {/* API Key */}
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">API Key</label>
-                  <span className={cn(
-                    "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                    config.hasApiKey
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700"
-                  )}>
-                    {config.hasApiKey ? "Active" : "Not Set"}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={config.apiKey}
-                    onChange={(e) => handleApiKeyChange(e.target.value)}
-                    placeholder={config.hasApiKey ? "Enter new key to change" : "Enter your API key"}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50"
-                  />
-                  {config.hasApiKey && (
-                    <button
-                      type="button"
-                      onClick={() => handleApiKeyChange("")}
-                      className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 text-xs font-medium transition-colors"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                {/* Base URL */}
-                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Base URL</label>
-                <input
-                  type="text"
-                  value={config.baseUrl}
-                  onChange={(e) => handleBaseUrlChange(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 font-mono"
-                />
-
-                {/* Dynamic helper text */}
-                <div className={cn(
-                  "p-3 rounded-xl border text-[11px] leading-relaxed",
-                  config.providerType === "opencode-go"
-                    ? "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-300"
-                    : config.providerType === "lm-studio"
-                    ? "bg-blue-500/5 border-blue-500/20 text-blue-700 dark:text-blue-300"
-                    : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400"
-                )}>
-                  {config.providerType === "opencode-go" && (
-                    <>API Key OpenCode Go <span className="font-semibold">wajib diisi</span> untuk menggunakan provider ini.</>
-                  )}
-                  {config.providerType === "lm-studio" && (
-                    <>Gunakan <span className="font-semibold">IP lokal</span> (contoh: http://192.168.1.10:1234/v1) jika backend di server cloud.</>
-                  )}
-                  {config.providerType === "openai" && (
-                    <>Kosongkan untuk menggunakan API Key server. Key akan dienkripsi (AES-256-GCM).</>
-                  )}
-                  {config.providerType === "anthropic" && (
-                    <>Kosongkan untuk menggunakan API Key server. Key akan dienkripsi (AES-256-GCM).</>
-                  )}
-                </div>
-              </div>
-            </>
+            <PreferencesTab
+              config={config} setConfig={setConfig}
+              groupedModels={groupedModels}
+              handleModeChange={handleModeChange}
+              handleModelChange={handleModelChange}
+              handleProviderTypeChange={handleProviderTypeChange}
+              handleApiKeyChange={handleApiKeyChange}
+              handleBaseUrlChange={handleBaseUrlChange}
+            />
           ) : activeTab === "capabilities" ? (
-            <>
-              {/* Harness Capabilities */}
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                  Harness Tool Capabilities
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {features.map((f) => (
-                    <label
-                      key={f.id}
-                      className={cn(
-                        "flex items-start gap-3 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-400 dark:hover:border-zinc-700",
-                        f.locked && "opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={config.defaultFeatures.includes(f.id)}
-                        disabled={f.locked}
-                        onChange={() => handleFeatureToggle(f.id)}
-                        className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-purple-600 focus:ring-0 w-4 h-4 mt-0.5"
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 truncate">
-                          {f.name}
-                          {f.locked && <Badge variant="warning" className="text-[9px]">PRO</Badge>}
-                        </span>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
-                          {f.description}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Skills */}
-              <div className="space-y-3 pt-2">
-                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                  Autoloaded Agent Skills
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {skills.map((s) => (
-                    <label
-                      key={s.name}
-                      className="flex items-start gap-3 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-400 dark:hover:border-zinc-700"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={config.defaultSkills.includes(s.name)}
-                        onChange={() => handleSkillToggle(s.name)}
-                        className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-purple-600 focus:ring-0 w-4 h-4 mt-0.5"
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                          {s.name}
-                        </span>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
-                          {s.description}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
+            <CapabilitiesTab
+              config={config} features={features} skills={skills}
+              handleFeatureToggle={handleFeatureToggle}
+              handleSkillToggle={handleSkillToggle}
+            />
+          ) : activeTab === "harness" ? (
+            <HarnessTab config={config} setConfig={setConfig} />
           ) : (
-            /* Account & Security Profile */
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                    {user?.email ? user.email[0].toUpperCase() : "U"}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-                      {user?.email || "Guest Account"}
-                    </h4>
-                    <p className="text-xs text-zinc-400">
-                      Role: <span className="font-semibold text-purple-500 uppercase">{user?.role || "User"}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <Link
-                  href="/admin/api-keys"
-                  onClick={onClose}
-                  className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 hover:border-purple-500/40 transition-all flex items-center gap-3"
-                >
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
-                    <Key className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-zinc-900 dark:text-white">Developer API Keys</h5>
-                    <p className="text-[11px] text-zinc-400">Manage credentials & scopes</p>
-                  </div>
-                </Link>
-
-                <button
-                  onClick={() => {
-                    logout();
-                    onClose();
-                  }}
-                  className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all flex items-center gap-3 text-left cursor-pointer"
-                >
-                  <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
-                    <LogOut className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-red-500">Sign Out</h5>
-                    <p className="text-[11px] text-red-400/70">Terminate active session</p>
-                  </div>
-                </button>
-              </div>
-            </div>
+            <AccountTab user={user} logout={logout} onClose={onClose} />
           )}
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer */}
         <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-end gap-3 shrink-0">
           <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
             Cancel
           </Button>
-          <Button
-            size="sm"
-            onClick={async () => {
-              await handleSave();
-            }}
-            className="gap-2 text-xs font-semibold shadow-md"
-          >
+          <Button size="sm" onClick={handleSave} className="gap-2 text-xs font-semibold shadow-md">
             <Save className="h-4 w-4" />
             <span>Save Preferences</span>
           </Button>

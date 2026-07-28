@@ -198,6 +198,15 @@ export class ToolRegistry {
         all.push(...this.restTools);
         return all;
     }
+
+    resolveToolsMap(names: string[]): Map<string, ToolDefinition> {
+        const map = new Map<string, ToolDefinition>();
+        for (const name of names) {
+            const tool = this.getTool(name);
+            if (tool) map.set(name, tool);
+        }
+        return map;
+    }
 }
 
 export const toolRegistry = new ToolRegistry();

@@ -2,9 +2,10 @@
 
 import { useRef } from "react";
 import { api } from "@/lib/api-client";
-import { Message, StreamPacket, HistoryMessage, MissionMeta } from "../types";
+import { Message, StreamPacket, HistoryMessage, MissionMeta, SystemNotice } from "../types";
 import { CHAT_ROLES, PACKET_TYPES, CHAT_ENDPOINTS } from "../constants";
 import { useChatStore } from "../stores/chatStore";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { sessionApi } from "../services/chat-api";
 
 export function useChatStream() {
@@ -66,6 +67,7 @@ export function useChatStream() {
       abortRef.current = new AbortController();
 
       const storeState = useChatStore.getState();
+      const settingsState = useSettingsStore.getState();
       const payload: Record<string, unknown> = {
         message: input,
         mode: storeState.mode,
@@ -77,6 +79,10 @@ export function useChatStream() {
 
       if (storeState.selectedModel) {
         payload.model = storeState.selectedModel;
+      }
+
+      if (settingsState.config.harnessToggles) {
+        payload.config = { featureToggles: settingsState.config.harnessToggles };
       }
 
       await api.stream(
@@ -278,6 +284,35 @@ export function useChatStream() {
         } else if (data.type === PACKET_TYPES.ERROR) {
           lastMessage.content = `Error: ${data.content || "Stream execution failed"}`;
           store.setAgentState("error");
+        } else if (data.type === PACKET_TYPES.SYSTEM_NOTICE) {
+          const notice: SystemNotice = {
+            id: crypto.randomUUID(),
+            level: data.payload.level,
+            code: data.payload.code,
+            message: data.payload.message,
+            timestamp: Date.now(),
+          };
+          store.appendSystemNotice(notice);
+        } else if (data.type === PACKET_TYPES.HITL_APPROVAL_REQUIRED) {
+          store.setHitlPendingApproval({
+            approvalId: data.payload.approvalId,
+            toolName: data.payload.toolName,
+            args: data.payload.args,
+            riskLevel: data.payload.riskLevel,
+            expiresAt: data.payload.expiresAt,
+            missionId: data.missionId,
+          });
+        } else if (data.type === PACKET_TYPES.TOKEN_METRICS) {
+          if (data.payload) {
+            store.setCumulativeUsage({
+              promptTokens: data.payload.promptTokens,
+              completionTokens: data.payload.completionTokens,
+              totalTokens: data.payload.totalTokens,
+              cachedTokens: data.payload.cachedTokens,
+            });
+          }
+        } else if (data.type === PACKET_TYPES.MISSION_COMPLETED) {
+          store.setAgentState("completed");
         } else {
           const streamRecord = data as unknown as { choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>; content?: string; reasoning_content?: string };
           const delta = streamRecord.choices?.[0]?.delta || streamRecord;

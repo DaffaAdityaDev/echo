@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client";
-import type { AgentConfig } from "../types";
+import type { AgentConfig, HarnessFeatureToggles } from "../types";
 import { DEFAULT_AGENT_CONFIG } from "../types";
 
 interface UserPreferencesDTO {
@@ -11,6 +11,7 @@ interface UserPreferencesDTO {
   provider_type?: string;
   has_api_key?: boolean;
   base_url?: string;
+  harness_toggles?: HarnessFeatureToggles;
 }
 
 function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
@@ -23,6 +24,7 @@ function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
     apiKey: "", // Never pre-fill — user must enter key to change
     hasApiKey: dto.has_api_key ?? false,
     baseUrl: dto.base_url ?? DEFAULT_AGENT_CONFIG.baseUrl,
+    harnessToggles: dto.harness_toggles ?? undefined,
   };
 }
 
@@ -37,14 +39,15 @@ function toDTO(config: AgentConfig): Record<string, unknown> {
   };
 
   if (config.apiKey) {
-    // User typed a new key — encrypt and store
     body.api_key = config.apiKey;
     body.keep_api_key = false;
   } else if (config.hasApiKey) {
-    // No new key but server has one — keep existing
     body.keep_api_key = true;
   }
-  // else: no new key, no existing → store empty (clear)
+
+  if (config.harnessToggles) {
+    body.harness_toggles = config.harnessToggles;
+  }
 
   return body;
 }

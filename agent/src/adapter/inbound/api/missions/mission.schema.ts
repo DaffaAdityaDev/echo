@@ -128,6 +128,45 @@ export const AgentConfigSchema = z.object({
   },
 });
 
+export const HarnessFeatureTogglesSchema = z.object({
+  loopDetection: z.object({
+    enabled: z.boolean().default(true),
+    enableExactMatch: z.boolean().optional(),
+    enableCosineSimilarity: z.boolean().optional(),
+    maxConsecutiveIdenticalCalls: z.number().int().optional(),
+    similarityThreshold: z.number().min(0).max(1).optional(),
+    windowSize: z.number().int().optional(),
+  }).optional(),
+  budgetMonitor: z.object({
+    enabled: z.boolean().default(true),
+    enforceMaxSteps: z.boolean().optional(),
+    maxSteps: z.number().int().optional(),
+    enforceTimeout: z.boolean().optional(),
+    maxDurationMs: z.number().int().optional(),
+    enforceCostCap: z.boolean().optional(),
+    maxCostUsd: z.number().optional(),
+  }).optional(),
+  systemNotices: z.object({
+    enabled: z.boolean().default(true),
+    emitLoopWarnings: z.boolean().optional(),
+    emitCompactionNotices: z.boolean().optional(),
+    emitBudgetWarnings: z.boolean().optional(),
+    emitPacingWarnings: z.boolean().optional(),
+  }).optional(),
+  hitlGuard: z.object({
+    enabled: z.boolean().default(true),
+    protectedTools: z.array(z.string()).optional(),
+    ttlMinutes: z.number().int().optional(),
+  }).optional(),
+  contextOptimization: z.object({
+    enabled: z.boolean().default(true),
+    enablePrefixCachingLayout: z.boolean().optional(),
+    enableAutoCompaction: z.boolean().optional(),
+    compactionThresholdRatio: z.number().min(0).max(1).optional(),
+    keepLastTurnsCount: z.number().int().optional(),
+  }).optional(),
+}).optional();
+
 export const createMissionSchema = z.preprocess((input: any) => {
   if (!input || typeof input !== 'object') return input;
 

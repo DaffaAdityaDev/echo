@@ -186,6 +186,9 @@ func Migrate(pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS base_url TEXT DEFAULT ''"); err != nil {
 		log.Printf("failed to add base_url column to user_preferences: %v", err)
 	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS harness_toggles JSONB DEFAULT '{}'"); err != nil {
+		log.Printf("failed to add harness_toggles column to user_preferences: %v", err)
+	}
 
 	if _, err := pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector"); err != nil {
 		log.Printf("failed to create vector extension: %v", err)

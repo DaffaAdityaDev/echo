@@ -128,7 +128,11 @@ export type StreamPacket =
   | (StreamPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{ role: string; content: string }>; })
   | (StreamPacketBase & { type: 'error'; content: string; code?: string; })
   | (StreamPacketBase & { type: 'swarm_status'; swarm: { status: 'crawling' | 'scraped' | 'critic_validating' | 'critic_passed' | 'critic_failed' | 'synthesis' | 'scrape_failed'; url?: string; depth: number; attempt?: number; dataSize?: number; factsCount?: number; feedback?: string; message?: string; }; })
-  | (StreamPacketBase & { type: 'file_operation'; fileOp: { operation: 'write' | 'read' | 'offload'; path: string; preview?: string; }; });
+  | (StreamPacketBase & { type: 'file_operation'; fileOp: { operation: 'write' | 'read' | 'offload'; path: string; preview?: string; }; })
+  | (StreamPacketBase & { type: 'system_notice'; payload: { level: 'info' | 'warning' | 'error'; code: string; message: string; }; })
+  | (StreamPacketBase & { type: 'token_metrics'; payload: { promptTokens: number; completionTokens: number; totalTokens: number; cachedTokens?: number; estimatedCostUsd: number; }; })
+  | (StreamPacketBase & { type: 'hitl_approval_required'; payload: { approvalId: string; toolName: string; args: Record<string, unknown>; riskLevel: 'medium' | 'high' | 'critical'; expiresAt: number; }; })
+  | (StreamPacketBase & { type: 'mission_completed'; payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number; }; });
 
 export interface FailedUrl {
   url: string;
@@ -161,6 +165,23 @@ export interface AgentProgressData {
       feedback?: string;
     }>;
   };
+}
+
+export interface HitlApproval {
+  approvalId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  riskLevel: 'medium' | 'high' | 'critical';
+  expiresAt: number;
+  missionId: string;
+}
+
+export interface SystemNotice {
+  id: string;
+  level: 'info' | 'warning' | 'error';
+  code: string;
+  message: string;
+  timestamp: number;
 }
 
 export type AgentProgress = AgentProgressData;

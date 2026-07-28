@@ -4,6 +4,7 @@ import (
 	"context"
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/user"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -31,9 +32,10 @@ func (r *Repository) Get(ctx context.Context, userID int) (*usermodel.UserPrefer
 	var p usermodel.UserPreferences
 	var features, skills []string
 	var updatedAt time.Time
+	var harnessTogglesJSON []byte
 
 	err := r.pool.QueryRow(ctx, db.QueryGetPreferences, userID).
-		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &updatedAt)
+		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &harnessTogglesJSON, &updatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -44,6 +46,13 @@ func (r *Repository) Get(ctx context.Context, userID int) (*usermodel.UserPrefer
 	p.DefaultFeatures = nonil(features)
 	p.DefaultSkills = nonil(skills)
 
+	if len(harnessTogglesJSON) > 0 {
+		var toggles usermodel.HarnessFeatureToggles
+		if err := json.Unmarshal(harnessTogglesJSON, &toggles); err == nil {
+			p.HarnessToggles = &toggles
+		}
+	}
+
 	return &p, nil
 }
 
@@ -51,6 +60,7 @@ func (r *Repository) Upsert(ctx context.Context, userID int, prefs *usermodel.Us
 	var p usermodel.UserPreferences
 	var features, skills []string
 	var updatedAt pgtype.Timestamptz
+	var harnessTogglesJSON []byte
 
 	if prefs.DefaultFeatures == nil {
 		prefs.DefaultFeatures = []string{}
@@ -59,16 +69,30 @@ func (r *Repository) Upsert(ctx context.Context, userID int, prefs *usermodel.Us
 		prefs.DefaultSkills = []string{}
 	}
 
+	if prefs.HarnessToggles != nil {
+		togglesBytes, err := json.Marshal(prefs.HarnessToggles)
+		if err == nil {
+			harnessTogglesJSON = togglesBytes
+		}
+	}
+
 	err := r.pool.QueryRow(ctx, db.QueryUpsertPreferences,
 		userID, prefs.DefaultMode, prefs.DefaultModel, prefs.DefaultFeatures, prefs.DefaultSkills,
-		prefs.ProviderType, prefs.APIKey, prefs.BaseURL).
-		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &updatedAt)
+		prefs.ProviderType, prefs.APIKey, prefs.BaseURL, harnessTogglesJSON).
+		Scan(&p.UserID, &p.DefaultMode, &p.DefaultModel, &features, &skills, &p.ProviderType, &p.APIKey, &p.BaseURL, &harnessTogglesJSON, &updatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert preferences: %w", err)
 	}
 
 	p.DefaultFeatures = nonil(features)
 	p.DefaultSkills = nonil(skills)
+
+	if len(harnessTogglesJSON) > 0 {
+		var toggles usermodel.HarnessFeatureToggles
+		if err := json.Unmarshal(harnessTogglesJSON, &toggles); err == nil {
+			p.HarnessToggles = &toggles
+		}
+	}
 
 	return &p, nil
 }

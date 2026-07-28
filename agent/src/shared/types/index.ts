@@ -1,6 +1,59 @@
 import { z } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 
+export interface HarnessFeatureToggles {
+  loopDetection: {
+    enabled: boolean;
+    enableExactMatch?: boolean;
+    enableCosineSimilarity?: boolean;
+    maxConsecutiveIdenticalCalls?: number;
+    similarityThreshold?: number;
+    windowSize?: number;
+  };
+  budgetMonitor: {
+    enabled: boolean;
+    enforceMaxSteps?: boolean;
+    maxSteps?: number;
+    enforceTimeout?: boolean;
+    maxDurationMs?: number;
+    enforceCostCap?: boolean;
+    maxCostUsd?: number;
+  };
+  systemNotices: {
+    enabled: boolean;
+    emitLoopWarnings?: boolean;
+    emitCompactionNotices?: boolean;
+    emitBudgetWarnings?: boolean;
+    emitPacingWarnings?: boolean;
+  };
+  hitlGuard: {
+    enabled: boolean;
+    protectedTools?: string[];
+    ttlMinutes?: number;
+  };
+  contextOptimization: {
+    enabled: boolean;
+    enablePrefixCachingLayout?: boolean;
+    enableAutoCompaction?: boolean;
+    compactionThresholdRatio?: number;
+    keepLastTurnsCount?: number;
+  };
+}
+
+export interface HarnessSnapshot {
+  strategyName: string;
+  toolNames: string[];
+  providerConfig: {
+    type: string;
+    base_url: string;
+    api_key?: string | null;
+    model: string;
+  };
+  delegationDepth: number;
+  featureToggles: HarnessFeatureToggles;
+}
+
+
 export interface TenantContext {
   tenantId: string;      // Enterprise account partition (Use 'local' for desktop)
   userId: string;        // Triggering user identity
@@ -33,7 +86,11 @@ export type AgentPacketType =
   | 'state_change'
   | 'progress'
   | 'heartbeat'
-  | 'turn_complete';
+  | 'turn_complete'
+  | 'system_notice'
+  | 'token_metrics'
+  | 'hitl_approval_required'
+  | 'mission_completed';
 
 export interface FailedUrl {
   url: string;
@@ -79,7 +136,11 @@ export type HarnessPacket =
   | (HarnessPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
   | (HarnessPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{ role: string; content: string }>; })
   | (HarnessPacketBase & { type: 'error'; content: string; code?: string; })
-  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; });
+  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; })
+  | (HarnessPacketBase & { type: 'system_notice'; payload: { level: 'info' | 'warning' | 'error'; code: string; message: string; }; })
+  | (HarnessPacketBase & { type: 'token_metrics'; payload: { promptTokens: number; completionTokens: number; totalTokens: number; cachedTokens?: number; estimatedCostUsd: number; }; })
+  | (HarnessPacketBase & { type: 'hitl_approval_required'; payload: { approvalId: string; toolName: string; args: Record<string, unknown>; riskLevel: 'medium' | 'high' | 'critical'; expiresAt: number; }; })
+  | (HarnessPacketBase & { type: 'mission_completed'; payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number; }; });
 
 /**
  * Standardized response from any tool call.
@@ -102,6 +163,25 @@ export interface AgentState {
     currentTaskId?: string;
     memory: Record<string, unknown>;
     messages: BaseMessage[];
+}
+
+export interface PausedMissionState {
+  approvalId: string;
+  missionId: string;
+  sessionId: string;
+  pendingToolCall: {
+    id: string;
+    name: string;
+    args: Record<string, unknown>;
+  };
+  state: AgentState;
+  harnessSnapshot: HarnessSnapshot;
+  metadata: {
+    totalCostUsd: number;
+    loopDetectorHistory: string[];
+    pausedAt: string;
+    expiresAt: number;
+  };
 }
 
 export interface Task {

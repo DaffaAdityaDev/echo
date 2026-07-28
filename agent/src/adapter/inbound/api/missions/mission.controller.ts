@@ -1,11 +1,11 @@
 import { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { MissionPayload, ToolDefinition, LLMProvider } from '../../../../shared/types';
+import { MissionPayload, ToolDefinition, LLMProvider, PausedMissionState, HarnessSnapshot } from '../../../../shared/types';
 import { NlahHarness } from '../../../../core/agent/harness';
 import { ProviderFactory } from '../../../../infrastructure/providers/factory';
 import { StrategyFactory } from '../../../../core/agent/strategies';
 import { logger } from '../../../../shared/utils/logger';
-import { HumanMessage, BaseMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, ToolMessage, BaseMessage } from "@langchain/core/messages";
 import { stateStorage } from '../../../../core/agent/storage';
 import { randomUUID } from 'node:crypto';
 import { createMissionSchema } from './mission.schema';
@@ -85,7 +85,7 @@ export class MissionController {
       }
 
       if (explicitFeatures === undefined && validatedData.skills && validatedData.skills.length > 0) {
-        const skillsRegistry = SkillRegistry.getInstance();
+        const skillsRegistry = new SkillRegistry();
         const preferredToolNames = new Set<string>();
 
         for (const skillName of validatedData.skills) {
@@ -162,6 +162,89 @@ export class MissionController {
       logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, error);
       return c.json({ error: MISSION_LOG_MESSAGES.EXECUTION_FAILURE, details: error.message }, 500);
     }
+  }
+
+  public async approveMissionTool(c: Context) {
+    const missionId = c.req.param('id')!;
+    const body = await c.req.json() as { approvalId: string; decision: 'approve' | 'deny'; reason?: string };
+
+    const pausedState = await stateStorage.get(`paused:${body.approvalId}`) as unknown as PausedMissionState | null;
+    if (!pausedState) {
+      return c.json({ error: 'APPROVAL_EXPIRED_OR_NOT_FOUND' }, 404);
+    }
+
+    await stateStorage.delete(`paused:${body.approvalId}`);
+
+    const { state, pendingToolCall, harnessSnapshot, metadata } = pausedState;
+
+    if (body.decision === 'approve') {
+      const toolMap = toolRegistry.resolveToolsMap(harnessSnapshot.toolNames);
+      const tool = toolMap.get(pendingToolCall.name);
+
+      let observation;
+      if (tool) {
+        observation = await tool.execute(pendingToolCall.args);
+      } else {
+        observation = { status: 'error', summary: `Tool ${pendingToolCall.name} not found.` };
+      }
+
+      const toolCallId = `tool_approved_${Date.now()}`;
+      state.messages.push(new AIMessage({
+        content: "",
+        tool_calls: [{ id: toolCallId, name: pendingToolCall.name, args: pendingToolCall.args, type: "tool_call" }]
+      }));
+      state.messages.push(new ToolMessage({ tool_call_id: toolCallId, content: observation.summary }));
+    } else {
+      state.messages.push(new HumanMessage(
+        `USER INTERVENTION: Execution of tool "${pendingToolCall.name}" was denied. Reason: ${body.reason || 'Permission denied'}. Find an alternative solution.`
+      ));
+    }
+
+    return streamSSE(c, async (streamInstance) => {
+      const transport = new HttpStreamTransport(streamInstance);
+      const provider = ProviderFactory.fromConfig(harnessSnapshot.providerConfig as any);
+      const strategy = StrategyFactory.create(harnessSnapshot.strategyName);
+
+      const harness = new NlahHarness({
+        missionId,
+        provider,
+        strategy,
+        harnessConfig: harnessSnapshot.featureToggles,
+        initialCostUsd: metadata.totalCostUsd,
+        delegationDepth: harnessSnapshot.delegationDepth,
+      });
+
+      harness.restoreLoopDetectorHistory(metadata.loopDetectorHistory);
+
+      const signal = cancellationManager.register(missionId);
+      streamInstance.onAbort(() => {
+        cancellationManager.cancelLocal(missionId);
+      });
+
+      try {
+        await harness.runMission(state, async (packet: any) => {
+          if (signal.aborted) {
+            throw new Error("Mission cancelled by client disconnect");
+          }
+          await transport.send(packet);
+        });
+      } catch (streamErr: any) {
+        logger.error(`Resume stream execution failed: ${streamErr.message}`);
+        try {
+          await transport.send({
+            type: 'error',
+            missionId,
+            step: 0,
+            content: streamErr.message,
+            code: 'STREAM_EXECUTION_ERROR'
+          });
+        } catch (sendErr) {
+          logger.warn(`Failed to send error packet: ${sendErr}`);
+        }
+      } finally {
+        cancellationManager.unregister(missionId);
+      }
+    });
   }
 }
 

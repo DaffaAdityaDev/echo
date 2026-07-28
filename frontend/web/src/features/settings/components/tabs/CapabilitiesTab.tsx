@@ -1,0 +1,97 @@
+"use client";
+
+import { cn } from "@/utils/cn";
+import { Badge } from "@/components/ui/Badge";
+import type { AgentConfig } from "../../types";
+
+interface FeatureItem {
+  id: string;
+  name: string;
+  description: string;
+  locked: boolean;
+}
+
+interface SkillItem {
+  name: string;
+  description: string;
+}
+
+interface CapabilitiesTabProps {
+  config: AgentConfig;
+  features: FeatureItem[];
+  skills: SkillItem[];
+  handleFeatureToggle: (id: string) => void;
+  handleSkillToggle: (name: string) => void;
+}
+
+export function CapabilitiesTab({
+  config, features, skills,
+  handleFeatureToggle, handleSkillToggle,
+}: CapabilitiesTabProps) {
+  return (
+    <>
+      <div className="space-y-3">
+        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+          Harness Tool Capabilities
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {features.map((f) => (
+            <label
+              key={f.id}
+              className={cn(
+                "flex items-start gap-3 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-400 dark:hover:border-zinc-700",
+                f.locked && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={config.defaultFeatures.includes(f.id)}
+                disabled={f.locked}
+                onChange={() => handleFeatureToggle(f.id)}
+                className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-purple-600 focus:ring-0 w-4 h-4 mt-0.5"
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 truncate">
+                  {f.name}
+                  {f.locked && <Badge variant="warning" className="text-[9px]">PRO</Badge>}
+                </span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
+                  {f.description}
+                </span>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+          Autoloaded Agent Skills
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {skills.map((s) => (
+            <label
+              key={s.name}
+              className="flex items-start gap-3 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 cursor-pointer transition-all hover:border-zinc-400 dark:hover:border-zinc-700"
+            >
+              <input
+                type="checkbox"
+                checked={config.defaultSkills.includes(s.name)}
+                onChange={() => handleSkillToggle(s.name)}
+                className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-purple-600 focus:ring-0 w-4 h-4 mt-0.5"
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                  {s.name}
+                </span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
+                  {s.description}
+                </span>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
