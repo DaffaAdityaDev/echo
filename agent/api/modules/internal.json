@@ -83,6 +83,7 @@
       "post": {
         "summary": "Summarize chat session history",
         "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",
+        "tags": ["Internal"],
         "security": [
           {
             "InternalTokenAuth": []

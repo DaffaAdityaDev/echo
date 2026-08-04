@@ -37,30 +37,27 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "web-browsing"
+            "example": "web_search"
           },
           "name": {
             "type": "string",
-            "example": "Web Browsing"
+            "example": "web_search"
           },
           "description": {
             "type": "string",
-            "example": "Browse the web in real-time to fetch up-to-date information"
-          },
-          "tier_requirement": {
-            "type": "string",
-            "enum": ["free", "pro"],
-            "example": "free"
+            "example": "Web search engine for real-time weather, prices, and current events."
           }
-        }
+        },
+        "required": ["id", "name", "description"]
       }
     }
   },
   "paths": {
     "/api/features": {
       "get": {
-        "summary": "List available agent features",
-        "description": "Fetch list of active system tools and their tier requirements. Features marked with tier_requirement 'pro' are locked for free-tier users.",
+        "summary": "List implemented agent features",
+        "description": "Fetch the implemented tool registry — the feature IDs the agent can actually execute, dynamically derived from the tool registry. Each entry maps a requestable feature id to its loaded tool name and description. Catalog metadata (tier_requirement, ui_schema, status) is owned by the backend features table, not the agent.",
+        "tags": ["Features"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -71,7 +68,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Feature catalog",
+            "description": "Implemented tool registry",
             "content": {
               "application/json": {
                 "schema": {
@@ -82,28 +79,19 @@
                 },
                 "example": [
                   {
-                    "id": "web-browsing",
-                    "name": "Web Browsing",
-                    "description": "Browse the web in real-time to fetch up-to-date information",
-                    "tier_requirement": "free"
+                    "id": "delegate_task",
+                    "name": "delegate_task",
+                    "description": "Delegate a specific sub-task or research query to a specialized child/sub-agent. This isolates the parent workspace and keeps the context window clean."
                   },
                   {
-                    "id": "code-interpreter",
-                    "name": "Code Interpreter",
-                    "description": "Execute and analyze code in a sandboxed environment",
-                    "tier_requirement": "pro"
+                    "id": "web_search",
+                    "name": "web_search",
+                    "description": "Web search engine for real-time weather, prices, and current events."
                   },
                   {
-                    "id": "file-system",
-                    "name": "File System",
-                    "description": "Read, write, and manage files in the workspace",
-                    "tier_requirement": "free"
-                  },
-                  {
-                    "id": "image-generation",
-                    "name": "Image Generation",
-                    "description": "Generate images using DALL-E or similar models",
-                    "tier_requirement": "pro"
+                    "id": "write_todos",
+                    "name": "write_todos",
+                    "description": "Create, update, or reorganize the agent's task plan (todo list). Use this tool to set or modify the planned execution steps."
                   }
                 ]
               }

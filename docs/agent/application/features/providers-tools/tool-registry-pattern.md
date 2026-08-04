@@ -20,7 +20,7 @@ catalog exposed via the API.
 ```
 tools/
   index.ts          # Barrel re-export
-  registry.ts       # ToolRegistry class, LAZY_TOOLS, ACTIVE_FEATURES
+  registry.ts       # ToolRegistry class, LAZY_TOOLS, getImplementedFeatures()
   definitions/
     web-search/     # DuckDuckGo HTML search (no API key needed)
     planning/       # Task board (write_todos) → STATE.md
@@ -225,7 +225,7 @@ REST tools do not require a persistent connection — they are stateless adapter
 | `toolRegistry`     | `registry.ts`                    | `ToolRegistry` singleton                   |
 | `ToolRegistry`     | `registry.ts`                    | Class with autoload, resolveTools, getAllTools, connectMCPServer, addRestTool |
 | `LAZY_TOOLS`       | `registry.ts`                    | Static lazy-loading map                    |
-| `ACTIVE_FEATURES`  | `registry.ts`                    | Feature catalog array                      |
+| `getImplementedFeatures()` | `registry.ts`            | Implemented registry (id/name/description) |
 +--------------------+----------------------------------+--------------------------------------------+
 
 ---
@@ -316,7 +316,9 @@ This check ensures that tools loaded by `autoload()` (via `this.tools.set()`) ar
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | LAZY_TOOLS map           | `registry.ts:13-17`                      | Static imports for 3 tools                            |
-| ACTIVE_FEATURES          | `registry.ts:20-24`                      | 3 entries with id, name, tier                          |
+| getImplementedFeatures() | `registry.ts:20-42`                      | Implemented registry — 3 ids with loaded tool name/  |
+|                         |                                          |   description (no tier/ui_schema; backend DB owns    |
+|                         |                                          |   catalog metadata)                                  |
 | autoload()               | `registry.ts:31-69`                      | `readdir` + dynamic `import()` for each module        |
 | resolveTools()           | `registry.ts:75-99`                      | Resolves by feature ID or falls back to all           |
 | Delegate filter          | `harness/harness.ts:108-113`        | Sub-agents filter out delegate_task                   |

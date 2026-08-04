@@ -1,3 +1,4 @@
+<reference>docs/shared/patterns/anti-slop.md</reference>
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

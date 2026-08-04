@@ -6,8 +6,8 @@ import { StandardContextAnchor } from "../../../../core/agent/anchors";
 import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import { SkillRegistry } from "../../../../core/agent/skills";
 import { stateStorage } from "../../../../core/agent/storage";
-import { StrategyFactory } from "../../../../core/agent/strategies";
-import { toolRegistry } from "../../../../core/agent/tools";
+import { StrategyFactory, strategyRegistry } from "../../../../core/agent/strategies";
+import { getImplementedFeatures, toolRegistry } from "../../../../core/agent/tools";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import {
   HarnessSnapshot,
@@ -62,7 +62,8 @@ export class MissionController {
         ...validatedData.provider_config,
         api_key: apiKeyCleaned ? apiKeyCleaned : undefined,
       });
-      const executionStrategy = StrategyFactory.create(payload.strategy);
+      const strategyKey = validatedData.strategy_version || validatedData.strategy;
+      const executionStrategy = strategyRegistry.resolve(strategyKey);
 
       let state = await stateStorage.get(missionId);
       if (state) {
@@ -82,6 +83,16 @@ export class MissionController {
       }
 
       const explicitFeatures = validatedData.features ?? undefined;
+
+      if (explicitFeatures !== undefined) {
+        const implementedIds = new Set(getImplementedFeatures().map((f) => f.id));
+        const unknownFeature = explicitFeatures.find((id) => !implementedIds.has(id));
+        if (unknownFeature) {
+          logger.error(`Unknown feature requested: ${unknownFeature}`);
+          return c.json({ error: `Unknown feature '${unknownFeature}'` }, 400);
+        }
+      }
+
       let resolvedTools: ToolDefinition[] | undefined;
 
       if (explicitFeatures !== undefined) {
@@ -134,7 +145,7 @@ export class MissionController {
           strategy: executionStrategy,
           tools: resolvedTools,
           skills: validatedData.skills ?? undefined,
-          harnessConfig: validatedData.config.harnessConfig,
+          harnessConfig: validatedData.config.featureToggles ?? validatedData.config.harnessConfig,
           delegationDepth: validatedData.config.harness.delegationDepth,
         });
 

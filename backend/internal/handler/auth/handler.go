@@ -40,6 +40,17 @@ type registerRequest struct {
 	Name     string `json:"name" example:"Jane Doe"`
 }
 
+// HandleRegister godoc
+// @Summary Register a new user
+// @Description Creates a new user account and returns a JWT token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body registerRequest true "Registration payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /api/v1/auth/register [post]
 func (h *Handler) HandleRegister(c fiber.Ctx) error {
 	var req registerRequest
 	body := c.Request().Body()
@@ -63,6 +74,17 @@ func (h *Handler) HandleRegister(c fiber.Ctx) error {
 	})
 }
 
+// HandleLogin godoc
+// @Summary Login with email and password
+// @Description Authenticates a user and returns a JWT token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body loginRequest true "Login payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/auth/login [post]
 func (h *Handler) HandleLogin(c fiber.Ctx) error {
 	var req loginRequest
 	body := c.Request().Body()
@@ -86,6 +108,16 @@ func (h *Handler) HandleLogin(c fiber.Ctx) error {
 	})
 }
 
+// HandleMe godoc
+// @Summary Get current user
+// @Description Returns the authenticated user's profile
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} authmodel.User
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/auth/me [get]
 func (h *Handler) HandleMe(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -103,6 +135,14 @@ func (h *Handler) HandleMe(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, user)
 }
 
+// HandleLogout godoc
+// @Summary Logout
+// @Description Clears the authentication cookie
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Router /api/v1/auth/logout [post]
 func (h *Handler) HandleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",

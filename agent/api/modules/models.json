@@ -52,6 +52,7 @@
       "get": {
         "summary": "List agent provider models",
         "description": "Fetch supported LLM provider model catalog",
+        "tags": ["Models"],
         "security": [
           {
             "InternalTokenAuth": []

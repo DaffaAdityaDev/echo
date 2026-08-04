@@ -21,7 +21,7 @@ import (
 )
 
 type SessionRepo interface {
-	CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error)
+	CreateSession(ctx context.Context, userID int, title string, strategyVersion string) (*chatmodel.Session, error)
 	GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
 	ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error)
@@ -39,26 +39,48 @@ type ModelSvc interface {
 	ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error)
 }
 
+type StrategySvc interface {
+	IsValidVersion(ctx context.Context, version string) bool
+}
+
 type Handler struct {
 	Cfg              *cfgmodel.Config
 	SessionRepo      SessionRepo
 	ConsolidationSvc ConsolidationSvc
 	ModelSvc         ModelSvc
+	StrategySvc      StrategySvc
 }
 
-func NewHandler(cfg *cfgmodel.Config, sessionRepo SessionRepo, consolidationSvc ConsolidationSvc, modelSvc ModelSvc) *Handler {
-	return &Handler{
+func NewHandler(cfg *cfgmodel.Config, sessionRepo SessionRepo, consolidationSvc ConsolidationSvc, modelSvc ModelSvc, strategySvc ...StrategySvc) *Handler {
+	h := &Handler{
 		Cfg:              cfg,
 		SessionRepo:      sessionRepo,
 		ConsolidationSvc: consolidationSvc,
 		ModelSvc:         modelSvc,
 	}
+	if len(strategySvc) > 0 {
+		h.StrategySvc = strategySvc[0]
+	}
+	return h
 }
 
 type CreateSessionRequest struct {
-	Title string `json:"title" example:"Build a REST API with Express"`
+	Title           string `json:"title" example:"Build a REST API with Express"`
+	StrategyVersion string `json:"strategyVersion,omitempty" example:"nlah:v1"`
 }
 
+// HandleCreateSession godoc
+// @Summary Create a session
+// @Description Creates a new chat session with an optional strategy version
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateSessionRequest true "Session payload"
+// @Success 201 {object} chatmodel.Session
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/sessions [post]
 func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -68,12 +90,18 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	var req CreateSessionRequest
 	_ = c.Bind().JSON(&req)
 
+	if req.StrategyVersion != "" && h.StrategySvc != nil {
+		if !h.StrategySvc.IsValidVersion(c.Context(), req.StrategyVersion) {
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version")
+		}
+	}
+
 	title := req.Title
 	if title == "" {
 		title = db.DefaultSessionTitle
 	}
 
-	session, err := h.SessionRepo.CreateSession(c.Context(), userID, title)
+	session, err := h.SessionRepo.CreateSession(c.Context(), userID, title, req.StrategyVersion)
 	if err != nil {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to create session", err.Error())
 	}
@@ -81,6 +109,16 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	return handlerutil.RespondCreated(c, session)
 }
 
+
+// HandleListSessions godoc
+// @Summary List user sessions
+// @Description Returns all active sessions for the authenticated user
+// @Tags Sessions
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/sessions [get]
 func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -99,6 +137,18 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, fiber.Map{"sessions": sessions})
 }
 
+// HandleGetSession godoc
+// @Summary Get a session
+// @Description Returns a session owned by the authenticated user
+// @Tags Sessions
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Success 200 {object} chatmodel.Session
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id} [get]
 func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -126,6 +176,18 @@ func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, session)
 }
 
+// HandleGetSessionMessages godoc
+// @Summary Get session messages
+// @Description Returns the message history of a session owned by the authenticated user
+// @Tags Sessions
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id}/messages [get]
 func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -160,6 +222,20 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, fiber.Map{"messages": messages})
 }
 
+// HandleUpdateSession godoc
+// @Summary Update a session
+// @Description Updates the title and/or summary of a session owned by the authenticated user
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Param request body object true "Title and/or summary"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id} [patch]
 func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -201,6 +277,17 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 	return handlerutil.RespondMessage(c, "Session updated")
 }
 
+// HandleDeleteSession godoc
+// @Summary Delete a session
+// @Description Soft-deletes a session owned by the authenticated user
+// @Tags Sessions
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id} [delete]
 func (h *Handler) HandleDeleteSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -237,6 +324,20 @@ type GenerateTitleRequest struct {
 	Model string `json:"model"`
 }
 
+// HandleGenerateTitle godoc
+// @Summary Generate a session title
+// @Description Generates a title and summary from the session history using an LLM
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Param request body GenerateTitleRequest true "Model selection (optional)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id}/generate-title [post]
 func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -320,7 +421,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build request")
 	}
 
-	endpoint := strings.TrimSuffix(providerCfg.BaseURL, "/") + "/chat/completions"
+	endpoint := buildChatCompletionsURL(providerCfg.BaseURL)
 	httpReq, err := http.NewRequestWithContext(c.Context(), "POST", endpoint, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request")
@@ -412,6 +513,18 @@ type PruneRequest struct {
 	ProviderConfig map[string]interface{} `json:"provider_config"`
 }
 
+// HandlePruneSession godoc
+// @Summary Prune and consolidate a session
+// @Description Triggers token-threshold pruning and consolidation for a session (internal)
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Param id path string true "Session ID"
+// @Param request body PruneRequest true "Provider configuration"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/internal/sessions/{id}/prune [post]
 func (h *Handler) HandlePruneSession(c fiber.Ctx) error {
 	sessionID := c.Params("id")
 	if sessionID == "" {
@@ -430,3 +543,15 @@ func (h *Handler) HandlePruneSession(c fiber.Ctx) error {
 
 	return handlerutil.RespondMessage(c, "Session pruned and consolidated successfully")
 }
+
+func buildChatCompletionsURL(baseURL string) string {
+	base := strings.TrimRight(baseURL, "/")
+	if strings.HasSuffix(base, "/chat/completions") {
+		return base
+	}
+	if !strings.HasSuffix(base, "/v1") {
+		return base + "/v1/chat/completions"
+	}
+	return base + "/chat/completions"
+}
+

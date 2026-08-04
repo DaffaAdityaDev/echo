@@ -3,8 +3,8 @@
 ================================================================================
   Module    : JSON API Contract
   Service   : Shared / Contracts
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.2
+  Updated   : 2026-08-04 (agent /api/features → implemented registry; catalog metadata moved to backend)
 ================================================================================
 
 ## Description
@@ -270,6 +270,9 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
   "message": "string",
   "model": "string",
   "mode": "standard | agent",
+  "strategy": "nlah | standard (optional, defaults to mode resolution)",
+  "strategyVersion": "nlah:v1 (optional, resolved by gateway if absent) [Active]",
+  "sessionId": "string (optional)",
   "missionId": "string (optional)",
   "history": [
     { "role": "user | assistant", "content": "string" }
@@ -280,6 +283,12 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 
 // Response 200 -> SSE Stream (text/event-stream)
 ```
+
+> **Strategy Lifecycle**: The gateway resolves `strategyVersion`
+> when `sessionId` is present — pinned from the session if set, otherwise
+> resolved from rollout config (see `docs/shared/patterns/strategy-lifecycle.md`).
+> The resolved version is forwarded to the agent in the generate-mission
+> payload. The field is additive; clients may omit it.
 
 ### Agent Internal: Generate Mission
 
@@ -299,7 +308,10 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
     "model": "string"
   },
   "missionId": "string (optional)",
-  "features": ["string (always sent — empty [] means 'no tools')"]
+  "features": ["string (always sent — empty [] means 'no tools')"],
+  "skills": ["string (optional)"],
+  "strategy": "string (optional, e.g. 'nlah') [Active]",
+  "strategy_version": "string (optional, e.g. 'nlah:v1') [Active]"
 }
 
 // Response 200 -> SSE Stream
@@ -324,9 +336,46 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
     model: string
   },
   features: string[] | null | undefined,
-  history: Array<{ role: string, content: string }> | null | undefined
+  history: Array<{ role: string, content: string }> | null | undefined,
+  strategy_version: string | null | undefined   // Active — "nlah:v1"
 }
 ```
+
+### Strategy Catalog
+
+**GET /api/v1/strategies** (Go Gateway, JWT) `[Active]`
+
+
+```json
+// Response 200
+{
+  "strategies": [
+    {
+      "name": "nlah",
+      "status": "active",
+      "versions": [
+        {
+          "version": "nlah:v1",
+          "status": "active",
+          "aliases": ["agent", "deep-research", "react", "sequential"],
+          "rollout": 1.0
+        }
+      ]
+    },
+    {
+      "name": "deep_research",
+      "status": "active",
+      "versions": [
+        { "version": "deep_research:v1", "status": "active", "rollout": 0.2 }
+      ]
+    }
+  ]
+}
+```
+
+Agent internal `GET /api/strategies` returns the same shape without the
+gateway-resolved `rollout` field (source of truth for catalog; rollout is
+gateway-owned).
 
 ### Models
 
@@ -374,14 +423,30 @@ Agent `/api/models` returns same shape but wraps OpenAI/LM Studio format:
 
 **GET /api/features** (Agent internal, used by Go)
 
+The agent's **implemented tool registry** — dynamically derived from its tool
+registry (`getImplementedFeatures()`). No tier, no ui_schema: catalog
+metadata lives in the backend `features` table (migration 009_create_features)
+and is merged by Go. Unknown feature ids requested in
+`POST /api/generate-mission` are rejected with HTTP 400
+`{"error": "Unknown feature '<id>'"}`, mirroring skills validation.
+
 ```json
 // Response 200
 [
   {
+    "id": "delegate_task",
+    "name": "delegate_task",
+    "description": "Delegate a specific sub-task or research query to a specialized child/sub-agent."
+  },
+  {
     "id": "web_search",
-    "name": "Web Search",
-    "description": "Search the internet...",
-    "tier_requirement": "pro"
+    "name": "web_search",
+    "description": "Web search engine for real-time weather, prices, and current events."
+  },
+  {
+    "id": "write_todos",
+    "name": "write_todos",
+    "description": "Create, update, or reorganize the agent's task plan (todo list)."
   }
 ]
 ```

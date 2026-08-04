@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Headless HaaS
   Service   : Shared / Architecture
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: strategy lifecycle + lifecycle worker)
 ================================================================================
 
 ## Description
@@ -458,6 +458,41 @@ Anthropic (Claude):
 - **Agent Engine**: `agent/src/index.ts` -> Hono app
 - **Frontend**: `frontend/web/src/app/page.tsx` -> `useChatStream()`
 
+## Strategy Lifecycle (Control Plane) `[Active]`
+
+Echo adds zero-downtime strategy delivery on top of the existing execution
+plane without changing the harness:
+
+- **Code-side registry** (`agent/src/core/agent/strategies/registry.ts`) is the
+  source of truth for "what is exported" — versioned entries `name:v1` with
+  `status` and aliases; `StrategyFactory` stays the only constructor.
+- **Operational control lives in the gateway** — `settings` table JSONB holds
+  rollout % (`{"deep_research:v1": {"rollout": 0.2}}`); gateway resolves the
+  version per chat request (session pin → rollout) and forwards
+  `strategy_version` to the agent.
+- **Backward compatibility**: active sessions keep their pinned version
+  (`sessions.strategy_version`) until finished; only *new* sessions are
+  affected by rollout. Deprecated versions remain executable for pinned
+  sessions.
+- **No restart required**: the agent is stateless; a new strategy ships as a
+  deploy of the agent container (rolling update), catalog exposed via
+  `GET /api/strategies`.
+
+Full contract: `docs/shared/patterns/strategy-lifecycle.md`.
+
+## Data & Memory Lifecycle (Garbage Collection) `[Active]`
+
+- **Per-session token overflow**: existing Hard Consolidation (inline fast-path
+  in `HandleChat`) — unchanged.
+- **Cross-session decay**: in-process lifecycle worker in the Go gateway
+  (goroutine + Redis SETNX lock, no new container):
+  - background consolidation of stale sessions,
+  - recency scoring via `sessions.last_accessed_at` → derived `deprecated` →
+    `status='archived'` → message deletion (row retained),
+  - Redis GC remains TTL-only.
+- Decay model: `docs/agent/domain/memory-and-retrieval-strategy.md`; worker:
+  `docs/backend/infrastructure/server-lifecycle.md`.
+
 ## Dependencies
 
 - **Go**: `fiber/v3` (HTTP), `pgx/v5` (PostgreSQL), `go-redis/v9`,
@@ -482,6 +517,10 @@ Anthropic (Claude):
 | agent/src/adapter/inbound/api/missions/stream.transport.ts        | SSE packet writer                    |
 | agent/src/core/agent/tools/registry.ts                | Lazy tool loading                    |
 | agent/src/core/agent/strategies/prompts.ts            | Prefix-caching prompt templates      |
+| agent/src/core/agent/strategies/registry.ts           | Versioned strategy registry [Active] |
+| backend/internal/worker/lifecycle.go                  | Lifecycle worker [Active]            |
+| backend/internal/handler/chat/handler.go              | Strategy resolution [Active]         |
+
 | agent/src/adapter/outbound/backend/memory.adapter.ts | Memory persistence via Service JWT   |
 | agent/src/shared/types/index.ts                       | Cross-service type contracts         |
 | frontend/web/src/features/chat/api/useChatStream.ts   | Client SSE consumer                  |

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Contracts
   Service   : Shared / Contracts
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (active: strategy lifecycle contracts)
 ================================================================================
 
 ## Overview
@@ -24,6 +24,8 @@ endpoint routing, and environment variable governance.
 | endpoints.md       | Complete route table across Go, Agent, Frontend   | Completed               |
 | env-contract.md    | Environment variables per service, prefixes,      | Completed               |
 |                    |   precedence rules, defaults                      |                         |
+|                    | (WORKER_*, DECAY_*, STRATEGY_ROLLOUT_DEFAULT      | Active (2026-07-31)     |
+|                    |   added to sections above)                        |                         |
 +--------------------+---------------------------------------------------+-------------------------+
 
 ## Quick Reference
@@ -40,6 +42,9 @@ endpoint routing, and environment variable governance.
 | Rate limits                          | endpoints.md                                |
 | Shared env prefixes                  | env-contract.md                             |
 | Precedence rules                     | env-contract.md                             |
+| Strategy version pin (schema)        | database-schema.md                          |
+| Strategy catalog endpoints           | endpoints.md                                |
+| Chat payload strategy fields         | json-api-contract.md                        |
 +--------------------------------------+---------------------------------------------+
 
 ================================================================================

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Types
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: strategy registry types)
 ================================================================================
 
 ## Description
@@ -225,6 +225,33 @@ interface AgentStrategy {
 The strategy is responsible **only** for constructing the system prompt. The
 harness drives all loop logic.
 
+### Strategy Registry Types `[Active]`
+
+
+```typescript
+type StrategyStatus = 'active' | 'deprecated';
+
+interface StrategyVersionInfo {
+  version: string;              // "nlah:v1"
+  status: StrategyStatus;
+  aliases: string[];
+}
+
+interface StrategyRegistryEntry {
+  name: string;                 // "nlah"
+  versions: StrategyVersionInfo[];
+}
+
+interface StrategyRegistry {
+  list(): StrategyRegistryEntry[];
+  resolve(version: string): AgentStrategy;   // "nlah:v1" -> factory
+  isDeprecated(version: string): boolean;
+}
+```
+
+Catalog shape is shared with `GET /api/strategies` and merged with gateway
+rollout at `GET /api/v1/strategies` (see `docs/shared/patterns/strategy-lifecycle.md`).
+
 ### ToolDefinition
 
 ```typescript
@@ -276,6 +303,8 @@ interface Observation<T = unknown> {
 | `shared/types/index.ts`          | 99-106                      | `AgentState`                                      |
 | `shared/types/index.ts`          | 108-113                     | `Task`                                            |
 | `shared/types/index.ts`          | 119-122                     | `AgentStrategy`                                   |
+| `shared/types/index.ts`          | (Planned)                   | `StrategyRegistryEntry`, `StrategyVersionInfo`,   |
+|                                  |                             | `StrategyStatus`, `StrategyRegistry`              |
 | `shared/types/index.ts`          | 127-133                     | `ToolDefinition`                                  |
 | `shared/types/index.ts`          | 139-156                     | `ProviderEvent`                                   |
 | `shared/types/index.ts`          | 162-172                     | `LLMProvider` interface                           |

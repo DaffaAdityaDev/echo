@@ -17,30 +17,29 @@ export const LAZY_TOOLS: Record<string, () => Promise<{ default: ToolDefinition 
   web_search: () => import("./definitions/web-search"),
 };
 
-// 2. Active Feature catalog exposed to API and clients
-export const ACTIVE_FEATURES = [
-  {
-    id: "delegate_task",
-    name: "Sub-Agent Delegation",
-    description: "Enables splitting complex objectives into sub-tasks and delegating to specialist sub-agents.",
-    tier_requirement: "pro",
-    ui_schema: { render_type: "hierarchy_tree", icon: "users", primary_color: "#3b82f6" },
-  },
-  {
-    id: "web_search",
-    name: "Web Search",
-    description: "Quick search for real-time weather, prices, and news facts.",
-    tier_requirement: "free",
-    ui_schema: { render_type: "card_list", icon: "search", primary_color: "#6366f1" },
-  },
-  {
-    id: "write_todos",
-    name: "Task Planning & Execution Board",
-    description: "Updates task board list state.",
-    tier_requirement: "free",
-    ui_schema: { render_type: "kanban_board", icon: "check-square", primary_color: "#8b5cf6" },
-  },
-];
+export interface ImplementedFeature {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export function getImplementedFeatures(registry: ToolRegistry = toolRegistry): ImplementedFeature[] {
+  const loadedById = new Map<string, ToolDefinition>();
+  for (const tool of registry.getAllTools()) {
+    loadedById.set(tool.name, tool);
+  }
+
+  const features: ImplementedFeature[] = [];
+  for (const id of Object.keys(LAZY_TOOLS)) {
+    const tool = loadedById.get(id);
+    if (tool) {
+      features.push({ id, name: tool.name, description: tool.description });
+    } else {
+      features.push({ id, name: id, description: "" });
+    }
+  }
+  return features.sort((a, b) => a.id.localeCompare(b.id));
+}
 
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();

@@ -96,3 +96,33 @@ func (r *Repository) Upsert(ctx context.Context, userID int, prefs *usermodel.Us
 
 	return &p, nil
 }
+
+func (r *Repository) GetAppSetting(ctx context.Context, key string) ([]byte, error) {
+	var k string
+	var val []byte
+	var updatedAt time.Time
+
+	err := r.pool.QueryRow(ctx, db.QueryGetAppSetting, key).Scan(&k, &val, &updatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get app setting %s: %w", key, err)
+	}
+
+	return val, nil
+}
+
+func (r *Repository) UpsertAppSetting(ctx context.Context, key string, value []byte) error {
+	var k string
+	var val []byte
+	var updatedAt time.Time
+
+	err := r.pool.QueryRow(ctx, db.QueryUpsertAppSetting, key, value).Scan(&k, &val, &updatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to upsert app setting %s: %w", key, err)
+	}
+
+	return nil
+}
+

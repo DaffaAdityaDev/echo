@@ -23,19 +23,19 @@
                 "tags": [
                     "Models"
                 ],
-                "summary": "Get available LLM models",
-                "description": "Fetch aggregated LLM model catalog from configured providers (OpenAI, Anthropic, LM Studio, OpenCode Go)",
+                "summary": "List available AI models",
+                "description": "Returns the AI model catalog available to the authenticated user",
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "List of available models",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "500": {
-                        "description": "Failed to retrieve models",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -44,7 +44,11 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -60,11 +64,5 @@
             "in": "header"
         }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

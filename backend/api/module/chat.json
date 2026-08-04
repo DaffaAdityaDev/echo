@@ -1,83 +1,65 @@
 {
     "basePath": "/",
     "definitions": {
-        "internal_handler.ChatRequest": {
+        "echo-backend_internal_service_features.FeatureResponse": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_chat.ChatRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "features": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "web-browsing",
-                        "code-interpreter"
-                    ]
+                    }
                 },
                 "history": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_handler.HistoryMessage"
+                        "$ref": "#/definitions/internal_handler_chat.HistoryMessage"
                     }
                 },
                 "message": {
-                    "type": "string",
-                    "example": "Explain how the Echo agent works"
+                    "type": "string"
                 },
                 "missionId": {
-                    "type": "string",
-                    "example": "mission_xyz789"
+                    "type": "string"
                 },
                 "mode": {
-                    "type": "string",
-                    "example": "agent"
+                    "type": "string"
                 },
                 "model": {
-                    "type": "string",
-                    "example": "gpt-4o"
+                    "type": "string"
                 },
                 "sessionId": {
-                    "type": "string",
-                    "example": "sess_abc123"
-                },
-                "config": {
-                    "type": "object",
-                    "description": "Harness feature toggles and agent configuration overrides (passed through to agent as-is)",
-                    "example": {
-                        "loopDetection": { "enabled": true, "maxConsecutiveIdenticalCalls": 5 },
-                        "budgetMonitor": { "enabled": true, "maxSteps": 20 }
-                    }
+                    "type": "string"
                 },
                 "skills": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "python",
-                        "research"
-                    ]
-                }
-            }
-        },
-        "internal_handler.FeatureResponse": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "example": "Browse the web in real-time to fetch up-to-date information"
+                    }
                 },
-                "id": {
-                    "type": "string",
-                    "example": "web-browsing"
-                },
-                "locked": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Web Browsing"
+                "strategyVersion": {
+                    "type": "string"
                 }
             }
         }
@@ -104,28 +86,29 @@
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Send chat message \u0026 stream response (SSE)",
-                "description": "Stream LLM response packets (SSE) for user message in a session or mission",
+                "summary": "Send a chat message",
+                "description": "Forwards a user message to the agent for processing",
                 "parameters": [
                     {
-                        "description": "Chat prompt and session parameters",
+                        "description": "Chat payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ChatRequest"
+                            "$ref": "#/definitions/internal_handler_chat.ChatRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events stream (data: JSON)",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or unknown model/skill",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -135,24 +118,6 @@
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden / Feature tier requirement",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -170,7 +135,7 @@
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ]
             }
         },
@@ -179,21 +144,21 @@
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Get available features catalog",
-                "description": "Fetch available features and their lock status based on user tier header (X-User-Tier)",
+                "summary": "List available agent features",
+                "description": "Returns the catalog of agent features with tier-based locking",
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "List of features with lock states",
+                        "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_handler.FeatureResponse"
+                                "$ref": "#/definitions/echo-backend_internal_service_features.FeatureResponse"
                             }
                         }
                     },
                     "500": {
-                        "description": "Failed to retrieve features",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -202,34 +167,45 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
                 ]
             }
         },
-        "/api/v1/skills": {
-            "get": {
+        "/api/v1/missions/{id}/approve": {
+            "post": {
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Get agent skills catalog",
-                "description": "Fetch available skill definitions from the agent service",
-                "parameters": null,
+                "summary": "Approve a pending tool call",
+                "description": "Approves a human-in-the-loop tool approval request for a mission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of agent skills",
+                        "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
-                    "500": {
-                        "description": "Failed to retrieve skills",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -238,20 +214,71 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
                 ]
             }
         },
-        "/v1/missions/{missionId}/stream": {
+        "/api/v1/missions/{id}/deny": {
+            "post": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Deny a pending tool call",
+                "description": "Denies a human-in-the-loop tool approval request for a mission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/missions/{missionId}/stream": {
             "get": {
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Stream mission logs (SSE)",
-                "description": "Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)",
+                "summary": "Stream mission logs",
+                "description": "Streams real-time mission execution logs as Server-Sent Events",
                 "parameters": [
                     {
                         "type": "string",
@@ -263,13 +290,13 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events log stream",
+                        "description": "Event stream",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "400": {
-                        "description": "Missing mission ID",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -278,121 +305,55 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "text/event-stream"
                 ]
             }
         },
-        "/api/v1/missions/{id}/approve": {
-            "post": {
-                "tags": ["Chat"],
-                "summary": "Approve pending HITL tool call (proxy to agent)",
-                "description": "Proxies the approval decision to the agent's HITL endpoint. Returns SSE stream of the resumed mission execution.",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Approval payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest"
-                        }
-                    }
+        "/api/v1/skills": {
+            "get": {
+                "tags": [
+                    "Chat"
                 ],
+                "summary": "List available agent skills",
+                "description": "Returns the catalog of skills available to agents",
+                "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "SSE stream of resumed execution events",
-                        "schema": { "type": "string" }
-                    },
-                    "400": {
-                        "description": "Invalid request body or missing mission ID",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": { "type": "string" }
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
                         }
                     },
-                    "404": {
-                        "description": "Approval expired or not found",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": { "type": "string" }
-                        }
-                    },
-                    "502": {
-                        "description": "Agent unreachable",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": { "type": "string" }
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
-                "security": [{ "BearerAuth": [] }],
-                "consumes": ["application/json"],
-                "produces": ["text/event-stream"]
-            }
-        },
-        "/api/v1/missions/{id}/deny": {
-            "post": {
-                "tags": ["Chat"],
-                "summary": "Deny pending HITL tool call (proxy to agent)",
-                "description": "Proxies the denial decision to the agent's HITL endpoint. Returns SSE stream of the resumed mission execution with agent informed of denial.",
-                "parameters": [
+                "security": [
                     {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Denial payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.ApproveOrDenyRequest"
-                        }
+                        "BearerAuth": []
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "SSE stream of resumed execution events",
-                        "schema": { "type": "string" }
-                    },
-                    "400": {
-                        "description": "Invalid request body or missing mission ID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": { "type": "string" }
-                        }
-                    },
-                    "404": {
-                        "description": "Approval expired or not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": { "type": "string" }
-                        }
-                    },
-                    "502": {
-                        "description": "Agent unreachable",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": { "type": "string" }
-                        }
-                    }
-                },
-                "security": [{ "BearerAuth": [] }],
-                "consumes": ["application/json"],
-                "produces": ["text/event-stream"]
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
             }
         }
     },
@@ -404,33 +365,5 @@
             "in": "header"
         }
     },
-    "definitions": {
-        "internal_handler.ApproveOrDenyRequest": {
-            "type": "object",
-            "required": ["approvalId", "decision"],
-            "properties": {
-                "approvalId": {
-                    "type": "string",
-                    "description": "Approval ID from a previous hitl_approval_required event",
-                    "example": "appr_a1b2c3d4"
-                },
-                "decision": {
-                    "type": "string",
-                    "enum": ["approve", "deny"],
-                    "description": "Decision to approve or deny the tool execution"
-                },
-                "reason": {
-                    "type": "string",
-                    "description": "Optional justification, included in the denial message to the agent"
-                }
-            }
-        }
-    },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

@@ -182,6 +182,7 @@
       "post": {
         "summary": "Approve pending HITL tool call and resume mission",
         "description": "Approves a tool execution that was paused by the HITL Guard. If the approvalId is expired or not found, returns 404. On success, resumes the mission execution loop via SSE stream.",
+        "tags": ["Missions"],
         "security": [{ "InternalTokenAuth": [] }, { "BearerAuth": [] }],
         "parameters": [
           {
@@ -243,6 +244,7 @@
       "post": {
         "summary": "Deny pending HITL tool call and resume mission",
         "description": "Denies a tool execution paused by the HITL Guard. The agent is informed of the denial and asked to find an alternative solution. Resumes the mission execution loop via SSE stream.",
+        "tags": ["Missions"],
         "security": [{ "InternalTokenAuth": [] }, { "BearerAuth": [] }],
         "parameters": [
           {

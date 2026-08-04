@@ -31,7 +31,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve all system API keys",
+                "description": "Returns all API keys (admin)",
                 "produces": [
                     "application/json"
                 ],
@@ -45,12 +45,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                                "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
                             }
                         }
                     },
                     "500": {
-                        "description": "Failed to list keys",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -66,7 +66,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Generate a new API key with specific scopes",
+                "description": "Generates and stores a new API key (admin)",
                 "consumes": [
                     "application/json"
                 ],
@@ -76,28 +76,28 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Create API key",
+                "summary": "Create an API key",
                 "parameters": [
                     {
-                        "description": "API Key creation parameters (name, scopes)",
+                        "description": "API key payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
+                            "$ref": "#/definitions/internal_handler_admin.createAPIKeyRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Generated full key and record",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request or missing name",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -107,15 +107,6 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to generate/store key",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -133,18 +124,18 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Change an API key status to revoked",
+                "description": "Revokes an API key by ID (admin)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Revoke API key",
+                "summary": "Revoke an API key",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "API Key ID",
+                        "description": "API key ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -152,7 +143,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Key revoked",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -161,7 +152,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing key ID",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -170,16 +161,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Key not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to revoke key",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -197,27 +179,24 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Count total and active API keys in the system",
+                "description": "Returns total and active API key counts (admin)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Get admin API key statistics",
+                "summary": "Get API key statistics",
                 "responses": {
                     "200": {
-                        "description": "Total and active key counts",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "integer",
-                                "format": "int64"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Failed to get stats",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -230,7 +209,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/login": {
             "post": {
-                "description": "Authenticate user and receive JWT token and session cookie",
+                "description": "Authenticates a user and returns a JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -240,28 +219,28 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Login user",
+                "summary": "Login with email and password",
                 "parameters": [
                     {
-                        "description": "Login credentials",
+                        "description": "Login payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.loginRequest"
+                            "$ref": "#/definitions/internal_handler_auth.loginRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "User and Token",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -270,7 +249,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Invalid email or password",
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -288,17 +267,17 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Invalidate the session cookie",
+                "description": "Clears the authentication cookie",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Logout user",
+                "summary": "Logout",
                 "responses": {
                     "200": {
-                        "description": "Logged out",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -316,19 +295,19 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch profile info for the currently authenticated user",
+                "description": "Returns the authenticated user's profile",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Get current user profile",
+                "summary": "Get current user",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.User"
+                            "$ref": "#/definitions/echo-backend_internal_models_auth.User"
                         }
                     },
                     "401": {
@@ -341,7 +320,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -354,7 +333,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/register": {
             "post": {
-                "description": "Register a new user account with email, password, and name",
+                "description": "Creates a new user account and returns a JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -364,28 +343,28 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Register user",
+                "summary": "Register a new user",
                 "parameters": [
                     {
-                        "description": "Registration credentials",
+                        "description": "Registration payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.registerRequest"
+                            "$ref": "#/definitions/internal_handler_auth.registerRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "User and Token",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -394,7 +373,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Email already exists",
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -412,37 +391,38 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Stream LLM response packets (SSE) for user message in a session or mission",
+                "description": "Forwards a user message to the agent for processing",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Send chat message \u0026 stream response (SSE)",
+                "summary": "Send a chat message",
                 "parameters": [
                     {
-                        "description": "Chat prompt and session parameters",
+                        "description": "Chat payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ChatRequest"
+                            "$ref": "#/definitions/internal_handler_chat.ChatRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Server-Sent Events stream (data: JSON)",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or unknown model/skill",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -458,50 +438,37 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
-                    },
-                    "403": {
-                        "description": "Forbidden / Feature tier requirement",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
         },
         "/api/v1/features": {
             "get": {
-                "description": "Fetch available features and their lock status based on user tier header (X-User-Tier)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the catalog of agent features with tier-based locking",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Chat"
                 ],
-                "summary": "Get available features catalog",
+                "summary": "List available agent features",
                 "responses": {
                     "200": {
-                        "description": "List of features with lock states",
+                        "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_handler.FeatureResponse"
+                                "$ref": "#/definitions/echo-backend_internal_service_features.FeatureResponse"
                             }
                         }
                     },
                     "500": {
-                        "description": "Failed to retrieve features",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -514,7 +481,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/episodic/recall": {
             "post": {
-                "description": "Retrieve episodic conversation context from Redis",
+                "description": "Recalls episodic memory entries for a session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -522,7 +489,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Recall episodic memory",
                 "parameters": [
@@ -532,29 +499,20 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicRecallRequest"
+                            "$ref": "#/definitions/internal_handler_memory.episodicRecallRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episodic entries",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -567,7 +525,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/episodic/store": {
             "post": {
-                "description": "Save episodic conversation context into Redis",
+                "description": "Stores an episodic memory entry for a session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -575,41 +533,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store episodic memory",
                 "parameters": [
                     {
-                        "description": "Episodic store payload",
+                        "description": "Episodic memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.episodicStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Stored status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -622,7 +569,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/procedural/get": {
             "post": {
-                "description": "Retrieve procedural workflow steps by ID or name",
+                "description": "Retrieves procedural memory entries by ID or name (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -630,48 +577,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Get procedural memory",
                 "parameters": [
                     {
-                        "description": "Procedural get payload",
+                        "description": "Procedural recall payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralGetRequest"
+                            "$ref": "#/definitions/internal_handler_memory.proceduralGetRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Procedural memory entry",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -684,7 +613,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/procedural/store": {
             "post": {
-                "description": "Record or update procedural workflow steps in PostgreSQL",
+                "description": "Stores a procedural memory entry (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -692,41 +621,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store procedural memory",
                 "parameters": [
                     {
-                        "description": "Procedural store payload",
+                        "description": "Procedural memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.proceduralStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Recorded status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -739,7 +657,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/semantic/search": {
             "post": {
-                "description": "Perform text or vector search over semantic memory in PostgreSQL",
+                "description": "Searches semantic memory by query text (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -747,7 +665,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Search semantic memory",
                 "parameters": [
@@ -757,29 +675,20 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticSearchRequest"
+                            "$ref": "#/definitions/internal_handler_memory.semanticSearchRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Search results",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -792,7 +701,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/semantic/store": {
             "post": {
-                "description": "Save or update vector embedding semantic memory in PostgreSQL",
+                "description": "Stores a semantic memory entry with an optional embedding (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -800,41 +709,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store semantic memory",
                 "parameters": [
                     {
-                        "description": "Semantic store payload",
+                        "description": "Semantic memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.semanticStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Indexed status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -847,12 +745,7 @@ const docTemplate = `{
         },
         "/api/v1/internal/sessions/{id}/prune": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Trigger LLM-driven memory consolidation for a session",
+                "description": "Triggers token-threshold pruning and consolidation for a session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -860,9 +753,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Internal"
+                    "Sessions"
                 ],
-                "summary": "Prune and consolidate session",
+                "summary": "Prune and consolidate a session",
                 "parameters": [
                     {
                         "type": "string",
@@ -872,18 +765,18 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Provider config payload",
+                        "description": "Provider configuration",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PruneRequest"
+                            "$ref": "#/definitions/internal_handler_session.PruneRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Consolidation status",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -892,7 +785,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -901,7 +794,142 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Consolidation failed",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/missions/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approves a human-in-the-loop tool approval request for a mission",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Approve a pending tool call",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/missions/{id}/deny": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Denies a human-in-the-loop tool approval request for a mission",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Deny a pending tool call",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/missions/{missionId}/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Streams real-time mission execution logs as Server-Sent Events",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Stream mission logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mission ID",
+                        "name": "missionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -914,24 +942,29 @@ const docTemplate = `{
         },
         "/api/v1/models": {
             "get": {
-                "description": "Fetch aggregated LLM model catalog from configured providers (OpenAI, Anthropic, LM Studio, OpenCode Go)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the AI model catalog available to the authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Models"
                 ],
-                "summary": "Get available LLM models",
+                "summary": "List available AI models",
                 "responses": {
                     "200": {
-                        "description": "List of available models",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "500": {
-                        "description": "Failed to retrieve models",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -949,7 +982,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve all active chat sessions belonging to the authenticated user",
+                "description": "Returns all active sessions for the authenticated user",
                 "produces": [
                     "application/json"
                 ],
@@ -959,7 +992,7 @@ const docTemplate = `{
                 "summary": "List user sessions",
                 "responses": {
                     "200": {
-                        "description": "List of sessions",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -967,15 +1000,6 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to list sessions",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -991,7 +1015,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Initialize a new chat session for the current user",
+                "description": "Creates a new chat session with an optional strategy version",
                 "consumes": [
                     "application/json"
                 ],
@@ -1001,14 +1025,15 @@ const docTemplate = `{
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Create a new session",
+                "summary": "Create a session",
                 "parameters": [
                     {
-                        "description": "Session title",
+                        "description": "Session payload",
                         "name": "request",
                         "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.CreateSessionRequest"
+                            "$ref": "#/definitions/internal_handler_session.CreateSessionRequest"
                         }
                     }
                 ],
@@ -1016,11 +1041,11 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
+                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1028,8 +1053,8 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "500": {
-                        "description": "Failed to create session",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1047,14 +1072,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch session metadata by ID",
+                "description": "Returns a session owned by the authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Get session details",
+                "summary": "Get a session",
                 "parameters": [
                     {
                         "type": "string",
@@ -1068,16 +1093,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
                     },
                     "401": {
@@ -1090,7 +1106,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Forbidden: ownership mismatch",
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1099,7 +1115,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1115,14 +1131,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Soft-delete a chat session",
+                "description": "Soft-deletes a session owned by the authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Delete session",
+                "summary": "Delete a session",
                 "parameters": [
                     {
                         "type": "string",
@@ -1134,16 +1150,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session soft deleted",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1160,8 +1167,73 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "403": {
-                        "description": "Forbidden: ownership mismatch",
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the title and/or summary of a session owned by the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Update a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Title and/or summary",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1170,7 +1242,81 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions/{id}/generate-title": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates a title and summary from the session history using an LLM",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Generate a session title",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Model selection (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.GenerateTitleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1188,7 +1334,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve message history for a specific chat session",
+                "description": "Returns the message history of a session owned by the authenticated user",
                 "produces": [
                     "application/json"
                 ],
@@ -1207,19 +1353,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of messages",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
                         }
                     },
                     "401": {
@@ -1232,7 +1369,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Forbidden: ownership mismatch",
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1241,7 +1378,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1259,7 +1396,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve current user preference settings",
+                "description": "Returns the authenticated user's preferences",
                 "produces": [
                     "application/json"
                 ],
@@ -1271,20 +1408,11 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to get settings",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1300,7 +1428,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Save modified user preference settings",
+                "description": "Updates the authenticated user's preferences",
                 "consumes": [
                     "application/json"
                 ],
@@ -1318,7 +1446,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UpdateSettingsRequest"
+                            "$ref": "#/definitions/internal_handler_settings.UpdateSettingsRequest"
                         }
                     }
                 ],
@@ -1326,11 +1454,11 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1346,9 +1474,59 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/defaults": {
+            "get": {
+                "description": "Returns platform-wide default settings",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Get default settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/skills": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the catalog of skills available to agents",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "List available agent skills",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
                     },
                     "500": {
-                        "description": "Failed to update settings",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1359,49 +1537,398 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/settings/defaults": {
+        "/api/v1/strategies": {
             "get": {
-                "description": "Retrieve baseline application defaults for modes, models, and features",
+                "description": "Returns the strategy catalog merged with gateway rollout percentages",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Settings"
+                    "Strategies"
                 ],
-                "summary": "Get system default settings",
+                "summary": "List strategy catalog",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             }
         },
-        "/api/v1/skills": {
+        "/api/v1/studio/playground": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Streams multi-model prompt comparison results as Server-Sent Events",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Run LLM playground",
+                "parameters": [
+                    {
+                        "description": "Playground payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_service_llmops.PlaygroundRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts": {
             "get": {
-                "description": "Fetch available skill definitions from the agent service",
+                "description": "Returns all prompt templates (LLMOps Studio)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Chat"
+                    "Studio"
                 ],
-                "summary": "Get agent skills catalog",
+                "summary": "List prompt templates",
                 "responses": {
                     "200": {
-                        "description": "List of agent skills",
+                        "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new prompt template (LLMOps Studio)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Create a prompt template",
+                "parameters": [
+                    {
+                        "description": "Template payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.createTemplateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptTemplate"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts/active": {
+            "get": {
+                "description": "Returns the active production version of a prompt template (LLMOps Studio)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Get active prompt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
-                    "500": {
-                        "description": "Failed to retrieve skills",
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts/{id}/promote/{version}": {
+            "post": {
+                "description": "Promotes a version to production (LLMOps Studio)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Promote a prompt template version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Version number",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts/{id}/rollback/{version}": {
+            "post": {
+                "description": "Rolls back the production version of a prompt template (LLMOps Studio)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Rollback a prompt template version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Version number",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts/{id}/versions": {
+            "get": {
+                "description": "Returns the version history of a prompt template (LLMOps Studio)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "List prompt template versions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new version of a prompt template (LLMOps Studio)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Create a prompt template version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Version payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.createVersionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/studio/prompts/{id}/versions/{v}": {
+            "get": {
+                "description": "Returns a specific version of a prompt template (LLMOps Studio)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio"
+                ],
+                "summary": "Get a prompt template version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Version number",
+                        "name": "v",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1424,45 +1951,7 @@ const docTemplate = `{
                 "summary": "Health check",
                 "responses": {
                     "200": {
-                        "description": "Health status",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/missions/{missionId}/stream": {
-            "get": {
-                "description": "Stream execution logs for a running mission via Redis PubSub (SaaS mode) or agent proxy (Local mode)",
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Stream mission logs (SSE)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "missionId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Server-Sent Events log stream",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Missing mission ID",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1475,7 +1964,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "echo-backend_internal_models.ApiKey": {
+        "echo-backend_internal_models_auth.ApiKey": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1515,7 +2004,36 @@ const docTemplate = `{
                 }
             }
         },
-        "echo-backend_internal_models.Session": {
+        "echo-backend_internal_models_auth.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "jane@example.com"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Doe"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
+                }
+            }
+        },
+        "echo-backend_internal_models_chat.Session": {
             "type": "object",
             "properties": {
                 "context_summary": {
@@ -1530,6 +2048,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "sess_abc123"
                 },
+                "last_accessed_at": {
+                    "type": "string",
+                    "example": "2026-01-15T11:45:00Z"
+                },
                 "message_count": {
                     "type": "integer",
                     "example": 12
@@ -1537,6 +2059,10 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "active"
+                },
+                "strategy_version": {
+                    "type": "string",
+                    "example": "nlah:v1"
                 },
                 "title": {
                     "type": "string",
@@ -1556,38 +2082,207 @@ const docTemplate = `{
                 }
             }
         },
-        "echo-backend_internal_models.User": {
+        "echo-backend_internal_models_llmops.PromptTemplate": {
             "type": "object",
             "properties": {
-                "created_at": {
-                    "type": "string",
-                    "example": "2026-01-15T10:30:00Z"
+                "active_version": {
+                    "type": "integer"
                 },
-                "email": {
-                    "type": "string",
-                    "example": "jane@example.com"
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "Jane Doe"
+                    "type": "string"
                 },
-                "role": {
-                    "type": "string",
-                    "example": "user"
+                "tenant_id": {
+                    "type": "string"
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2026-01-15T10:30:00Z"
+                    "type": "string"
                 }
             }
         },
-        "echo-backend_internal_models.UserPreferences": {
+        "echo-backend_internal_models_llmops.PromptVersion": {
             "type": "object",
             "properties": {
+                "bound_tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string"
+                },
+                "template_id": {
+                    "type": "string"
+                },
+                "variables": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.BudgetMonitorConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "enforceCostCap": {
+                    "type": "boolean"
+                },
+                "enforceMaxSteps": {
+                    "type": "boolean"
+                },
+                "enforceTimeout": {
+                    "type": "boolean"
+                },
+                "maxCostUsd": {
+                    "type": "number"
+                },
+                "maxDurationMs": {
+                    "type": "integer"
+                },
+                "maxSteps": {
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.ContextOptimizationConfig": {
+            "type": "object",
+            "properties": {
+                "compactionThresholdRatio": {
+                    "type": "number"
+                },
+                "enableAutoCompaction": {
+                    "type": "boolean"
+                },
+                "enablePrefixCachingLayout": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "keepLastTurnsCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.HarnessFeatureToggles": {
+            "type": "object",
+            "properties": {
+                "budgetMonitor": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.BudgetMonitorConfig"
+                },
+                "contextOptimization": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.ContextOptimizationConfig"
+                },
+                "hitlGuard": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.HitlGuardConfig"
+                },
+                "loopDetection": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.LoopDetectionConfig"
+                },
+                "systemNotices": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.SystemNoticesConfig"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.HitlGuardConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "protectedTools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ttlMinutes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.LoopDetectionConfig": {
+            "type": "object",
+            "properties": {
+                "enableCosineSimilarity": {
+                    "type": "boolean"
+                },
+                "enableExactMatch": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "maxConsecutiveIdenticalCalls": {
+                    "type": "integer"
+                },
+                "similarityThreshold": {
+                    "type": "number"
+                },
+                "windowSize": {
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.SystemNoticesConfig": {
+            "type": "object",
+            "properties": {
+                "emitBudgetWarnings": {
+                    "type": "boolean"
+                },
+                "emitCompactionNotices": {
+                    "type": "boolean"
+                },
+                "emitLoopWarnings": {
+                    "type": "boolean"
+                },
+                "emitPacingWarnings": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.UserPreferences": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string",
+                    "example": ""
+                },
+                "base_url": {
+                    "type": "string",
+                    "example": "https://opencode.ai/zen/go/v1"
+                },
                 "default_features": {
                     "type": "array",
                     "items": {
@@ -1615,6 +2310,16 @@ const docTemplate = `{
                         "python",
                         "research"
                     ]
+                },
+                "harness_toggles": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                },
+                "has_api_key": {
+                    "type": "boolean"
+                },
+                "provider_type": {
+                    "type": "string",
+                    "example": "opencode-go"
                 },
                 "user_id": {
                     "type": "integer",
@@ -1622,137 +2327,56 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.ChatRequest": {
+        "echo-backend_internal_service_features.FeatureResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "echo-backend_internal_service_llmops.PlaygroundRequest": {
             "type": "object",
             "properties": {
                 "features": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "web-browsing",
-                        "code-interpreter"
-                    ]
-                },
-                "history": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handler.HistoryMessage"
                     }
                 },
-                "message": {
-                    "type": "string",
-                    "example": "Explain how the Echo agent works"
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "missionId": {
-                    "type": "string",
-                    "example": "mission_xyz789"
-                },
-                "mode": {
-                    "type": "string",
-                    "example": "agent"
-                },
-                "model": {
-                    "type": "string",
-                    "example": "gpt-4o"
-                },
-                "sessionId": {
-                    "type": "string",
-                    "example": "sess_abc123"
+                "prompt": {
+                    "type": "string"
                 },
                 "skills": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "python",
-                        "research"
-                    ]
-                }
-            }
-        },
-        "internal_handler.CreateSessionRequest": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "example": "Build a REST API with Express"
-                }
-            }
-        },
-        "internal_handler.FeatureResponse": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "example": "Browse the web in real-time to fetch up-to-date information"
+                    }
                 },
-                "id": {
-                    "type": "string",
-                    "example": "web-browsing"
-                },
-                "locked": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Web Browsing"
-                }
-            }
-        },
-        "internal_handler.HistoryMessage": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string",
-                    "example": "What is Echo and how does it work?"
-                },
-                "role": {
-                    "type": "string",
-                    "example": "user"
-                }
-            }
-        },
-        "internal_handler.PruneRequest": {
-            "type": "object"
-        },
-        "internal_handler.UpdateSettingsRequest": {
-            "type": "object",
-            "properties": {
-                "default_features": {
-                    "type": "array",
-                    "items": {
+                "variables": {
+                    "type": "object",
+                    "additionalProperties": {
                         "type": "string"
-                    },
-                    "example": [
-                        "web-browsing",
-                        "code-interpreter"
-                    ]
-                },
-                "default_mode": {
-                    "type": "string",
-                    "example": "agent"
-                },
-                "default_model": {
-                    "type": "string",
-                    "example": "gpt-4o"
-                },
-                "default_skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "python",
-                        "research"
-                    ]
+                    }
                 }
             }
         },
-        "internal_handler.createAPIKeyRequest": {
+        "internal_handler_admin.createAPIKeyRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -1771,27 +2395,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.episodicRecallRequest": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer",
-                    "example": 50
-                },
-                "offset": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "session_id": {
-                    "type": "string",
-                    "example": "sess_abc123"
-                }
-            }
-        },
-        "internal_handler.episodicStoreRequest": {
-            "type": "object"
-        },
-        "internal_handler.loginRequest": {
+        "internal_handler_auth.loginRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1804,41 +2408,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.proceduralGetRequest": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "example": "mem_pr_e5f6g7h8"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "deploy-to-ecs"
-                }
-            }
-        },
-        "internal_handler.proceduralStoreRequest": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string",
-                    "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "mem_pr_e5f6g7h8"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "name": {
-                    "type": "string",
-                    "example": "deploy-to-ecs"
-                }
-            }
-        },
-        "internal_handler.registerRequest": {
+        "internal_handler_auth.registerRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1855,60 +2425,255 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.semanticSearchRequest": {
+        "internal_handler_chat.ChatRequest": {
             "type": "object",
             "properties": {
-                "embedding": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "features": {
                     "type": "array",
                     "items": {
-                        "type": "number"
-                    },
-                    "example": [
-                        0.012,
-                        0.034,
-                        -0.056
-                    ]
+                        "type": "string"
+                    }
                 },
-                "limit": {
-                    "type": "integer",
-                    "example": 10
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handler_chat.HistoryMessage"
+                    }
                 },
-                "query": {
-                    "type": "string",
-                    "example": "What is Echo agent platform?"
+                "message": {
+                    "type": "string"
                 },
-                "threshold": {
-                    "type": "number",
-                    "example": 0.75
+                "missionId": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "sessionId": {
+                    "type": "string"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "strategyVersion": {
+                    "type": "string"
                 }
             }
         },
-        "internal_handler.semanticStoreRequest": {
+        "internal_handler_chat.HistoryMessage": {
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string",
-                    "example": "Echo is an AI agent platform for autonomous task execution"
+                    "type": "string"
                 },
-                "embedding": {
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_llmops.createTemplateReq": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_llmops.createVersionReq": {
+            "type": "object",
+            "properties": {
+                "bound_tools": {
                     "type": "array",
                     "items": {
-                        "type": "number"
-                    },
-                    "example": [
-                        0.012,
-                        0.034,
-                        -0.056,
-                        0.078
-                    ]
+                        "type": "string"
+                    }
+                },
+                "system_prompt": {
+                    "type": "string"
+                },
+                "variables": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handler_memory.episodicRecallRequest": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "session_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.episodicStoreRequest": {
+            "type": "object",
+            "properties": {
+                "content": {},
+                "metadata": {},
+                "session_id": {
+                    "type": "string"
+                },
+                "ttl_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handler_memory.proceduralGetRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.proceduralStoreRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
                 },
                 "id": {
-                    "type": "string",
-                    "example": "mem_sm_a1b2c3d4"
+                    "type": "string"
                 },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.semanticSearchRequest": {
+            "type": "object",
+            "properties": {
+                "embedding": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "threshold": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_handler_memory.semanticStoreRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "embedding": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "internal_handler_session.CreateSessionRequest": {
+            "type": "object",
+            "properties": {
+                "strategyVersion": {
+                    "type": "string",
+                    "example": "nlah:v1"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Build a REST API with Express"
+                }
+            }
+        },
+        "internal_handler_session.GenerateTitleRequest": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.PruneRequest": {
+            "type": "object",
+            "properties": {
+                "provider_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "internal_handler_settings.UpdateSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string"
+                },
+                "base_url": {
+                    "type": "string"
+                },
+                "default_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_mode": {
+                    "type": "string"
+                },
+                "default_model": {
+                    "type": "string"
+                },
+                "default_skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "harness_toggles": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                },
+                "keep_api_key": {
+                    "type": "boolean"
+                },
+                "provider_type": {
+                    "type": "string"
                 }
             }
         }

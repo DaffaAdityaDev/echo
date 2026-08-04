@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Patterns
   Service   : Shared / Patterns
-  Version   : 1.2
-  Updated   : 2026-07-25 (added AI-Ready Maturity Model)
+  Version   : 1.4
+  Updated   : 2026-08-04 (added Anti-Slop standard)
 ================================================================================
 
 ## Overview
@@ -32,6 +32,9 @@ error handling.
 |                            |   patterns, Clean Code conventions                |                         |
 | ai-ready-maturity.md       | Abstract 5-level maturity model for AI readiness  | Completed               |
 |                            |   — internal + external, decoupled from patterns  |                         |
+| strategy-lifecycle.md      | Strategy versioning, session pinning, canary      | Active (2026-07-31)    |
+|                            |   rollout, 3-phase sunset pipeline                |                         |
+| anti-slop.md               | Anti-slop standard for AI-assisted code           | Completed               |
 +----------------------------+---------------------------------------------------+-------------------------+
 
 ## Quick Reference
@@ -53,9 +56,15 @@ error handling.
 | Session-level mutex isolation        | acid-solid-clean-code.md                    |
 | SOLID principles                     | acid-solid-clean-code.md                    |
 | Clean Code conventions               | acid-solid-clean-code.md                    |
+| AI slop anti-patterns                | anti-slop.md                               |
+| Atomic changes / commit discipline   | acid-solid-clean-code.md                    |
+| Performance rules                    | acid-solid-clean-code.md                    |
 | AI readiness self-assessment         | ai-ready-maturity.md                        |
 | Client maturity assessment           | ai-ready-maturity.md                        |
 | Agentic system maturity levels       | ai-ready-maturity.md                        |
+| Strategy versioning & rollout        | strategy-lifecycle.md                       |
+| Canary rollout rules                 | strategy-lifecycle.md                       |
+| Strategy sunset pipeline             | strategy-lifecycle.md                       |
 +--------------------------------------+---------------------------------------------+
 
 ================================================================================

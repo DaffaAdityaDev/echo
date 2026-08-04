@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Kubernetes
   Service   : Infrastructure
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (deferred: KEDA event-driven autoscaling note)
 ================================================================================
 
 ## Description
@@ -139,6 +139,16 @@ configured for the backend service.
 - Target: Backend deployment
 - Min pods: 1, Max pods: 10
 - Metric: CPU utilization @ 70%
+
+> **Worker & scaling note [Active]**: the lifecycle worker runs in-process in
+
+> the backend pod (single instance via Redis SETNX lock), so HPA must not
+> scale the backend below/above without the lock — the lock guarantees
+> single-executor regardless of replica count.
+> **KEDA / event-driven autoscaling is deferred** (not a current requirement).
+> If adopted later, the worker job bodies move to a queue consumer
+> (NATS/Kafka), and KEDA scales on queue depth — no logic change in the jobs.
+> Bridge today: Redis pub/sub (already used for mission streams in SaaS mode).
 
 ## ConfigMaps
 

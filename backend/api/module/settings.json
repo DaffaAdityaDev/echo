@@ -1,9 +1,17 @@
 {
     "basePath": "/",
     "definitions": {
-        "internal_handler.UpdateSettingsRequest": {
+        "echo-backend_internal_models_user.UserPreferences": {
             "type": "object",
             "properties": {
+                "api_key": {
+                    "type": "string",
+                    "example": ""
+                },
+                "base_url": {
+                    "type": "string",
+                    "example": "https://opencode.ai/zen/go/v1"
+                },
                 "default_features": {
                     "type": "array",
                     "items": {
@@ -33,74 +41,57 @@
                     ]
                 },
                 "harness_toggles": {
-                    "$ref": "#/definitions/HarnessFeatureToggles"
+                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                },
+                "has_api_key": {
+                    "type": "boolean"
+                },
+                "provider_type": {
+                    "type": "string",
+                    "example": "opencode-go"
+                },
+                "user_id": {
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
-        "HarnessFeatureToggles": {
-            "type": "object",
-            "description": "Granular feature toggles for harness guard modules",
-            "properties": {
-                "loopDetection": { "$ref": "#/definitions/LoopDetectionConfig" },
-                "budgetMonitor": { "$ref": "#/definitions/BudgetMonitorConfig" },
-                "systemNotices": { "$ref": "#/definitions/SystemNoticesConfig" },
-                "hitlGuard": { "$ref": "#/definitions/HitlGuardConfig" },
-                "contextOptimization": { "$ref": "#/definitions/ContextOptimizationConfig" }
-            }
-        },
-        "LoopDetectionConfig": {
+        "internal_handler_settings.UpdateSettingsRequest": {
             "type": "object",
             "properties": {
-                "enabled": { "type": "boolean", "example": true },
-                "enableExactMatch": { "type": "boolean", "example": true },
-                "enableCosineSimilarity": { "type": "boolean", "example": false },
-                "maxConsecutiveIdenticalCalls": { "type": "integer", "example": 3 },
-                "similarityThreshold": { "type": "number", "example": 0.92 },
-                "windowSize": { "type": "integer", "example": 10 }
-            }
-        },
-        "BudgetMonitorConfig": {
-            "type": "object",
-            "properties": {
-                "enabled": { "type": "boolean", "example": true },
-                "enforceMaxSteps": { "type": "boolean", "example": true },
-                "maxSteps": { "type": "integer", "example": 15 },
-                "enforceTimeout": { "type": "boolean", "example": true },
-                "maxDurationMs": { "type": "integer", "example": 120000 },
-                "enforceCostCap": { "type": "boolean", "example": true },
-                "maxCostUsd": { "type": "number", "example": 1.0 }
-            }
-        },
-        "SystemNoticesConfig": {
-            "type": "object",
-            "properties": {
-                "enabled": { "type": "boolean", "example": true },
-                "emitLoopWarnings": { "type": "boolean", "example": true },
-                "emitCompactionNotices": { "type": "boolean", "example": true },
-                "emitBudgetWarnings": { "type": "boolean", "example": true },
-                "emitPacingWarnings": { "type": "boolean", "example": true }
-            }
-        },
-        "HitlGuardConfig": {
-            "type": "object",
-            "properties": {
-                "enabled": { "type": "boolean", "example": true },
-                "protectedTools": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "example": ["execute_sql_write", "delete_file"]
+                "api_key": {
+                    "type": "string"
                 },
-                "ttlMinutes": { "type": "integer", "example": 5 }
-            }
-        },
-        "ContextOptimizationConfig": {
-            "type": "object",
-            "properties": {
-                "enabled": { "type": "boolean", "example": true },
-                "enablePrefixCachingLayout": { "type": "boolean", "example": true },
-                "enableAutoCompaction": { "type": "boolean", "example": true },
-                "compactionThresholdRatio": { "type": "number", "example": 0.7 },
-                "keepLastTurnsCount": { "type": "integer", "example": 4 }
+                "base_url": {
+                    "type": "string"
+                },
+                "default_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_mode": {
+                    "type": "string"
+                },
+                "default_model": {
+                    "type": "string"
+                },
+                "default_skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "harness_toggles": {
+                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                },
+                "keep_api_key": {
+                    "type": "boolean"
+                },
+                "provider_type": {
+                    "type": "string"
+                }
             }
         }
     },
@@ -127,26 +118,17 @@
                     "Settings"
                 ],
                 "summary": "Get user settings",
-                "description": "Retrieve current user preference settings",
+                "description": "Returns the authenticated user's preferences",
                 "parameters": null,
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to get settings",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -170,7 +152,7 @@
                     "Settings"
                 ],
                 "summary": "Update user settings",
-                "description": "Save modified user preference settings",
+                "description": "Updates the authenticated user's preferences",
                 "parameters": [
                     {
                         "description": "Settings payload",
@@ -178,7 +160,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UpdateSettingsRequest"
+                            "$ref": "#/definitions/internal_handler_settings.UpdateSettingsRequest"
                         }
                     }
                 ],
@@ -186,11 +168,11 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -200,15 +182,6 @@
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to update settings",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -235,14 +208,15 @@
                 "tags": [
                     "Settings"
                 ],
-                "summary": "Get system default settings",
-                "description": "Retrieve baseline application defaults for modes, models, and features",
+                "summary": "Get default settings",
+                "description": "Returns platform-wide default settings",
                 "parameters": null,
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.UserPreferences"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 },
@@ -262,11 +236,5 @@
             "in": "header"
         }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

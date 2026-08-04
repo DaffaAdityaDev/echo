@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Docker Compose
   Service   : Infrastructure
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: in-process lifecycle worker note)
 ================================================================================
 
 ## Description
@@ -86,6 +86,13 @@ strategies.
 > not currently present in any Docker Compose file. The observability stack
 > (OTel Collector, Jaeger, Prometheus, Grafana) is defined but commented out
 > in all compose files — enable by uncommenting and setting `ENABLE_OTEL=true`.
+
+> **Lifecycle worker [Active]**: no new container. The consolidation/decay
+
+> worker runs **in-process** inside `echo-backend` (goroutine + Redis SETNX
+> lock). Redis pub/sub remains the future bridge toward an external job queue
+> (NATS/Kafka) if horizontal autoscaling is ever required — at that point the
+> worker job bodies move to a queue consumer with no logic change.
 
 ## Dependencies
 

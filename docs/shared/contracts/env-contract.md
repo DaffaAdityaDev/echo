@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Environment Contract
   Service   : Shared / Contracts
-   Version   : 1.1
-   Updated   : 2026-07-26
+   Version   : 1.3
+   Updated   : 2026-07-31 (active: lifecycle worker + strategy rollout env)
 ================================================================================
 
 ## Description
@@ -72,7 +72,19 @@ DEFAULT_MODEL=opencode-go/deepseek-v4-flash
 
 # Encryption key for user API key storage (must be exactly 32 characters for AES-256)
 ENCRYPTION_KEY=change-this-to-a-32-char-key!!!!
+
+# Lifecycle worker interval (Active)
+WORKER_INTERVAL=15m
+
+# Memory decay windows in days (Active)
+DECAY_DEPRECATE_AFTER=30
+DECAY_ARCHIVE_AFTER=90
+
+# Default rollout % for a strategy_rollout entry that omits its value (Active),
+# e.g. "0.1" = 10%. Unconfigured versions are never routed by rollout.
+STRATEGY_ROLLOUT_DEFAULT=0.1
 ```
+
 
 Provider API keys and base URLs removed from server-level config.
 They are now per-user settings stored encrypted in the database (UserPreferences).
@@ -101,6 +113,11 @@ type Config struct {
     PRUNE_THRESHOLD         int
     PRUNE_KEEP_LATEST_TURNS int
     SUMMARIZE_MAX_TOKENS    int
+    // Active — lifecycle worker & strategy rollout
+    WorkerInterval          time.Duration
+    DecayDeprecateAfterDays int
+    DecayArchiveAfterDays   int
+    StrategyRolloutDefault  float64
 }
 ```
 
@@ -121,6 +138,10 @@ DefaultModel             = "opencode-go/deepseek-v4-flash"
 
 Note: PRUNE_THRESHOLD (100000), PRUNE_KEEP_LATEST_TURNS (10), SUMMARIZE_MAX_TOKENS (500),
 and ENCRYPTION_KEY have inline defaults in config.go — no corresponding named constants.
+
+Lifecycle defaults (inline in config.go, implemented):
+WORKER_INTERVAL (15m), DECAY_DEPRECATE_AFTER (30 days), DECAY_ARCHIVE_AFTER (90 days),
+STRATEGY_ROLLOUT_DEFAULT (0.1).
 
 Provider defaults removed (DefaultOpenAIBaseURL, DefaultAnthropicBaseURL, DefaultLMStudioBaseURL).
 Provider base URLs are now user-level defaults in service/aimodel/service.go / service/settings/service.go.

@@ -12,6 +12,18 @@ export const STRATEGY_MAPPING = {
   agent: ["agent", "nlah", "deep-research", "react", "sequential"] as readonly string[],
 } as const;
 
+export const STRATEGY_VERSIONS = {
+  STANDARD_V1: "standard:v1",
+  NLAH_V1: "nlah:v1",
+} as const;
+
+export const STRATEGY_VERSION_ALIASES = {
+  "standard:v1": ["chat"],
+  "nlah:v1": ["agent", "nlah", "deep-research", "react", "sequential"],
+} as const;
+
+export const DEFAULT_STRATEGY_VERSION = STRATEGY_VERSIONS.NLAH_V1;
+
 export const VALIDATION_MESSAGES = {
   PROMPT_REQUIRED: "Either 'prompt' or 'message' field is required",
   VALIDATION_ERROR: "Validation Error",

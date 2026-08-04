@@ -20,6 +20,17 @@ func NewStudioHandler(playgroundSvc llmops.PlaygroundService) *StudioHandler {
 	return &StudioHandler{playgroundSvc: playgroundSvc}
 }
 
+// HandleRunPlayground godoc
+// @Summary Run LLM playground
+// @Description Streams multi-model prompt comparison results as Server-Sent Events
+// @Tags Studio
+// @Accept json
+// @Produce text/event-stream
+// @Security BearerAuth
+// @Param request body llmops.PlaygroundRequest true "Playground payload"
+// @Success 200 {string} string "Event stream"
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/studio/playground [post]
 func (h *StudioHandler) HandleRunPlayground(c fiber.Ctx) error {
 	var req llmops.PlaygroundRequest
 	if err := c.Bind().Body(&req); err != nil {

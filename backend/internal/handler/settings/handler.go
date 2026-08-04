@@ -34,6 +34,15 @@ type UpdateSettingsRequest struct {
 	HarnessToggles  *usermodel.HarnessFeatureToggles `json:"harness_toggles"`
 }
 
+// HandleGetSettings godoc
+// @Summary Get user settings
+// @Description Returns the authenticated user's preferences
+// @Tags Settings
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} usermodel.UserPreferences
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/settings [get]
 func (h *Handler) HandleGetSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -48,6 +57,18 @@ func (h *Handler) HandleGetSettings(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, prefs)
 }
 
+// HandleUpdateSettings godoc
+// @Summary Update user settings
+// @Description Updates the authenticated user's preferences
+// @Tags Settings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateSettingsRequest true "Settings payload"
+// @Success 200 {object} usermodel.UserPreferences
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/settings [put]
 func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
@@ -84,6 +105,13 @@ func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, updated)
 }
 
+// HandleGetDefaults godoc
+// @Summary Get default settings
+// @Description Returns platform-wide default settings
+// @Tags Settings
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/settings/defaults [get]
 func (h *Handler) HandleGetDefaults(c fiber.Ctx) error {
 	defaults := h.SettingsSvc.GetDefaults()
 	return handlerutil.RespondSuccess(c, defaults)

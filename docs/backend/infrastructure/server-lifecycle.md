@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Server Lifecycle
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: lifecycle worker startup)
 ================================================================================
 
 Overview
@@ -22,6 +22,7 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | cmd/server/main.go                       | Entry point - config, tracing, start       |
 | internal/server/server.go                | Server struct - Fiber instance, Start()    |
+| internal/worker/lifecycle.go             | Lifecycle worker (goroutine) [Active]      |
 | internal/config/config.go                | Config loading from env vars               |
 | internal/observability/tracer.go         | OpenTelemetry tracer init                  |
 +------------------------------------------+--------------------------------------------+
@@ -51,8 +52,46 @@ Startup Sequence
      │        ├─ cors middleware
      │        └─ router.SetupRoutes(fbApp, cfg)
      │
-     └─ 5. srv.Start()
-           └─ s.App.Listen(":" + s.Cfg.Port)   // port from config, default :8080
+      └─ 5. srv.Start()
+            └─ s.App.Listen(":" + s.Cfg.Port)   // port from config, default :8080
+
+Lifecycle Worker (Background Goroutine) [Active]
+------------------------------------------------
+
+
+Started inside `main.go` after `server.NewServer(cfg)` (before `srv.Start()`);
+runs in-process — **no new container/service**.
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ lifecycle worker (internal/worker/lifecycle.go)             │
+    │   ticker: cfg.WorkerInterval (default 15m)                  │
+    │   mutual exclusion: Redis SETNX lifecycle:scan_lock (TTL)   │
+    │                                                            │
+    │  Job A — Background consolidation                          │
+    │    scan sessions: token_count >= PRUNE_THRESHOLD AND        │
+    │      updated_at older than window                          │
+    │    → ConsolidationSvc.TriggerConsolidation (existing,      │
+    │       unchanged — reuses agent /api/internal/sessions/      │
+    │       summarize)                                           │
+    │                                                            │
+    │  Job B — Decay & GC                                        │
+    │    recency from sessions.last_accessed_at (migration 007): │
+    │      > DECAY_DEPRECATE_AFTER  (30d) → deprecated (derived) │
+    │      > DECAY_ARCHIVE_AFTER    (90d) → status='archived'    │
+    │      archived + retention window  → delete messages,       │
+    │        keep row                                               │
+    │    Redis: TTL-only GC (episodic keys expire naturally)     │
+    │                                                            │
+    │  Job C — Strategy rollout cache refresh                    │
+    │    refresh strategy:rollout cache from settings table      │
+    │    (same pattern as agent:features cache)                  │
+    └─────────────────────────────────────────────────────────────┘
+
+Fast-path consolidation inside `HandleChat` (inline, threshold check) is
+**kept** — the worker only covers sessions that never receive new turns.
+Details: `docs/backend/application/features/chat-streaming.md`,
+decay model: `docs/agent/domain/memory-and-retrieval-strategy.md`,
+env contract: `docs/shared/contracts/env-contract.md` (WORKER_* / DECAY_*).
 
 Startup Flow Diagram
 --------------------

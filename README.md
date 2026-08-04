@@ -27,12 +27,14 @@ flowchart TB
         E[Auth MW<br/>User JWT Validation]
         F[Chat SSE Proxy<br/>Real-Time Streaming]
         G[Memory API<br/>Service JWT]
+        W[Lifecycle Worker<br/>Consolidation + Decay GC] <!-- Planned -->
     end
 
     subgraph Agent["Bun / Hono Agent Engine<br/>:3001"]
         H[Mission Controller]
         I[Tool Registry<br/>Lazy Load / MCP Tools]
         J[LLM Providers<br/>OpenAI / Anthropic / LM Studio]
+        S[Strategy Registry<br/>Versioned: nlah:v1, standard:v1] <!-- Planned -->
     end
 
     subgraph Infra["Infrastructure Layer"]
@@ -51,7 +53,8 @@ flowchart TB
 
     A & B & C & D -->|REST + SSE| E
     E --> F & G
-    F -->|POST /api/generate-mission| H
+    F -->|POST /api/generate-mission<br/>+ strategy_version| H
+    S --> H
     G <-->|Service JWT Auth| H
     H --> I --> J
     H -->|Memory Callback| G

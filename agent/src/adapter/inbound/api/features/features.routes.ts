@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { ACTIVE_FEATURES } from "../../../../core/agent/tools";
+import { getImplementedFeatures } from "../../../../core/agent/tools";
 
 const featuresRouter = new Hono();
 
 featuresRouter.get("/features", (c) => {
-  return c.json(ACTIVE_FEATURES);
+  return c.json(getImplementedFeatures());
 });
 
 export default featuresRouter;

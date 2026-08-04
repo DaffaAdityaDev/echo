@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : ACID/SOLID/Clean Code
   Service   : Shared / Patterns
-  Version   : 1.0
-  Updated   : 2026-07-23
+  Version   : 1.1
+  Updated   : 2026-08-04
 ===============================================================================
 
 ## Description
@@ -313,6 +313,33 @@ Never share mutable state between goroutines without synchronisation.
 
 Functions that perform I/O must accept interfaces, not concrete types.
 This allows unit testing without a real database or network.
+
+---
+
+## Performance
+
+- Avoid N+1 query patterns — batch reads or use JOINs. One query per page
+  fetch is the default, not the exception.
+- Use database indices for every column used in WHERE / JOIN / ORDER BY on
+  hot paths. Verify with `EXPLAIN` before claiming a query is fast.
+- Context timeouts are already mandated (see ACID — Context Timeout); honor
+  them — they are the first line of defense against hung queries.
+- No premature optimization. Measure with pprof (Go) / OpenTelemetry
+  (see `observability.md`) before optimizing; optimize what the data proves
+  slow, not what feels slow.
+- Keep hot paths allocation-light: reuse buffers, avoid per-request string
+  churn, prefer `sync.Pool` for hot short-lived objects.
+
+---
+
+## Atomic Changes (Commit Discipline)
+
+- One concern per change/commit; small reviewable units. Never mix
+  unrelated responsibilities in a single commit or PR.
+- Commit after each logical step so `git reset --hard` is always safe —
+  every checkpoint should represent a coherent, reviewable state.
+- No "AI dump" commits: a commit that bundles formatting, refactors, bug
+  fixes, and features together is unreviewable (see `anti-slop.md`).
 
 ---
 

@@ -11,6 +11,40 @@
       "description": "Current Environment Server"
     }
   ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Agent platform health checks"
+    },
+    {
+      "name": "Features",
+      "description": "Feature catalog with tier requirements"
+    },
+    {
+      "name": "Generate Mission",
+      "description": "Autonomous mission execution (SSE stream)"
+    },
+    {
+      "name": "Internal",
+      "description": "Internal service-to-service endpoints"
+    },
+    {
+      "name": "Missions",
+      "description": "Mission lifecycle and human-in-the-loop actions"
+    },
+    {
+      "name": "Models",
+      "description": "LLM provider model catalog"
+    },
+    {
+      "name": "Skills",
+      "description": "Agent skill catalog"
+    },
+    {
+      "name": "Strategies",
+      "description": "Versioned strategy catalog"
+    }
+  ],
   "security": [
     {
       "InternalTokenAuth": []

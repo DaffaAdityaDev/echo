@@ -193,6 +193,12 @@
             "description": "Execution strategy: 'agent' for tool-using autonomous mode, 'standard' for direct LLM response",
             "example": "agent"
           },
+          "strategy_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "Exact strategy version to execute under (e.g. nlah:v1, standard:v1)",
+            "example": "nlah:v1"
+          },
           "tenantId": {
             "type": "string",
             "default": "local-developer",
@@ -689,6 +695,7 @@
       "post": {
         "summary": "Execute agent mission (SSE Stream)",
         "description": "Triggers autonomous agent execution loop and streams response packets via Server-Sent Events. The stream emits HarnessPacket JSON objects, one per line, prefixed with 'data: '. The connection remains open until the mission completes or is aborted.",
+        "tags": ["Generate Mission"],
         "security": [
           {
             "InternalTokenAuth": []

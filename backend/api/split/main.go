@@ -240,8 +240,32 @@ func writeShared(path string, spec *Spec, sharedDefs map[string]bool) {
 	fmt.Printf("  _shared.json: %d definitions\n", len(defs))
 }
 
+func removeStaleModules(dir string, tagGroups map[string][]string) {
+	current := make(map[string]bool, len(tagGroups))
+	for tag := range tagGroups {
+		current[strings.ToLower(strings.ReplaceAll(tag, " ", "-"))+".json"] = true
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" || entry.Name() == "_shared.json" {
+			continue
+		}
+		if !current[entry.Name()] {
+			_ = os.Remove(filepath.Join(dir, entry.Name()))
+		}
+	}
+}
+
 func writeModules(dir string, spec *Spec, tagGroups map[string][]string, moduleDefs map[string][]string, sharedDefs map[string]bool) {
-	order := []string{"Health", "Auth", "Chat", "Sessions", "Settings", "Models", "Admin", "Internal"}
+	removeStaleModules(dir, tagGroups)
+	order := make([]string, 0, len(tagGroups))
+	for tag := range tagGroups {
+		order = append(order, tag)
+	}
+	sort.Strings(order)
 	for _, tag := range order {
 		paths, ok := tagGroups[tag]
 		if !ok {

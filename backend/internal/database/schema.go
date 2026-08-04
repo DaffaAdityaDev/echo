@@ -108,6 +108,25 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys (user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys (key_hash);
 `
 
+const schemaFeatures = `
+CREATE TABLE IF NOT EXISTS features (
+    id VARCHAR(128) PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    tier_requirement TEXT NOT NULL DEFAULT 'free' CHECK (tier_requirement IN ('free', 'pro')),
+    ui_schema JSONB NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'deprecated')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO features (id, name, description, tier_requirement, ui_schema, status) VALUES
+    ('delegate_task', 'Sub-Agent Delegation', 'Enables splitting complex objectives into sub-tasks and delegating to specialist sub-agents.', 'pro', '{"render_type":"hierarchy_tree","icon":"users","primary_color":"#3b82f6"}', 'active'),
+    ('web_search', 'Web Search', 'Quick search for real-time weather, prices, and news facts.', 'free', '{"render_type":"card_list","icon":"search","primary_color":"#6366f1"}', 'active'),
+    ('write_todos', 'Task Planning & Execution Board', 'Updates task board list state.', 'free', '{"render_type":"kanban_board","icon":"check-square","primary_color":"#8b5cf6"}', 'active')
+ON CONFLICT (id) DO NOTHING;
+`
+
 const schemaLLMOpsStudio = `
 CREATE TABLE IF NOT EXISTS prompt_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -148,6 +167,10 @@ func Migrate(pool *pgxpool.Pool) error {
 		log.Printf("failed to create llmops studio tables: %v", err)
 	}
 
+	if _, err := pool.Exec(ctx, schemaFeatures); err != nil {
+		log.Printf("failed to create features table: %v", err)
+	}
+
 	if _, err := pool.Exec(ctx, schemaApiKeys); err != nil {
 		return fmt.Errorf("failed to create api_keys table: %w", err)
 	}
@@ -160,6 +183,28 @@ func Migrate(pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, schemaSessions); err != nil {
 		return fmt.Errorf("failed to create sessions table: %w", err)
 	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS strategy_version TEXT DEFAULT ''"); err != nil {
+		log.Printf("failed to add strategy_version column to sessions: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NOW()"); err != nil {
+		log.Printf("failed to add last_accessed_at column to sessions: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_sessions_last_accessed ON sessions(last_accessed_at)"); err != nil {
+		log.Printf("failed to create idx_sessions_last_accessed: %v", err)
+	}
+
+	const schemaAppSettings = `
+	CREATE TABLE IF NOT EXISTS app_settings (
+		key TEXT PRIMARY KEY,
+		value JSONB NOT NULL DEFAULT '{}',
+		updated_at TIMESTAMPTZ DEFAULT NOW()
+	);
+	INSERT INTO app_settings (key, value) VALUES ('strategy_rollout', '{}') ON CONFLICT (key) DO NOTHING;
+	`
+	if _, err := pool.Exec(ctx, schemaAppSettings); err != nil {
+		log.Printf("failed to create app_settings table: %v", err)
+	}
+
 
 	if _, err := pool.Exec(ctx, schemaMessages); err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)

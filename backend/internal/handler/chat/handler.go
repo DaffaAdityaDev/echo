@@ -7,11 +7,17 @@ import (
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/agent"
+	chatmodel "echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
+
 	"echo-backend/internal/repository/session"
-	"echo-backend/internal/service/consolidation"
 	"echo-backend/internal/service/aimodel"
+	"echo-backend/internal/service/consolidation"
+	featuresvc "echo-backend/internal/service/features"
+	stratSvc "echo-backend/internal/service/strategy"
 	"encoding/json"
+	"errors"
+
 	"fmt"
 	"io"
 	"log"
@@ -60,6 +66,8 @@ type Handler struct {
 	ModelSvc         *aimodel.Service
 	SessionRepo      *session.Repository
 	ConsolidationSvc *consolidation.Service
+	StrategySvc      *stratSvc.Service
+	FeaturesSvc      *featuresvc.Service
 }
 
 func NewHandler(
@@ -68,6 +76,8 @@ func NewHandler(
 	modelSvc *aimodel.Service,
 	sessionRepo *session.Repository,
 	consolidationSvc *consolidation.Service,
+	strategySvc *stratSvc.Service,
+	featuresSvc *featuresvc.Service,
 ) *Handler {
 	return &Handler{
 		Cfg:              cfg,
@@ -76,6 +86,8 @@ func NewHandler(
 		ModelSvc:         modelSvc,
 		SessionRepo:      sessionRepo,
 		ConsolidationSvc: consolidationSvc,
+		StrategySvc:      strategySvc,
+		FeaturesSvc:      featuresSvc,
 	}
 }
 
@@ -85,29 +97,16 @@ type HistoryMessage struct {
 }
 
 type ChatRequest struct {
-	Message   string                 `json:"message"`
-	Model     string                 `json:"model"`
-	Mode      string                 `json:"mode"`
-	SessionID string                 `json:"sessionId"`
-	MissionID string                 `json:"missionId"`
-	History   []HistoryMessage       `json:"history"`
-	Features  []string               `json:"features"`
-	Skills    []string               `json:"skills"`
-	Config    map[string]interface{} `json:"config,omitempty"`
-}
-
-type Feature struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Description     string `json:"description"`
-	TierRequirement string `json:"tier_requirement"`
-}
-
-type FeatureResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Locked      bool   `json:"locked"`
+	Message         string                 `json:"message"`
+	Model           string                 `json:"model"`
+	Mode            string                 `json:"mode"`
+	StrategyVersion string                 `json:"strategyVersion,omitempty"`
+	SessionID       string                 `json:"sessionId"`
+	MissionID       string                 `json:"missionId"`
+	History         []HistoryMessage       `json:"history"`
+	Features        []string               `json:"features"`
+	Skills          []string               `json:"skills"`
+	Config          map[string]interface{} `json:"config,omitempty"`
 }
 
 func parseTraceparent(tp string) (trace.SpanContext, bool) {
@@ -134,6 +133,18 @@ func parseTraceparent(tp string) (trace.SpanContext, bool) {
 	}), true
 }
 
+// HandleChat godoc
+// @Summary Send a chat message
+// @Description Forwards a user message to the agent for processing
+// @Tags Chat
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ChatRequest true "Chat payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/chat [post]
 func (h *Handler) HandleChat(c fiber.Ctx) error {
 	var req ChatRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -156,21 +167,16 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		userTier = "pro"
 	}
 
-	if len(req.Features) > 0 {
-		featuresCatalog, err := h.GetFeatures(ctx)
-		if err == nil {
-			catalogMap := make(map[string]Feature)
-			for _, f := range featuresCatalog {
-				catalogMap[f.ID] = f
-			}
-			for _, fID := range req.Features {
-				if feat, exists := catalogMap[fID]; exists {
-					if userTier == "free" && feat.TierRequirement == "pro" {
-						return handlerutil.RespondError(c, fiber.StatusForbidden, fmt.Sprintf("Feature '%s' requires a Pro subscription.", feat.Name))
-					}
-				}
-			}
+	if err := h.FeaturesSvc.ValidateRequest(ctx, req.Features, userTier); err != nil {
+		var unknownErr featuresvc.ErrUnknownFeature
+		if errors.As(err, &unknownErr) {
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, unknownErr.Error())
 		}
+		var lockedErr featuresvc.ErrFeatureLocked
+		if errors.As(err, &lockedErr) {
+			return handlerutil.RespondError(c, fiber.StatusForbidden, lockedErr.Error())
+		}
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Feature validation failed")
 	}
 
 	modelID := req.Model
@@ -210,18 +216,20 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	var history []HistoryMessage
 	nextTurn := 1
+	var currentSession *chatmodel.Session
 
 	if req.SessionID != "" {
-		session, err := h.SessionRepo.GetByID(ctx, req.SessionID)
+		sess, err := h.SessionRepo.GetByID(ctx, req.SessionID)
 		if err != nil {
 			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session", err.Error())
 		}
-		if session == nil || session.Status == "deleted" {
+		if sess == nil || sess.Status == "deleted" {
 			return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
 		}
-		if session.UserID != userID {
+		if sess.UserID != userID {
 			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 		}
+		currentSession = sess
 
 		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
 		if err == nil && isThresholdCrossed {
@@ -230,7 +238,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			if err != nil {
 				log.Printf("[CONSOLIDATION] Error during auto-consolidation: %v", err)
 			} else {
-				session, _ = h.SessionRepo.GetByID(ctx, req.SessionID)
+				currentSession, _ = h.SessionRepo.GetByID(ctx, req.SessionID)
 			}
 		}
 
@@ -239,10 +247,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
 		}
 
-		if session.ContextSummary != "" {
+		if currentSession != nil && currentSession.ContextSummary != "" {
 			history = append(history, HistoryMessage{
 				Role:    "system",
-				Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", session.ContextSummary),
+				Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", currentSession.ContextSummary),
 			})
 		}
 
@@ -265,14 +273,38 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		history = req.History
 	}
 
+	var currentPinnedVersion string
+	if currentSession != nil {
+		currentPinnedVersion = currentSession.StrategyVersion
+	}
+
 	if req.SessionID == "" {
-		session, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle)
+		resolvedVersion, err := h.StrategySvc.ResolveVersion(ctx, "", req.StrategyVersion, userID)
+		if err != nil {
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
+		}
+		createdSess, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle, resolvedVersion)
 		if err != nil {
 			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create session")
 		}
-		req.SessionID = session.ID
-		req.MissionID = session.ID
+		currentSession = createdSess
+		req.SessionID = currentSession.ID
+		req.MissionID = currentSession.ID
+		currentPinnedVersion = currentSession.StrategyVersion
 		nextTurn = 1
+	}
+
+
+	resolvedStrategyVersion, err := h.StrategySvc.ResolveVersion(ctx, currentPinnedVersion, req.StrategyVersion, userID)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
+	}
+	if req.SessionID != "" && currentPinnedVersion == "" && resolvedStrategyVersion != "" {
+		_ = h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion)
+	}
+
+	if req.SessionID != "" {
+		_ = h.SessionRepo.TouchSession(ctx, req.SessionID)
 	}
 
 	unlock := acquireSessionLock(req.SessionID)
@@ -291,12 +323,14 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
 
 	payload := map[string]interface{}{
-		"user_id":         strconv.Itoa(userID),
-		"message":         req.Message,
-		"model":           req.Model,
-		"history":         history,
-		"provider_config": providerMap,
+		"user_id":          strconv.Itoa(userID),
+		"message":          req.Message,
+		"model":            req.Model,
+		"history":          history,
+		"provider_config":  providerMap,
+		"strategy_version": resolvedStrategyVersion,
 	}
+
 	missionIDToUse := req.SessionID
 	if missionIDToUse == "" {
 		missionIDToUse = req.MissionID
@@ -505,6 +539,16 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	})
 }
 
+// StreamMissionLogs godoc
+// @Summary Stream mission logs
+// @Description Streams real-time mission execution logs as Server-Sent Events
+// @Tags Chat
+// @Produce text/event-stream
+// @Security BearerAuth
+// @Param missionId path string true "Mission ID"
+// @Success 200 {string} string "Event stream"
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/missions/{missionId}/stream [get]
 func (h *Handler) StreamMissionLogs(c fiber.Ctx) error {
 	missionID := c.Params("missionId")
 	if missionID == "" {
@@ -604,10 +648,30 @@ func (h *Handler) StreamMissionLogs(c fiber.Ctx) error {
 	}
 }
 
+// HandleApproveTool godoc
+// @Summary Approve a pending tool call
+// @Description Approves a human-in-the-loop tool approval request for a mission
+// @Tags Chat
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Mission ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/missions/{id}/approve [post]
 func (h *Handler) HandleApproveTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "approve")
 }
 
+// HandleDenyTool godoc
+// @Summary Deny a pending tool call
+// @Description Denies a human-in-the-loop tool approval request for a mission
+// @Tags Chat
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Mission ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/missions/{id}/deny [post]
 func (h *Handler) HandleDenyTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "deny")
 }
@@ -669,56 +733,6 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 	})
 }
 
-func (h *Handler) GetFeatures(ctx context.Context) ([]Feature, error) {
-	cacheKey := "agent:features"
-
-	if h.RedisClient != nil {
-		cached, err := h.RedisClient.Get(ctx, cacheKey).Result()
-		if err == nil && cached != "" {
-			var features []Feature
-			if err := json.Unmarshal([]byte(cached), &features); err == nil {
-				return features, nil
-			}
-		}
-	}
-
-	agentURL := fmt.Sprintf("%s/api/features", h.HonoAPIURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", agentURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
-
-	resp, err := handlerutil.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("agent features request failed: status %d, details: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var features []Feature
-	if err := json.Unmarshal(bodyBytes, &features); err != nil {
-		return nil, err
-	}
-
-	if h.RedisClient != nil {
-		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
-			log.Printf("Failed to cache features in Redis: %v", err)
-		}
-	}
-
-	return features, nil
-}
-
 func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, error) {
 	cacheKey := "agent:skills"
 
@@ -769,6 +783,15 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 	return skills, nil
 }
 
+// HandleGetSkills godoc
+// @Summary List available agent skills
+// @Description Returns the catalog of skills available to agents
+// @Tags Chat
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/skills [get]
 func (h *Handler) HandleGetSkills(c fiber.Ctx) error {
 	ctx := c.Context()
 	skills, err := h.GetSkills(ctx)
@@ -776,33 +799,4 @@ func (h *Handler) HandleGetSkills(c fiber.Ctx) error {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve skills", err.Error())
 	}
 	return handlerutil.RespondSuccess(c, skills)
-}
-
-func (h *Handler) HandleGetFeatures(c fiber.Ctx) error {
-	ctx := c.Context()
-	userTier := c.Get("X-User-Tier")
-	if userTier == "" {
-		userTier = "pro"
-	}
-
-	features, err := h.GetFeatures(ctx)
-	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve features", err.Error())
-	}
-
-	response := make([]FeatureResponse, len(features))
-	for i, f := range features {
-		locked := false
-		if userTier == "free" && f.TierRequirement == "pro" {
-			locked = true
-		}
-		response[i] = FeatureResponse{
-			ID:          f.ID,
-			Name:        f.Name,
-			Description: f.Description,
-			Locked:      locked,
-		}
-	}
-
-	return handlerutil.RespondSuccess(c, response)
 }

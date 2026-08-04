@@ -1,4 +1,4 @@
-.PHONY: swagger-gen swagger-split swagger test test-short test-coverage test-html
+.PHONY: swagger-gen swagger-split swagger-merge swagger test test-short test-coverage test-html
 
 swagger-gen:
 	go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/server/main.go -o api/docs --parseDependency --parseInternal
@@ -6,7 +6,11 @@ swagger-gen:
 swagger-split:
 	go run ./api/split/main.go
 
-swagger: swagger-gen swagger-split
+swagger-merge:
+	go run ./api/merge/main.go
+
+swagger: swagger-gen swagger-split swagger-merge
+
 
 test:
 	go test -v -short -parallel 8 -count=1 ./...

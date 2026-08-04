@@ -43,7 +43,7 @@ the harness how to resolve and invoke the tool.
 
 ```
 src/core/agent/tools/
-  registry.ts             # ToolRegistry + ACTIVE_FEATURES catalog + source resolution
+  registry.ts             # ToolRegistry + LAZY_TOOLS + implemented registry
   definitions/            # Built-in tools (lazy-loaded)
     web-search/
       index.ts              # DuckDuckGo HTML search
@@ -290,12 +290,16 @@ LAZY_TOOLS = {
   web_search:        () => import('./definitions/web-search'),
 };
 
-// 2. Active Feature catalog (exposed via GET /api/features)
-ACTIVE_FEATURES = [
-  { id: 'delegate_task',     name: 'Sub-Agent Delegation',      tier: 'pro'  },
-  { id: 'web_search',        name: 'Web Search',                tier: 'free' },
-  { id: 'write_todos',       name: 'Task Planning & Board',     tier: 'free' },
+// 2. Implemented tool registry (exposed via GET /api/features)
+// getImplementedFeatures() — LAZY_TOOLS keys enriched by loaded tool
+// definitions, deduplicated by id, sorted by id:
+getImplementedFeatures() => [
+  { id: 'delegate_task', name: 'delegate_task', description: '...' },
+  { id: 'web_search',    name: 'web_search',    description: '...' },
+  { id: 'write_todos',   name: 'write_todos',   description: '...' },
 ];
+// No tier_requirement / ui_schema — catalog metadata lives in the
+// backend features table (migration 009_create_features).
 ```
 
 ### Tool Resolution Flow
@@ -375,7 +379,7 @@ When called:
 | `ToolRegistry`     | class    | autoload(), resolveTools(), getTool(), getAllTools()|
 |                    |          | initMCP(), initREST(), registerTool()             |
 | `toolRegistry`     | instance | Singleton used across the application             |
-| `ACTIVE_FEATURES`  | const[]  | Feature catalog for API and UI                    |
+| `getImplementedFeatures()` | function | Implemented registry: LAZY_TOOLS keys + loaded tool metadata |
 +--------------------+----------+---------------------------------------------------+
 
 ### Updated ToolDefinition Contract
@@ -422,7 +426,7 @@ interface ToolDefinition {
 | `definitions/planning/index.ts`        | 19-74                       | write_todos state management                      |
 | `definitions/delegation/index.ts`      | 17-134                      | Sub-agent delegation harness                      |
 | `tools/registry.ts`                    | 13-17                       | LAZY_TOOLS static map                             |
-| `tools/registry.ts`                    | 20-24                       | ACTIVE_FEATURES catalog                           |
+| `tools/registry.ts`                    | 20-42                       | getImplementedFeatures() — implemented registry  |
 | `tools/registry.ts`                    | 26-168                      | ToolRegistry class (autoload, resolveTools,       |
 |                                        |                             |   initMCP, initREST, registerTool)                |
 | `adapter/mcp/client.ts`                | 1-120                       | MCP client — connection, tool discovery, execution|

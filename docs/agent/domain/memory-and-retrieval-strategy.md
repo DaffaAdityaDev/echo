@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : Memory & Retrieval Strategy
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-10
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: memory decay & background lifecycle)
 ===============================================================================
 
 ## Description
@@ -344,6 +344,43 @@ For implementation details:
   - Agent summarization endpoint: `../application/features/state-session/session-management.md` → Consolidation Endpoint
   - Per-turn observation immutability: `../application/features/execution/context-resolver-pattern.md` →
     Edge Case: Tool Loop Observation Compression
+
+---
+
+## Memory Decay & Background Lifecycle `[Active]`
+
+
+Hard consolidation (above) handles **per-session** token overflow. Cross-session
+cleanup is handled by the **lifecycle worker** in the Go gateway; the agent's
+role in decay is limited to the summarization intelligence it already provides.
+
+### Decay Score (derived, no new storage)
+
+```
+S = recency(session.last_accessed_at) * w_recency + relevance(session.messages)
+```
+
+- `recency` — exponential window on `sessions.last_accessed_at` (updated on
+  every turn, migration 007).
+- `relevance` — placeholder derived from message count / recent turn length
+  (extensible to vector similarity when a vector store is adopted).
+- `deprecated` phase is **derived** from recency windows — no DB status change
+  (existing CHECK constraint stays `active | archived | deleted`).
+
+### Lifecycle Transitions (owned by Go worker)
+
+```
+active ──(no access > DECAY_DEPRECATE_AFTER days)──▶ deprecated (derived)
+deprecated ──(no access > DECAY_ARCHIVE_AFTER days)──▶ archived (status)
+archived ──(retention window)──▶ messages deleted, row kept
+```
+
+Agent-side implications:
+- The agent remains **stateless** — it never decides retention.
+- Episodic memory POSTed to `/api/v1/internal/memory/episodic/store` already
+  carries TTL (600s per turn); Redis GC is TTL-only, no agent change.
+- Summarize endpoint (`POST /api/internal/sessions/summarize`) is reused by
+  the worker exactly as the chat fast-path uses it today — no signature change.
 
 ---
 

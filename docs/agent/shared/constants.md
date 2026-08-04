@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Constants
   Service   : agent
-  Version   : 2.0
-  Updated   : 2026-07-09
+  Version   : 2.1
+  Updated   : 2026-07-31 (planned: strategy version constants)
 ================================================================================
 
 ## Description
@@ -52,6 +52,25 @@ PATHS = {
   ARTIFACTS_ROOT: join(SA_OUTPUT_PATH || cwd(), 'artifacts'),
 };
 ```
+
+### Strategy Version Constants `[Active]`
+
+
+```typescript
+STRATEGY_VERSIONS = {
+  STANDARD_V1: "standard:v1",
+  NLAH_V1:     "nlah:v1",
+};
+
+STRATEGY_VERSION_ALIASES = {
+  "standard:v1": ["chat"],
+  "nlah:v1":     ["agent", "nlah", "deep-research", "react", "sequential"],
+};
+
+DEFAULT_STRATEGY_VERSION = STRATEGY_VERSIONS.NLAH_V1;
+```
+
+Source: `src/core/agent/strategies/constants.ts` (extended with version map).
 
 +----------------------------+---------------------------------------------+------------------------------------------+
 | Constant                   | Value                                       | Purpose                                  |

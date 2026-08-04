@@ -1,12 +1,82 @@
 {
     "basePath": "/",
     "definitions": {
-        "internal_handler.CreateSessionRequest": {
+        "echo-backend_internal_models_chat.Session": {
             "type": "object",
             "properties": {
+                "context_summary": {
+                    "type": "string",
+                    "example": "User is building a REST API for a todo app using Express and Prisma"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "sess_abc123"
+                },
+                "last_accessed_at": {
+                    "type": "string",
+                    "example": "2026-01-15T11:45:00Z"
+                },
+                "message_count": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "strategy_version": {
+                    "type": "string",
+                    "example": "nlah:v1"
+                },
                 "title": {
                     "type": "string",
                     "example": "Build a REST API with Express"
+                },
+                "token_count": {
+                    "type": "integer",
+                    "example": 3421
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2026-01-15T11:45:00Z"
+                },
+                "user_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "internal_handler_session.CreateSessionRequest": {
+            "type": "object",
+            "properties": {
+                "strategyVersion": {
+                    "type": "string",
+                    "example": "nlah:v1"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Build a REST API with Express"
+                }
+            }
+        },
+        "internal_handler_session.GenerateTitleRequest": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.PruneRequest": {
+            "type": "object",
+            "properties": {
+                "provider_config": {
+                    "type": "object",
+                    "additionalProperties": true
                 }
             }
         }
@@ -28,24 +98,43 @@
         "version": "1.0"
     },
     "paths": {
-        "/api/v1/sessions": {
-            "get": {
+        "/api/v1/internal/sessions/{id}/prune": {
+            "post": {
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "List user sessions",
-                "description": "Retrieve all active chat sessions belonging to the authenticated user",
-                "parameters": null,
+                "summary": "Prune and consolidate a session",
+                "description": "Triggers token-threshold pruning and consolidation for a session (internal)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Provider configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.PruneRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of sessions",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -54,7 +143,42 @@
                         }
                     },
                     "500": {
-                        "description": "Failed to list sessions",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": null,
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/sessions": {
+            "get": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "List user sessions",
+                "description": "Returns all active sessions for the authenticated user",
+                "parameters": null,
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -77,15 +201,16 @@
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Create a new session",
-                "description": "Initialize a new chat session for the current user",
+                "summary": "Create a session",
+                "description": "Creates a new chat session with an optional strategy version",
                 "parameters": [
                     {
-                        "description": "Session title",
+                        "description": "Session payload",
                         "name": "request",
                         "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.CreateSessionRequest"
+                            "$ref": "#/definitions/internal_handler_session.CreateSessionRequest"
                         }
                     }
                 ],
@@ -93,11 +218,11 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
+                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -105,8 +230,8 @@
                             }
                         }
                     },
-                    "500": {
-                        "description": "Failed to create session",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -133,8 +258,8 @@
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Get session details",
-                "description": "Fetch session metadata by ID",
+                "summary": "Get a session",
+                "description": "Returns a session owned by the authenticated user",
                 "parameters": [
                     {
                         "type": "string",
@@ -148,16 +273,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models.Session"
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
                     },
                     "401": {
@@ -170,7 +286,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden: ownership mismatch",
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -179,7 +295,7 @@
                         }
                     },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -202,8 +318,8 @@
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Delete session",
-                "description": "Soft-delete a chat session",
+                "summary": "Delete a session",
+                "description": "Soft-deletes a session owned by the authenticated user",
                 "parameters": [
                     {
                         "type": "string",
@@ -215,16 +331,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session soft deleted",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Missing session ID",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -241,17 +348,8 @@
                             }
                         }
                     },
-                    "403": {
-                        "description": "Forbidden: ownership mismatch",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -271,13 +369,13 @@
                 ]
             }
         },
-        "/api/v1/sessions/{id}/messages": {
-            "get": {
+        "/api/v1/sessions/{id}/generate-title": {
+            "post": {
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Get session messages",
-                "description": "Retrieve message history for a specific chat session",
+                "summary": "Generate a session title",
+                "description": "Generates a title and summary from the session history using an LLM",
                 "parameters": [
                     {
                         "type": "string",
@@ -285,18 +383,27 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Model selection (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.GenerateTitleRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of messages",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Missing session ID",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -313,8 +420,64 @@
                             }
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/sessions/{id}/messages": {
+            "get": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get session messages",
+                "description": "Returns the message history of a session owned by the authenticated user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "403": {
-                        "description": "Forbidden: ownership mismatch",
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -323,7 +486,7 @@
                         }
                     },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -352,11 +515,5 @@
             "in": "header"
         }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

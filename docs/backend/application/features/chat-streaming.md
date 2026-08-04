@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Streaming
   Service   : backend
-  Version   : 1.2
-  Updated   : 2026-07-23
+  Version   : 1.3
+  Updated   : 2026-07-31 (planned: strategy_version resolution in chat flow)
 ================================================================================
 
 Overview
@@ -106,7 +106,7 @@ Message Flow - HandleChat
    POST /api/v1/chat
      │
      ├─ Parse JSON body -> ChatRequest{Message, Model, Mode, SessionID,
-     │     MissionID, History, Features, Skills}
+     │     MissionID, History, Features, Skills, Strategy, StrategyVersion}
      │
      ├─ Parse "traceparent" header for distributed tracing
      │     └─ If valid: inject remote span context
@@ -116,6 +116,16 @@ Message Flow - HandleChat
      │
      ├─ Start OTel span "HandleChat" with attributes:
      │      agent.session_id, mission.id, llm.model
+     │
+     ├─ Read X-User-Tier header (default: "pro")
+     │
+     ├─ Strategy resolution [Active] — after session ownership check:
+     │      If session.strategy_version != "":
+     │        use pinned version (backward compatibility for active sessions)
+     │      Else:
+     │        resolve via rollout config (settings table) + session pin write
+     │      Deprecated versions excluded from new-session resolution.
+     │      See docs/shared/patterns/strategy-lifecycle.md
      │
      ├─ Read X-User-Tier header (default: "pro")
      │
@@ -170,10 +180,11 @@ Message Flow - HandleChat
       │     InsertAssistantPlaceholder(ctx, sessionID, nextTurn)
       │     Returns assistantMsgID for later updates
       │
-      └─ Build agent payload:
-     │      user_id, message, model, history, provider_config, missionId,
-     │      features (ALWAYS included, guaranteed [] not null),
-     │      skills (only when non-empty)
+       └─ Build agent payload:
+      │      user_id, message, model, history, provider_config, missionId,
+      │      features (ALWAYS included, guaranteed [] not null),
+      │      skills (only when non-empty),
+      │      strategy_version (resolved version string, e.g. "nlah:v1")
      │
      ├─ POST to agent /api/generate-mission?mode=<Mode>
      │      Headers: Content-Type, X-Internal-Token, traceparent
@@ -239,6 +250,13 @@ Trigger point: after session ownership check, before loading messages.
 
 Session loading re-fetches the session after consolidation to pick up the
 updated ContextSummary.
+
+> **Background consolidation [Active]**: the inline fast-path above stays.
+
+> A lifecycle worker (see `docs/backend/infrastructure/server-lifecycle.md`)
+> additionally runs consolidation for stale sessions (threshold + `last_accessed_at`
+> windows) so active chat latency is not affected by long sessions.
+> Decay scoring: `docs/agent/domain/memory-and-retrieval-strategy.md`.
 
 Skill Catalog — HandleGetSkills
 -------------------------------
@@ -337,7 +355,11 @@ Feature Catalog - GetFeatures / HandleGetFeatures
     ├─ GET <HonoAPIURL>/api/features
     │      Header: X-Internal-Token
     │
-    ├─ Parse response -> []Feature{ID, Name, Description, TierRequirement}
+    ├─ Parse response -> []ImplementedFeature{ID, Name, Description}
+    │     (agent's implemented registry — no tier/ui_schema)
+    │
+    ├─ Merge with DB features table (009_create_features):
+    │     tier_requirement, ui_schema, status -> []Feature
     │
     └─ Store in Redis with 10 min TTL -> return
 

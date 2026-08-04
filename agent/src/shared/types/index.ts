@@ -250,6 +250,25 @@ export interface AgentStrategy {
   buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string;
 }
 
+export type StrategyStatus = "active" | "deprecated";
+
+export interface StrategyVersionInfo {
+  version: string;
+  status: StrategyStatus;
+  aliases: string[];
+}
+
+export interface StrategyRegistryEntry {
+  name: string;
+  versions: StrategyVersionInfo[];
+}
+
+export interface StrategyRegistry {
+  list(): StrategyRegistryEntry[];
+  resolve(version: string): AgentStrategy;
+  isDeprecated(version: string): boolean;
+}
+
 /**
  * Contract for tool definitions.
  */

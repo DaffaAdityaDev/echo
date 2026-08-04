@@ -34,28 +34,38 @@ const (
 
 const (
 	QueryCreateSession = `
-		INSERT INTO sessions (user_id, title, context_summary, status, created_at, updated_at)
-		VALUES ($1, $2, '', 'active', NOW(), NOW())
-		RETURNING id, user_id, title, context_summary, status, created_at, updated_at
+		INSERT INTO sessions (user_id, title, context_summary, status, strategy_version, last_accessed_at, created_at, updated_at)
+		VALUES ($1, $2, '', 'active', $3, NOW(), NOW(), NOW())
+		RETURNING id, user_id, title, context_summary, status, COALESCE(strategy_version, ''), COALESCE(last_accessed_at, NOW()), created_at, updated_at
 	`
 	QueryListSessions = `
-		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, s.created_at, s.updated_at,
+		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, COALESCE(s.strategy_version, ''), COALESCE(s.last_accessed_at, s.updated_at), s.created_at, s.updated_at,
 		       COUNT(m.id) as message_count,
 		       COALESCE(SUM(m.token_count), 0) as token_count
 		FROM sessions s
 		LEFT JOIN messages m ON m.session_id = s.id
 		WHERE s.user_id = $1 AND s.status = 'active'
-		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.created_at, s.updated_at
+		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.strategy_version, s.last_accessed_at, s.created_at, s.updated_at
 		ORDER BY s.updated_at DESC
 	`
 	QueryGetSession = `
-		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, s.created_at, s.updated_at,
+		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, COALESCE(s.strategy_version, ''), COALESCE(s.last_accessed_at, s.updated_at), s.created_at, s.updated_at,
 		       COUNT(m.id) as message_count,
 		       COALESCE(SUM(m.token_count), 0) as token_count
 		FROM sessions s
 		LEFT JOIN messages m ON m.session_id = s.id
 		WHERE s.id = $1
-		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.created_at, s.updated_at
+		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.strategy_version, s.last_accessed_at, s.created_at, s.updated_at
+	`
+	QueryPinSessionStrategyVersion = `
+		UPDATE sessions
+		SET strategy_version = $2
+		WHERE id = $1 AND (strategy_version = '' OR strategy_version IS NULL)
+	`
+	QueryTouchSession = `
+		UPDATE sessions
+		SET last_accessed_at = NOW()
+		WHERE id = $1
 	`
 	QueryDeleteSession = `
 		UPDATE sessions
@@ -126,7 +136,50 @@ const (
 		SET updated_at = NOW()
 		WHERE id = $1
 	`
+	QueryGetAppSetting = `
+		SELECT key, value, updated_at
+		FROM app_settings
+		WHERE key = $1
+	`
+	QueryUpsertAppSetting = `
+		INSERT INTO app_settings (key, value, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (key)
+		DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+		RETURNING key, value, updated_at
+	`
+	QueryScanSessionsForConsolidation = `
+		SELECT s.id, s.user_id, COALESCE(SUM(m.token_count), 0) as token_count
+		FROM sessions s
+		LEFT JOIN messages m ON m.session_id = s.id
+		WHERE s.status = 'active' AND s.updated_at < $1
+		GROUP BY s.id, s.user_id
+		HAVING COALESCE(SUM(m.token_count), 0) >= $2
+		LIMIT $3
+	`
+	QueryScanSessionsForArchive = `
+		UPDATE sessions
+		SET status = 'archived', updated_at = NOW()
+		WHERE status = 'active' AND COALESCE(last_accessed_at, updated_at) < $1
+		RETURNING id
+	`
+	QueryDeleteMessagesForArchivedSessions = `
+		DELETE FROM messages
+		WHERE session_id IN (
+			SELECT id FROM sessions
+			WHERE status = 'archived' AND COALESCE(last_accessed_at, updated_at) < $1
+		)
+	`
+	QueryScanSessionsForDeprecate = `
+		SELECT id
+		FROM sessions
+		WHERE status = 'active'
+		  AND COALESCE(last_accessed_at, updated_at) < $1
+		  AND COALESCE(last_accessed_at, updated_at) >= $2
+	`
+
 )
+
 
 const (
 	QueryUpsertPreferences = `
@@ -156,6 +209,21 @@ const (
 	ErrCreateUser   = "failed to create user"
 	ErrGetUserEmail = "failed to get user by email"
 	ErrGetUser      = "failed to get user by id"
+)
+
+// Feature queries
+const (
+	QueryListActiveFeatures = `
+		SELECT id, name, description, tier_requirement, ui_schema, status, created_at, updated_at
+		FROM features
+		WHERE status = 'active'
+		ORDER BY id
+	`
+	QueryGetFeatureByID = `
+		SELECT id, name, description, tier_requirement, ui_schema, status, created_at, updated_at
+		FROM features
+		WHERE id = $1
+	`
 )
 
 // API Key queries

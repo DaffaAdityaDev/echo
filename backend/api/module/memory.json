@@ -1,113 +1,96 @@
 {
     "basePath": "/",
     "definitions": {
-        "internal_handler.PruneRequest": {
-            "type": "object"
-        },
-        "internal_handler.episodicRecallRequest": {
+        "internal_handler_memory.episodicRecallRequest": {
             "type": "object",
             "properties": {
                 "limit": {
-                    "type": "integer",
-                    "example": 50
+                    "type": "integer"
                 },
                 "offset": {
-                    "type": "integer",
-                    "example": 0
+                    "type": "integer"
                 },
                 "session_id": {
-                    "type": "string",
-                    "example": "sess_abc123"
+                    "type": "string"
                 }
             }
         },
-        "internal_handler.episodicStoreRequest": {
-            "type": "object"
+        "internal_handler_memory.episodicStoreRequest": {
+            "type": "object",
+            "properties": {
+                "content": {},
+                "metadata": {},
+                "session_id": {
+                    "type": "string"
+                },
+                "ttl_seconds": {
+                    "type": "integer"
+                }
+            }
         },
-        "internal_handler.proceduralGetRequest": {
+        "internal_handler_memory.proceduralGetRequest": {
             "type": "object",
             "properties": {
                 "id": {
-                    "type": "string",
-                    "example": "mem_pr_e5f6g7h8"
+                    "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "deploy-to-ecs"
+                    "type": "string"
                 }
             }
         },
-        "internal_handler.proceduralStoreRequest": {
+        "internal_handler_memory.proceduralStoreRequest": {
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string",
-                    "example": "1. Build Docker image\n2. Push to ECR\n3. Update ECS service"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "string",
-                    "example": "mem_pr_e5f6g7h8"
+                    "type": "string"
                 },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": true
                 },
                 "name": {
-                    "type": "string",
-                    "example": "deploy-to-ecs"
+                    "type": "string"
                 }
             }
         },
-        "internal_handler.semanticSearchRequest": {
+        "internal_handler_memory.semanticSearchRequest": {
             "type": "object",
             "properties": {
                 "embedding": {
                     "type": "array",
                     "items": {
                         "type": "number"
-                    },
-                    "example": [
-                        0.012,
-                        0.034,
-                        -0.056
-                    ]
+                    }
                 },
                 "limit": {
-                    "type": "integer",
-                    "example": 10
+                    "type": "integer"
                 },
                 "query": {
-                    "type": "string",
-                    "example": "What is Echo agent platform?"
+                    "type": "string"
                 },
                 "threshold": {
-                    "type": "number",
-                    "example": 0.75
+                    "type": "number"
                 }
             }
         },
-        "internal_handler.semanticStoreRequest": {
+        "internal_handler_memory.semanticStoreRequest": {
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string",
-                    "example": "Echo is an AI agent platform for autonomous task execution"
+                    "type": "string"
                 },
                 "embedding": {
                     "type": "array",
                     "items": {
                         "type": "number"
-                    },
-                    "example": [
-                        0.012,
-                        0.034,
-                        -0.056,
-                        0.078
-                    ]
+                    }
                 },
                 "id": {
-                    "type": "string",
-                    "example": "mem_sm_a1b2c3d4"
+                    "type": "string"
                 },
                 "metadata": {
                     "type": "object",
@@ -136,10 +119,10 @@
         "/api/v1/internal/memory/episodic/recall": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Recall episodic memory",
-                "description": "Retrieve episodic conversation context from Redis",
+                "description": "Recalls episodic memory entries for a session (internal)",
                 "parameters": [
                     {
                         "description": "Episodic recall payload",
@@ -147,29 +130,20 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicRecallRequest"
+                            "$ref": "#/definitions/internal_handler_memory.episodicRecallRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episodic entries",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -190,42 +164,31 @@
         "/api/v1/internal/memory/episodic/store": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store episodic memory",
-                "description": "Save episodic conversation context into Redis",
+                "description": "Stores an episodic memory entry for a session (internal)",
                 "parameters": [
                     {
-                        "description": "Episodic store payload",
+                        "description": "Episodic memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.episodicStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.episodicStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Stored status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -246,49 +209,31 @@
         "/api/v1/internal/memory/procedural/get": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Get procedural memory",
-                "description": "Retrieve procedural workflow steps by ID or name",
+                "description": "Retrieves procedural memory entries by ID or name (internal)",
                 "parameters": [
                     {
-                        "description": "Procedural get payload",
+                        "description": "Procedural recall payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralGetRequest"
+                            "$ref": "#/definitions/internal_handler_memory.proceduralGetRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Procedural memory entry",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -309,42 +254,31 @@
         "/api/v1/internal/memory/procedural/store": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store procedural memory",
-                "description": "Record or update procedural workflow steps in PostgreSQL",
+                "description": "Stores a procedural memory entry (internal)",
                 "parameters": [
                     {
-                        "description": "Procedural store payload",
+                        "description": "Procedural memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.proceduralStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.proceduralStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Recorded status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -365,10 +299,10 @@
         "/api/v1/internal/memory/semantic/search": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Search semantic memory",
-                "description": "Perform text or vector search over semantic memory in PostgreSQL",
+                "description": "Searches semantic memory by query text (internal)",
                 "parameters": [
                     {
                         "description": "Semantic search payload",
@@ -376,29 +310,20 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticSearchRequest"
+                            "$ref": "#/definitions/internal_handler_memory.semanticSearchRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Search results",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -419,42 +344,31 @@
         "/api/v1/internal/memory/semantic/store": {
             "post": {
                 "tags": [
-                    "Internal"
+                    "Memory"
                 ],
                 "summary": "Store semantic memory",
-                "description": "Save or update vector embedding semantic memory in PostgreSQL",
+                "description": "Stores a semantic memory entry with an optional embedding (internal)",
                 "parameters": [
                     {
-                        "description": "Semantic store payload",
+                        "description": "Semantic memory payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.semanticStoreRequest"
+                            "$ref": "#/definitions/internal_handler_memory.semanticStoreRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Indexed status",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Validation error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -464,73 +378,6 @@
                     }
                 },
                 "security": null,
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ]
-            }
-        },
-        "/api/v1/internal/sessions/{id}/prune": {
-            "post": {
-                "tags": [
-                    "Internal"
-                ],
-                "summary": "Prune and consolidate session",
-                "description": "Trigger LLM-driven memory consolidation for a session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Provider config payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.PruneRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Consolidation status",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Consolidation failed",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -548,11 +395,5 @@
             "in": "header"
         }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

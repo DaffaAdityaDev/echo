@@ -66,7 +66,7 @@ per-feature. The modular split solves this:
   swag init
       │
       ▼
-  api/docs/swagger.json          ◄── Monolithic (1918 lines, all endpoints)
+  api/docs/swagger.json          ◄── Monolithic (all endpoints)
       │
       ▼
   api/split/main.go              ◄── Reads by @Tag, analyses $ref usage
@@ -79,7 +79,9 @@ per-feature. The modular split solves this:
       ├── api/module/settings.json    ◄── Settings endpoints + their schemas
       ├── api/module/models.json      ◄── Model listing + their schemas
       ├── api/module/admin.json       ◄── Admin API key mgmt + stats
-      └── api/module/internal.json    ◄── Internal memory/session routes
+      ├── api/module/memory.json      ◄── Internal memory routes
+      ├── api/module/strategies.json  ◄── Strategy catalog + rollout
+      └── api/module/studio.json      ◄── LLMOps Studio endpoints
 ```
 
 ### How the split tool works
@@ -127,7 +129,10 @@ cd backend && make swagger-gen
 # Step 2: Split into modules
 cd backend && make swagger-split
 
-# Both steps at once
+# Step 3: Merge modules back into api/docs/swagger.json (served spec)
+cd backend && make swagger-merge
+
+# Full pipeline (generate + split + merge)
 cd backend && make swagger
 
 # From root
@@ -204,14 +209,16 @@ Adding a New Endpoint
 Regeneration
 ------------
 
-  make swagger          # Full pipeline: generate + split
+  make swagger          # Full pipeline: generate + split + merge
   make swagger-gen      # Generate monolithic spec only
   make swagger-split    # Split monolith into module files
+  make swagger-merge    # Merge module files back into api/docs/swagger.json
 
 The full pipeline runs:
   1. swag init -g cmd/server/main.go -o api/docs \
        --parseDependency --parseInternal
   2. go run ./api/split/main.go
+  3. go run ./api/merge/main.go
 
 The -g flag points to the main Go file (which imports all handlers), so swaggo
 discovers every annotated function across the entire backend package.

@@ -30,6 +30,10 @@ func Load() *cfgmodel.Config {
 	c.EvaluatorAPIKey = os.Getenv("EVALUATOR_API_KEY")
 	c.EvaluatorModel = envStr("EVALUATOR_MODEL", "gpt-4o")
 	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
+	c.StrategyRolloutDefault = envFloat("STRATEGY_ROLLOUT_DEFAULT", 0.1)
+	c.WorkerInterval = envStr("WORKER_INTERVAL", "15m")
+	c.DecayDeprecateAfter = envInt("DECAY_DEPRECATE_AFTER", 30)
+	c.DecayArchiveAfter = envInt("DECAY_ARCHIVE_AFTER", 90)
 	return c
 }
 
@@ -48,6 +52,16 @@ func envInt(key string, def int) int {
 	}
 	return def
 }
+
+func envFloat(key string, def float64) float64 {
+	if v, ok := os.LookupEnv(key); ok {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return def
+}
+
 
 func splitEnv(val string) []string {
 	parts := strings.Split(val, ",")

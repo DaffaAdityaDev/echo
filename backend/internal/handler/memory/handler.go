@@ -39,6 +39,16 @@ type episodicStoreRequest struct {
 	TTL       int         `json:"ttl_seconds,omitempty"`
 }
 
+// HandleStoreEpisodic godoc
+// @Summary Store episodic memory
+// @Description Stores an episodic memory entry for a session (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body episodicStoreRequest true "Episodic memory payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/episodic/store [post]
 func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 	var req episodicStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -86,6 +96,16 @@ type episodicRecallRequest struct {
 	Offset    int    `json:"offset,omitempty"`
 }
 
+// HandleGetEpisodic godoc
+// @Summary Recall episodic memory
+// @Description Recalls episodic memory entries for a session (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body episodicRecallRequest true "Episodic recall payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/episodic/recall [post]
 func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 	var req episodicRecallRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -141,6 +161,16 @@ type semanticStoreRequest struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// HandleStoreSemantic godoc
+// @Summary Store semantic memory
+// @Description Stores a semantic memory entry with an optional embedding (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body semanticStoreRequest true "Semantic memory payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/semantic/store [post]
 func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 	var req semanticStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -200,6 +230,16 @@ type semanticSearchRequest struct {
 	Threshold float64   `json:"threshold,omitempty"`
 }
 
+// HandleSemanticSearch godoc
+// @Summary Search semantic memory
+// @Description Searches semantic memory by query text (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body semanticSearchRequest true "Semantic search payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/semantic/search [post]
 func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 	var req semanticSearchRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -264,6 +304,16 @@ type proceduralStoreRequest struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// HandleStoreProcedural godoc
+// @Summary Store procedural memory
+// @Description Stores a procedural memory entry (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body proceduralStoreRequest true "Procedural memory payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/procedural/store [post]
 func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 	var req proceduralStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -304,6 +354,16 @@ type proceduralGetRequest struct {
 	Name string `json:"name,omitempty"`
 }
 
+// HandleGetProcedural godoc
+// @Summary Get procedural memory
+// @Description Retrieves procedural memory entries by ID or name (internal)
+// @Tags Memory
+// @Accept json
+// @Produce json
+// @Param request body proceduralGetRequest true "Procedural recall payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/internal/memory/procedural/get [post]
 func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	var req proceduralGetRequest
 	if err := c.Bind().JSON(&req); err != nil {

@@ -66,6 +66,7 @@
       "get": {
         "summary": "List available agent skills",
         "description": "Fetch catalog of specialized skill definitions available for activation during missions.",
+        "tags": ["Skills"],
         "security": [
           {
             "InternalTokenAuth": []

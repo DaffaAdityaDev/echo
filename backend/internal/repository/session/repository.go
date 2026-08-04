@@ -6,10 +6,12 @@ import (
 	"echo-backend/internal/models/chat"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -27,10 +29,10 @@ func (r *Repository) UpdateSessionTimestamp(ctx context.Context, sessionID strin
 	return nil
 }
 
-func (r *Repository) CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error) {
+func (r *Repository) CreateSession(ctx context.Context, userID int, title string, strategyVersion string) (*chatmodel.Session, error) {
 	var s chatmodel.Session
-	err := r.pool.QueryRow(ctx, db.QueryCreateSession, userID, title).
-		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt)
+	err := r.pool.QueryRow(ctx, db.QueryCreateSession, userID, title, strategyVersion).
+		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.StrategyVersion, &s.LastAccessedAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
@@ -47,7 +49,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*chatmodel.S
 	var sessions []*chatmodel.Session
 	for rows.Next() {
 		var s chatmodel.Session
-		err := rows.Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
+		err := rows.Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.StrategyVersion, &s.LastAccessedAt, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan session row: %w", err)
 		}
@@ -59,7 +61,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*chatmodel.S
 func (r *Repository) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	var s chatmodel.Session
 	err := r.pool.QueryRow(ctx, db.QueryGetSession, sessionID).
-		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
+		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.StrategyVersion, &s.LastAccessedAt, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -68,6 +70,23 @@ func (r *Repository) GetByID(ctx context.Context, sessionID string) (*chatmodel.
 	}
 	return &s, nil
 }
+
+func (r *Repository) PinStrategyVersion(ctx context.Context, sessionID string, version string) error {
+	_, err := r.pool.Exec(ctx, db.QueryPinSessionStrategyVersion, sessionID, version)
+	if err != nil {
+		return fmt.Errorf("failed to pin strategy version: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) TouchSession(ctx context.Context, sessionID string) error {
+	_, err := r.pool.Exec(ctx, db.QueryTouchSession, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to touch session: %w", err)
+	}
+	return nil
+}
+
 
 func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error {
 	_, err := r.pool.Exec(ctx, db.QueryDeleteSession, sessionID)
@@ -311,3 +330,68 @@ func (r *Repository) PruneSession(ctx context.Context, sessionID string, newSumm
 
 	return tx.Commit(ctx)
 }
+
+func (r *Repository) ScanSessionsForConsolidation(ctx context.Context, idleBefore time.Time, minTokenCount int, limit int) ([]*chatmodel.Session, error) {
+	rows, err := r.pool.Query(ctx, db.QueryScanSessionsForConsolidation, idleBefore, minTokenCount, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan sessions for consolidation: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*chatmodel.Session
+	for rows.Next() {
+		var s chatmodel.Session
+		err := rows.Scan(&s.ID, &s.UserID, &s.TokenCount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan consolidation session row: %w", err)
+		}
+		sessions = append(sessions, &s)
+	}
+	return sessions, nil
+}
+
+func (r *Repository) ScanSessionsForArchive(ctx context.Context, inactiveBefore time.Time) ([]string, error) {
+	rows, err := r.pool.Query(ctx, db.QueryScanSessionsForArchive, inactiveBefore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan/archive inactive sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var archivedIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan archived session id: %w", err)
+		}
+		archivedIDs = append(archivedIDs, id)
+	}
+	return archivedIDs, nil
+}
+
+func (r *Repository) ScanSessionsForDeprecate(ctx context.Context, deprecateBefore, archiveBefore time.Time) ([]string, error) {
+	rows, err := r.pool.Query(ctx, db.QueryScanSessionsForDeprecate, deprecateBefore, archiveBefore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan deprecated sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var deprecatedIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan deprecated session id: %w", err)
+		}
+		deprecatedIDs = append(deprecatedIDs, id)
+	}
+	return deprecatedIDs, nil
+}
+
+func (r *Repository) DeleteMessagesForArchivedSessions(ctx context.Context, archivedBefore time.Time) (int64, error) {
+	tag, err := r.pool.Exec(ctx, db.QueryDeleteMessagesForArchivedSessions, archivedBefore)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete messages for archived sessions: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+

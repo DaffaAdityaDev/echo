@@ -37,6 +37,7 @@
       "get": {
         "summary": "Health check",
         "description": "Returns agent platform health status",
+        "tags": ["Health"],
         "security": [],
         "responses": {
           "200": {

@@ -21,6 +21,7 @@ RBAC/tier-based permission model, and the complete domain terminology glossary.
 | flow.md            |   across frontend, backend, agent, and database   |                         |
 | roles-and-         | RBAC model, tier-based feature gating, rate       | Completed               |
 | permissions.md     |   limiting tiers, feature discovery flow          |                         |
+| usage-billing.md   | Design for usage accounting, quota enforcement    | Design / Planned        |
 | glossaries.md      | Alphabetical definitions of all Echo domain       | Completed               |
 |                    |   terminology with source references              |                         |
 +--------------------+---------------------------------------------------+-------------------------+
@@ -37,6 +38,7 @@ RBAC/tier-based permission model, and the complete domain terminology glossary.
 | User roles                           | roles-and-permissions.md                    |
 | Tier enforcement                     | roles-and-permissions.md                    |
 | Feature discovery                    | roles-and-permissions.md                    |
+| Usage & billing (design)             | usage-billing.md                            |
 | Glossary (A-Z)                       | glossaries.md                               |
 +--------------------------------------+---------------------------------------------+
 

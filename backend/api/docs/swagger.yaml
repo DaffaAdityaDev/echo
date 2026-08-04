@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  echo-backend_internal_models.ApiKey:
+  echo-backend_internal_models_auth.ApiKey:
     properties:
       created_at:
         example: "2026-01-15T10:30:00Z"
@@ -29,7 +29,28 @@ definitions:
         example: "1"
         type: string
     type: object
-  echo-backend_internal_models.Session:
+  echo-backend_internal_models_auth.User:
+    properties:
+      created_at:
+        example: "2026-01-15T10:30:00Z"
+        type: string
+      email:
+        example: jane@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Jane Doe
+        type: string
+      role:
+        example: user
+        type: string
+      updated_at:
+        example: "2026-01-15T10:30:00Z"
+        type: string
+    type: object
+  echo-backend_internal_models_chat.Session:
     properties:
       context_summary:
         example: User is building a REST API for a todo app using Express and Prisma
@@ -40,11 +61,17 @@ definitions:
       id:
         example: sess_abc123
         type: string
+      last_accessed_at:
+        example: "2026-01-15T11:45:00Z"
+        type: string
       message_count:
         example: 12
         type: integer
       status:
         example: active
+        type: string
+      strategy_version:
+        example: nlah:v1
         type: string
       title:
         example: Build a REST API with Express
@@ -59,29 +86,138 @@ definitions:
         example: 1
         type: integer
     type: object
-  echo-backend_internal_models.User:
+  echo-backend_internal_models_llmops.PromptTemplate:
     properties:
+      active_version:
+        type: integer
       created_at:
-        example: "2026-01-15T10:30:00Z"
         type: string
-      email:
-        example: jane@example.com
+      description:
         type: string
       id:
-        example: 1
-        type: integer
-      name:
-        example: Jane Doe
         type: string
-      role:
-        example: user
+      name:
+        type: string
+      tenant_id:
         type: string
       updated_at:
-        example: "2026-01-15T10:30:00Z"
         type: string
     type: object
-  echo-backend_internal_models.UserPreferences:
+  echo-backend_internal_models_llmops.PromptVersion:
     properties:
+      bound_tools:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      system_prompt:
+        type: string
+      template_id:
+        type: string
+      variables:
+        items:
+          type: string
+        type: array
+      version:
+        type: integer
+    type: object
+  echo-backend_internal_models_user.BudgetMonitorConfig:
+    properties:
+      enabled:
+        type: boolean
+      enforceCostCap:
+        type: boolean
+      enforceMaxSteps:
+        type: boolean
+      enforceTimeout:
+        type: boolean
+      maxCostUsd:
+        type: number
+      maxDurationMs:
+        type: integer
+      maxSteps:
+        type: integer
+    type: object
+  echo-backend_internal_models_user.ContextOptimizationConfig:
+    properties:
+      compactionThresholdRatio:
+        type: number
+      enableAutoCompaction:
+        type: boolean
+      enablePrefixCachingLayout:
+        type: boolean
+      enabled:
+        type: boolean
+      keepLastTurnsCount:
+        type: integer
+    type: object
+  echo-backend_internal_models_user.HarnessFeatureToggles:
+    properties:
+      budgetMonitor:
+        $ref: '#/definitions/echo-backend_internal_models_user.BudgetMonitorConfig'
+      contextOptimization:
+        $ref: '#/definitions/echo-backend_internal_models_user.ContextOptimizationConfig'
+      hitlGuard:
+        $ref: '#/definitions/echo-backend_internal_models_user.HitlGuardConfig'
+      loopDetection:
+        $ref: '#/definitions/echo-backend_internal_models_user.LoopDetectionConfig'
+      systemNotices:
+        $ref: '#/definitions/echo-backend_internal_models_user.SystemNoticesConfig'
+    type: object
+  echo-backend_internal_models_user.HitlGuardConfig:
+    properties:
+      enabled:
+        type: boolean
+      protectedTools:
+        items:
+          type: string
+        type: array
+      ttlMinutes:
+        type: integer
+    type: object
+  echo-backend_internal_models_user.LoopDetectionConfig:
+    properties:
+      enableCosineSimilarity:
+        type: boolean
+      enableExactMatch:
+        type: boolean
+      enabled:
+        type: boolean
+      maxConsecutiveIdenticalCalls:
+        type: integer
+      similarityThreshold:
+        type: number
+      windowSize:
+        type: integer
+    type: object
+  echo-backend_internal_models_user.SystemNoticesConfig:
+    properties:
+      emitBudgetWarnings:
+        type: boolean
+      emitCompactionNotices:
+        type: boolean
+      emitLoopWarnings:
+        type: boolean
+      emitPacingWarnings:
+        type: boolean
+      enabled:
+        type: boolean
+    type: object
+  echo-backend_internal_models_user.UserPreferences:
+    properties:
+      api_key:
+        example: ""
+        type: string
+      base_url:
+        example: https://opencode.ai/zen/go/v1
+        type: string
       default_features:
         example:
         - web-browsing
@@ -102,102 +238,50 @@ definitions:
         items:
           type: string
         type: array
+      harness_toggles:
+        $ref: '#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles'
+      has_api_key:
+        type: boolean
+      provider_type:
+        example: opencode-go
+        type: string
       user_id:
         example: 1
         type: integer
     type: object
-  internal_handler.ChatRequest:
-    properties:
-      features:
-        example:
-        - web-browsing
-        - code-interpreter
-        items:
-          type: string
-        type: array
-      history:
-        items:
-          $ref: '#/definitions/internal_handler.HistoryMessage'
-        type: array
-      message:
-        example: Explain how the Echo agent works
-        type: string
-      missionId:
-        example: mission_xyz789
-        type: string
-      mode:
-        example: agent
-        type: string
-      model:
-        example: gpt-4o
-        type: string
-      sessionId:
-        example: sess_abc123
-        type: string
-      skills:
-        example:
-        - python
-        - research
-        items:
-          type: string
-        type: array
-    type: object
-  internal_handler.CreateSessionRequest:
-    properties:
-      title:
-        example: Build a REST API with Express
-        type: string
-    type: object
-  internal_handler.FeatureResponse:
+  echo-backend_internal_service_features.FeatureResponse:
     properties:
       description:
-        example: Browse the web in real-time to fetch up-to-date information
         type: string
       id:
-        example: web-browsing
         type: string
       locked:
-        example: false
         type: boolean
       name:
-        example: Web Browsing
         type: string
     type: object
-  internal_handler.HistoryMessage:
+  echo-backend_internal_service_llmops.PlaygroundRequest:
     properties:
-      content:
-        example: What is Echo and how does it work?
-        type: string
-      role:
-        example: user
-        type: string
-    type: object
-  internal_handler.PruneRequest:
-    type: object
-  internal_handler.UpdateSettingsRequest:
-    properties:
-      default_features:
-        example:
-        - web-browsing
-        - code-interpreter
+      features:
         items:
           type: string
         type: array
-      default_mode:
-        example: agent
-        type: string
-      default_model:
-        example: gpt-4o
-        type: string
-      default_skills:
-        example:
-        - python
-        - research
+      models:
         items:
           type: string
         type: array
+      prompt:
+        type: string
+      skills:
+        items:
+          type: string
+        type: array
+      variables:
+        additionalProperties:
+          type: string
+        type: object
     type: object
-  internal_handler.createAPIKeyRequest:
+  internal_handler_admin.createAPIKeyRequest:
     properties:
       name:
         example: Production Key
@@ -210,21 +294,7 @@ definitions:
           type: string
         type: array
     type: object
-  internal_handler.episodicRecallRequest:
-    properties:
-      limit:
-        example: 50
-        type: integer
-      offset:
-        example: 0
-        type: integer
-      session_id:
-        example: sess_abc123
-        type: string
-    type: object
-  internal_handler.episodicStoreRequest:
-    type: object
-  internal_handler.loginRequest:
+  internal_handler_auth.loginRequest:
     properties:
       email:
         example: jane@example.com
@@ -233,34 +303,7 @@ definitions:
         example: P@ssw0rd!23
         type: string
     type: object
-  internal_handler.proceduralGetRequest:
-    properties:
-      id:
-        example: mem_pr_e5f6g7h8
-        type: string
-      name:
-        example: deploy-to-ecs
-        type: string
-    type: object
-  internal_handler.proceduralStoreRequest:
-    properties:
-      content:
-        example: |-
-          1. Build Docker image
-          2. Push to ECR
-          3. Update ECS service
-        type: string
-      id:
-        example: mem_pr_e5f6g7h8
-        type: string
-      metadata:
-        additionalProperties: true
-        type: object
-      name:
-        example: deploy-to-ecs
-        type: string
-    type: object
-  internal_handler.registerRequest:
+  internal_handler_auth.registerRequest:
     properties:
       email:
         example: jane@example.com
@@ -272,46 +315,171 @@ definitions:
         example: P@ssw0rd!23
         type: string
     type: object
-  internal_handler.semanticSearchRequest:
+  internal_handler_chat.ChatRequest:
     properties:
-      embedding:
-        example:
-        - 0.012
-        - 0.034
-        - -0.056
+      config:
+        additionalProperties: true
+        type: object
+      features:
         items:
-          type: number
+          type: string
         type: array
-      limit:
-        example: 10
-        type: integer
-      query:
-        example: What is Echo agent platform?
+      history:
+        items:
+          $ref: '#/definitions/internal_handler_chat.HistoryMessage'
+        type: array
+      message:
         type: string
-      threshold:
-        example: 0.75
-        type: number
+      missionId:
+        type: string
+      mode:
+        type: string
+      model:
+        type: string
+      sessionId:
+        type: string
+      skills:
+        items:
+          type: string
+        type: array
+      strategyVersion:
+        type: string
     type: object
-  internal_handler.semanticStoreRequest:
+  internal_handler_chat.HistoryMessage:
     properties:
       content:
-        example: Echo is an AI agent platform for autonomous task execution
         type: string
-      embedding:
-        example:
-        - 0.012
-        - 0.034
-        - -0.056
-        - 0.078
+      role:
+        type: string
+    type: object
+  internal_handler_llmops.createTemplateReq:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  internal_handler_llmops.createVersionReq:
+    properties:
+      bound_tools:
         items:
-          type: number
+          type: string
         type: array
+      system_prompt:
+        type: string
+      variables:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_handler_memory.episodicRecallRequest:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      session_id:
+        type: string
+    type: object
+  internal_handler_memory.episodicStoreRequest:
+    properties:
+      content: {}
+      metadata: {}
+      session_id:
+        type: string
+      ttl_seconds:
+        type: integer
+    type: object
+  internal_handler_memory.proceduralGetRequest:
+    properties:
       id:
-        example: mem_sm_a1b2c3d4
+        type: string
+      name:
+        type: string
+    type: object
+  internal_handler_memory.proceduralStoreRequest:
+    properties:
+      content:
+        type: string
+      id:
         type: string
       metadata:
         additionalProperties: true
         type: object
+      name:
+        type: string
+    type: object
+  internal_handler_memory.semanticSearchRequest:
+    properties:
+      embedding:
+        items:
+          type: number
+        type: array
+      limit:
+        type: integer
+      query:
+        type: string
+      threshold:
+        type: number
+    type: object
+  internal_handler_memory.semanticStoreRequest:
+    properties:
+      content:
+        type: string
+      embedding:
+        items:
+          type: number
+        type: array
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+    type: object
+  internal_handler_session.CreateSessionRequest:
+    properties:
+      strategyVersion:
+        example: nlah:v1
+        type: string
+      title:
+        example: Build a REST API with Express
+        type: string
+    type: object
+  internal_handler_session.GenerateTitleRequest:
+    properties:
+      model:
+        type: string
+    type: object
+  internal_handler_session.PruneRequest:
+    properties:
+      provider_config:
+        additionalProperties: true
+        type: object
+    type: object
+  internal_handler_settings.UpdateSettingsRequest:
+    properties:
+      api_key:
+        type: string
+      base_url:
+        type: string
+      default_features:
+        items:
+          type: string
+        type: array
+      default_mode:
+        type: string
+      default_model:
+        type: string
+      default_skills:
+        items:
+          type: string
+        type: array
+      harness_toggles:
+        $ref: '#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles'
+      keep_api_key:
+        type: boolean
+      provider_type:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -330,7 +498,7 @@ info:
 paths:
   /api/v1/admin/api-keys:
     get:
-      description: Retrieve all system API keys
+      description: Returns all API keys (admin)
       produces:
       - application/json
       responses:
@@ -338,10 +506,10 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/echo-backend_internal_models.ApiKey'
+              $ref: '#/definitions/echo-backend_internal_models_auth.ApiKey'
             type: array
         "500":
-          description: Failed to list keys
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
@@ -354,24 +522,24 @@ paths:
     post:
       consumes:
       - application/json
-      description: Generate a new API key with specific scopes
+      description: Generates and stores a new API key (admin)
       parameters:
-      - description: API Key creation parameters (name, scopes)
+      - description: API key payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.createAPIKeyRequest'
+          $ref: '#/definitions/internal_handler_admin.createAPIKeyRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Generated full key and record
+          description: Created
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request or missing name
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
@@ -382,144 +550,130 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Failed to generate/store key
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - BearerAuth: []
-      summary: Create API key
+      summary: Create an API key
       tags:
       - Admin
   /api/v1/admin/api-keys/{id}:
     delete:
-      description: Change an API key status to revoked
+      description: Revokes an API key by ID (admin)
       parameters:
-      - description: API Key ID
+      - description: API key ID
         in: path
         name: id
         required: true
         type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Key revoked
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Missing key ID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Key not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Failed to revoke key
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Revoke API key
-      tags:
-      - Admin
-  /api/v1/admin/stats:
-    get:
-      description: Count total and active API keys in the system
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Total and active key counts
-          schema:
-            additionalProperties:
-              format: int64
-              type: integer
-            type: object
-        "500":
-          description: Failed to get stats
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get admin API key statistics
-      tags:
-      - Admin
-  /api/v1/auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate user and receive JWT token and session cookie
-      parameters:
-      - description: Login credentials
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.loginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: User and Token
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Invalid email or password
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Login user
-      tags:
-      - Auth
-  /api/v1/auth/logout:
-    post:
-      description: Invalidate the session cookie
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Logged out
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Logout user
-      tags:
-      - Auth
-  /api/v1/auth/me:
-    get:
-      description: Fetch profile info for the currently authenticated user
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.User'
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Revoke an API key
+      tags:
+      - Admin
+  /api/v1/admin/stats:
+    get:
+      description: Returns total and active API key counts (admin)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get API key statistics
+      tags:
+      - Admin
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: Login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_auth.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login with email and password
+      tags:
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      description: Clears the authentication cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - Auth
+  /api/v1/auth/me:
+    get:
+      description: Returns the authenticated user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/echo-backend_internal_models_auth.User'
         "401":
           description: Unauthorized
           schema:
@@ -527,73 +681,73 @@ paths:
               type: string
             type: object
         "404":
-          description: User not found
+          description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Get current user profile
+      summary: Get current user
       tags:
       - Auth
   /api/v1/auth/register:
     post:
       consumes:
       - application/json
-      description: Register a new user account with email, password, and name
+      description: Creates a new user account and returns a JWT token
       parameters:
-      - description: Registration credentials
+      - description: Registration payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.registerRequest'
+          $ref: '#/definitions/internal_handler_auth.registerRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: User and Token
+          description: OK
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
         "409":
-          description: Email already exists
+          description: Conflict
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Register user
+      summary: Register a new user
       tags:
       - Auth
   /api/v1/chat:
     post:
       consumes:
       - application/json
-      description: Stream LLM response packets (SSE) for user message in a session
-        or mission
+      description: Forwards a user message to the agent for processing
       parameters:
-      - description: Chat prompt and session parameters
+      - description: Chat payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.ChatRequest'
+          $ref: '#/definitions/internal_handler_chat.ChatRequest'
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
-          description: 'Server-Sent Events stream (data: JSON)'
+          description: OK
           schema:
-            type: string
+            additionalProperties: true
+            type: object
         "400":
-          description: Invalid request body or unknown model/skill
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
@@ -604,337 +758,343 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: Forbidden / Feature tier requirement
+      security:
+      - BearerAuth: []
+      summary: Send a chat message
+      tags:
+      - Chat
+  /api/v1/features:
+    get:
+      description: Returns the catalog of agent features with tier-based locking
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Session not found
+            items:
+              $ref: '#/definitions/echo-backend_internal_service_features.FeatureResponse'
+            type: array
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Send chat message & stream response (SSE)
-      tags:
-      - Chat
-  /api/v1/features:
-    get:
-      description: Fetch available features and their lock status based on user tier
-        header (X-User-Tier)
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of features with lock states
-          schema:
-            items:
-              $ref: '#/definitions/internal_handler.FeatureResponse'
-            type: array
-        "500":
-          description: Failed to retrieve features
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get available features catalog
+      summary: List available agent features
       tags:
       - Chat
   /api/v1/internal/memory/episodic/recall:
     post:
       consumes:
       - application/json
-      description: Retrieve episodic conversation context from Redis
+      description: Recalls episodic memory entries for a session (internal)
       parameters:
       - description: Episodic recall payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.episodicRecallRequest'
+          $ref: '#/definitions/internal_handler_memory.episodicRecallRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Episodic entries
+          description: OK
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Recall episodic memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/memory/episodic/store:
     post:
       consumes:
       - application/json
-      description: Save episodic conversation context into Redis
+      description: Stores an episodic memory entry for a session (internal)
       parameters:
-      - description: Episodic store payload
+      - description: Episodic memory payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.episodicStoreRequest'
+          $ref: '#/definitions/internal_handler_memory.episodicStoreRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Stored status
+          description: Created
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Store episodic memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/memory/procedural/get:
     post:
       consumes:
       - application/json
-      description: Retrieve procedural workflow steps by ID or name
+      description: Retrieves procedural memory entries by ID or name (internal)
       parameters:
-      - description: Procedural get payload
+      - description: Procedural recall payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.proceduralGetRequest'
+          $ref: '#/definitions/internal_handler_memory.proceduralGetRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Procedural memory entry
+          description: OK
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Get procedural memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/memory/procedural/store:
     post:
       consumes:
       - application/json
-      description: Record or update procedural workflow steps in PostgreSQL
+      description: Stores a procedural memory entry (internal)
       parameters:
-      - description: Procedural store payload
+      - description: Procedural memory payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.proceduralStoreRequest'
+          $ref: '#/definitions/internal_handler_memory.proceduralStoreRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Recorded status
+          description: Created
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Store procedural memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/memory/semantic/search:
     post:
       consumes:
       - application/json
-      description: Perform text or vector search over semantic memory in PostgreSQL
+      description: Searches semantic memory by query text (internal)
       parameters:
       - description: Semantic search payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.semanticSearchRequest'
+          $ref: '#/definitions/internal_handler_memory.semanticSearchRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Search results
+          description: OK
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Search semantic memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/memory/semantic/store:
     post:
       consumes:
       - application/json
-      description: Save or update vector embedding semantic memory in PostgreSQL
+      description: Stores a semantic memory entry with an optional embedding (internal)
       parameters:
-      - description: Semantic store payload
+      - description: Semantic memory payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.semanticStoreRequest'
+          $ref: '#/definitions/internal_handler_memory.semanticStoreRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Indexed status
+          description: Created
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       summary: Store semantic memory
       tags:
-      - Internal
+      - Memory
   /api/v1/internal/sessions/{id}/prune:
     post:
       consumes:
       - application/json
-      description: Trigger LLM-driven memory consolidation for a session
+      description: Triggers token-threshold pruning and consolidation for a session
+        (internal)
       parameters:
       - description: Session ID
         in: path
         name: id
         required: true
         type: string
-      - description: Provider config payload
+      - description: Provider configuration
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.PruneRequest'
+          $ref: '#/definitions/internal_handler_session.PruneRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Consolidation status
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid request body
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Consolidation failed
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Prune and consolidate a session
+      tags:
+      - Sessions
+  /api/v1/missions/{id}/approve:
+    post:
+      description: Approves a human-in-the-loop tool approval request for a mission
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Prune and consolidate session
+      summary: Approve a pending tool call
       tags:
-      - Internal
-  /api/v1/models:
-    get:
-      description: Fetch aggregated LLM model catalog from configured providers (OpenAI,
-        Anthropic, LM Studio, OpenCode Go)
+      - Chat
+  /api/v1/missions/{id}/deny:
+    post:
+      description: Denies a human-in-the-loop tool approval request for a mission
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: List of available models
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Failed to retrieve models
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get available LLM models
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Deny a pending tool call
       tags:
-      - Models
-  /api/v1/sessions:
+      - Chat
+  /api/v1/missions/{missionId}/stream:
     get:
-      description: Retrieve all active chat sessions belonging to the authenticated
-        user
+      description: Streams real-time mission execution logs as Server-Sent Events
+      parameters:
+      - description: Mission ID
+        in: path
+        name: missionId
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Event stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Stream mission logs
+      tags:
+      - Chat
+  /api/v1/models:
+    get:
+      description: Returns the AI model catalog available to the authenticated user
       produces:
       - application/json
       responses:
         "200":
-          description: List of sessions
+          description: OK
           schema:
             additionalProperties: true
             type: object
@@ -944,8 +1104,24 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Failed to list sessions
+      security:
+      - BearerAuth: []
+      summary: List available AI models
+      tags:
+      - Models
+  /api/v1/sessions:
+    get:
+      description: Returns all active sessions for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties:
               type: string
@@ -958,86 +1134,41 @@ paths:
     post:
       consumes:
       - application/json
-      description: Initialize a new chat session for the current user
+      description: Creates a new chat session with an optional strategy version
       parameters:
-      - description: Session title
+      - description: Session payload
         in: body
         name: request
+        required: true
         schema:
-          $ref: '#/definitions/internal_handler.CreateSessionRequest'
+          $ref: '#/definitions/internal_handler_session.CreateSessionRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.Session'
+            $ref: '#/definitions/echo-backend_internal_models_chat.Session'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Failed to create session
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - BearerAuth: []
-      summary: Create a new session
+      summary: Create a session
       tags:
       - Sessions
   /api/v1/sessions/{id}:
     delete:
-      description: Soft-delete a chat session
-      parameters:
-      - description: Session ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Session soft deleted
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Missing session ID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: 'Forbidden: ownership mismatch'
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Session not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete session
-      tags:
-      - Sessions
-    get:
-      description: Fetch session metadata by ID
+      description: Soft-deletes a session owned by the authenticated user
       parameters:
       - description: Session ID
         in: path
@@ -1050,10 +1181,6 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.Session'
-        "400":
-          description: Missing session ID
-          schema:
             additionalProperties:
               type: string
             type: object
@@ -1063,26 +1190,19 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: 'Forbidden: ownership mismatch'
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "404":
-          description: Session not found
+          description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Get session details
+      summary: Delete a session
       tags:
       - Sessions
-  /api/v1/sessions/{id}/messages:
     get:
-      description: Retrieve message history for a specific chat session
+      description: Returns a session owned by the authenticated user
       parameters:
       - description: Session ID
         in: path
@@ -1093,12 +1213,60 @@ paths:
       - application/json
       responses:
         "200":
-          description: List of messages
+          description: OK
           schema:
-            additionalProperties: true
+            $ref: '#/definitions/echo-backend_internal_models_chat.Session'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a session
+      tags:
+      - Sessions
+    patch:
+      consumes:
+      - application/json
+      description: Updates the title and/or summary of a session owned by the authenticated
+        user
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Title and/or summary
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
             type: object
         "400":
-          description: Missing session ID
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
@@ -1109,14 +1277,98 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: 'Forbidden: ownership mismatch'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a session
+      tags:
+      - Sessions
+  /api/v1/sessions/{id}/generate-title:
+    post:
+      consumes:
+      - application/json
+      description: Generates a title and summary from the session history using an
+        LLM
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Model selection (optional)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_session.GenerateTitleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Session not found
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Generate a session title
+      tags:
+      - Sessions
+  /api/v1/sessions/{id}/messages:
+    get:
+      description: Returns the message history of a session owned by the authenticated
+        user
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties:
               type: string
@@ -1128,22 +1380,16 @@ paths:
       - Sessions
   /api/v1/settings:
     get:
-      description: Retrieve current user preference settings
+      description: Returns the authenticated user's preferences
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.UserPreferences'
+            $ref: '#/definitions/echo-backend_internal_models_user.UserPreferences'
         "401":
           description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Failed to get settings
           schema:
             additionalProperties:
               type: string
@@ -1156,35 +1402,29 @@ paths:
     put:
       consumes:
       - application/json
-      description: Save modified user preference settings
+      description: Updates the authenticated user's preferences
       parameters:
       - description: Settings payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.UpdateSettingsRequest'
+          $ref: '#/definitions/internal_handler_settings.UpdateSettingsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.UserPreferences'
+            $ref: '#/definitions/echo-backend_internal_models_user.UserPreferences'
         "400":
-          description: Invalid request body
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
           description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Failed to update settings
           schema:
             additionalProperties:
               type: string
@@ -1196,39 +1436,310 @@ paths:
       - Settings
   /api/v1/settings/defaults:
     get:
-      description: Retrieve baseline application defaults for modes, models, and features
+      description: Returns platform-wide default settings
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/echo-backend_internal_models.UserPreferences'
-      summary: Get system default settings
+            additionalProperties: true
+            type: object
+      summary: Get default settings
       tags:
       - Settings
   /api/v1/skills:
     get:
-      description: Fetch available skill definitions from the agent service
+      description: Returns the catalog of skills available to agents
       produces:
       - application/json
       responses:
         "200":
-          description: List of agent skills
+          description: OK
           schema:
             items:
               additionalProperties: true
               type: object
             type: array
         "500":
-          description: Failed to retrieve skills
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get agent skills catalog
+      security:
+      - BearerAuth: []
+      summary: List available agent skills
       tags:
       - Chat
+  /api/v1/strategies:
+    get:
+      description: Returns the strategy catalog merged with gateway rollout percentages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List strategy catalog
+      tags:
+      - Strategies
+  /api/v1/studio/playground:
+    post:
+      consumes:
+      - application/json
+      description: Streams multi-model prompt comparison results as Server-Sent Events
+      parameters:
+      - description: Playground payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/echo-backend_internal_service_llmops.PlaygroundRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Event stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Run LLM playground
+      tags:
+      - Studio
+  /api/v1/studio/prompts:
+    get:
+      description: Returns all prompt templates (LLMOps Studio)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List prompt templates
+      tags:
+      - Studio
+    post:
+      consumes:
+      - application/json
+      description: Creates a new prompt template (LLMOps Studio)
+      parameters:
+      - description: Template payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_llmops.createTemplateReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/echo-backend_internal_models_llmops.PromptTemplate'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a prompt template
+      tags:
+      - Studio
+  /api/v1/studio/prompts/{id}/promote/{version}:
+    post:
+      description: Promotes a version to production (LLMOps Studio)
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Promote a prompt template version
+      tags:
+      - Studio
+  /api/v1/studio/prompts/{id}/rollback/{version}:
+    post:
+      description: Rolls back the production version of a prompt template (LLMOps
+        Studio)
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Rollback a prompt template version
+      tags:
+      - Studio
+  /api/v1/studio/prompts/{id}/versions:
+    get:
+      description: Returns the version history of a prompt template (LLMOps Studio)
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List prompt template versions
+      tags:
+      - Studio
+    post:
+      consumes:
+      - application/json
+      description: Creates a new version of a prompt template (LLMOps Studio)
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Version payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_llmops.createVersionReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/echo-backend_internal_models_llmops.PromptVersion'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a prompt template version
+      tags:
+      - Studio
+  /api/v1/studio/prompts/{id}/versions/{v}:
+    get:
+      description: Returns a specific version of a prompt template (LLMOps Studio)
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: v
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/echo-backend_internal_models_llmops.PromptVersion'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get a prompt template version
+      tags:
+      - Studio
+  /api/v1/studio/prompts/active:
+    get:
+      description: Returns the active production version of a prompt template (LLMOps
+        Studio)
+      parameters:
+      - description: Template name
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/echo-backend_internal_models_llmops.PromptVersion'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get active prompt
+      tags:
+      - Studio
   /health:
     get:
       description: Returns the health status of the backend API
@@ -1236,7 +1747,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Health status
+          description: OK
           schema:
             additionalProperties:
               type: string
@@ -1244,32 +1755,6 @@ paths:
       summary: Health check
       tags:
       - Health
-  /v1/missions/{missionId}/stream:
-    get:
-      description: Stream execution logs for a running mission via Redis PubSub (SaaS
-        mode) or agent proxy (Local mode)
-      parameters:
-      - description: Mission ID
-        in: path
-        name: missionId
-        required: true
-        type: string
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: Server-Sent Events log stream
-          schema:
-            type: string
-        "400":
-          description: Missing mission ID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Stream mission logs (SSE)
-      tags:
-      - Chat
 securityDefinitions:
   BearerAuth:
     description: 'Bearer token authorization header (Format: Bearer <JWT>).'

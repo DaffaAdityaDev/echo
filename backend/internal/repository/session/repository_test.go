@@ -71,7 +71,8 @@ func TestSessionRepository(t *testing.T) {
 		t.Fatalf("Failed to ensure test user: %v", err)
 	}
 
-	session, err := repo.CreateSession(ctx, testUserID, "Test Session Title")
+	session, err := repo.CreateSession(ctx, testUserID, "Test Session Title", "nlah:v1")
+
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}

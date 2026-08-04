@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : Database Schema
   Service   : Shared / Contracts
-  Version   : 2.1
-  Updated   : 2026-07-23 (added status+steps to messages, 004 migration)
+  Version   : 2.4
+  Updated   : 2026-08-04 (active migration 009: features table — feature catalog metadata)
 ===============================================================================
 
 ## Description
@@ -34,6 +34,7 @@ and legacy planned tables (goals, spaced repetition).
 | backend/internal/models/models.go        | ApiKey struct definition                    |
 | backend/internal/constants/db/postgres.go| SQL queries (users CRUD)                    |
 | backend/internal/database/postgres.go    | pgx pool initialization                     |
+| backend/migrations/009_create_features.* | features table (catalog metadata) + seed    |
 | infra/k8s/postgres.yaml                  | K8s with init SQL ConfigMap                 |
 +------------------------------------------+---------------------------------------------+
 
@@ -49,7 +50,8 @@ PostgreSQL                              Redis
 │  memory_semantic (Active)    │        │  skills cache (TTL)     │
 │  memory_procedural (Active)  │        │  mission state (TTL)    │
 │  tool_catalog (Active)       │        │                         │
-│  user_preferences (Active)   │        └─────────────────────────┘
+│  features (Active)           │        └─────────────────────────┘
+│  user_preferences (Active)   │        │                         │
 │  sessions (Active)           │
 │  messages (Active)           │
 │  prompt_templates (Active)   │        NUQ (PostgreSQL schema)
@@ -138,6 +140,44 @@ ON tool_catalog USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```
 
+### features `[Active — migration 009_create_features]`
+
+Feature catalog metadata — the **backend-owned** source of truth for
+`tier_requirement`, `ui_schema`, and `status`. The agent does not hold this
+metadata; it reports its implemented registry (`[{id, name, description}]`)
+via `GET /api/features`, and the backend composes the public catalog as
+**features table ∩ agent implemented set**. Referenced by
+`docs/shared/domain/roles-and-permissions.md`.
+
+```sql
+CREATE TABLE IF NOT EXISTS features (
+  id VARCHAR(128) PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  tier_requirement TEXT NOT NULL DEFAULT 'free' CHECK (tier_requirement IN ('free', 'pro')),
+  ui_schema JSONB NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'deprecated')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO features (id, name, description, tier_requirement, ui_schema, status) VALUES
+  ('delegate_task', 'Sub-Agent Delegation', '...', 'pro', '{"render_type":"hierarchy_tree",...}', 'active'),
+  ('web_search', 'Web Search', '...', 'free', '{"render_type":"card_list",...}', 'active'),
+  ('write_todos', 'Task Planning & Execution Board', '...', 'free', '{"render_type":"kanban_board",...}', 'active')
+ON CONFLICT (id) DO NOTHING;
+```
+
+- `id` — feature id, matches the agent's implemented registry ids
+  (`delegate_task`, `web_search`, `write_todos`).
+- `tier_requirement` — `free` | `pro`; drives the backend tier gate
+  (403) and the `locked` flag in `GET /api/v1/features`.
+- `ui_schema` — JSONB client render hints (icon, primary_color, render_type).
+- `status` — `draft` | `active` | `deprecated`; only `active` rows are
+  served to clients.
+- Seeded with the canonical 3 features; seed is idempotent
+  (`ON CONFLICT (id) DO NOTHING`).
+
 ### user_preferences `[Active — schema.go:80]`
 
 Per-user default preferences for mode, model, features, and skills. Used
@@ -195,6 +235,32 @@ CREATE TABLE sessions (
 
 CREATE INDEX idx_sessions_user_id ON sessions (user_id, updated_at DESC);
 ```
+
+### sessions — strategy versioning & lifecycle
+
+Pins the exact strategy version a session executes under (backward compatibility
+for active sessions during rollout) and tracks last access for memory decay
+scoring (lifecycle worker).
+
+```sql
+-- Migration 006 (strategy version pin):
+ALTER TABLE sessions ADD COLUMN strategy_version TEXT DEFAULT '';
+
+-- Migration 007 (memory decay scoring):
+ALTER TABLE sessions ADD COLUMN last_accessed_at TIMESTAMPTZ DEFAULT NOW();
+UPDATE sessions SET last_accessed_at = updated_at;
+CREATE INDEX idx_sessions_last_accessed ON sessions (last_accessed_at);
+```
+
+- `strategy_version` — immutable per session. Set on session creation / first
+  turn from the gateway's strategy resolution; never changed mid-session.
+  Format: `name:v1` (e.g. `nlah:v1`, `standard:v1`).
+- `last_accessed_at` — bumped on every chat turn; lifecycle worker uses it to
+  score recency and advance sessions toward `archived` → delete.
+- `status` lifecycle: `active` → `archived` → `deleted` (existing CHECK
+  constraint, unchanged). The "deprecated" phase is a **derived state** from
+  `last_accessed_at` recency windows (see `docs/shared/patterns/strategy-lifecycle.md`),
+  not a DB status — no CHECK constraint change required.
 
 ### messages `[Active — schema.go:65, 004 migration]`
 
@@ -410,6 +476,19 @@ memory:episodic:<session_id>  → List of JSON blobs    # LPUSH / LRANGE
 TTL: 24 hours
 ```
 
+### Lifecycle / GC Keys `[Active — worker/lifecycle.go]`
+
+```redis
+lifecycle:scan_lock            → STRING lock token    # worker mutual exclusion
+strategy:rollout               → JSONB rollout map    # canary %, cache of settings
+                              #   {"nlah:v2": {"rollout": 0.1}}
+```
+GC policy (background worker, no new infra):
+- Episodic lists past TTL are purged by Redis automatically (existing).
+- `strategy:rollout` cached from `settings` table; refreshed every 10 min
+  (same cache pattern as `agent:features` / `agent:skills`).
+- Session rows are the authority for pruning; Redis GC is TTL-only.
+
 ---
 
 ## NUQ Queue System (Web Scraping Pipeline) `[Active — init-nuq.sql]`
@@ -563,6 +642,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | memory_semantic | `idx_memory_semantic_embedding` | ivfflat (vector_cosine_ops) | Active |
 | tool_catalog | `tool_catalog_hnsw_idx` | hnsw (vector_cosine_ops) | Active |
 | sessions | `idx_sessions_user_id` | btree (user_id, updated_at DESC) | Active |
+| sessions | `idx_sessions_last_accessed` | btree (last_accessed_at) | Active (007) |
 | messages | `idx_messages_session` | btree (session_id, turn_number) | Active |
 | messages | `idx_messages_session_status` | btree (session_id, status) | Active |
 | api_keys | `idx_api_keys_user_id` | btree (user_id) | Active |
@@ -599,6 +679,13 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
   via migration tool after deploy.
 - **Migration 20260725_001**: Creates LLMOps Studio tables
   (`prompt_templates`, `prompt_versions`). Run via migration tool.
+- **Migration 006**: Adds `sessions.strategy_version` (strategy
+  version pin). Run via migration tool.
+- **Migration 007**: Adds `sessions.last_accessed_at` +
+  `idx_sessions_last_accessed` (memory decay scoring). Backfills
+  `last_accessed_at = updated_at`. Run via migration tool.
+- **Migration 009**: Creates the `features` table (catalog metadata) with
+  idempotent seed data for the 3 canonical features. Run via migration tool.
 - **K8s**: ConfigMap with init SQL mounted to `/docker-entrypoint-initdb.d/`.
 - **Development**: Docker Compose mounts init scripts directly.
 
@@ -632,6 +719,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | backend/internal/handler/memory/handler.go     | 34-131    | Episodic (Redis) storage          |
 | backend/internal/models/models.go              | 32-78     | Config struct + ApiKey struct     |
 | backend/migrations/20260725_001_llmops_studio   | 1-120     | LLMOps Studio migration SQL       |
+| backend/migrations/009_create_features.up.sql   | 1-16      | features table DDL + seed data    |
 | docs/agent/application/features/state-session/ |           | sessions + messages table design  |
 |   session-management.md                        |           |                                   |
 | docs/architecture-plan.md                      |           | Legacy planned table definitions  |

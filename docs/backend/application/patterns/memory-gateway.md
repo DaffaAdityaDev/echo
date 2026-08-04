@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Memory Gateway
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: memory lifecycle & GC)
 ================================================================================
 
 Overview
@@ -250,6 +250,22 @@ New memory types can be added with zero agent changes:
       internal.Post("/memory/spatial", memory.HandleStoreSpatial)
 
   The InternalAuthRequired middleware protects all of them automatically.
+
+Memory Lifecycle & GC `[Active]`
+
+-------------------------------
+
+The gateway owns all retention policy; agents stay stateless:
+
+- **Episodic (Redis)**: TTL-only GC today (24h). Lifecycle worker adds no
+  active deletion — Redis handles expiry.
+- **Session rows (PostgreSQL)**: decay scoring via `sessions.last_accessed_at`
+  (migration 007) — derived `deprecated` window, then `status='archived'`
+  (existing CHECK), then message deletion with row retention.
+- **Worker scope**: `internal/worker/lifecycle.go` goroutine, ticker
+  `WORKER_INTERVAL`, Redis SETNX lock for single-instance execution. See
+  `docs/backend/infrastructure/server-lifecycle.md` and
+  `docs/agent/domain/memory-and-retrieval-strategy.md`.
 
 Entry Points & Exports
 -----------------------

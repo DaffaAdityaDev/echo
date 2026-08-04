@@ -11,6 +11,40 @@
       "description": "Current Environment Server"
     }
   ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Agent platform health checks"
+    },
+    {
+      "name": "Features",
+      "description": "Feature catalog with tier requirements"
+    },
+    {
+      "name": "Generate Mission",
+      "description": "Autonomous mission execution (SSE stream)"
+    },
+    {
+      "name": "Internal",
+      "description": "Internal service-to-service endpoints"
+    },
+    {
+      "name": "Missions",
+      "description": "Mission lifecycle and human-in-the-loop actions"
+    },
+    {
+      "name": "Models",
+      "description": "LLM provider model catalog"
+    },
+    {
+      "name": "Skills",
+      "description": "Agent skill catalog"
+    },
+    {
+      "name": "Strategies",
+      "description": "Versioned strategy catalog"
+    }
+  ],
   "security": [
     {
       "InternalTokenAuth": []
@@ -41,13 +75,7 @@
           },
           "error_type": {
             "type": "string",
-            "enum": [
-              "APPLICATION_ERROR",
-              "RATE_LIMIT_ERROR",
-              "TIMEOUT_ERROR",
-              "BAD_REQUEST",
-              "INTERNAL_SERVER_ERROR"
-            ],
+            "enum": ["APPLICATION_ERROR", "RATE_LIMIT_ERROR", "TIMEOUT_ERROR", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"],
             "example": "BAD_REQUEST"
           },
           "message": {
@@ -74,20 +102,11 @@
       },
       "ProviderConfig": {
         "type": "object",
-        "required": [
-          "type",
-          "base_url",
-          "model"
-        ],
+        "required": ["type", "base_url", "model"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "openai",
-              "anthropic",
-              "lm-studio",
-              "opencode-go"
-            ],
+            "enum": ["openai", "anthropic", "lm-studio", "opencode-go"],
             "description": "LLM provider type",
             "example": "openai"
           },
@@ -114,25 +133,18 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "web-browsing"
+            "example": "web_search"
           },
           "name": {
             "type": "string",
-            "example": "Web Browsing"
+            "example": "web_search"
           },
           "description": {
             "type": "string",
-            "example": "Browse the web in real-time to fetch up-to-date information"
-          },
-          "tier_requirement": {
-            "type": "string",
-            "enum": [
-              "free",
-              "pro"
-            ],
-            "example": "free"
+            "example": "Web search engine for real-time weather, prices, and current events."
           }
-        }
+        },
+        "required": ["id", "name", "description"]
       },
       "AgentConfig": {
         "type": "object",
@@ -155,10 +167,7 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "python",
-              "nodejs"
-            ]
+            "example": ["python", "nodejs"]
           },
           "mcpServers": {
             "type": "array",
@@ -246,9 +255,7 @@
           },
           "classifier": {
             "type": "string",
-            "enum": [
-              "tfidf"
-            ],
+            "enum": ["tfidf"],
             "default": "tfidf",
             "example": "tfidf"
           },
@@ -283,10 +290,7 @@
       },
       "GenerateMissionRequest": {
         "type": "object",
-        "required": [
-          "prompt",
-          "provider_config"
-        ],
+        "required": ["prompt", "provider_config"],
         "properties": {
           "prompt": {
             "type": "string",
@@ -298,13 +302,16 @@
           },
           "strategy": {
             "type": "string",
-            "enum": [
-              "standard",
-              "agent"
-            ],
+            "enum": ["standard", "agent"],
             "default": "agent",
             "description": "Execution strategy: 'agent' for tool-using autonomous mode, 'standard' for direct LLM response",
             "example": "agent"
+          },
+          "strategy_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "Exact strategy version to execute under (e.g. nlah:v1, standard:v1)",
+            "example": "nlah:v1"
           },
           "tenantId": {
             "type": "string",
@@ -343,11 +350,7 @@
             },
             "nullable": true,
             "description": "Feature flags to enable specific agent capabilities",
-            "example": [
-              "web-browsing",
-              "code-interpreter",
-              "file-system"
-            ]
+            "example": ["web-browsing", "code-interpreter", "file-system"]
           },
           "skills": {
             "type": "array",
@@ -356,11 +359,7 @@
             },
             "nullable": true,
             "description": "Skill names to activate for specialized behavior",
-            "example": [
-              "nodejs",
-              "express",
-              "prisma"
-            ]
+            "example": ["nodejs", "express", "prisma"]
           },
           "history": {
             "type": "array",
@@ -551,12 +550,7 @@
               "type": "string"
             },
             "description": "Tool names requiring human approval before execution",
-            "example": [
-              "execute_sql_write",
-              "delete_file",
-              "send_external_email",
-              "deploy_infrastructure"
-            ]
+            "example": ["execute_sql_write", "delete_file", "send_external_email", "deploy_infrastructure"]
           },
           "ttlMinutes": {
             "type": "integer",
@@ -618,16 +612,11 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "server.js"
-            ]
+            "example": ["server.js"]
           },
           "transport": {
             "type": "string",
-            "enum": [
-              "sse",
-              "stdio"
-            ],
+            "enum": ["sse", "stdio"],
             "default": "sse"
           },
           "credentials": {
@@ -691,11 +680,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "bearer",
-              "basic",
-              "header"
-            ],
+            "enum": ["bearer", "basic", "header"],
             "example": "bearer"
           },
           "credentials": {
@@ -722,12 +707,7 @@
           },
           "method": {
             "type": "string",
-            "enum": [
-              "GET",
-              "POST",
-              "PUT",
-              "DELETE"
-            ],
+            "enum": ["GET", "POST", "PUT", "DELETE"],
             "default": "POST"
           },
           "description": {
@@ -769,15 +749,7 @@
         "properties": {
           "state": {
             "type": "string",
-            "enum": [
-              "starting",
-              "running",
-              "stalled",
-              "looping",
-              "degraded",
-              "completed",
-              "aborted"
-            ],
+            "enum": ["starting", "running", "stalled", "looping", "degraded", "completed", "aborted"],
             "example": "running"
           },
           "step": {
@@ -790,11 +762,7 @@
           },
           "strategy": {
             "type": "string",
-            "enum": [
-              "agent",
-              "standard",
-              "restricted"
-            ],
+            "enum": ["agent", "standard", "restricted"],
             "example": "agent"
           },
           "lastActivity": {
@@ -916,11 +884,7 @@
               },
               "status": {
                 "type": "string",
-                "enum": [
-                  "calling",
-                  "completed",
-                  "failed"
-                ]
+                "enum": ["calling", "completed", "failed"]
               }
             }
           },
@@ -942,11 +906,7 @@
           },
           "level": {
             "type": "string",
-            "enum": [
-              "info",
-              "warning",
-              "error"
-            ],
+            "enum": ["info", "warning", "error"],
             "description": "Notice severity level (for system_notice)"
           },
           "code": {
@@ -959,11 +919,7 @@
           },
           "riskLevel": {
             "type": "string",
-            "enum": [
-              "medium",
-              "high",
-              "critical"
-            ],
+            "enum": ["medium", "high", "critical"],
             "description": "Risk level of the pending tool (for hitl_approval_required)"
           },
           "totalTokens": {
@@ -1021,10 +977,7 @@
       },
       "SummarizeRequest": {
         "type": "object",
-        "required": [
-          "messages",
-          "provider_config"
-        ],
+        "required": ["messages", "provider_config"],
         "properties": {
           "session_id": {
             "type": "string",
@@ -1068,10 +1021,7 @@
       },
       "ApproveOrDenyRequest": {
         "type": "object",
-        "required": [
-          "approvalId",
-          "decision"
-        ],
+        "required": ["approvalId", "decision"],
         "properties": {
           "approvalId": {
             "type": "string",
@@ -1080,10 +1030,7 @@
           },
           "decision": {
             "type": "string",
-            "enum": [
-              "approve",
-              "deny"
-            ],
+            "enum": ["approve", "deny"],
             "description": "Decision: approve to execute the tool, deny to reject",
             "example": "approve"
           },
@@ -1155,11 +1102,7 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "web_search",
-              "file_system",
-              "execute_sql_write"
-            ]
+            "example": ["web_search", "file_system", "execute_sql_write"]
           },
           "providerConfig": {
             "type": "object",
@@ -1241,19 +1184,49 @@
             "items": {
               "type": "string"
             },
-            "example": [
-              "file_system",
-              "terminal",
-              "code_interpreter"
-            ]
+            "example": ["file_system", "terminal", "code_interpreter"]
           },
           "modifiers": {
             "type": "object",
             "example": {
-              "extensions": [
-                ".py"
-              ],
+              "extensions": [".py"],
               "linter": "ruff"
+            }
+          }
+        }
+      },
+      "StrategyVersionInfo": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "nlah:v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "deprecated"],
+            "example": "active"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["agent", "deep-research", "react"]
+          }
+        }
+      },
+      "StrategyRegistryEntry": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "nlah"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StrategyVersionInfo"
             }
           }
         }
@@ -1263,8 +1236,9 @@
   "paths": {
     "/api/features": {
       "get": {
-        "summary": "List available agent features",
-        "description": "Fetch list of active system tools and their tier requirements. Features marked with tier_requirement 'pro' are locked for free-tier users.",
+        "summary": "List implemented agent features",
+        "description": "Fetch the implemented tool registry — the feature IDs the agent can actually execute, dynamically derived from the tool registry. Each entry maps a requestable feature id to its loaded tool name and description. Catalog metadata (tier_requirement, ui_schema, status) is owned by the backend features table, not the agent.",
+        "tags": ["Features"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1275,7 +1249,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Feature catalog",
+            "description": "Implemented tool registry",
             "content": {
               "application/json": {
                 "schema": {
@@ -1286,28 +1260,19 @@
                 },
                 "example": [
                   {
-                    "id": "web-browsing",
-                    "name": "Web Browsing",
-                    "description": "Browse the web in real-time to fetch up-to-date information",
-                    "tier_requirement": "free"
+                    "id": "delegate_task",
+                    "name": "delegate_task",
+                    "description": "Delegate a specific sub-task or research query to a specialized child/sub-agent. This isolates the parent workspace and keeps the context window clean."
                   },
                   {
-                    "id": "code-interpreter",
-                    "name": "Code Interpreter",
-                    "description": "Execute and analyze code in a sandboxed environment",
-                    "tier_requirement": "pro"
+                    "id": "web_search",
+                    "name": "web_search",
+                    "description": "Web search engine for real-time weather, prices, and current events."
                   },
                   {
-                    "id": "file-system",
-                    "name": "File System",
-                    "description": "Read, write, and manage files in the workspace",
-                    "tier_requirement": "free"
-                  },
-                  {
-                    "id": "image-generation",
-                    "name": "Image Generation",
-                    "description": "Generate images using DALL-E or similar models",
-                    "tier_requirement": "pro"
+                    "id": "write_todos",
+                    "name": "write_todos",
+                    "description": "Create, update, or reorganize the agent's task plan (todo list). Use this tool to set or modify the planned execution steps."
                   }
                 ]
               }
@@ -1320,6 +1285,7 @@
       "post": {
         "summary": "Execute agent mission (SSE Stream)",
         "description": "Triggers autonomous agent execution loop and streams response packets via Server-Sent Events. The stream emits HarnessPacket JSON objects, one per line, prefixed with 'data: '. The connection remains open until the mission completes or is aborted.",
+        "tags": ["Generate Mission"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1347,16 +1313,8 @@
                   "api_key": "sk-proj-xxxxxxxxxxxxxxxx",
                   "model": "gpt-4o"
                 },
-                "features": [
-                  "web-browsing",
-                  "code-interpreter",
-                  "file-system"
-                ],
-                "skills": [
-                  "nodejs",
-                  "express",
-                  "prisma"
-                ],
+                "features": ["web-browsing", "code-interpreter", "file-system"],
+                "skills": ["nodejs", "express", "prisma"],
                 "config": {
                   "memory": {
                     "episodic": true,
@@ -1497,6 +1455,7 @@
       "get": {
         "summary": "Health check",
         "description": "Returns agent platform health status",
+        "tags": ["Health"],
         "security": [],
         "responses": {
           "200": {
@@ -1517,6 +1476,7 @@
       "post": {
         "summary": "Summarize chat session history",
         "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",
+        "tags": ["Internal"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1621,6 +1581,7 @@
       "post": {
         "summary": "Approve pending HITL tool call and resume mission",
         "description": "Approves a tool execution that was paused by the HITL Guard. If the approvalId is expired or not found, returns 404. On success, resumes the mission execution loop via SSE stream.",
+        "tags": ["Missions"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1700,6 +1661,7 @@
       "post": {
         "summary": "Deny pending HITL tool call and resume mission",
         "description": "Denies a tool execution paused by the HITL Guard. The agent is informed of the denial and asked to find an alternative solution. Resumes the mission execution loop via SSE stream.",
+        "tags": ["Missions"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1779,6 +1741,7 @@
       "get": {
         "summary": "List agent provider models",
         "description": "Fetch supported LLM provider model catalog",
+        "tags": ["Models"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1833,6 +1796,7 @@
       "get": {
         "summary": "List available agent skills",
         "description": "Fetch catalog of specialized skill definitions available for activation during missions.",
+        "tags": ["Skills"],
         "security": [
           {
             "InternalTokenAuth": []
@@ -1856,46 +1820,56 @@
                   {
                     "name": "python",
                     "description": "Python development and scripting with package management",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "code_interpreter"
-                    ],
+                    "preferredTools": ["file_system", "terminal", "code_interpreter"],
                     "modifiers": {
-                      "extensions": [
-                        ".py"
-                      ],
+                      "extensions": [".py"],
                       "linter": "ruff"
                     }
                   },
                   {
                     "name": "nodejs",
                     "description": "Node.js and npm package ecosystem",
-                    "preferredTools": [
-                      "file_system",
-                      "terminal",
-                      "npm"
-                    ],
+                    "preferredTools": ["file_system", "terminal", "npm"],
                     "modifiers": {
-                      "extensions": [
-                        ".js",
-                        ".ts",
-                        ".json"
-                      ]
+                      "extensions": [".js", ".ts", ".json"]
                     }
                   },
                   {
                     "name": "research",
                     "description": "Web research and information synthesis",
-                    "preferredTools": [
-                      "web-browsing",
-                      "file_system"
-                    ],
+                    "preferredTools": ["web-browsing", "file_system"],
                     "modifiers": {
                       "max_sources": 10
                     }
                   }
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies": {
+      "get": {
+        "summary": "List versioned strategy catalog",
+        "description": "Fetch code-side strategy catalog with versions and aliases.",
+        "tags": ["Strategies"],
+        "responses": {
+          "200": {
+            "description": "Strategy catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "strategies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StrategyRegistryEntry"
+                      }
+                    }
+                  }
+                }
               }
             }
           }

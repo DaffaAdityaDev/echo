@@ -21,4 +21,9 @@ type Config struct {
 	EvaluatorAPIKey   string
 	EvaluatorModel    string
 	EncryptionKey     string
+	StrategyRolloutDefault float64
+	WorkerInterval         string
+	DecayDeprecateAfter    int
+	DecayArchiveAfter      int
 }
+

@@ -39,14 +39,23 @@ const LoopDetectionConfigSchema = z
   })
   .default({ enabled: true, similarityThreshold: 0.92 });
 
-const HarnessConfigSchema = z.object({
-  compression: CompressionConfigSchema,
-  pacing: PacingConfigSchema,
-  loopDetection: LoopDetectionConfigSchema,
-  maxIterations: z.number().int().default(15),
-  costCap: z.number().default(1.0),
-  delegationDepth: z.number().int().min(0).max(10).default(0),
-});
+const HarnessConfigSchema = z
+  .object({
+    compression: CompressionConfigSchema,
+    pacing: PacingConfigSchema,
+    loopDetection: LoopDetectionConfigSchema,
+    maxIterations: z.number().int().default(15),
+    costCap: z.number().default(1.0),
+    delegationDepth: z.number().int().min(0).max(10).default(0),
+  })
+  .default({
+    compression: { enabled: true, ratio: 0.8, keepLastTurns: 10 },
+    pacing: { enabled: true, threshold: 5 },
+    loopDetection: { enabled: true, similarityThreshold: 0.92 },
+    maxIterations: 15,
+    costCap: 1.0,
+    delegationDepth: 0,
+  });
 
 const CircuitBreakerConfigSchema = z
   .object({
@@ -93,12 +102,64 @@ const HarnessConfigDetailsSchema = z
     agentStatus: { heartbeatInterval: 5000, stallTimeout: 10000 },
   });
 
+export const HarnessFeatureTogglesSchema = z
+  .object({
+    loopDetection: z
+      .object({
+        enabled: z.boolean().default(true),
+        enableExactMatch: z.boolean().optional(),
+        enableCosineSimilarity: z.boolean().optional(),
+        maxConsecutiveIdenticalCalls: z.number().int().optional(),
+        similarityThreshold: z.number().min(0).max(1).optional(),
+        windowSize: z.number().int().optional(),
+      })
+      .optional(),
+    budgetMonitor: z
+      .object({
+        enabled: z.boolean().default(true),
+        enforceMaxSteps: z.boolean().optional(),
+        maxSteps: z.number().int().optional(),
+        enforceTimeout: z.boolean().optional(),
+        maxDurationMs: z.number().int().optional(),
+        enforceCostCap: z.boolean().optional(),
+        maxCostUsd: z.number().optional(),
+      })
+      .optional(),
+    systemNotices: z
+      .object({
+        enabled: z.boolean().default(true),
+        emitLoopWarnings: z.boolean().optional(),
+        emitCompactionNotices: z.boolean().optional(),
+        emitBudgetWarnings: z.boolean().optional(),
+        emitPacingWarnings: z.boolean().optional(),
+      })
+      .optional(),
+    hitlGuard: z
+      .object({
+        enabled: z.boolean().default(true),
+        protectedTools: z.array(z.string()).optional(),
+        ttlMinutes: z.number().int().optional(),
+      })
+      .optional(),
+    contextOptimization: z
+      .object({
+        enabled: z.boolean().default(true),
+        enablePrefixCachingLayout: z.boolean().optional(),
+        enableAutoCompaction: z.boolean().optional(),
+        compactionThresholdRatio: z.number().min(0).max(1).optional(),
+        keepLastTurnsCount: z.number().int().optional(),
+      })
+      .optional(),
+  })
+  .optional();
+
 export const AgentConfigSchema = z
   .object({
     provider: ProviderConfigSchema.optional(),
     memory: MemoryConfigSchema,
     harness: HarnessConfigSchema,
     harnessConfig: HarnessConfigDetailsSchema.optional(),
+    featureToggles: HarnessFeatureTogglesSchema,
     skills: z.array(z.string()).optional(),
     mcpServers: z
       .array(
@@ -153,62 +214,20 @@ export const AgentConfigSchema = z
     },
   });
 
-export const HarnessFeatureTogglesSchema = z
-  .object({
-    loopDetection: z
-      .object({
-        enabled: z.boolean().default(true),
-        enableExactMatch: z.boolean().optional(),
-        enableCosineSimilarity: z.boolean().optional(),
-        maxConsecutiveIdenticalCalls: z.number().int().optional(),
-        similarityThreshold: z.number().min(0).max(1).optional(),
-        windowSize: z.number().int().optional(),
-      })
-      .optional(),
-    budgetMonitor: z
-      .object({
-        enabled: z.boolean().default(true),
-        enforceMaxSteps: z.boolean().optional(),
-        maxSteps: z.number().int().optional(),
-        enforceTimeout: z.boolean().optional(),
-        maxDurationMs: z.number().int().optional(),
-        enforceCostCap: z.boolean().optional(),
-        maxCostUsd: z.number().optional(),
-      })
-      .optional(),
-    systemNotices: z
-      .object({
-        enabled: z.boolean().default(true),
-        emitLoopWarnings: z.boolean().optional(),
-        emitCompactionNotices: z.boolean().optional(),
-        emitBudgetWarnings: z.boolean().optional(),
-        emitPacingWarnings: z.boolean().optional(),
-      })
-      .optional(),
-    hitlGuard: z
-      .object({
-        enabled: z.boolean().default(true),
-        protectedTools: z.array(z.string()).optional(),
-        ttlMinutes: z.number().int().optional(),
-      })
-      .optional(),
-    contextOptimization: z
-      .object({
-        enabled: z.boolean().default(true),
-        enablePrefixCachingLayout: z.boolean().optional(),
-        enableAutoCompaction: z.boolean().optional(),
-        compactionThresholdRatio: z.number().min(0).max(1).optional(),
-        keepLastTurnsCount: z.number().int().optional(),
-      })
-      .optional(),
-  })
-  .optional();
-
 export const createMissionSchema = z.preprocess(
   (input: any) => {
     if (!input || typeof input !== "object") return input;
 
-    const rawStrategy = String(input.strategy || input.mode || DEFAULT_MISSION_VALUES.STRATEGY).toLowerCase();
+    const rawStrategyVersion = String(input.strategy_version || input.strategyVersion || "")
+      .toLowerCase()
+      .trim();
+    const rawStrategy = String(
+      input.strategy_version ||
+        input.strategyVersion ||
+        input.strategy ||
+        input.mode ||
+        DEFAULT_MISSION_VALUES.STRATEGY,
+    ).toLowerCase();
     let strategy: (typeof MISSION_STRATEGIES)[number] = DEFAULT_MISSION_VALUES.STRATEGY;
     if (STRATEGY_MAPPING.standard.includes(rawStrategy)) {
       strategy = "standard";
@@ -223,6 +242,7 @@ export const createMissionSchema = z.preprocess(
     return {
       ...input,
       strategy,
+      strategy_version: rawStrategyVersion || undefined,
       prompt: input.prompt || input.message,
       tenantId: tenantIdRaw != null ? String(tenantIdRaw) : DEFAULT_MISSION_VALUES.TENANT_ID,
       userId: userIdRaw != null ? String(userIdRaw) : DEFAULT_MISSION_VALUES.USER_ID,
@@ -238,7 +258,9 @@ export const createMissionSchema = z.preprocess(
   z.object({
     prompt: z.string({ message: VALIDATION_MESSAGES.PROMPT_REQUIRED }),
     strategy: z.enum(MISSION_STRATEGIES),
+    strategy_version: z.string().optional(),
     tenantId: z.string(),
+
     userId: z.string(),
     orgId: z.string(),
     missionId: z.string().nullable().optional(),

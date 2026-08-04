@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Models Data Flow
   Service   : Shared / Domain
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: strategy resolution flow)
 ================================================================================
 
 ## Description
@@ -351,6 +351,39 @@ Service Ownership:
 
 Data flows right (CRUD) and left (read/queries). Agent is stateless compute —
 state lives in Redis or memory.
+
+## Strategy Resolution Flow [Active]
+
+
+New data-flow branch for strategy versioning (see
+`docs/shared/patterns/strategy-lifecycle.md`):
+
+```
+Client ──POST /chat──► Gateway
+                         │
+                         ├─ session exists?
+                         │    ├─ yes: session.strategy_version pinned?
+                         │    │        ├─ yes → use pin (backward compat)
+                         │    │        └─ no  → resolve from rollout config
+                         │    │                (settings.strategy_rollout)
+                         │    └─ no:  resolve from rollout config
+                         │
+                         ├─ write pin: sessions.strategy_version (immutable)
+                         │
+                         └─ POST /api/generate-mission
+                              payload + strategy_version ("nlah:v1")
+                                     │
+                                     ▼
+                              StrategyRegistry.resolve("nlah:v1")
+                                     │
+                                     ▼
+                              StrategyFactory.create("nlah")
+```
+
+Ownership:
+- `StrategyRegistryEntry` / `StrategyVersionInfo` — agent (code truth)
+- `strategy_rollout` settings JSONB — gateway (operational truth)
+- `sessions.strategy_version` — shared state (pin, immutable)
 
 ## Entry Points & Exports
 

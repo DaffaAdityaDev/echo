@@ -1,0 +1,80 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Echo Agent Platform API",
+    "version": "1.0.0",
+    "description": "Autonomous AI Agent Platform runtime, mission execution engine, skills, features, and model proxy API.\n\nTriggers autonomous agent execution loops using configurable LLM providers (OpenAI, Anthropic, LM Studio, OpenCode Go) with full tool-calling, memory, and streaming support."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Environment Server"
+    }
+  ],
+  "security": [
+    {
+      "InternalTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "InternalTokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token",
+        "description": "Internal service-to-service authentication token"
+      }
+    },
+    "schemas": {
+      "StrategyVersionInfo": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "nlah:v1" },
+          "status": { "type": "string", "enum": ["active", "deprecated"], "example": "active" },
+          "aliases": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["agent", "deep-research", "react"]
+          }
+        }
+      },
+      "StrategyRegistryEntry": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "nlah" },
+          "versions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StrategyVersionInfo" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/strategies": {
+      "get": {
+        "summary": "List versioned strategy catalog",
+        "description": "Fetch code-side strategy catalog with versions and aliases.",
+        "tags": ["Strategies"],
+        "responses": {
+          "200": {
+            "description": "Strategy catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "strategies": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/StrategyRegistryEntry" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

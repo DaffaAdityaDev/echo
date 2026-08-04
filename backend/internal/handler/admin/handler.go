@@ -51,6 +51,15 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 	return
 }
 
+// HandleListKeys godoc
+// @Summary List API keys
+// @Description Returns all API keys (admin)
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} authmodel.ApiKey
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/admin/api-keys [get]
 func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {
@@ -59,6 +68,18 @@ func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, keys)
 }
 
+// HandleCreateKey godoc
+// @Summary Create an API key
+// @Description Generates and stores a new API key (admin)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body createAPIKeyRequest true "API key payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/admin/api-keys [post]
 func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	var req createAPIKeyRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -101,6 +122,17 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	})
 }
 
+// HandleRevokeKey godoc
+// @Summary Revoke an API key
+// @Description Revokes an API key by ID (admin)
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "API key ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/admin/api-keys/{id} [delete]
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -122,6 +154,15 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	return handlerutil.RespondMessage(c, "Key revoked")
 }
 
+// HandleStats godoc
+// @Summary Get API key statistics
+// @Description Returns total and active API key counts (admin)
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/admin/stats [get]
 func (h *Handler) HandleStats(c fiber.Ctx) error {
 	keys, err := h.APIKeyRepo.List(context.Background())
 	if err != nil {

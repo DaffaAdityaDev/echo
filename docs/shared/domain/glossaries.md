@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Domain Glossary
   Service   : Shared / Domain
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: strategy lifecycle terms)
 ================================================================================
 
 ## Description
@@ -140,6 +140,12 @@ A flash card in the spaced-repetition system. Contains question, answer, SM-2
 algorithm fields (EF, interval, due, repetitions, last_score).
 *Source: `docs/architecture-plan.md:97`*
 
+**Canary Rollout**
+Routing a fraction of *new* sessions to a new strategy version
+(`rollout: 0.2` = 20%) via gateway settings. Pinned sessions are never
+rerouted; rollout only affects sessions created after the change.
+*Source: `docs/shared/patterns/strategy-lifecycle.md` [Active]*
+
 **ChatHandler**
 Go Fiber handler managing chat requests. Validates input, checks tier gating on
 features, resolves model config, proxies SSE stream from Agent.
@@ -149,6 +155,9 @@ features, resolves model config, proxies SSE stream from Agent.
 Open-source vector database used by agent for RAG (Retrieval Augmented
 Generation). Stores embeddings of topics/content for semantic search.
 *Source: agent `CHROMA_URL` env config*
+
+**Consolidation**
+See **Hard Consolidation**.
 
 ### D
 
@@ -213,6 +222,13 @@ Implements the StreamTransport interface. Enriches packets with seq and
 timestamp, writes to Hono's SSE stream instance.
 *Source: `agent/src/adapter/inbound/api/missions/stream.transport.ts`*
 
+**Hard Consolidation**
+Token-overflow pruning: Go detects `SUM(token_count) >= PRUNE_THRESHOLD`,
+delegates summarization to the agent (`POST /internal/sessions/summarize`),
+stores the summary in `sessions.context_summary`, and deletes the oldest
+turns. Runs inline (chat fast-path) and in the background lifecycle worker.
+*Source: `docs/agent/domain/memory-and-retrieval-strategy.md`*
+
 ### I
 
 **INTERNAL_AUTH_TOKEN**
@@ -234,6 +250,13 @@ Authentication token issued by Go Gateway on login. Contains sub (user ID), exp
 *Source: `backend/internal/handler/auth/handler.go:34-47`*
 
 ### L
+
+**Lifecycle Worker**
+In-process goroutine in the Go gateway (no new container): background
+consolidation of stale sessions, recency decay (via `sessions.last_accessed_at`),
+archival + message GC, and strategy rollout cache refresh. Runs on
+`WORKER_INTERVAL` ticker with Redis SETNX lock.
+*Source: `docs/backend/infrastructure/server-lifecycle.md` [Active]*
 
 **LangChain**
 The LLM orchestration framework used by the agent. Provides BaseMessage types,
@@ -377,6 +400,25 @@ mission output, mission logs. Lines formatted as `data: {json}\n\n`.
 Simple direct-chat strategy. Agent answers user query directly without
 tool-calling or sub-agents.
 *Source: `agent/src/core/agent/strategies/prompts.ts:2-3`*
+
+**Strategy Version**
+Versioned strategy identifier in `{name}:v{n}` format (e.g. `nlah:v1`).
+Versions are immutable — new behavior ships as `{name}:v2`. Pinned per session
+on `sessions.strategy_version`.
+*Source: `docs/shared/patterns/strategy-lifecycle.md` [Active]*
+
+**Strategy Registry**
+Code-side catalog in the agent (`strategies/registry.ts`) answering "what is
+exported": names, versions, status (`active`/`deprecated`), aliases. Exposed
+via `GET /api/strategies`. Operational control (rollout %) stays in the
+gateway settings table.
+*Source: `docs/agent/application/features/execution/strategy-pattern.md` [Active]*
+
+**Sunset (Strategy)**
+3-phase retirement of a strategy version: soft deprecation (excluded from
+new-session resolution), zero-traffic alarm, decommission (registry removal
+after pinned sessions drain).
+*Source: `docs/shared/patterns/strategy-lifecycle.md` [Active]*
 
 **State Backend**
 Storage backend for agent mission state. Options: `memory` (default, for

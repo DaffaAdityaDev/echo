@@ -3,8 +3,8 @@
 ================================================================================
   Module    : API Routes
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: GET /api/strategies catalog route)
 ================================================================================
 
 ## Description
@@ -33,6 +33,9 @@ src/adapter/inbound/
       model.constants.ts          # API paths & messages
     features/
       features.routes.ts          # GET /features
+    strategies/
+      strategies.routes.ts        # GET /strategies  [Active]
+
   middleware/
     auth.ts                       # Bearer/X-Internal-Token auth
     error.ts                      # Centralized error handler
@@ -75,7 +78,10 @@ src/adapter/inbound/
 │  ┌─ /api/models             ──→  ModelController.listModels             │
 │  │                            └─ Proxy to LLM provider /v1/models       │
 │  │                                                                        │
-│  ┌─ /api/features           ──→  Returns ACTIVE_FEATURES catalog        │
+│  ┌─ /api/features           ──→  Returns implemented tool registry       │
+│  │                                                                        │
+│  ┌─ /api/strategies         ──→  StrategyRegistry catalog [Active]       │
+│  │                            └─ name, versions, status, aliases         │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                   │
                                   ▼
@@ -101,6 +107,8 @@ src/adapter/inbound/
 | `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` handler                 |
 | `modelRouter`                    | `adapter/inbound/api/models/model.routes.ts`            | `GET /models` handler                            |
 | `featuresRouter`                 | `adapter/inbound/api/features/features.routes.ts`       | `GET /features` handler                          |
+| `strategiesRouter`               | `adapter/inbound/api/strategies/strategies.routes.ts`   | `GET /strategies` handler [Active]               |
+
 | `missionController`              | `adapter/inbound/api/missions/mission.controller.ts`    | `MissionController` instance                     |
 | `modelController`                | `adapter/inbound/api/models/model.controller.ts`        | `ModelController` instance                       |
 | `HttpStreamTransport`            | `adapter/inbound/api/missions/stream.transport.ts`      | SSE packet serializer with sequence numbers      |
@@ -150,10 +158,36 @@ Array<{
   id: string;
   name: string;
   description: string;
-  tier_requirement: 'free' | 'pro';
-  ui_schema: { render_type: string; icon: string; primary_color: string };
 }>
+// Implemented tool registry — dynamically derived from the tool
+// registry (getImplementedFeatures). No tier/ui_schema: catalog
+// metadata is owned by the backend features table (009 migration).
 ```
+
+### Strategies Endpoint - GET /api/strategies  [Active]
+
+
+Strategy catalog source of truth — reads the versioned registry
+(`core/agent/strategies/registry.ts`). Rollout % is NOT included here; it is
+gateway-owned (settings table) and merged at `GET /api/v1/strategies`.
+
+```
+// Response 200
+{
+  "strategies": [
+    {
+      "name": "nlah",
+      "versions": [
+        { "version": "nlah:v1", "status": "active", "aliases": ["agent", "deep-research", "react", "sequential"] }
+      ]
+    }
+  ]
+}
+```
+
+Payload schema: `strategy_version` (`name:v1`) accepted on
+`POST /generate-mission` — resolved by the gateway; the registry maps the
+version back to its strategy implementation via `StrategyFactory`.
 
 ---
 

@@ -18,13 +18,14 @@ type mockSessionRepo struct {
 	mock.Mock
 }
 
-func (m *mockSessionRepo) CreateSession(ctx context.Context, userID int, title string) (*chatmodel.Session, error) {
-	args := m.Called(ctx, userID, title)
+func (m *mockSessionRepo) CreateSession(ctx context.Context, userID int, title string, strategyVersion string) (*chatmodel.Session, error) {
+	args := m.Called(ctx, userID, title, strategyVersion)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*chatmodel.Session), args.Error(1)
 }
+
 
 func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	args := m.Called(ctx, sessionID)
@@ -106,8 +107,9 @@ func TestHandleCreateSession(t *testing.T) {
 			body:      `{"title":"My New Session"}`,
 			setUserID: "1",
 			mockSetup: func(m *mockSessionRepo, _ *mockConsolidationSvc, _ *mockModelSvc) {
-				m.On("CreateSession", mock.Anything, 1, "My New Session").
+				m.On("CreateSession", mock.Anything, 1, "My New Session", "").
 					Return(&chatmodel.Session{ID: "sess_abc", UserID: 1, Title: "My New Session"}, nil)
+
 			},
 			wantStatus: fiber.StatusCreated,
 		},

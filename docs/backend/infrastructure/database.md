@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Database Infrastructure
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: migrations 006/007)
 ================================================================================
 
 Overview
@@ -74,6 +74,15 @@ JWT_SECRET="your-secret-key-min-32-chars!!" \
 | `memory_semantic`  | Vector/generic semantic memory store |
 | `memory_procedural`| Procedural knowledge storage         |
 | `api_keys`        | API key management (migrated from Redis) |
+| `sessions`        | Conversation sessions (+ `strategy_version` 006, `last_accessed_at` 007) |
+| `messages`        | Canonical per-session history        |
+| `user_preferences`| Per-user defaults + harness toggles  |
+| `prompt_templates` / `prompt_versions` | LLMOps Studio (20260725_001) |
+
+Implemented migrations (see `docs/shared/contracts/database-schema.md`):
+- **006** — `ALTER TABLE sessions ADD COLUMN strategy_version TEXT DEFAULT ''`
+- **007** — `ALTER TABLE sessions ADD COLUMN last_accessed_at TIMESTAMPTZ
+  DEFAULT NOW()` + backfill + `idx_sessions_last_accessed`
 
 File Structure
 --------------

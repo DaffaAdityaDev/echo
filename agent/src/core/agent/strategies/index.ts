@@ -1,4 +1,9 @@
-export { STRATEGY_NAMES } from "./constants";
+export {
+  DEFAULT_STRATEGY_VERSION,
+  STRATEGY_NAMES,
+  STRATEGY_VERSION_ALIASES,
+  STRATEGY_VERSIONS,
+} from "./constants";
 export { StrategyFactory } from "./factory";
 export {
   NLAHStrategy,
@@ -7,4 +12,5 @@ export {
   SUBAGENT_DELEGATION_INSTRUCTIONS,
 } from "./nlah";
 export { NLAH_INSTRUCTIONS, NLAH_PROMPTS, REACT_PROMPTS, STANDARD_PROMPTS } from "./prompts";
+export { StrategyRegistry, strategyRegistry } from "./registry";
 export { StandardStrategy } from "./standard";

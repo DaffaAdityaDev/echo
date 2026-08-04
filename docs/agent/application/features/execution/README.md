@@ -3,8 +3,8 @@
 ===============================================================================
   Module    : Execution Layer
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-10
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: versioned strategy registry)
 ===============================================================================
 
 ## Overview
@@ -20,7 +20,8 @@ Depends on interfaces from `providers-tools/` and `state-session/`.
 |----------------------------|--------------------------------------------------|
 | harness-pattern.md         | Core agent execution loop with NLAH harness      |
 | strategy-pattern.md        | Agent execution mode factory (Standard, ReAct,   |
-|                            | NLAH)                                            |
+|                            | NLAH) + versioned registry [Active]              |
+
 | anchor-pattern.md          | Context anchor system for LLM grounding          |
 | circuit-breaker-           | Per-tool circuit breaker, bounded retry,         |
 | pattern.md                 | strategy degradation, observation compression    |

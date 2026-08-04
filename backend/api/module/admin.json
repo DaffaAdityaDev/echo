@@ -1,7 +1,47 @@
 {
     "basePath": "/",
     "definitions": {
-        "internal_handler.createAPIKeyRequest": {
+        "echo-backend_internal_models_auth.ApiKey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-01-15T10:30:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "key_a1b2c3d4e5f6"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Production API Key"
+                },
+                "prefix": {
+                    "type": "string",
+                    "example": "sk_a1b2c3d4"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "read",
+                        "write",
+                        "admin"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "1"
+                }
+            }
+        },
+        "internal_handler_admin.createAPIKeyRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -44,7 +84,7 @@
                     "Admin"
                 ],
                 "summary": "List API keys",
-                "description": "Retrieve all system API keys",
+                "description": "Returns all API keys (admin)",
                 "parameters": null,
                 "responses": {
                     "200": {
@@ -52,12 +92,12 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/echo-backend_internal_models.ApiKey"
+                                "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
                             }
                         }
                     },
                     "500": {
-                        "description": "Failed to list keys",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -80,29 +120,29 @@
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Create API key",
-                "description": "Generate a new API key with specific scopes",
+                "summary": "Create an API key",
+                "description": "Generates and stores a new API key (admin)",
                 "parameters": [
                     {
-                        "description": "API Key creation parameters (name, scopes)",
+                        "description": "API key payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.createAPIKeyRequest"
+                            "$ref": "#/definitions/internal_handler_admin.createAPIKeyRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Generated full key and record",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request or missing name",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -112,15 +152,6 @@
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to generate/store key",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -147,12 +178,12 @@
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Revoke API key",
-                "description": "Change an API key status to revoked",
+                "summary": "Revoke an API key",
+                "description": "Revokes an API key by ID (admin)",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "API Key ID",
+                        "description": "API key ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -160,7 +191,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Key revoked",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -169,7 +200,7 @@
                         }
                     },
                     "400": {
-                        "description": "Missing key ID",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -178,16 +209,7 @@
                         }
                     },
                     "404": {
-                        "description": "Key not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to revoke key",
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -212,22 +234,19 @@
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Get admin API key statistics",
-                "description": "Count total and active API keys in the system",
+                "summary": "Get API key statistics",
+                "description": "Returns total and active API key counts (admin)",
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "Total and active key counts",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "integer",
-                                "format": "int64"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Failed to get stats",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -256,11 +275,5 @@
             "in": "header"
         }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models.ApiKey",
-        "echo-backend_internal_models.Session",
-        "echo-backend_internal_models.User",
-        "echo-backend_internal_models.UserPreferences"
-    ]
+    "swagger": "2.0"
 }

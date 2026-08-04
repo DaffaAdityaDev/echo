@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Strategy Pattern
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-07-31 (planned: versioned registry + strategy lifecycle)
 ================================================================================
 
 ## Description
@@ -13,14 +13,20 @@ Strategy factory pattern for agent execution modes. Each strategy implements
 `AgentStrategy` with a single responsibility: building the system prompt. The
 harness drives all execution loop logic.
 
+As of the Strategy Lifecycle roadmap (`docs/shared/patterns/strategy-lifecycle.md`),
+strategies are **versioned** (`name:v1`) and registered in a metadata registry
+(`registry.ts`) that answers "what is exported", while the Go gateway owns
+operational control (active status, rollout %). [Active]
+
 ---
 
 ## File Structure
 
 ```
 strategies/
-  constants.ts   # Strategy names and alias mappings
-  factory.ts     # StrategyFactory dispatcher
+  index.ts       # Public exports (StrategyFactory, strategyRegistry)
+  factory.ts     # StrategyFactory — strategy instance constructor
+  registry.ts    # StrategyRegistry — versioned metadata [Active]
   prompts.ts     # All prompt templates
   standard.ts    # Simple chat strategy [LEGACY]
   nlah.ts        # NLAH coordinator strategy [ACTIVE/PRIMARY]
@@ -114,6 +120,57 @@ strategies/
 
 ---
 
+## Strategy Registry & Versioning `[Active]`
+
+
+Versioned metadata layer over `StrategyFactory`. Registry is the **code-side
+source of truth** ("what is exported"); it does not decide rollout — the Go
+gateway does (settings table). `StrategyFactory` remains the only constructor
+of strategy instances; the registry maps version strings back to it.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ StrategyRegistry (registry.ts) — code truth                  │
+│  StrategyRegistryEntry:                                      │
+│   name: 'nlah' | 'standard'                                  │
+│   versions: [{ version: 'nlah:v1', status, aliases[] }]      │
+│  resolve(version: 'nlah:v1') -> AgentStrategy                │
+│    (delegates to StrategyFactory.create(name))               │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ GET /api/strategies
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Go Gateway — operational truth (settings table)              │
+│  { "deep_research:v1": { "rollout": 0.2 } }                  │
+│  resolveStrategyVersion(sessionPin, rollout) -> 'nlah:v1'    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Registered Versions (initial)
+
+| Version          | Strategy  | Status     | Aliases                              |
+|------------------|-----------|------------|--------------------------------------|
+| `standard:v1`    | Standard  | active     | `chat`                               |
+| `nlah:v1`        | NLAH      | active     | `agent`, `deep-research`, `react`,   |
+|                  |           |            | `sequential`                         |
+
+### Versioning Contract
+
+- Format: `{name}:v{n}` — never overwrite a version in place; new behavior
+  ships as `{name}:v2`.
+- `status`: `active` | `deprecated`. Deprecated versions remain executable for
+  sessions that pinned them (backward compatibility), but are excluded from
+  new-session resolution.
+- Session pin: the gateway stores the chosen version on `sessions.strategy_version`
+  (immutable per session) — active sessions keep their version until finished.
+- Rollout: gateway maps a deterministic fraction of *new* sessions to a new
+  version via rollout % (canary); sessions never migrate mid-flight.
+- Sunset: 3 phases — soft deprecation (hidden from UI, executable),
+  zero-traffic alarm, decommission (registry removal after sessions drain).
+  Full contract in `docs/shared/patterns/strategy-lifecycle.md`.
+
+---
+
 ## Prompt Templates
 
 ### Standard (`prompts.ts:2`)
@@ -140,6 +197,7 @@ OBJECTIVE: {objective}"
 | Export                    | Source                                   | Type                                     |
 +---------------------------+------------------------------------------+------------------------------------------+
 | `StrategyFactory`         | `factory.ts`                             | Static factory with `create()`           |
+| `StrategyRegistry`        | `registry.ts`                            | Versioned registry (resolve, catalog)   |
 | `NLAHStrategy`            | `nlah.ts`                                | `AgentStrategy` (active)                 |
 | `StandardStrategy`        | `standard.ts`                            | `AgentStrategy` (legacy)                 |
 | `STRATEGY_NAMES`          | `constants.ts`                           | `{ AGENT, STANDARD }`                   |
@@ -174,6 +232,8 @@ OBJECTIVE: {objective}"
 | NLAH workflow            | `prompts.ts:27-38`                       | Save → Plan → Delegate → Synthesize → Respond      |
 | NLAH delegation          | `prompts.ts:40-48`                       | Max 3 concurrent sub-agents, 3 rounds              |
 | NLAH researcher          | `prompts.ts:50-56`                       | 2-5 searches, keyword focus, reflection            |
+| Strategy registry        | `registry.ts` (Planned)                  | Versioned catalog + resolve → factory              |
+| Lifecycle contract       | `docs/shared/patterns/strategy-lifecycle.md` | Versioning, canary, sunset rules            |
 +--------------------------+------------------------------------------+----------------------------------------------------+
 
 ================================================================================

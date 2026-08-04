@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Endpoints
   Service   : Shared / Contracts
-   Version   : 1.3
-   Updated   : 2026-07-26 (auth upgrade: /models & /studio/playground now JWT)
+   Version   : 1.4
+   Updated   : 2026-07-31 (planned: strategy catalog endpoints + rollout)
 ================================================================================
 
 ## Description
@@ -71,7 +71,14 @@ Base path: `/api/v1`
 | GET    | /v1/settings                     | Go      | JWT    | Get user preferences             | Active |
 | PUT    | /v1/settings                     | Go      | JWT    | Update user preferences          | Active |
 | GET    | /v1/settings/defaults            | Go      | None   | Get system default preferences   | Active |
+| GET    | /v1/strategies                   | Go      | JWT    | List strategy catalog w/ rollout | Active |
 +--------+----------------------------------+---------+--------+----------------------------------+--------+
+
+> **Strategy Lifecycle**: `GET /api/v1/strategies` returns the agent's
+> strategy catalog (name, versions, status `active`/`deprecated`, aliases) merged
+> with the gateway's rollout configuration from `app_settings`. The gateway also
+> resolves `strategy_version` for `/chat` requests (session pin → rollout %).
+> See `docs/shared/patterns/strategy-lifecycle.md`.
 
 > **Note**: `GET /api/v1/models` now requires JWT auth (was optional). Model
 > listing is per-user — it reads the authenticated user's provider config
@@ -95,7 +102,10 @@ V1PathModels      = "/models"
 V1PathFeatures    = "/features"
 V1PathSettings    = "/settings"
 V1PathSettingsDefaults = "/settings/defaults"
+V1PathStrategies  = "/strategies"   // Active — strategy catalog + rollout
 V1AdminGroup      = "/admin"
+```
+
 V1PathAPIKeys     = "/api-keys"
 V1PathAPIKey      = "/api-keys/:id"
 V1PathStats       = "/stats"
@@ -170,7 +180,9 @@ Base path: `/api`
 | GET    | /                                          | Agent   | None     | Health check (bypass)            | Active |
 | POST   | /api/generate-mission                      | Agent   | Internal | Execute mission (SSE stream)     | Active |
 | GET    | /api/models                                | Agent   | Internal | List models from LLM provider    | Active |
-| GET    | /api/features                              | Agent   | Internal | Master feature catalog           | Active |
+| GET    | /api/features                              | Agent   | Internal | Implemented tool registry ([{id,name,description}]) | Active |
+| GET    | /api/strategies                            | Agent   | Internal | Strategy catalog (versions/status)| Active |
+
 | POST   | /api/internal/sessions/summarize           | Agent   | Internal | Perform LLM session summary      | Active |
 +--------+--------------------------------------------+---------+----------+----------------------------------+--------+
 
@@ -258,6 +270,7 @@ From `docs/architecture-plan.md` — not yet implemented:
 +-----------+-------------+--------+------------------------------------------+-----------------------+
 | Go Gateway| Agent Hono  | POST   | /api/generate-mission                    | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/features                            | X-Internal-Token      |
+| Go Gateway| Agent Hono  | GET    | /api/strategies                          | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/models                              | X-Internal-Token      |
 | Go Gateway| Agent Hono  | POST   | /api/internal/sessions/summarize         | X-Internal-Token      |
 | Go Gateway| Redis       | Pub/Sub| stream:{missionId}                       | Network isolation     |

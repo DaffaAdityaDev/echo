@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ToolDefinition } from "../../../../shared/types";
-import { LAZY_TOOLS, ToolRegistry } from "../registry";
+import { getImplementedFeatures, LAZY_TOOLS, ToolRegistry } from "../registry";
 
 const mockWebSearchTool: ToolDefinition = {
   name: "web_search",
@@ -16,6 +16,14 @@ const mockDelegateTaskTool: ToolDefinition = {
   schema: z.object({ task: z.string() }),
   execute: async () => ({ status: "success" as const, summary: "delegated" }),
   keywords: ["delegate"],
+};
+
+const mockWriteTodosTool: ToolDefinition = {
+  name: "write_todos",
+  description: "Updates the task board list state",
+  schema: z.object({ todos: z.array(z.object({ id: z.string(), description: z.string() })) }),
+  execute: async () => ({ status: "success" as const, summary: "board updated" }),
+  keywords: ["todos"],
 };
 
 describe("ToolRegistry", () => {
@@ -93,6 +101,47 @@ describe("ToolRegistry", () => {
     test("returns empty array when no tools registered", () => {
       const all = registry.getAllTools();
       expect(all).toEqual([]);
+    });
+  });
+
+  describe("getImplementedFeatures", () => {
+    test("returns the 3 canonical ids sorted when no tools are loaded", () => {
+      const features = getImplementedFeatures(registry);
+      expect(features.map((f) => f.id)).toEqual(["delegate_task", "web_search", "write_todos"]);
+    });
+
+    test("falls back to the id as name when no tool definition is loaded", () => {
+      const features = getImplementedFeatures(registry);
+      expect(features).toEqual([
+        { id: "delegate_task", name: "delegate_task", description: "" },
+        { id: "web_search", name: "web_search", description: "" },
+        { id: "write_todos", name: "write_todos", description: "" },
+      ]);
+    });
+
+    test("uses loaded tool definitions for name and description", () => {
+      (registry as any).tools.set("web_search", mockWebSearchTool);
+      (registry as any).tools.set("delegate_task", mockDelegateTaskTool);
+      (registry as any).tools.set("write_todos", mockWriteTodosTool);
+      const features = getImplementedFeatures(registry);
+      expect(features).toEqual([
+        { id: "delegate_task", name: "delegate_task", description: "Delegates a task to a sub-agent" },
+        { id: "web_search", name: "web_search", description: "Searches the web for real-time information" },
+        { id: "write_todos", name: "write_todos", description: "Updates the task board list state" },
+      ]);
+    });
+
+    test("does not include tools outside the LAZY_TOOLS registry", () => {
+      (registry as any).tools.set("delegate_task", mockDelegateTaskTool);
+      const mcpTool: ToolDefinition = {
+        name: "mcp_only_tool",
+        description: "Only reachable via MCP",
+        schema: z.object({}),
+        execute: async () => ({ status: "success" as const, summary: "mcp" }),
+      };
+      (registry as any).tools.set("mcp_only_tool", mcpTool);
+      const features = getImplementedFeatures(registry);
+      expect(features.map((f) => f.id)).not.toContain("mcp_only_tool");
     });
   });
 });
