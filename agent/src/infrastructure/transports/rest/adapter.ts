@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { CredentialManager } from "../../../core/agent/credentials";
+import { ERROR_STATUS } from "../../../shared/constants/errors";
 import type { Observation, ToolDefinition } from "../../../shared/types";
 import { jsonSchemaToZod } from "../mcp/schema-converter";
 import type { RestAuthConfig, RestToolConfig } from "./types";
@@ -81,8 +82,8 @@ class RestAdapter {
     return {
       name: config.name,
       description: config.description,
-      schema: converted as unknown as z.ZodObject<any>,
-      execute: async (input: any): Promise<Observation> => {
+      schema: converted as unknown as z.ZodObject<z.ZodRawShape>,
+      execute: async (input: unknown): Promise<Observation> => {
         try {
           const headers: Record<string, string> = {
             ...resolveHeaders(config.global_headers ?? {}, this.credentialManager),
@@ -90,9 +91,10 @@ class RestAdapter {
           };
           headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
 
+          const rawInput = (input ?? {}) as Record<string, unknown>;
           const resolvedInput: Record<string, unknown> = this.credentialManager
-            ? this.credentialManager.resolveForRequest(input ?? {})
-            : resolveEnvRefs(input ?? {});
+            ? this.credentialManager.resolveForRequest(rawInput)
+            : resolveEnvRefs(rawInput);
 
           if (config.auth) {
             Object.assign(headers, buildAuthHeaders(config.auth));
@@ -152,7 +154,7 @@ class RestAdapter {
             if (!response.ok) {
               const body = await response.text().catch(() => "");
               return {
-                status: "error",
+                status: ERROR_STATUS,
                 summary: `HTTP ${response.status}: ${response.statusText}`,
                 error: body || response.statusText,
               };
@@ -183,12 +185,17 @@ class RestAdapter {
           }
 
           return {
-            status: "error",
+            status: ERROR_STATUS,
             summary: lastError ?? "Unknown error",
             error: lastError ?? "Unknown error",
           };
-        } catch (err: any) {
-          return { status: "error", summary: err.message, error: err.message };
+        } catch (err: unknown) {
+          const callError = err as { message?: string };
+          return {
+            status: ERROR_STATUS,
+            summary: callError.message ?? "Unknown error",
+            error: callError.message ?? "Unknown error",
+          };
         }
       },
     };

@@ -282,7 +282,9 @@ export function useChatStream() {
             }
             store.setAgentState("completed");
           } else if (data.type === PACKET_TYPES.ERROR) {
-            lastMessage.content = `Error: ${data.content || "Stream execution failed"}`;
+            const errDetail = data.content || "Stream execution failed";
+            const currentContent = lastMessage.content || "";
+            lastMessage.content = currentContent ? `${currentContent}\n\n[Error: ${errDetail}]` : `Error: ${errDetail}`;
             store.setAgentState("error");
           } else if (data.type === PACKET_TYPES.SYSTEM_NOTICE) {
             const notice: SystemNotice = {
@@ -354,9 +356,11 @@ export function useChatStream() {
       if (currentMsgs.length === 0) return;
       const lastIdx = currentMsgs.length - 1;
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch response from agent.";
+      const prevContent = currentMsgs[lastIdx]?.content || "";
+      const updatedContent = prevContent ? `${prevContent}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`;
       const lastMessage = {
         ...currentMsgs[lastIdx],
-        content: `Error: ${errorMessage}`,
+        content: updatedContent,
       };
       store.setMessages([...currentMsgs.slice(0, -1), lastMessage]);
     } finally {

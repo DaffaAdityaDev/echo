@@ -187,7 +187,7 @@ New pull capabilities MUST follow the same shape:
 
 - **Push builder**: `backend/internal/handler/chat/handler.go:340-366`
 - **Push schema**: `agent/src/adapter/inbound/api/missions/mission.schema.ts:217-279`
-- **Consumption**: `agent/src/adapter/inbound/api/missions/mission.controller.ts:87-110`
+- **Consumption**: `agent/src/adapter/inbound/api/missions/mission.controller.ts:96-119`
   (unknown feature id -> 400; features -> resolveTools; skills -> preferredTools fallback)
 - **Pull example**: `agent/src/adapter/outbound/backend/memory.adapter.ts`
 - **Service JWT**: `agent/src/shared/utils/jwt.ts:14-22` +

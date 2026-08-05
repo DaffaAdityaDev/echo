@@ -41,7 +41,7 @@ Terms reference definitions across these source files:
 |   middleware.ts                    | Auth constants                           |
 | agent/src/adapter/inbound/api/missions/        |                                          |
 |   mission.schema.ts                | Zod schema                               |
-|   mission.controller.ts            | MissionController                        |
+|   mission.controller.ts            | createMission / handleHitlDecision       |
 |   stream.transport.ts              | HttpStreamTransport                      |
 |   mission.constants.ts             | Mission constants                        |
 | agent/src/adapter/inbound/middleware/auth.ts   | Auth middleware                           |
@@ -287,13 +287,16 @@ follow OpenAI function-calling schema format.
 *Source: `docs/requirment_base.md:52-58`*
 
 **Mission**
-A single agent execution session. Created by the MissionController, run by the
-AgentHarness. Has a unique missionId, strategy type, and bounded toolset.
+A single agent execution session. Created by the `createMission` handler, run
+by the AgentHarness. Has a unique missionId, strategy type, and bounded
+toolset.
 *Source: `agent/src/adapter/inbound/api/missions/mission.controller.ts`*
 
-**MissionController**
-Hono controller handling mission creation. Safe-parses request body with Zod,
-creates AgentHarness, manages SSE stream lifecycle.
+**Mission Handlers (createMission / handleHitlDecision)**
+Module-level handler functions for mission management. `createMission`
+safe-parses the request body with Zod, creates the AgentHarness, and manages
+the SSE stream lifecycle; `handleHitlDecision` handles HITL approve/deny
+actions.
 *Source: `agent/src/adapter/inbound/api/missions/mission.controller.ts`*
 
 **MissionPayload**

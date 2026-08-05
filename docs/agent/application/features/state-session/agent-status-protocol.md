@@ -320,7 +320,7 @@ features/chat/components/DegradationToast.tsx:
 | Typed emit methods       | `harness/harness.ts:60-180`             | sendBase() + typed emit*() methods (no generic emit)  |
 | Packet types             | `shared/types/index.ts:17-36`                | AgentPacketType union                               |
 | Packet type shapes       | `shared/types/index.ts:56-80`                | HarnessPacket discriminated union (flat, no meta)   |
-| Heartbeat current        | `adapter/inbound/api/missions/mission.controller.ts:165` | SSE stream creation                                  |
+| Heartbeat current        | `adapter/inbound/api/missions/mission.controller.ts:152-158` | SSE stream creation                                  |
 | Frontend types           | `frontend/web/src/features/chat/types/       | StreamPacket discriminated union                     |
 |                          |   index.ts:102-138`                          |                                                      |
 | Cancel manager           | `harness/cancel_manager.ts`                  | Abort controller for disconnect detection             |

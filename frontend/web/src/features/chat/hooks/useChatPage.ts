@@ -77,6 +77,7 @@ export function useChatPage() {
   const { models } = useModels();
   const { isAuthenticated } = useAuth();
   const settingsConfig = useSettingsStore((s) => s.config);
+  const isLoading = useChatStore((s) => s.isLoading);
   const setSessions = useChatStore((s) => s.setSessions);
   const setActiveSession = useChatStore((s) => s.setActiveSession);
   const setMessages = useChatStore((s) => s.setMessages);
@@ -134,9 +135,9 @@ export function useChatPage() {
   }, [sessionsList, setSessions, setActiveSession, clearMessages]);
 
   useEffect(() => {
-    if (!messagesData) return;
+    if (!messagesData || isLoading) return;
     setMessages(groupMessagesByTurn(messagesData));
-  }, [messagesData, setMessages]);
+  }, [messagesData, isLoading, setMessages]);
 
   useEffect(() => {
     const defaultModel = settingsConfig.defaultModel;

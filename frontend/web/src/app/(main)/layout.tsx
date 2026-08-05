@@ -28,6 +28,7 @@ export default function MainAppLayout({ children }: { children: React.ReactNode 
           ) : (
             <main className="flex-1 min-h-0 overflow-y-auto p-6">
               <button
+                type="button"
                 className="md:hidden mb-4 p-2 rounded-lg bg-white border border-zinc-200 shadow-md cursor-pointer"
                 onClick={toggleSidebar}
                 aria-label="Open sidebar"

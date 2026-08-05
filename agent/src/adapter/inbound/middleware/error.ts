@@ -1,5 +1,7 @@
 import type { Context } from "hono";
-import { ERROR_MESSAGES, ERROR_TYPES } from "../../../shared/constants/errors";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { ERROR_MESSAGES, ERROR_STATUS, ERROR_TYPES } from "../../../shared/constants/errors";
+import { HTTP_STATUS } from "../../../shared/constants/http";
 import { AppError } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 
@@ -13,12 +15,12 @@ export function errorHandler(err: Error, c: Context) {
     });
     return c.json(
       {
-        status: "error",
+        status: ERROR_STATUS,
         error_type: ERROR_TYPES.APPLICATION_ERROR,
         message: err.message,
         ...(err.errors && { details: err.errors }),
       },
-      err.statusCode as any,
+      err.statusCode as ContentfulStatusCode,
     );
   }
 
@@ -27,11 +29,11 @@ export function errorHandler(err: Error, c: Context) {
     logger.error(`LLM Rate Limit encountered [Request: ${requestId}]: ${errMsg}`);
     return c.json(
       {
-        status: "error",
+        status: ERROR_STATUS,
         error_type: ERROR_TYPES.RATE_LIMIT,
         message: ERROR_MESSAGES.RATE_LIMIT,
       },
-      429,
+      HTTP_STATUS.TOO_MANY_REQUESTS,
     );
   }
 
@@ -39,11 +41,11 @@ export function errorHandler(err: Error, c: Context) {
     logger.error(`Upstream timeout encountered [Request: ${requestId}]: ${errMsg}`);
     return c.json(
       {
-        status: "error",
+        status: ERROR_STATUS,
         error_type: ERROR_TYPES.TIMEOUT,
         message: ERROR_MESSAGES.TIMEOUT,
       },
-      504,
+      HTTP_STATUS.GATEWAY_TIMEOUT,
     );
   }
 
@@ -51,11 +53,11 @@ export function errorHandler(err: Error, c: Context) {
     logger.warn(`Invalid JSON payload submitted [Request: ${requestId}]: ${errMsg}`);
     return c.json(
       {
-        status: "error",
+        status: ERROR_STATUS,
         error_type: ERROR_TYPES.BAD_REQUEST,
         message: ERROR_MESSAGES.BAD_REQUEST,
       },
-      400,
+      HTTP_STATUS.BAD_REQUEST,
     );
   }
 
@@ -66,6 +68,6 @@ export function errorHandler(err: Error, c: Context) {
       error_type: ERROR_TYPES.INTERNAL_SERVER,
       message: process.env.NODE_ENV === "production" ? ERROR_MESSAGES.INTERNAL_SERVER : err.message,
     },
-    500,
+    HTTP_STATUS.INTERNAL_SERVER_ERROR,
   );
 }

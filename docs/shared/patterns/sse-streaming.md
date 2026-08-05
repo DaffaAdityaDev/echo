@@ -300,7 +300,7 @@ console noise on intentional cancellation.
 +-------------------------------------------------------+-------+---------------------------------------+
 | File                                                  | Lines | Role                                  |
 +-------------------------------------------------------+-------+---------------------------------------+
-| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 85-116| SSE stream creation                   |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 152-158| SSE stream creation                   |
 | agent/src/adapter/inbound/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
 | agent/src/core/agent/harness/cancel_manager.ts        | 1-40  | Abort signal per mission              |
 | backend/internal/handler/chat/handler.go              | 92-233| HandleChat SSE proxy                  |

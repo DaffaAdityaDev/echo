@@ -26,6 +26,10 @@ const mockWriteTodosTool: ToolDefinition = {
   keywords: ["todos"],
 };
 
+function seedTool(registry: ToolRegistry, tool: ToolDefinition): void {
+  (registry as unknown as { tools: Map<string, ToolDefinition> }).tools.set(tool.name, tool);
+}
+
 describe("ToolRegistry", () => {
   let registry: ToolRegistry;
   let origWebSearch: (() => Promise<{ default: ToolDefinition } | ToolDefinition>) | undefined;
@@ -78,10 +82,10 @@ describe("ToolRegistry", () => {
 
   describe("getTool", () => {
     test("returns tool definition for known tool", () => {
-      (registry as any).tools.set("web_search", mockWebSearchTool);
-      const tool = registry.getTool("web_search");
+      seedTool(registry, mockWebSearchTool);
+      const tool = registry.getTool("web_search") as ToolDefinition;
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("web_search");
+      expect(tool.name).toBe("web_search");
     });
 
     test("returns undefined for nonexistent tool", () => {
@@ -92,8 +96,8 @@ describe("ToolRegistry", () => {
 
   describe("getAllTools", () => {
     test("returns all registered tools", () => {
-      (registry as any).tools.set("web_search", mockWebSearchTool);
-      (registry as any).tools.set("delegate_task", mockDelegateTaskTool);
+      seedTool(registry, mockWebSearchTool);
+      seedTool(registry, mockDelegateTaskTool);
       const all = registry.getAllTools();
       expect(all).toHaveLength(2);
     });
@@ -120,9 +124,9 @@ describe("ToolRegistry", () => {
     });
 
     test("uses loaded tool definitions for name and description", () => {
-      (registry as any).tools.set("web_search", mockWebSearchTool);
-      (registry as any).tools.set("delegate_task", mockDelegateTaskTool);
-      (registry as any).tools.set("write_todos", mockWriteTodosTool);
+      seedTool(registry, mockWebSearchTool);
+      seedTool(registry, mockDelegateTaskTool);
+      seedTool(registry, mockWriteTodosTool);
       const features = getImplementedFeatures(registry);
       expect(features).toEqual([
         { id: "delegate_task", name: "delegate_task", description: "Delegates a task to a sub-agent" },
@@ -132,14 +136,14 @@ describe("ToolRegistry", () => {
     });
 
     test("does not include tools outside the LAZY_TOOLS registry", () => {
-      (registry as any).tools.set("delegate_task", mockDelegateTaskTool);
+      seedTool(registry, mockDelegateTaskTool);
       const mcpTool: ToolDefinition = {
         name: "mcp_only_tool",
         description: "Only reachable via MCP",
         schema: z.object({}),
         execute: async () => ({ status: "success" as const, summary: "mcp" }),
       };
-      (registry as any).tools.set("mcp_only_tool", mcpTool);
+      seedTool(registry, mcpTool);
       const features = getImplementedFeatures(registry);
       expect(features.map((f) => f.id)).not.toContain("mcp_only_tool");
     });

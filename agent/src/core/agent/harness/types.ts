@@ -1,10 +1,31 @@
-import {
-  AgentState,
-  type AgentStrategy,
-  type HarnessFeatureToggles,
-  type LLMProvider,
-  type ToolDefinition,
-} from "../../../shared/types";
+import type { AgentStrategy, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
+
+export type HarnessEvent = {
+  type: string;
+  missionId: string;
+  step?: number;
+  content?: string;
+  toolName?: string;
+  toolInput?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+export interface HarnessRuntimeConfig {
+  circuitBreaker?: {
+    enabled?: boolean;
+    openAfter?: number;
+    maxRetriesPerTool?: number;
+  };
+  degradation?: {
+    enabled?: boolean;
+    degradeAfter?: number;
+    abortAfter?: number;
+  };
+  agentStatus?: {
+    heartbeatInterval?: number;
+  };
+}
 
 export interface HarnessConfig {
   provider: LLMProvider;
@@ -14,7 +35,7 @@ export interface HarnessConfig {
   harnessType?: string;
   tools?: ToolDefinition[];
   skills?: string[];
-  harnessConfig?: any;
+  harnessConfig?: Partial<HarnessFeatureToggles> & HarnessRuntimeConfig;
   delegationDepth?: number;
   initialCostUsd?: number;
 }

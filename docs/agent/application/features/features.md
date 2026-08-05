@@ -179,8 +179,8 @@ compared against `ENV.INTERNAL_AUTH_TOKEN`; failure returns 403.
 |                    |                             |   LAZY_TOOLS + getAllTools()                 |
 | Lazy tool map      | `registry.ts:14-18`         | LAZY_TOOLS: featureId -> lazy import         |
 | Tool resolution    | `registry.ts:125-160`       | resolveTools(features)                       |
-| Unknown feature    | `mission.controller.ts:87-97` | 400 `{"error": "Unknown feature '<id>'"}`   |
-| Auth middleware    | `middleware/auth.ts:6-40`   | X-Internal-Token vs INTERNAL_AUTH_TOKEN      |
+| Unknown feature    | `mission.controller.ts:96-106` | 400 `{"error": "Unknown feature '<id>'"}`   |
+| Auth middleware    | `middleware/auth.ts:8-42`   | X-Internal-Token vs INTERNAL_AUTH_TOKEN      |
 | Route wiring       | `api/routes.ts:14`          | `router.route("/", featuresRouter)`          |
 | App wiring         | `index.ts:48,52`            | auth on /api/*, routes at /api               |
 | Backend catalog    | `backend/migrations/009_    | features table (tier_requirement, ui_schema, |

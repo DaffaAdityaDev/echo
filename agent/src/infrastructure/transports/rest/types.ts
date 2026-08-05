@@ -12,7 +12,7 @@ export interface RestToolConfig {
   headers?: Record<string, string>;
   global_headers?: Record<string, string>;
   params?: Record<string, string>;
-  schema?: { type: "object"; properties: Record<string, any>; required?: string[] };
+  schema?: { type: "object"; properties: Record<string, unknown>; required?: string[] };
   auth?: RestAuthConfig;
   timeout?: number;
   url_interpolation?: boolean;

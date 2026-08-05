@@ -3,6 +3,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { z } from "zod";
 import type { CredentialManager } from "../../../core/agent/credentials";
+import { ERROR_STATUS } from "../../../shared/constants/errors";
 import type { Observation, ToolDefinition } from "../../../shared/types";
 import { jsonSchemaToZod } from "./schema-converter";
 import type { McpServerConfig } from "./types";
@@ -48,7 +49,7 @@ export class MCPClient {
       });
     }
 
-    await withRetry(() => this.client.connect(this.transport!));
+    await withRetry(() => this.client.connect(this.transport as SSEClientTransport | StdioClientTransport));
     this.connected = true;
   }
 
@@ -60,11 +61,12 @@ export class MCPClient {
   }
 
   async discoverTools(): Promise<ToolDefinition[]> {
-    let result;
+    let result: Awaited<ReturnType<Client["listTools"]>>;
     try {
       result = await this.client.listTools();
-    } catch (err: any) {
-      throw new Error(`Failed to discover MCP tools from ${this.serverConfig.name}: ${err.message}`);
+    } catch (err: unknown) {
+      const discoverError = err as { message?: string };
+      throw new Error(`Failed to discover MCP tools from ${this.serverConfig.name}: ${discoverError.message}`);
     }
     const mcpTools = result.tools || [];
 
@@ -76,10 +78,10 @@ export class MCPClient {
       return {
         name: toolName,
         description: mcpTool.description ?? "",
-        schema: converted as unknown as z.ZodObject<any>,
-        execute: async (input: any): Promise<Observation> => {
+        schema: converted as unknown as z.ZodObject<z.ZodRawShape>,
+        execute: async (input: unknown): Promise<Observation> => {
           try {
-            const resolvedInput = { ...(input ?? {}) };
+            const resolvedInput = (input ?? {}) as Record<string, unknown>;
             if (this.credentialManager && this.serverConfig.credentials) {
               this.credentialManager.registerToolCredentials(toolName, this.serverConfig.credentials);
               const mappings = this.credentialManager.getMappings(toolName);
@@ -94,10 +96,17 @@ export class MCPClient {
                 arguments: resolvedInput,
               }),
             );
-            const text = (callResult as any).content?.[0]?.text ?? (callResult as any).content?.[0] ?? "ok";
+            const firstContent = (callResult.content as Array<{ text?: string }> | undefined)?.[0];
+            const text =
+              (firstContent as { text?: string } | undefined)?.text ?? (firstContent as string | undefined) ?? "ok";
             return { status: "success", summary: String(text) };
-          } catch (err: any) {
-            return { status: "error", summary: err.message, error: err.message };
+          } catch (err: unknown) {
+            const callError = err as { message?: string };
+            return {
+              status: ERROR_STATUS,
+              summary: callError.message ?? "Unknown error",
+              error: callError.message ?? "Unknown error",
+            };
           }
         },
       };

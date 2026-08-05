@@ -90,7 +90,7 @@ function mapHistoryToMessages(
 
 Converts raw API message history (from the `POST /api/generate-mission` body)
 into LangChain `HumanMessage` and `AIMessage` objects. Used in
-`MissionController.createMission()`.
+`createMission()`.
 
 ---
 

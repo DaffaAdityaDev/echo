@@ -1,4 +1,4 @@
-import { type AIMessageChunk, SystemMessage } from "@langchain/core/messages";
+import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { LLM_CONFIG } from "../../../shared/constants";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
@@ -18,7 +18,7 @@ export class OpenAIProvider implements LLMProvider {
     this.chat = new ChatOpenAI({
       configuration: {
         baseURL,
-        fetch: (url: any, options: any) => this.interceptor.interceptFetch(url, options),
+        fetch: (url: string | URL | Request, options?: RequestInit) => this.interceptor.interceptFetch(url, options),
       },
       modelName,
       apiKey,
@@ -67,7 +67,7 @@ export class OpenAIProvider implements LLMProvider {
     return 128_000;
   }
 
-  async *stream(messages: any[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({
@@ -111,7 +111,8 @@ export class OpenAIProvider implements LLMProvider {
         const lastId = accumulatedChunk.id;
         const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
 
-        const cachedTokens = (usage as any).input_token_details?.cache_read ?? 0;
+        const cachedTokens =
+          (usage as { input_token_details?: { cache_read?: number } }).input_token_details?.cache_read ?? 0;
         yield {
           usage: {
             promptTokens: usage.input_tokens ?? 0,

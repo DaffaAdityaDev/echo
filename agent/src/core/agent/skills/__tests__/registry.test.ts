@@ -10,11 +10,11 @@ describe("SkillRegistry", () => {
 
   describe("getSkill", () => {
     test("returns skill definition for known skill", () => {
-      const skill = registry.getSkill("coding");
+      const skill = registry.getSkill("coding") as SkillDefinition;
       expect(skill).toBeDefined();
-      expect(skill!.name).toBe("coding");
-      expect(skill!.description).toBeDefined();
-      expect(skill!.systemPrompt).toBeDefined();
+      expect(skill.name).toBe("coding");
+      expect(skill.description).toBeDefined();
+      expect(skill.systemPrompt).toBeDefined();
     });
 
     test("returns undefined for nonexistent skill", () => {
@@ -58,8 +58,8 @@ describe("SkillRegistry", () => {
         description: "Overridden",
         systemPrompt: "Overridden prompt",
       });
-      const skill = registry.getSkill("coding");
-      expect(skill!.description).toBe("Overridden");
+      const skill = registry.getSkill("coding") as SkillDefinition;
+      expect(skill.description).toBe("Overridden");
     });
   });
 

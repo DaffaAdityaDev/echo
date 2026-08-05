@@ -1,5 +1,7 @@
 import type { Context, Next } from "hono";
 import { ENV } from "../../../config/env";
+import { ERROR_STATUS } from "../../../shared/constants/errors";
+import { HTTP_STATUS } from "../../../shared/constants/http";
 import { AUTH_CONSTANTS } from "../../../shared/constants/middleware";
 import { logger } from "../../../shared/utils/logger";
 
@@ -17,7 +19,7 @@ export async function authMiddleware(c: Context, next: Next) {
   const xInternalHeader = c.req.header(AUTH_CONSTANTS.HEADER_INTERNAL_TOKEN);
 
   let receivedToken = "";
-  if (authHeader && authHeader.startsWith(AUTH_CONSTANTS.BEARER_PREFIX)) {
+  if (authHeader?.startsWith(AUTH_CONSTANTS.BEARER_PREFIX)) {
     receivedToken = authHeader.substring(AUTH_CONSTANTS.BEARER_PREFIX.length);
   } else if (xInternalHeader) {
     receivedToken = xInternalHeader;
@@ -29,10 +31,10 @@ export async function authMiddleware(c: Context, next: Next) {
     );
     return c.json(
       {
-        status: "error",
+        status: ERROR_STATUS,
         message: AUTH_CONSTANTS.FORBIDDEN_MESSAGE,
       },
-      403,
+      HTTP_STATUS.FORBIDDEN,
     );
   }
 

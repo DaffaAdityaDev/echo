@@ -45,18 +45,22 @@ class FakeOpenCodeGo {
 import { ProviderFactory } from "../factory";
 
 describe("ProviderFactory", () => {
-  let origRegistry: Map<string, new (...args: any[]) => any>;
+  let origRegistry: Map<string, unknown>;
+  let origOpenAI: unknown;
 
   beforeAll(() => {
-    origRegistry = Reflect.get(ProviderFactory, "registry") as Map<string, new (...args: any[]) => any>;
-    origRegistry.set("openai", FakeOpenAI as any);
-    origRegistry.set("anthropic", FakeAnthropic as any);
-    origRegistry.set("lm-studio", FakeLMStudio as any);
-    origRegistry.set("opencode-go", FakeOpenCodeGo as any);
+    origRegistry = Reflect.get(ProviderFactory, "registry") as Map<string, unknown>;
+    origOpenAI = origRegistry.get("openai");
+    origRegistry.set("openai", FakeOpenAI);
+    origRegistry.set("anthropic", FakeAnthropic);
+    origRegistry.set("lm-studio", FakeLMStudio);
+    origRegistry.set("opencode-go", FakeOpenCodeGo);
   });
 
   afterAll(() => {
-    origRegistry.set("openai", origRegistry.get("openai")!);
+    if (origOpenAI !== undefined) {
+      origRegistry.set("openai", origOpenAI);
+    }
   });
 
   it('type="openai" returns OpenAIProvider', () => {
@@ -85,14 +89,18 @@ describe("ProviderFactory", () => {
       base_url: "http://x.com",
       model: "gpt-4o",
       api_key: "sk-test",
-    }) as any;
+    }) as unknown as { baseURL: string; modelName: string; apiKey?: string };
     expect(p.baseURL).toBe("http://x.com");
     expect(p.modelName).toBe("gpt-4o");
     expect(p.apiKey).toBe("sk-test");
   });
 
   it("unknown type falls back to OpenAIProvider (module-level fallback)", () => {
-    const p = ProviderFactory.fromConfig({ type: "unknown" as any, base_url: "http://d", model: "fallback" });
+    const p = ProviderFactory.fromConfig({
+      type: "unknown",
+      base_url: "http://d",
+      model: "fallback",
+    } as unknown as Parameters<typeof ProviderFactory.fromConfig>[0]);
     expect(p).toBeDefined();
   });
 });

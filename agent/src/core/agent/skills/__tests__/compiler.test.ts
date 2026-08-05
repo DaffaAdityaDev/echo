@@ -17,7 +17,7 @@ describe("SkillCompiler", () => {
     expect(result).not.toContain("{style}");
   });
 
-  test("leaves ${var} in output when variable value is missing", () => {
+  test("keeps the placeholder text in output when a variable value is missing", () => {
     const skill: SkillDefinition = {
       name: "coding",
       description: "Code generation",

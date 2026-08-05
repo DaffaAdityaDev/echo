@@ -1,10 +1,15 @@
 import { logger } from "../../../../shared/utils/logger";
 
+export interface StreamPacket {
+  type: string;
+  [key: string]: unknown;
+}
+
 export class HttpStreamTransport {
   private seq = 0;
-  constructor(private streamInstance: any) {}
+  constructor(private streamInstance: { writeSSE: (packet: { data: string }) => unknown }) {}
 
-  async send(packet: any): Promise<void> {
+  async send(packet: StreamPacket): Promise<void> {
     this.seq++;
     const enriched = {
       ...packet,
@@ -15,8 +20,10 @@ export class HttpStreamTransport {
       await this.streamInstance.writeSSE({
         data: JSON.stringify(enriched),
       });
-    } catch (err: any) {
-      logger.warn(`HttpStreamTransport: Failed to write packet to stream: ${err.message}`);
+    } catch (err: unknown) {
+      logger.warn(
+        `HttpStreamTransport: Failed to write packet to stream: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }

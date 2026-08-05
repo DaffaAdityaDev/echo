@@ -1,4 +1,4 @@
-import type { AgentStatus } from "../../../../../shared/types";
+import type { AgentStatus } from "../../../shared/types";
 
 export class AgentStatusTracker {
   private status: AgentStatus;

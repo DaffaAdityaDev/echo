@@ -42,7 +42,7 @@ if (isDummyKey || isExplicitlyDisabled) {
   });
 
   const sdk = new NodeSDK({
-    spanProcessors: [langfuseSpanProcessor as any],
+    spanProcessors: [langfuseSpanProcessor],
   });
 
   try {

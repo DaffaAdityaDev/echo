@@ -1,4 +1,4 @@
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import OpenAI from "openai";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { langfuseStorage } from "../../../shared/utils/langfuse";
@@ -9,12 +9,27 @@ function contentToString(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter((b: any) => b?.type === "text")
-      .map((b: any) => b.text ?? "")
+      .filter((b: { type?: string }) => b?.type === "text")
+      .map((b: { text?: string }) => b.text ?? "")
       .join("\n");
   }
   return "";
 }
+
+type ApiToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
+
+type ApiAssistantMessage = {
+  role: "assistant";
+  content: string;
+  tool_calls?: ApiToolCall[];
+  reasoning_content?: unknown;
+};
+
+type ApiMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | ApiAssistantMessage
+  | { role: "tool"; content: string; tool_call_id: string };
 
 export class OpenCodeGoProvider implements LLMProvider {
   private client: OpenAI;
@@ -29,23 +44,24 @@ export class OpenCodeGoProvider implements LLMProvider {
     this.client = new OpenAI({
       baseURL,
       apiKey,
-      fetch: (url: any, options: any) => this.interceptor.interceptFetch(url, options),
+      fetch: (url, options) => this.interceptor.interceptFetch(url, options),
     });
   }
 
-  private serializeMessages(messages: any[], systemPrompt: string): any[] {
-    const result: any[] = [{ role: "system", content: systemPrompt }];
+  private serializeMessages(messages: BaseMessage[], systemPrompt: string): ApiMessage[] {
+    const result: ApiMessage[] = [{ role: "system", content: systemPrompt }];
     for (const msg of messages) {
       if (msg instanceof SystemMessage || msg._getType?.() === "system") {
         result.push({ role: "system", content: contentToString(msg.content) });
       } else if (msg instanceof HumanMessage || msg._getType?.() === "human") {
         result.push({ role: "user", content: contentToString(msg.content) });
       } else if (msg instanceof AIMessage || msg._getType?.() === "ai") {
-        const entry: any = { role: "assistant", content: contentToString(msg.content) };
-        if (msg.tool_calls && msg.tool_calls.length > 0) {
-          entry.tool_calls = msg.tool_calls.map((tc: any) => ({
+        const entry: ApiAssistantMessage = { role: "assistant", content: contentToString(msg.content) };
+        const aiMessage = msg as AIMessage;
+        if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+          entry.tool_calls = aiMessage.tool_calls.map((tc) => ({
             id: tc.id || `call_${Date.now()}`,
-            type: "function",
+            type: "function" as const,
             function: {
               name: tc.name,
               arguments: typeof tc.args === "string" ? tc.args : JSON.stringify(tc.args),
@@ -59,7 +75,7 @@ export class OpenCodeGoProvider implements LLMProvider {
       } else if (msg instanceof ToolMessage || msg._getType?.() === "tool") {
         result.push({
           role: "tool",
-          tool_call_id: msg.tool_call_id,
+          tool_call_id: (msg as ToolMessage).tool_call_id,
           content:
             typeof msg.content === "string" ? msg.content : contentToString(msg.content) || JSON.stringify(msg.content),
         });
@@ -68,7 +84,7 @@ export class OpenCodeGoProvider implements LLMProvider {
     return result;
   }
 
-  async *stream(messages: any[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
     const apiMessages = this.serializeMessages(messages, systemPrompt);
     const apiTools =
       tools.length > 0
@@ -88,9 +104,9 @@ export class OpenCodeGoProvider implements LLMProvider {
     if (tools.length > 0) {
       logger.info(`[OpenCodeGoProvider.stream] Tool names: ${tools.map((t) => t.name).join(", ")}`);
       try {
-        const schemaSample = JSON.stringify(apiTools![0].function.parameters).substring(0, 300);
+        const schemaSample = JSON.stringify(apiTools?.[0].function.parameters).substring(0, 300);
         logger.info(`[OpenCodeGoProvider.stream] First tool schema (truncated): ${schemaSample}`);
-      } catch (e) {}
+      } catch {}
     } else {
       logger.info(`[OpenCodeGoProvider.stream] No tools provided — sending request without tools parameter`);
     }
@@ -114,7 +130,7 @@ export class OpenCodeGoProvider implements LLMProvider {
     const targetModel = this.modelName.replace(/^opencode-go\//i, "");
 
     try {
-      let responseStream;
+      let responseStream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
       try {
         logger.info(
           `[OpenCodeGoProvider.stream] Calling API: model=${targetModel} messages=${apiMessages.length} tools=${apiTools?.length ?? 0}`,
@@ -122,21 +138,25 @@ export class OpenCodeGoProvider implements LLMProvider {
         responseStream = await this.client.chat.completions.create({
           model: targetModel,
           messages: apiMessages,
-          tools: apiTools as any,
+          tools: apiTools,
           stream: true,
           stream_options: { include_usage: true },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const e =
+          err instanceof Error
+            ? (err as Error & { status?: number; code?: string; type?: string })
+            : (err as { message?: string; status?: number; code?: string; type?: string });
         logger.error(
-          `❌ [OpenCodeGoProvider] Stream request failed for model '${this.modelName}' at '${this.baseURL}': ${err?.message}`,
+          `❌ [OpenCodeGoProvider] Stream request failed for model '${this.modelName}' at '${this.baseURL}': ${e?.message}`,
           {
-            status: err?.status,
-            code: err?.code,
-            type: err?.type,
+            status: e?.status,
+            code: e?.code,
+            type: e?.type,
             error: err,
           },
         );
-        const errMsg = (err?.message || "").toLowerCase();
+        const errMsg = (e?.message || "").toLowerCase();
         if (errMsg.includes("multimodal") || errMsg.includes("image")) {
           if (generation) {
             generation.end({
@@ -186,7 +206,9 @@ export class OpenCodeGoProvider implements LLMProvider {
 
         if (chunk.usage) {
           const reasoningTokenCount = this.interceptor.getReasoningTokenCount(messageId);
-          const cachedTokens = (chunk.usage as any).prompt_tokens_details?.cached_tokens ?? 0;
+          const cachedTokens =
+            (chunk.usage as unknown as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details
+              ?.cached_tokens ?? 0;
           const promptTokens = chunk.usage.prompt_tokens ?? 0;
           const completionTokens = chunk.usage.completion_tokens ?? 0;
           const totalTokens = chunk.usage.total_tokens ?? 0;
@@ -250,10 +272,11 @@ export class OpenCodeGoProvider implements LLMProvider {
       if (finalUsageEvent) {
         yield finalUsageEvent;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const streamError = err as { message?: string };
       if (generation && !isEnded) {
         generation.end({
-          output: err?.message || "Stream error",
+          output: streamError.message || "Stream error",
           level: "ERROR",
         });
         isEnded = true;

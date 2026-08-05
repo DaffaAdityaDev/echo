@@ -14,7 +14,7 @@ import { STANDARD_PROMPTS } from "./prompts";
 export class StandardStrategy implements AgentStrategy {
   name = STRATEGY_NAMES.STANDARD;
 
-  buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string {
+  buildSystemPrompt(_state: AgentState, _tools: ToolDefinition[]): string {
     return STANDARD_PROMPTS.STANDARD_SYSTEM;
   }
 }

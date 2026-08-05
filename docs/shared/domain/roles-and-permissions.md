@@ -278,7 +278,7 @@ INTERNAL_AUTH_TOKEN=default-internal-token-secret
 ```
 
 The agent enforces it on all `/api/*` routes except `/docs`
-(`agent/src/adapter/inbound/middleware/auth.ts:6-40`, wired in
+(`agent/src/adapter/inbound/middleware/auth.ts:8-42`, wired in
 `agent/src/index.ts:48`).
 
 ## Feature Constants

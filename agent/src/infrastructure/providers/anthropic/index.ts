@@ -1,5 +1,5 @@
 import { ChatAnthropic } from "@langchain/anthropic";
-import { type AIMessageChunk, SystemMessage } from "@langchain/core/messages";
+import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { LLM_CONFIG } from "../../../shared/constants";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { getLangChainCallbacks } from "../../../shared/utils/langfuse";
@@ -22,15 +22,15 @@ export class AnthropicProvider implements LLMProvider {
       streaming: true,
       clientOptions: {
         ...(baseURL ? { baseURL } : {}),
-        fetch: (url: any, options: any) => this.interceptor.interceptFetch(url, options),
+        fetch: (url: string | URL | Request, options?: RequestInit) => this.interceptor.interceptFetch(url, options),
       },
     });
     this.maxContextTokens = 200000;
   }
 
-  async *stream(messages: any[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
     const systemParts = [systemPrompt];
-    const nonSystemMessages = messages.filter((m: any) => {
+    const nonSystemMessages = messages.filter((m: BaseMessage) => {
       if (m._getType() === "system") {
         systemParts.push(m.content as string);
         return false;
@@ -54,7 +54,7 @@ export class AnthropicProvider implements LLMProvider {
       schema: t.schema,
       cache_control: { type: "ephemeral" as const },
     }));
-    const chatWithTools = this.chat.bindTools(lcTools as any);
+    const chatWithTools = this.chat.bindTools(lcTools as unknown as Parameters<typeof this.chat.bindTools>[0]);
     const callbacks = await getLangChainCallbacks();
     const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
 
@@ -86,7 +86,8 @@ export class AnthropicProvider implements LLMProvider {
       if (usage) {
         const lastId = accumulatedChunk.id;
         const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
-        const cachedTokens = (usage as any).input_token_details?.cache_read ?? 0;
+        const cachedTokens =
+          (usage as { input_token_details?: { cache_read?: number } }).input_token_details?.cache_read ?? 0;
         yield {
           usage: {
             promptTokens: usage.input_tokens ?? 0,

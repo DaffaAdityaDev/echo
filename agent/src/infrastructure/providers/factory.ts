@@ -11,16 +11,18 @@ export interface ProviderConnectionConfig {
   model: string;
 }
 
-export class ProviderFactory {
-  private static registry = new Map<string, new (...args: any[]) => LLMProvider>([
+type ProviderCtor = new (baseUrl: string, modelName: string, apiKey?: string) => LLMProvider;
+
+export const ProviderFactory = {
+  registry: new Map<string, ProviderCtor>([
     ["opencode-go", OpenCodeGoProvider],
     ["lm-studio", LMStudioProvider],
     ["anthropic", AnthropicProvider],
     ["openai", OpenAIProvider],
-  ]);
+  ]),
 
-  static fromConfig(config: ProviderConnectionConfig): LLMProvider {
+  fromConfig(config: ProviderConnectionConfig): LLMProvider {
     const Provider = ProviderFactory.registry.get(config.type) ?? OpenAIProvider;
     return new Provider(config.base_url, config.model, config.api_key);
-  }
-}
+  },
+};

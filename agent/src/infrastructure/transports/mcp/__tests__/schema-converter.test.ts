@@ -207,7 +207,7 @@ describe("jsonSchemaToZod", () => {
         required: ["a"],
       };
       const zodSchema = jsonSchemaToZod(schema);
-      const shape = (zodSchema as z.ZodObject<any>).shape;
+      const shape = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
       expect(shape.a).not.toBeInstanceOf(z.ZodOptional);
       expect(shape.b).toBeInstanceOf(z.ZodOptional);
     });
@@ -221,7 +221,7 @@ describe("jsonSchemaToZod", () => {
         },
       };
       const zodSchema = jsonSchemaToZod(schema);
-      const shape = (zodSchema as z.ZodObject<any>).shape;
+      const shape = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
       expect(shape.a).toBeInstanceOf(z.ZodOptional);
       expect(shape.b).toBeInstanceOf(z.ZodOptional);
     });

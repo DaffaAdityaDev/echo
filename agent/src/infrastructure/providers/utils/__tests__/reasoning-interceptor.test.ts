@@ -1,5 +1,9 @@
 import { ReasoningInterceptor } from "../reasoning-interceptor";
 
+function stubFetch(handler: () => Response | Promise<Response>): typeof fetch {
+  return handler as unknown as typeof fetch;
+}
+
 function sseResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -26,12 +30,13 @@ describe("ReasoningInterceptor", () => {
 
   it("extracts reasoning_content from OpenAI-style SSE chunks", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
+    globalThis.fetch = stubFetch(async () =>
       sseResponse([
         'data: {"id":"msg_1","choices":[{"delta":{"reasoning_content":"deep thinking"}}]}\n\n',
         'data: {"id":"msg_1","choices":[{"delta":{"content":"Hello world"}}]}\n\n',
         "data: [DONE]\n\n",
-      ]);
+      ]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
 
@@ -47,8 +52,9 @@ describe("ReasoningInterceptor", () => {
 
   it("handles chunks without any reasoning", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
-      sseResponse(['data: {"id":"msg_2","choices":[{"delta":{"content":"only content"}}]}\n\n', "data: [DONE]\n\n"]);
+    globalThis.fetch = stubFetch(async () =>
+      sseResponse(['data: {"id":"msg_2","choices":[{"delta":{"content":"only content"}}]}\n\n', "data: [DONE]\n\n"]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
     const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
@@ -62,13 +68,14 @@ describe("ReasoningInterceptor", () => {
 
   it("accumulates reasoning across multiple SSE chunks", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
+    globalThis.fetch = stubFetch(async () =>
       sseResponse([
         'data: {"id":"msg_3","choices":[{"delta":{"reasoning_content":"step one"}}]}\n\n',
         'data: {"id":"msg_3","choices":[{"delta":{"reasoning_content":" step two"}}]}\n\n',
         'data: {"id":"msg_3","choices":[{"delta":{"content":"final answer"}}]}\n\n',
         "data: [DONE]\n\n",
-      ]);
+      ]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
     const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
@@ -82,11 +89,12 @@ describe("ReasoningInterceptor", () => {
 
   it("getDelta returns only new delta since last call", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
+    globalThis.fetch = stubFetch(async () =>
       sseResponse([
         'data: {"id":"msg_4","choices":[{"delta":{"reasoning_content":"abc def"}}]}\n\n',
         "data: [DONE]\n\n",
-      ]);
+      ]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
     const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
@@ -103,11 +111,12 @@ describe("ReasoningInterceptor", () => {
 
   it("extracts reasoning from Anthropic thinking_delta format", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
+    globalThis.fetch = stubFetch(async () =>
       sseResponse([
         'data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"claude reasoning"}}\n\n',
         "data: [DONE]\n\n",
-      ]);
+      ]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/messages", {});
     const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
@@ -128,11 +137,12 @@ describe("ReasoningInterceptor", () => {
 
   it("getReasoningTokenCount counts words in stored reasoning", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () =>
+    globalThis.fetch = stubFetch(async () =>
       sseResponse([
         'data: {"id":"msg_t","choices":[{"delta":{"reasoning_content":"one two three four"}}]}\n\n',
         "data: [DONE]\n\n",
-      ]);
+      ]),
+    );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
     const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
@@ -145,7 +155,7 @@ describe("ReasoningInterceptor", () => {
 
   it("interceptFetch passes through non-LLM URLs without processing", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () => new Response("ok", { status: 200 });
+    globalThis.fetch = stubFetch(async () => new Response("ok", { status: 200 }));
 
     const resp = await interceptor.interceptFetch("http://test/health", {});
     expect(resp.status).toBe(200);
@@ -155,7 +165,7 @@ describe("ReasoningInterceptor", () => {
 
   it("interceptFetch returns response as-is on HTTP error", async () => {
     const interceptor = new ReasoningInterceptor();
-    globalThis.fetch = async () => new Response("error body", { status: 400, statusText: "Bad Request" });
+    globalThis.fetch = stubFetch(async () => new Response("error body", { status: 400, statusText: "Bad Request" }));
 
     const resp = await interceptor.interceptFetch("http://test/v1/chat/completions", {});
     expect(resp.status).toBe(400);

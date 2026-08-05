@@ -22,7 +22,7 @@ Respond with exactly "COMPLETE" (if it's a valid message/clarification/answer to
 }
 Return ONLY this structured JSON.`,
 
-  COMPACTION_SUMMARY_WRAPPER: (iteration: number, summaryText: string) => {
+  COMPACTION_SUMMARY_WRAPPER: (_iteration: number, summaryText: string) => {
     try {
       const cleaned = summaryText
         .replace(/```json\n?/g, "")
@@ -31,7 +31,10 @@ Return ONLY this structured JSON.`,
       const parsed = JSON.parse(cleaned);
       const nextSteps = Array.isArray(parsed.next_course_of_action)
         ? parsed.next_course_of_action
-            .map((item: any, i: number) => `${i + 1}. ${typeof item === "string" ? item : item.action}`)
+            .map(
+              (item: string | { action: string }, i: number) =>
+                `${i + 1}. ${typeof item === "string" ? item : item.action}`,
+            )
             .join("\n")
         : "";
 

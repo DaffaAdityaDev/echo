@@ -203,11 +203,31 @@ SSE Stream (via harness)
 |      |   failure                                            |           |
 | 401  | Missing or invalid JWT token                         | Go        |
 | 403  | Pro feature for free user, bad internal token        | Go, Agent |
-| 404  | Resource not found (planned)                         | Go        |
+| 404  | HITL approval expired/not found (Agent), resource     | Go, Agent |
+|      |   not found (planned)                                  |           |
 | 500  | Internal failures, agent unreachable, token          | Go, Agent |
 |      |   generation failure                                 |           |
 | 501  | Not implemented (register)                           | Go        |
 +------+------------------------------------------------------+-----------+
+
+## Agent HTTP Status Inventory
+
+Single source of truth: `agent/src/shared/constants/http.ts` — `HTTP_STATUS`.
+
+| Code | Used when                                                | Constant                          |
+|------|----------------------------------------------------------|-----------------------------------|
+| 400  | Validation failure, unknown feature, invalid HITL         | `HTTP_STATUS.BAD_REQUEST`         |
+|      |   decision, malformed request body                        |                                   |
+| 403  | Invalid/missing internal token (authMiddleware)           | `HTTP_STATUS.FORBIDDEN`           |
+| 404  | HITL approval expired or not found                        | `HTTP_STATUS.NOT_FOUND`           |
+| 429  | Upstream LLM provider rate limit                          | `HTTP_STATUS.TOO_MANY_REQUESTS`   |
+| 500  | Execution failure, unhandled exception, AppError default  | `HTTP_STATUS.INTERNAL_SERVER_ERROR` |
+| 502  | Provider unreachable (mission pre-validation)             | `HTTP_STATUS.BAD_GATEWAY`         |
+| 504  | Upstream LLM provider timeout                             | `HTTP_STATUS.GATEWAY_TIMEOUT`     |
+
+`ERROR_STATUS = "error"` (`shared/constants/errors.ts`) is the canonical value
+for `status`/`type` error fields across the middleware envelope, Observation
+results, and the in-stream error packet.
 
 ## In-Stream Error Events
 
@@ -228,7 +248,8 @@ thought steps.
 - **Go DB error constants**: `backend/internal/constants/db/postgres.go` —
   `ErrCreateUser`, `ErrGetUserEmail`, `ErrPostgres*`
 - **Agent error types**: `agent/src/shared/constants/errors.ts` — `ERROR_TYPES`,
-  `ERROR_MESSAGES`
+  `ERROR_MESSAGES`, `ERROR_STATUS`
+- **Agent HTTP status codes**: `agent/src/shared/constants/http.ts` — `HTTP_STATUS`
 - **Agent auth error**: `agent/src/shared/constants/middleware.ts` —
   `FORBIDDEN_MESSAGE`
 - **Frontend error handler**: `frontend/web/src/lib/api-client.ts:42-44`
@@ -253,10 +274,10 @@ thought steps.
 |                                                       | 203   |                                       |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy + messages        |
 | agent/src/shared/constants/middleware.ts              | 8     | Forbidden message                     |
-| agent/src/adapter/inbound/middleware/auth.ts                      | 25-28 | 403 response shape                    |
-| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 28-33,| Validation + execution errors         |
-|                                                       | 117-  |                                       |
-|                                                       | 119   |                                       |
+| agent/src/adapter/inbound/middleware/auth.ts                      | 27-30 | 403 response shape                    |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 37-42,| Validation + execution errors         |
+|                                                       | 126-  |                                       |
+|                                                       | 128   |                                       |
 | frontend/web/src/lib/api-client.ts                    | 42-44 | Standard request error                |
 | frontend/web/src/features/chat/api/useChatStream.ts   | 235-  | Stream error handler                  |
 |                                                       | 246   |                                       |

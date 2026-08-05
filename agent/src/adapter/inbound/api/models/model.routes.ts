@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { modelController } from "./model.controller";
+import { listModels } from "./model.controller";
 
 const modelRouter = new Hono();
 
-modelRouter.get("/models", (c) => modelController.listModels(c));
+modelRouter.get("/models", listModels);
 
 export default modelRouter;

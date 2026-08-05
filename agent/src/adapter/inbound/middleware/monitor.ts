@@ -10,7 +10,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
   const traceparent = c.req.header(MONITOR_CONSTANTS.HEADER_TRACEPARENT) || MONITOR_CONSTANTS.DEFAULT_TRACEPARENT;
   const shortId = requestId.slice(0, 8);
 
-  let bodySummary: any;
+  let bodySummary: Record<string, unknown> | undefined;
   if (method === MONITOR_CONSTANTS.METHOD_POST || method === MONITOR_CONSTANTS.METHOD_PUT) {
     try {
       const clonedReq = c.req.raw.clone();
@@ -20,7 +20,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
         const { history, ...rest } = parsed;
         bodySummary = rest;
       }
-    } catch (err) {
+    } catch (_err) {
       bodySummary = { error: MONITOR_CONSTANTS.BODY_ERROR_SUMMARY };
     }
   }

@@ -178,8 +178,8 @@ adapter/inbound/middleware/
 | AppError                 | `shared/utils/errors.ts:4-16`           | Base error with statusCode + isOperational            |
 | Logger                   | `shared/utils/logger.ts:92-165`         | info, warn, error, debug, langfuse, telemetry         |
 | mapHistoryToMessages     | `shared/utils/messages.ts:6-15`         | Maps `{ role, content }` to HumanMessage/AIMessage    |
-| Auth middleware           | `adapter/inbound/middleware/auth.ts:6-31`           | Token comparison against ENV.INTERNAL_AUTH_TOKEN      |
-| Error handler            | `adapter/inbound/middleware/error.ts:7-57`          | Pattern-matched error categories                      |
+| Auth middleware           | `adapter/inbound/middleware/auth.ts:8-33`           | Token comparison against ENV.INTERNAL_AUTH_TOKEN      |
+| Error handler            | `adapter/inbound/middleware/error.ts:8-58`          | Pattern-matched error categories                      |
 | Monitor middleware       | `adapter/inbound/middleware/monitor.ts:5-56`        | Request/response logging with timing                  |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 

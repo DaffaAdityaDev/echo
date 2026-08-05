@@ -6,6 +6,7 @@ import { logger } from "../../../../../shared/utils/logger";
 import { StandardContextAnchor } from "../../../anchors";
 import { NlahHarness } from "../../../harness";
 import { OPERATION_STATUS, PACKET_TYPES } from "../../../harness/constants";
+import type { HarnessEvent } from "../../../harness/types";
 import { DELEGATION_CONFIG, DELEGATION_DEFAULTS, SCHEMA_DESC } from "./constants";
 
 export const delegate_task: ToolDefinition = {
@@ -22,9 +23,9 @@ export const delegate_task: ToolDefinition = {
     input: { agentName: string; instruction: string; systemPrompt: string; fork_context: boolean },
     config?: {
       parentMessages?: BaseMessage[];
-      onPacket?: (p: any) => Promise<void>;
+      onPacket?: (p: HarnessEvent) => Promise<void>;
       provider?: LLMProvider;
-      tools?: any[];
+      tools?: ToolDefinition[];
       delegationDepth?: number;
     },
   ): Promise<Observation> => {
@@ -84,7 +85,7 @@ export const delegate_task: ToolDefinition = {
       const stepLogs: string[] = [];
 
       // Run the child harness with child hydrated state
-      await childHarness.runMission(childState, async (packet: any) => {
+      await childHarness.runMission(childState, async (packet: HarnessEvent) => {
         // Collect reasoning and content from child
         if (packet.type === PACKET_TYPES.REASONING && packet.content) {
           stepLogs.push(`${DELEGATION_DEFAULTS.LOG_REASONING_PREFIX}${packet.content}`);
@@ -95,7 +96,7 @@ export const delegate_task: ToolDefinition = {
             { childMissionId },
           );
         } else if (packet.type === PACKET_TYPES.TOOL_CALL) {
-          stepLogs.push(DELEGATION_DEFAULTS.LOG_ACTION_PREFIX(packet.toolName, packet.toolInput));
+          stepLogs.push(DELEGATION_DEFAULTS.LOG_ACTION_PREFIX(packet.toolName as string, packet.toolInput));
           logger.agentActivity(
             parentMissionId,
             "DELEGATE_TOOL_CALL",
@@ -103,11 +104,11 @@ export const delegate_task: ToolDefinition = {
             { childMissionId, toolName: packet.toolName, toolInput: packet.toolInput },
           );
         } else if (packet.type === PACKET_TYPES.TOOL_RESULT) {
-          stepLogs.push(DELEGATION_DEFAULTS.LOG_OBSERVATION_PREFIX(packet.content));
+          stepLogs.push(DELEGATION_DEFAULTS.LOG_OBSERVATION_PREFIX(packet.content as string));
           logger.agentActivity(
             parentMissionId,
             "DELEGATE_TOOL_RESULT",
-            `[Sub-Agent ${input.agentName}] Tool returned: ${packet.content.trim().slice(0, 100)}...`,
+            `[Sub-Agent ${input.agentName}] Tool returned: ${(packet.content as string).trim().slice(0, 100)}...`,
             { childMissionId },
           );
         } else if (packet.type === PACKET_TYPES.CONTENT && packet.content) {
@@ -138,18 +139,19 @@ export const delegate_task: ToolDefinition = {
           logs: stepLogs,
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.agentActivity(
         parentMissionId,
         "DELEGATE_ERROR",
-        `Sub-agent "${input.agentName}" failed: ${error.message}`,
-        { childMissionId, error: error.message },
+        `Sub-agent "${input.agentName}" failed: ${errorMessage}`,
+        { childMissionId, error: errorMessage },
       );
       logger.error(DELEGATION_DEFAULTS.LOG_ERROR_FAIL(input.agentName), error);
       return {
         status: OPERATION_STATUS.ERROR,
-        summary: DELEGATION_DEFAULTS.SUMMARY_FAILURE(input.agentName, error.message),
-        error: error.message,
+        summary: DELEGATION_DEFAULTS.SUMMARY_FAILURE(input.agentName, errorMessage),
+        error: errorMessage,
       };
     }
   },

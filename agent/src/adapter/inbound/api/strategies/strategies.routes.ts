@@ -1,10 +1,8 @@
 import { Hono } from "hono";
-import { strategyRegistry } from "../../../../core/agent/strategies";
+import { listStrategies } from "./strategies.controller";
 
 const strategiesRouter = new Hono();
 
-strategiesRouter.get("/strategies", (c) => {
-  return c.json({ strategies: strategyRegistry.list() });
-});
+strategiesRouter.get("/strategies", listStrategies);
 
 export default strategiesRouter;

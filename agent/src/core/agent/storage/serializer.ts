@@ -1,7 +1,18 @@
-import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import type { AgentState } from "../../../shared/types";
 
-export function serializeAgentState(state: AgentState): any {
+interface SerializedMessage {
+  type: string;
+  content?: string;
+  name?: string;
+  id?: string;
+  additional_kwargs?: Record<string, unknown>;
+  response_metadata?: Record<string, unknown>;
+  tool_call_id?: string;
+  tool_calls?: Array<{ name: string; args: Record<string, unknown>; id: string; type?: "tool_call" }>;
+}
+
+export function serializeAgentState(state: AgentState) {
   return {
     ...state,
     messages: state.messages.map((msg) => ({
@@ -11,16 +22,17 @@ export function serializeAgentState(state: AgentState): any {
       id: msg.id,
       additional_kwargs: msg.additional_kwargs,
       response_metadata: msg.response_metadata,
-      tool_call_id: (msg as any).tool_call_id,
-      tool_calls: (msg as any).tool_calls,
+      tool_call_id: (msg as { tool_call_id?: string }).tool_call_id,
+      tool_calls: (msg as { tool_calls?: unknown }).tool_calls,
     })),
   };
 }
 
-export function deserializeAgentState(serialized: any): AgentState {
-  if (!serialized) return serialized;
+export function deserializeAgentState(serialized: unknown): AgentState {
+  if (!serialized) return serialized as AgentState;
 
-  const messages = (serialized.messages || []).map((msg: any) => {
+  const raw = serialized as Record<string, unknown>;
+  const messages = ((raw.messages || []) as SerializedMessage[]).map((msg) => {
     switch (msg.type) {
       case "human":
         return new HumanMessage({
@@ -52,7 +64,7 @@ export function deserializeAgentState(serialized: any): AgentState {
           content: msg.content,
           name: msg.name,
           id: msg.id,
-          tool_call_id: msg.tool_call_id,
+          tool_call_id: msg.tool_call_id as string,
           additional_kwargs: msg.additional_kwargs,
           response_metadata: msg.response_metadata,
         });
@@ -64,7 +76,7 @@ export function deserializeAgentState(serialized: any): AgentState {
   });
 
   return {
-    ...serialized,
+    ...raw,
     messages,
-  };
+  } as AgentState;
 }

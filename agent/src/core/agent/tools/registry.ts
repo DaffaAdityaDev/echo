@@ -99,14 +99,14 @@ export class ToolRegistry {
             const module = await import(importPath);
             const tool: ToolDefinition = module.default || module;
 
-            if (tool && tool.name && tool.schema) {
+            if (tool?.name && tool.schema) {
               this.tools.set(tool.name, tool);
               logger.info(`Tool registered: ${tool.name}`);
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             // Suppress logs for directories without index.ts or other standard non-tool directories
             if (entry.isFile()) {
-              logger.warn(`Failed to import tool ${entry.name}: ${err.message}`);
+              logger.warn(`Failed to import tool ${entry.name}: ${err instanceof Error ? err.message : String(err)}`);
             }
           }
         }
@@ -135,7 +135,7 @@ export class ToolRegistry {
         try {
           const module = await loadFn();
           const tool = ("default" in module ? module.default : module) as ToolDefinition;
-          if (tool && tool.name && tool.schema) {
+          if (tool?.name && tool.schema) {
             resolved.push(tool);
             logger.info(
               `[resolveTools] Loaded tool: ${tool.name} (has execute: ${typeof tool.execute === "function"})`,
@@ -145,8 +145,9 @@ export class ToolRegistry {
               `[resolveTools] Tool '${featureId}' loaded but missing name/schema: ${JSON.stringify({ name: tool?.name, hasSchema: !!tool?.schema })}`,
             );
           }
-        } catch (err: any) {
-          logger.error(`[resolveTools] Failed to lazy load tool '${featureId}': ${err.message}`);
+        } catch (err: unknown) {
+          const loadError = err as { message?: string };
+          logger.error(`[resolveTools] Failed to lazy load tool '${featureId}': ${loadError.message}`);
         }
       } else {
         logger.warn(
@@ -161,7 +162,7 @@ export class ToolRegistry {
   async connectMCPServer(config: McpServerConfig): Promise<MCPClient> {
     if (this.mcpClients.has(config.name)) {
       logger.warn(`MCP server "${config.name}" already connected`);
-      return this.mcpClients.get(config.name)!;
+      return this.mcpClients.get(config.name) as MCPClient;
     }
 
     if (config.credentials) {

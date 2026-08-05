@@ -48,7 +48,7 @@ export class MemoryAdapter {
     return this.baseUrl;
   }
 
-  private async request(method: string, path: string, body?: unknown): Promise<any> {
+  private async request(method: string, path: string, body?: unknown): Promise<unknown> {
     const token = signServiceJwt();
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
@@ -67,10 +67,10 @@ export class MemoryAdapter {
 
   async get(missionId: string): Promise<AgentState | null> {
     try {
-      const data = await this.request("POST", ENDPOINTS.recall, {
+      const data = (await this.request("POST", ENDPOINTS.recall, {
         session_id: missionId,
-      });
-      if (!data || !data.content) return null;
+      })) as { content?: unknown } | null;
+      if (!data?.content) return null;
       const parsed = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
       return deserializeAgentState(parsed);
     } catch {
@@ -87,5 +87,5 @@ export class MemoryAdapter {
     });
   }
 
-  async delete(missionId: string): Promise<void> {}
+  async delete(_missionId: string): Promise<void> {}
 }

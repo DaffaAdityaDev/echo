@@ -12,7 +12,7 @@ export class CircuitBreaker {
   private maxRetriesPerTool: number;
 
   constructor(config?: { openAfter?: number; maxRetriesPerTool?: number }) {
-    const cbConfig = (HARNESS_CONFIG as any).CIRCUIT_BREAKER;
+    const cbConfig = HARNESS_CONFIG.CIRCUIT_BREAKER;
     this.openAfter = config?.openAfter ?? cbConfig?.OPEN_AFTER ?? 3;
     this.maxRetriesPerTool = config?.maxRetriesPerTool ?? cbConfig?.MAX_RETRIES_PER_TOOL ?? 3;
   }

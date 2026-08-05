@@ -11,7 +11,7 @@ export class ReasoningInterceptor {
   /**
    * Fetch interceptor to tee readable stream and extract reasoning tokens asynchronously.
    */
-  public async interceptFetch(url: any, options: any): Promise<Response> {
+  public async interceptFetch(url: string | URL | Request, options?: RequestInit): Promise<Response> {
     const response = await fetch(url, options);
 
     if (!response.ok) {
@@ -19,10 +19,10 @@ export class ReasoningInterceptor {
         const cloned = response.clone();
         const errBody = await cloned.text();
         logger.error(
-          `❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`,
+          `âŒ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`,
         );
-      } catch (e) {
-        logger.error(`❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
+      } catch (_e) {
+        logger.error(`âŒ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
       }
       return response;
     }
@@ -92,12 +92,12 @@ export class ReasoningInterceptor {
               const current = this.store.get(id) || "";
               this.store.set(id, current + reasoning);
             }
-          } catch (e) {
+          } catch (_e) {
             // Ignore parse errors on incomplete JSON chunks
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Stream read closed or aborted
     }
   }
@@ -141,7 +141,7 @@ export class ReasoningInterceptor {
     if (this.activeStreamPromise) {
       try {
         await this.activeStreamPromise;
-      } catch (e) {
+      } catch (_e) {
         // Ignore stream abort errors
       }
     }
@@ -157,7 +157,7 @@ export class ReasoningInterceptor {
     if (this.activeStreamPromise) {
       try {
         await this.activeStreamPromise;
-      } catch (e) {
+      } catch (_e) {
         // Ignore stream abort errors
       }
     }

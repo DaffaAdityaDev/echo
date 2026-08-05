@@ -1,4 +1,4 @@
-import { type AIMessageChunk, SystemMessage } from "@langchain/core/messages";
+import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { LLM_CONFIG } from "../../../shared/constants";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
@@ -53,7 +53,7 @@ export class LMStudioProvider implements LLMProvider {
    * Tool calls are extracted from the fully-accumulated message AFTER the stream ends,
    * ensuring args are always complete and never fragmented.
    */
-  async *stream(messages: any[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({

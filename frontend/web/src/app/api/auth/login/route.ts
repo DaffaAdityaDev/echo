@@ -10,11 +10,17 @@ export async function POST(req: NextRequest) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { error: text || "Invalid response from server" };
+  }
 
   const response = NextResponse.json(data, { status: res.status });
 
-  if (res.ok && data.token) {
+  if (res.ok && typeof data.token === "string") {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

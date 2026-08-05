@@ -39,9 +39,9 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
 
   // Parse result blocks: <div class="result__body"> ...
   const resultPattern = PARSE_PATTERNS.RESULT;
-  let match;
+  let match = resultPattern.exec(html);
 
-  while ((match = resultPattern.exec(html)) !== null && results.length < SEARCH_CONFIG.MAX_RESULTS) {
+  while (match !== null && results.length < SEARCH_CONFIG.MAX_RESULTS) {
     const rawUrl = match[1];
     const title = match[2].trim();
     const snippet = match[3].replace(PARSE_PATTERNS.STRIP_TAGS, "").replace(PARSE_PATTERNS.NORMALIZE_SPACE, " ").trim();
@@ -53,6 +53,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
     if (title && snippet) {
       results.push({ title, url: cleanUrl, snippet });
     }
+    match = resultPattern.exec(html);
   }
 
   return results;
@@ -85,11 +86,12 @@ export const webSearchTool: ToolDefinition = {
         summary: `${SEARCH_SUMMARIES.SUCCESS_HEADER(input.query)}${summaryBody}`,
         data: { results },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         status: OPERATION_STATUS.ERROR,
-        summary: SEARCH_SUMMARIES.GENERIC_ERROR(input.query, error.message),
-        error: error.message,
+        summary: SEARCH_SUMMARIES.GENERIC_ERROR(input.query, errorMessage),
+        error: errorMessage,
       };
     }
   },

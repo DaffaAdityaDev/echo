@@ -8,7 +8,7 @@ export class DegradationManager {
   private abortAfter: number;
 
   constructor(config?: { degradeAfter?: number; abortAfter?: number }) {
-    const degConfig = (HARNESS_CONFIG as any).DEGRADATION;
+    const degConfig = HARNESS_CONFIG.DEGRADATION;
     this.degradeAfter = config?.degradeAfter ?? degConfig?.DEGRADE_AFTER ?? 3;
     this.abortAfter = config?.abortAfter ?? degConfig?.ABORT_AFTER ?? 7;
   }

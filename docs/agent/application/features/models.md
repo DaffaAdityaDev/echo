@@ -99,7 +99,7 @@ func modelsURL(baseURL string) string {
 | modelsURL()           | service/aimodel/service.go:110| URL construction logic                       |
 | Cache                 | service/aimodel/service.go:28 | 30s TTL, shared across all users             |
 | Agent route           | adapter/inbound/api/models/model.routes.ts:6 | GET /api/models (Internal auth)              |
-| Agent controller      | adapter/inbound/api/models/model.controller.ts:9-11 | Proxies to LLM_MODEL_API_URL                 |
+| Agent controller      | adapter/inbound/api/models/model.controller.ts:8-10 | Proxies to LLM_MODEL_API_URL                 |
 +-----------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

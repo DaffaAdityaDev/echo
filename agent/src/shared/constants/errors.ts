@@ -6,6 +6,8 @@ export const ERROR_TYPES = {
   INTERNAL_SERVER: "INTERNAL_SERVER_ERROR",
 } as const;
 
+export const ERROR_STATUS = "error";
+
 export const ERROR_MESSAGES = {
   RATE_LIMIT: "Upstream LLM Provider API rate limit exceeded. Please retry shortly.",
   TIMEOUT: "Upstream LLM Provider query timed out. Please retry.",

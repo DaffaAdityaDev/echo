@@ -10,8 +10,8 @@
 ## Description
 
 Context anchor system that injects a standardized `<context_anchor>` system
-message at the beginning of every agent conversation. Provides temporal and
-locational grounding to the LLM.
+message at the beginning of every agent conversation. Provides temporal
+grounding to the LLM.
 
 ---
 
@@ -19,7 +19,7 @@ locational grounding to the LLM.
 
 ```
 anchors/
-  constants.ts   # Version names, defaults, templates
+  constants.ts   # Version names, templates
   standard.ts    # StandardContextAnchor implementation
 ```
 
@@ -37,16 +37,14 @@ anchors/
 │  StandardContextAnchor()                                          │
 │    → new StandardContextAnchor()                                 │
 │    → anchor.build(options?)                                      │
-    │                                                                  │
-    │  options.location || 'South Jakarta' (default)                   │
-    │  options.year    || new Date().getFullYear()                     │
-    └──────────────────────────────┬──────────────────────────────────┘
+    │                                                              │
+    │  options.year    || new Date().getFullYear()                 │
+    └──────────────────────────────┬──────────────────────────────┘
                                    │
                                    ▼
     ┌─────────────────────────────────────────────────────────────────┐
     │  LangChain SystemMessage:                                        │
-    │  <context_anchor>Current_Year: 2026 |                            │
-    │  Session_Start_Location: South Jakarta</context_anchor>          │
+    │  <context_anchor>Current_Year: 2026</context_anchor>             │
     └──────────────────────────────┬──────────────────────────────────┘
                                    │
                                    ▼
@@ -88,10 +86,9 @@ anchors/
 +----------------------------+----------------------------------------+----------------------------------------------------+
 | Ref                        | File                                   | Key Lines                                          |
 +----------------------------+----------------------------------------+----------------------------------------------------+
-| Standard anchor            | `standard.ts:6-12`                     | Builds with location/year                          |
-| Template                   | `constants.ts:10-11`                   | `<context_anchor>Current_Year...` format           |
-| Defaults                   | `constants.ts:6-7`                     | Location: 'South Jakarta'                          |
-| Usage in controller        | `mission.controller.ts`                | `new StandardContextAnchor().build()` prepended    |
+| Standard anchor            | `standard.ts:4-8`                     | Builds with year                               |
+| Template                   | `constants.ts:5-7`                   | `<context_anchor>Current_Year...` format        |
+| Usage in controller        | `mission.controller.ts`                | `new StandardContextAnchor().build()` prepended |
 | Usage in delegation        | `delegation/index.ts:74`               | Same pattern for sub-agent state initialization    |
 +----------------------------+----------------------------------------+----------------------------------------------------+
 

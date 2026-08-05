@@ -1,4 +1,4 @@
-import type { Observation } from "../../../../../shared/types";
+import type { Observation } from "../../../shared/types";
 
 export function compressObservation(
   obs: Observation,

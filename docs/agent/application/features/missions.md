@@ -111,7 +111,7 @@ missions/
 | Export                  | Source                    | Type                                 |
 +-------------------------+---------------------------+--------------------------------------+
 | `missionRouter`          | `mission.routes.ts`        | `Hono` router                        |
-| `missionController`      | `mission.controller.ts`    | `MissionController` instance         |
+| `createMission` / `handleHitlDecision` | `mission.controller.ts`    | Module-level handler functions       |
 | `createMissionSchema`    | `mission.schema.ts`        | `ZodSchema`                          |
 | `HttpStreamTransport`    | `stream.transport.ts`      | `StreamTransport` implementation     |
 | `MISSION_STRATEGIES`     | `mission.constants.ts`     | Strategy enum array                  |
@@ -151,9 +151,9 @@ missions/
 | Schema validation        | `mission.schema.ts:40-61`              | Zod object with prompt, strategy, etc.   |
 | Strategy constants       | `mission.constants.ts`                 | `STRATEGY_MAPPING` alias map             |
 | SSE transport            | `stream.transport.ts`                  | `HttpStreamTransport.send()` enrichment  |
-| Heartbeat                | `mission.controller.ts:88-90`          | 15-second ping interval                  |
-| Cancellation             | `mission.controller.ts:92,113-114`     | Registers `AbortSignal` on start         |
-| State reconstruction     | `mission.controller.ts:62-82`          | Loads prior state or creates fresh       |
+| Heartbeat                | `mission.controller.ts:97-99`          | 15-second ping interval                  |
+| Cancellation             | `mission.controller.ts:101,122-123`    | Registers `AbortSignal` on start         |
+| State reconstruction     | `mission.controller.ts:71-91`          | Loads prior state or creates fresh       |
 | Provider config          | `mission.schema.ts:48-53`              | `provider_config` with type, URL, key    |
 | Provider init            | `infrastructure/providers/factory.ts`  | `ProviderFactory.fromConfig()`          |
 +--------------------------+----------------------------------------+------------------------------------------+

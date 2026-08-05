@@ -1,6 +1,19 @@
 import { z } from "zod";
 import { zodV4ToOpenAISchema } from "../zod-schema";
 
+type JsonSchema = Record<string, unknown> & {
+  type?: string;
+  properties: Record<string, JsonSchema>;
+  items: JsonSchema;
+  required?: unknown[];
+  enum?: unknown[];
+  $schema?: unknown;
+};
+
+function toOpenAISchema(schema: z.ZodType): JsonSchema {
+  return zodV4ToOpenAISchema(schema) as JsonSchema;
+}
+
 describe("zodV4ToOpenAISchema", () => {
   it("converts simple Zod object with string fields to OpenAI function schema", () => {
     const schema = z.object({
@@ -8,7 +21,7 @@ describe("zodV4ToOpenAISchema", () => {
       email: z.string(),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.type).toBe("object");
     expect(result.properties).toBeDefined();
@@ -24,7 +37,7 @@ describe("zodV4ToOpenAISchema", () => {
       active: z.boolean(),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.type).toBe("object");
     expect(result.properties.count).toEqual({ type: "number" });
@@ -38,7 +51,7 @@ describe("zodV4ToOpenAISchema", () => {
       age: z.number().optional(),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.properties.name).toEqual({ type: "string" });
     expect(result.properties.age).toEqual({ type: "number" });
@@ -56,7 +69,7 @@ describe("zodV4ToOpenAISchema", () => {
       }),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.type).toBe("object");
     expect(result.properties.user.type).toBe("object");
@@ -71,7 +84,7 @@ describe("zodV4ToOpenAISchema", () => {
       role: z.enum(["admin", "user", "guest"]),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.properties.role.type).toBe("string");
     expect(result.properties.role.enum).toEqual(["admin", "user", "guest"]);
@@ -82,7 +95,7 @@ describe("zodV4ToOpenAISchema", () => {
       tags: z.array(z.string()),
     });
 
-    const result = zodV4ToOpenAISchema(schema);
+    const result = toOpenAISchema(schema);
 
     expect(result.properties.tags.type).toBe("array");
     expect(result.properties.tags.items).toEqual({ type: "string" });

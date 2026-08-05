@@ -275,8 +275,8 @@ export interface StrategyRegistry {
 export interface ToolDefinition {
   name: string;
   description: string;
-  schema: z.ZodObject<any>;
-  execute: (input: any, config?: any) => Promise<Observation>;
+  schema: z.ZodObject<z.ZodRawShape>;
+  execute(input: unknown, config?: unknown): Promise<Observation>;
   keywords?: string[];
 }
 

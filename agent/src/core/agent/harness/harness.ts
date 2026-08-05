@@ -1,15 +1,18 @@
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
+import type { LangfuseSpan } from "@langfuse/tracing";
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { ENV } from "../../../config/env";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
-import {
-  type AgentState,
-  type AgentStatus,
-  type AgentStrategy,
-  type HarnessFeatureToggles,
-  HarnessPacket,
-  type LLMProvider,
-  type ToolDefinition,
+import type {
+  AgentState,
+  AgentStatus,
+  AgentStrategy,
+  HarnessFeatureToggles,
+  LLMProvider,
+  Observation,
+  ProviderEvent,
+  Task,
+  ToolDefinition,
 } from "../../../shared/types";
 import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from "../../../shared/utils/harness";
 import { langfuseStorage, startAgentTrace } from "../../../shared/utils/langfuse";
@@ -31,7 +34,7 @@ import { HitlGuard } from "./hitl_guard";
 import { LoopDetector } from "./loop_detector";
 import { HARNESS_PROMPTS } from "./prompts";
 import { AgentStatusTracker } from "./status-tracker";
-import { DEFAULT_HARNESS_TOGGLES, type HarnessConfig } from "./types";
+import { DEFAULT_HARNESS_TOGGLES, type HarnessConfig, type HarnessEvent, type HarnessRuntimeConfig } from "./types";
 
 export class NlahHarness {
   private provider: LLMProvider;
@@ -45,7 +48,7 @@ export class NlahHarness {
   private pacingEnabled = true;
   private pacingForced = false;
   private loopDetectionEnabled = true;
-  private harnessConfig?: any;
+  private harnessConfig?: HarnessRuntimeConfig;
   private statusTracker?: AgentStatusTracker;
   private static toolRetriever: ToolRetriever | null = null;
   private static skillRegistry = new SkillRegistry();
@@ -67,13 +70,13 @@ export class NlahHarness {
     this.harnessConfig = options.harnessConfig;
     this.totalCostUsd = options.initialCostUsd ?? 0;
 
-    this.featureToggles = { ...DEFAULT_HARNESS_TOGGLES, ...(options.harnessConfig as Partial<HarnessFeatureToggles>) };
+    this.featureToggles = { ...DEFAULT_HARNESS_TOGGLES, ...options.harnessConfig };
     this.loopDetector = new LoopDetector(this.featureToggles.loopDetection);
     this.hitlGuard = new HitlGuard(this.featureToggles.hitlGuard);
     this.contextManager = new ContextManager(this.featureToggles.contextOptimization);
 
     if (!NlahHarness.toolRetriever) {
-      NlahHarness.toolRetriever = new ToolRetriever(toolRegistry.getAllTools());
+      NlahHarness.toolRetriever = new ToolRetriever();
     }
   }
 
@@ -82,7 +85,7 @@ export class NlahHarness {
   }
 
   private async emitSystemNotice(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     code: string,
     message: string,
@@ -93,7 +96,10 @@ export class NlahHarness {
     }
   }
 
-  private async sendBase(onPacket: (p: any) => Promise<void>, packet: Record<string, unknown>) {
+  private async sendBase(
+    onPacket: (p: HarnessEvent) => Promise<void>,
+    packet: { type: string } & Record<string, unknown>,
+  ) {
     const agentStatus = this.statusTracker?.getStatus();
     await onPacket({
       missionId: this.missionId,
@@ -103,7 +109,7 @@ export class NlahHarness {
   }
 
   private async emitMetadata(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     fields: {
       content?: string;
@@ -120,7 +126,7 @@ export class NlahHarness {
   }
 
   private async emitStateChange(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     from: string,
     to: string,
@@ -130,7 +136,7 @@ export class NlahHarness {
   }
 
   private async emitDegraded(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     from: string,
     to: string,
@@ -139,20 +145,20 @@ export class NlahHarness {
     await this.sendBase(onPacket, { type: "degraded", step, from, to, reason });
   }
 
-  private async emitReasoning(onPacket: (p: any) => Promise<void>, step: number, content: string) {
+  private async emitReasoning(onPacket: (p: HarnessEvent) => Promise<void>, step: number, content: string) {
     await this.sendBase(onPacket, { type: "reasoning", step, content });
   }
 
-  private async emitContent(onPacket: (p: any) => Promise<void>, step: number, content: string) {
+  private async emitContent(onPacket: (p: HarnessEvent) => Promise<void>, step: number, content: string) {
     await this.sendBase(onPacket, { type: "content", step, content });
   }
 
-  private async emitUsage(onPacket: (p: any) => Promise<void>, step: number, usage: object) {
+  private async emitUsage(onPacket: (p: HarnessEvent) => Promise<void>, step: number, usage: object) {
     await this.sendBase(onPacket, { type: "usage", step, usage });
   }
 
   private async emitToolCall(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     toolName: string,
     toolInput: Record<string, unknown>,
@@ -161,7 +167,7 @@ export class NlahHarness {
   }
 
   private async emitToolResult(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     toolName: string,
     content: string,
@@ -170,20 +176,25 @@ export class NlahHarness {
     await this.sendBase(onPacket, { type: "tool_result", step, toolName, content, toolResult });
   }
 
-  private async emitToolSkip(onPacket: (p: any) => Promise<void>, step: number, toolName: string) {
+  private async emitToolSkip(onPacket: (p: HarnessEvent) => Promise<void>, step: number, toolName: string) {
     await this.sendBase(onPacket, { type: "tool_skip", step, toolName });
   }
 
-  private async emitTodos(onPacket: (p: any) => Promise<void>, step: number, todos: unknown) {
+  private async emitTodos(onPacket: (p: HarnessEvent) => Promise<void>, step: number, todos: unknown) {
     await this.sendBase(onPacket, { type: "todo", step, todos });
   }
 
-  private async emitSubagentCall(onPacket: (p: any) => Promise<void>, step: number, name: string, instruction: string) {
+  private async emitSubagentCall(
+    onPacket: (p: HarnessEvent) => Promise<void>,
+    step: number,
+    name: string,
+    instruction: string,
+  ) {
     await this.sendBase(onPacket, { type: "subagent_call", step, subagent: { name, instruction, status: "calling" } });
   }
 
   private async emitSubagentResult(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     name: string,
     instruction: string,
@@ -194,7 +205,7 @@ export class NlahHarness {
   }
 
   private async emitProgress(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     phase: string,
     tokensUsed: number,
@@ -203,12 +214,12 @@ export class NlahHarness {
     await this.sendBase(onPacket, { type: "progress", step, phase, tokensUsed, tokensTotal });
   }
 
-  private async emitHeartbeat(onPacket: (p: any) => Promise<void>, step: number) {
+  private async emitHeartbeat(onPacket: (p: HarnessEvent) => Promise<void>, step: number) {
     await this.sendBase(onPacket, { type: "heartbeat", step });
   }
 
   private async emitTurnComplete(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     completed: boolean,
     totalIterations: number,
@@ -218,7 +229,7 @@ export class NlahHarness {
   }
 
   private async emitDebug(
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     rawSystemPrompt: string,
     currentHistoryLength: number,
@@ -227,7 +238,11 @@ export class NlahHarness {
     await this.sendBase(onPacket, { type: "debug", step, rawSystemPrompt, currentHistoryLength, rawMessages });
   }
 
-  private async updateStatus(onPacket: (p: any) => Promise<void>, updates: Partial<AgentStatus>, step: number) {
+  private async updateStatus(
+    onPacket: (p: HarnessEvent) => Promise<void>,
+    updates: Partial<AgentStatus>,
+    step: number,
+  ) {
     if (!this.statusTracker) return;
     const { changed, from, to } = this.statusTracker.update(updates);
     if (changed) {
@@ -264,7 +279,7 @@ export class NlahHarness {
     }
   }
 
-  private async setupMissionParams(state: AgentState, traceparent?: string) {
+  private async setupMissionParams(_state: AgentState, traceparent?: string) {
     const traceId = crypto.randomUUID().replace(/-/g, "");
     const parentSpanId = "";
     if (traceparent?.startsWith("00-")) {
@@ -293,16 +308,16 @@ export class NlahHarness {
       );
     } else {
       logger.info(
-        `[selectTools] No explicitTools set — falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`,
+        `[selectTools] No explicitTools set â€” falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`,
       );
-      tools = NlahHarness.toolRetriever!.getRelevantTools(state.objective, filteredFullPool);
+      tools = (NlahHarness.toolRetriever as ToolRetriever).getRelevantTools(state.objective, filteredFullPool);
     }
 
     if (this.skills?.length) {
       const allowed = NlahHarness.skillRegistry.getToolFilter(this.skills);
       if (allowed) tools = tools.filter((t) => allowed.includes(t.name));
       logger.info(
-        `[selectTools] Skills filter applied (skills=${this.skills.join(",")}) — tools remaining: ${tools.length}`,
+        `[selectTools] Skills filter applied (skills=${this.skills.join(",")}) â€” tools remaining: ${tools.length}`,
       );
     }
 
@@ -315,7 +330,7 @@ export class NlahHarness {
     if (this.skills?.length) {
       const skillPrompts = NlahHarness.skillRegistry.compileSkillPrompts(this.skills);
       const modifiers = NlahHarness.skillRegistry.compileModifiers(this.skills);
-      systemPrompt += "\n\n" + skillPrompts;
+      systemPrompt += `\n\n${skillPrompts}`;
       if (modifiers.compression === false) this.compressionEnabled = false;
       if (modifiers.pacing === false) this.pacingEnabled = false;
       if (modifiers.loopDetection === false) this.loopDetectionEnabled = false;
@@ -323,7 +338,7 @@ export class NlahHarness {
     return systemPrompt;
   }
 
-  private async checkCancellation(iteration: number, onPacket: (p: any) => Promise<void>): Promise<boolean> {
+  private async checkCancellation(iteration: number, onPacket: (p: HarnessEvent) => Promise<void>): Promise<boolean> {
     if (cancellationManager.isAborted(this.missionId)) {
       logger.info(`NlahHarness: Mission ${this.missionId} cancelled, aborting harness run.`);
       await this.emitMetadata(onPacket, iteration, { content: `Mission execution cancelled.` });
@@ -337,7 +352,7 @@ export class NlahHarness {
     degradation: DegradationManager,
     lastDegradationLevel: DegradationLevel,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
   ): Promise<{ systemPrompt: string; toolMap: Map<string, ToolDefinition>; lastDegradationLevel: DegradationLevel }> {
     const currentLevel = degradation.getLevel();
     if (currentLevel === lastDegradationLevel) {
@@ -371,7 +386,7 @@ export class NlahHarness {
   private async handleCompaction(
     state: AgentState,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
   ): Promise<void> {
     if (!this.compressionEnabled) return;
     const maxContextTokens = this.provider.maxContextTokens ?? HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS;
@@ -409,8 +424,11 @@ export class NlahHarness {
 
       logger.info("Context compaction successfully applied.");
       await this.emitReasoning(onPacket, iteration, HARNESS_PROMPTS.LOG_COMPACTED(getHistoryTokens(state.messages)));
-    } catch (err: any) {
-      logger.langfuse("ERROR", `Context compaction failed: ${err.message}`, { error: err.message });
+    } catch (err: unknown) {
+      const compactionError = err as { message?: string };
+      logger.langfuse("ERROR", `Context compaction failed: ${compactionError.message}`, {
+        error: compactionError.message,
+      });
     }
   }
 
@@ -418,11 +436,11 @@ export class NlahHarness {
     state: AgentState,
     systemPrompt: string,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
   ): Promise<void> {
     if (!ENV.DEBUG_PROMPT && ENV.NODE_ENV !== DEBUG_CONFIG.ENV) return;
     queuePromptDebug({ state, iteration, strategyName: this.strategy.name, systemPrompt });
-    logger.info(`📝 Prompt debug operations queued in background`);
+    logger.info(`ðŸ“ Prompt debug operations queued in background`);
     try {
       await this.emitDebug(
         onPacket,
@@ -437,9 +455,9 @@ export class NlahHarness {
   }
 
   private async processStreamEvents(
-    eventStream: AsyncIterable<any>,
+    eventStream: AsyncIterable<ProviderEvent>,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
   ): Promise<{
     assistantContent: string;
     reasoningContent: string;
@@ -501,7 +519,7 @@ export class NlahHarness {
           await this.emitContent(onPacket, iteration, event.content);
         } else if (event.content && pendingToolCall) {
           logger.info(
-            `[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`,
+            `[processStreamEvents] Content suppressed â€” toolCall pending, content_len=${event.content.length}`,
           );
         }
         if (event.usage) {
@@ -523,7 +541,7 @@ export class NlahHarness {
     }
 
     logger.info(
-      `[processStreamEvents] Done — hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`,
+      `[processStreamEvents] Done â€” hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`,
     );
     return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage: usageResult };
   }
@@ -534,7 +552,7 @@ export class NlahHarness {
     assistantContent: string,
     reasoningContent: string,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
     state: AgentState,
     circuit: CircuitBreaker,
     degradation: DegradationManager,
@@ -575,7 +593,7 @@ export class NlahHarness {
 
     if (pendingToolCall.name === "write_todos") {
       await this.emitTodos(onPacket, iteration, pendingToolCall.args.todos);
-      state.tasks = pendingToolCall.args.todos as any[];
+      state.tasks = pendingToolCall.args.todos as Task[];
     } else if (pendingToolCall.name === "delegate_task") {
       await this.emitSubagentCall(
         onPacket,
@@ -585,7 +603,7 @@ export class NlahHarness {
       );
     }
 
-    let observation;
+    let observation: Observation;
     try {
       observation = await tool.execute(pendingToolCall.args, {
         parentMessages: state.messages,
@@ -594,8 +612,9 @@ export class NlahHarness {
         tools: [...toolMap.values()],
         delegationDepth: this.delegationDepth,
       });
-    } catch (err: any) {
-      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${err.message}`, err);
+    } catch (err: unknown) {
+      const toolError = err as { message?: string };
+      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${toolError.message}`, err);
       observation = {
         status: OPERATION_STATUS.ERROR,
         summary: `Tool execution failed: Failed to perform ${pendingToolCall.name}. Please try again later or refine the request.`,
@@ -650,7 +669,7 @@ export class NlahHarness {
     assistantContent: string,
     reasoningContent: string,
     iteration: number,
-    onPacket: (p: any) => Promise<void>,
+    _onPacket: (p: HarnessEvent) => Promise<void>,
     state: AgentState,
   ): Promise<{ isComplete: boolean; retryWithTool: { name: string; args: Record<string, unknown> } | null }> {
     if (assistantContent.includes("<tool_call>") || assistantContent.includes("</tool_call>")) {
@@ -660,12 +679,13 @@ export class NlahHarness {
         const toolName = funcMatch[1].trim();
         const args: Record<string, unknown> = {};
         const paramRegex = /<parameter=(.*?)>\s*([\s\S]*?)\s*<\/parameter>/g;
-        let match;
-        while ((match = paramRegex.exec(assistantContent)) !== null) {
-          let val: any = match[2].trim();
+        let match = paramRegex.exec(assistantContent);
+        while (match !== null) {
+          let val: string | boolean = match[2].trim();
           if (val === "false") val = false;
           if (val === "true") val = true;
           args[match[1].trim()] = val;
+          match = paramRegex.exec(assistantContent);
         }
         logger.info(`[NLAH RECOVER] Successfully extracted tool: ${toolName}. Retrying loop.`);
         state.messages.push(
@@ -707,12 +727,12 @@ export class NlahHarness {
     return { isComplete: true, retryWithTool: null };
   }
 
-  async runMission(state: AgentState, onPacket: (packet: any) => Promise<void>, traceparent?: string) {
+  async runMission(state: AgentState, onPacket: (packet: HarnessEvent) => Promise<void>, traceparent?: string) {
     this.missionId = state.missionId;
 
     await this.emitMetadata(onPacket, 0, { content: `Initializing state registry context.` });
 
-    const { traceId, parentSpanId } = await this.setupMissionParams(state, traceparent);
+    const { traceId } = await this.setupMissionParams(state, traceparent);
     const trace = startAgentTrace(traceId, state.missionId, this.tenantId, this.strategy.name, state.objective);
     const { tools, toolMap } = this.selectTools(state);
     const systemPrompt = this.buildSystemPrompt(state, tools);
@@ -767,7 +787,6 @@ export class NlahHarness {
     }
 
     const budgetMonitor = new BudgetMonitor(this.featureToggles.budgetMonitor);
-    const cachedTokensSum = 0;
     const totalInputTokensSum = 0;
     let previousThought = "";
 
@@ -775,7 +794,7 @@ export class NlahHarness {
       if (await this.checkCancellation(iteration, onPacket)) break;
       iteration++;
 
-      let span: any = null;
+      let span: LangfuseSpan | null = null;
       if (trace) {
         span = trace.startObservation(
           `turn-${iteration}`,
@@ -836,7 +855,13 @@ export class NlahHarness {
             if (budgetCheck.exceeded) {
               logger.warn(`[NlahHarness] Budget threshold crossed: ${budgetCheck.message}`);
               if (this.featureToggles.systemNotices.enabled && this.featureToggles.systemNotices.emitBudgetWarnings) {
-                await this.emitSystemNotice(onPacket, iteration, "BUDGET_WARNING", budgetCheck.message!, "error");
+                await this.emitSystemNotice(
+                  onPacket,
+                  iteration,
+                  "BUDGET_WARNING",
+                  budgetCheck.message as string,
+                  "error",
+                );
               }
               await this.updateStatus(onPacket, { state: "aborted" }, iteration);
               if (span) {
@@ -874,7 +899,7 @@ export class NlahHarness {
               this.totalCostUsd += stepCost;
             }
 
-            // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) — existing behavior preserved
+            // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) â€” existing behavior preserved
             if (previousThought && assistantContent) {
               const sim = getCosineSimilarity(previousThought, assistantContent);
               logger.info(`Semantic cosine similarity calculated: ${sim.toFixed(4)}`);
@@ -957,7 +982,7 @@ export class NlahHarness {
                     pausedAt: new Date().toISOString(),
                     expiresAt: approval.expiresAt,
                   },
-                } as any,
+                } as unknown as AgentState,
                 300,
               );
               await onPacket({
@@ -982,7 +1007,7 @@ export class NlahHarness {
 
             if (toolCallResult) {
               logger.info(`[runMission] Iter ${iteration}: executing toolCall ${toolCallResult.name}`);
-              const { isComplete: turnComplete } = await this.executeToolCall(
+              await this.executeToolCall(
                 toolCallResult,
                 currentToolMap,
                 assistantContent,
@@ -999,7 +1024,7 @@ export class NlahHarness {
               await this.emitContent(onPacket, iteration, assistantContent);
             } else {
               logger.info(
-                `[runMission] Iter ${iteration}: no toolCall — entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`,
+                `[runMission] Iter ${iteration}: no toolCall â€” entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`,
               );
               const { isComplete: turnComplete, retryWithTool } = await this.handleAutoRecovery(
                 assistantContent,
@@ -1039,12 +1064,15 @@ export class NlahHarness {
               span.end();
             }
             await stateStorage.set(state.missionId, state, 600);
-          } catch (err: any) {
-            logger.langfuse("ERROR", `Turn execution failed: ${err.message}`, { error: err.stack || err.message });
+          } catch (err: unknown) {
+            const turnError = err as { message?: string; stack?: string };
+            logger.langfuse("ERROR", `Turn execution failed: ${turnError.message}`, {
+              error: turnError.stack || turnError.message,
+            });
             if (span) {
               span.update({
                 level: "ERROR",
-                statusMessage: err.message,
+                statusMessage: turnError.message,
               });
               span.end();
             }
@@ -1053,7 +1081,7 @@ export class NlahHarness {
         });
       };
 
-      if (span && span.otelSpan) {
+      if (span?.otelSpan) {
         await context.with(otelTrace.setSpan(context.active(), span.otelSpan), executeTurn);
       } else {
         await executeTurn();

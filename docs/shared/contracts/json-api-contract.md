@@ -514,7 +514,7 @@ offset-based:
 | backend/internal/handler/chat/handler.go              | 45-66,| Chat request/response, feature       |
 |                                                       | 92-233|   response                            |
 | agent/src/adapter/inbound/api/missions/mission.schema.ts          | 9-61  | Zod validation with dual naming      |
-| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 20-121| Schema usage, error format           |
+| agent/src/adapter/inbound/api/missions/mission.controller.ts      | 29-130| Schema usage, error format           |
 | agent/src/shared/types/index.ts                       | 56-80 | HarnessPacket discriminated union    |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy                  |
 | frontend/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket frontend type           |

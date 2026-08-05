@@ -19,7 +19,9 @@ export const writeTodosTool: ToolDefinition = {
       )
       .describe(SCHEMA_DESC.TODOS),
   }),
-  execute: async (input: { todos: any[] }): Promise<Observation> => {
+  execute: async (input: {
+    todos: Array<{ id: string; description: string; status: string }>;
+  }): Promise<Observation> => {
     try {
       logger.info(PLANNING_LOGS.UPDATING, { count: input.todos.length });
       return {
@@ -27,12 +29,13 @@ export const writeTodosTool: ToolDefinition = {
         summary: PLANNING_TEMPLATES.SUMMARY_SUCCESS(input.todos.length),
         data: { todos: input.todos },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(PLANNING_LOGS.FAILED, error);
       return {
         status: OPERATION_STATUS.ERROR,
-        summary: `${PLANNING_LOGS.ERROR_PREFIX}: ${error.message}`,
-        error: error.message,
+        summary: `${PLANNING_LOGS.ERROR_PREFIX}: ${errorMessage}`,
+        error: errorMessage,
       };
     }
   },

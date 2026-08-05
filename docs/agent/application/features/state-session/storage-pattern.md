@@ -133,7 +133,7 @@ adapter/outbound/backend/    ← External persistence (via adapter layer)
 | Serialize                  | `serializer.ts:4-18`                   | Maps each message to `{ type, content, ... }`     |
 | Deserialize                | `serializer.ts:20-70`                  | Switch on `msg.type`, reconstructs LangChain class |
 | Interface                  | `factory.ts`                           | `IStateProvider` with get/set/delete               |
-| Controller usage           | `mission.controller.ts:62`             | `stateStorage.get(missionId)` on mission start     |
+| Controller usage           | `mission.controller.ts:76`             | `stateStorage.get(missionId)` on mission start     |
 | Harness persistence        | `harness.ts:528`                  | `stateStorage.set()` after each turn               |
 | Final save                 | `harness.ts:554`                  | `stateStorage.set()` after loop ends               |
 | Backend persistence        | `adapter/outbound/backend/memory.adapter.ts` | External persistence via Go backend API            |

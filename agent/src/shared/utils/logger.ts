@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { ObservationLevel } from "@langfuse/tracing";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -8,7 +9,6 @@ const DIM = "\x1b[2m";
 const RED = "\x1b[31m";
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
-const BLUE = "\x1b[34m";
 const MAGENTA = "\x1b[35m";
 const CYAN = "\x1b[36m";
 const GRAY = "\x1b[90m";
@@ -20,13 +20,13 @@ function getTimestamp(): string {
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${ms}`;
 }
 
-function serializeMeta(meta: any): any {
+function serializeMeta(meta: unknown): unknown {
   if (!meta) return undefined;
   if (meta instanceof Error) {
     return { name: meta.name, message: meta.message, stack: meta.stack };
   }
   if (typeof meta === "object") {
-    const result: Record<string, any> = {};
+    const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(meta)) {
       if (value instanceof Error) {
         result[key] = { name: value.name, message: value.message, stack: value.stack };
@@ -39,8 +39,8 @@ function serializeMeta(meta: any): any {
   return meta;
 }
 
-function formatMeta(meta?: any): string {
-  const cleanMeta = serializeMeta(meta);
+function formatMeta(meta?: unknown): string {
+  const cleanMeta = serializeMeta(meta) as Record<string, unknown> | null | undefined;
   if (!cleanMeta || typeof cleanMeta !== "object") return "";
   try {
     const keys = Object.keys(cleanMeta);
@@ -69,7 +69,7 @@ function formatMeta(meta?: any): string {
   }
 }
 
-function writeToFile(level: string, msg: string, meta?: any) {
+function writeToFile(level: string, msg: string, meta?: unknown) {
   try {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
@@ -80,7 +80,7 @@ function writeToFile(level: string, msg: string, meta?: any) {
     let metaStr = "";
     const cleanMeta = serializeMeta(meta);
     if (cleanMeta && typeof cleanMeta === "object") {
-      metaStr = " " + JSON.stringify(cleanMeta);
+      metaStr = ` ${JSON.stringify(cleanMeta)}`;
     }
     const line = `[${level}] [${getTimestamp()}] ${msg}${metaStr}\n`;
     appendFileSync(logPath, line, "utf-8");
@@ -100,7 +100,7 @@ const LEVEL_CONFIG: Record<
 };
 
 export class Logger {
-  private log(level: string, msg: string, meta?: any) {
+  private log(level: string, msg: string, meta?: unknown) {
     const config = LEVEL_CONFIG[level];
     if (config) {
       console[config.consoleFn](
@@ -110,28 +110,28 @@ export class Logger {
     writeToFile(level, msg, meta);
   }
 
-  info(msg: string, meta?: any) {
+  info(msg: string, meta?: unknown) {
     this.log("INFO", msg, meta);
   }
-  warn(msg: string, meta?: any) {
+  warn(msg: string, meta?: unknown) {
     this.log("WARN", msg, meta);
   }
-  error(msg: string, meta?: any) {
+  error(msg: string, meta?: unknown) {
     this.log("ERROR", msg, meta);
   }
-  debug(msg: string, meta?: any) {
+  debug(msg: string, meta?: unknown) {
     this.log("DEBUG", msg, meta);
   }
 
-  langfuse(level: "INFO" | "WARN" | "ERROR" | "DEBUG", msg: string, meta?: any) {
+  langfuse(level: "INFO" | "WARN" | "ERROR" | "DEBUG", msg: string, meta?: unknown) {
     this.log(level, msg, meta);
     try {
-      import("../../utils/langfuse")
+      import("./langfuse")
         .then(({ langfuseStorage }) => {
           const store = langfuseStorage.getStore();
           const activeObservation = store?.span || store?.trace;
           if (activeObservation) {
-            const levelMap: Record<string, string> = {
+            const levelMap: Record<string, ObservationLevel> = {
               INFO: "DEFAULT",
               WARN: "WARNING",
               ERROR: "ERROR",
@@ -142,7 +142,7 @@ export class Logger {
               {
                 input: msg,
                 level: levelMap[level] || "DEFAULT",
-                metadata: meta,
+                metadata: meta as Record<string, unknown>,
               },
               { asType: "event" },
             );
@@ -154,11 +154,11 @@ export class Logger {
     }
   }
 
-  telemetry(type: string, payload: Record<string, any>) {
+  telemetry(type: string, payload: Record<string, unknown>) {
     const spanId = payload.spanId || "unknown";
     const sessionId = payload.sessionId || "unknown";
-    const messagesCount = payload.input?.messages?.length || 0;
-    const cost = payload.metadata?.monetary_cost_usd || 0;
+    const messagesCount = (payload.input as { messages?: unknown[] } | undefined)?.messages?.length || 0;
+    const cost = (payload.metadata as { monetary_cost_usd?: number } | undefined)?.monetary_cost_usd || 0;
     console.log(
       `${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`,
     );
@@ -169,17 +169,17 @@ export class Logger {
     );
   }
 
-  agentActivity(missionId: string, event: string, msg: string, meta?: any) {
+  agentActivity(missionId: string, event: string, msg: string, meta?: unknown) {
     const timestamp = getTimestamp();
     console.log(
       `${MAGENTA}${BOLD}[AGENT:${event}]${RESET} ${DIM}[${timestamp}]${RESET} [${missionId.slice(0, 8)}] ${msg}${formatMeta(meta)}`,
     );
-    writeToFile("AGENT_" + event, `[${missionId}] ${msg}`, meta);
+    writeToFile(`AGENT_${event}`, `[${missionId}] ${msg}`, meta);
     writeToAgentActivityFile(missionId, event, msg, meta);
   }
 }
 
-function writeToAgentActivityFile(missionId: string, event: string, msg: string, meta?: any) {
+function writeToAgentActivityFile(missionId: string, event: string, msg: string, meta?: unknown) {
   try {
     const logDir = join(process.cwd(), "logs");
     mkdirSync(logDir, { recursive: true });
@@ -188,7 +188,7 @@ function writeToAgentActivityFile(missionId: string, event: string, msg: string,
     let metaStr = "";
     const cleanMeta = serializeMeta(meta);
     if (cleanMeta && typeof cleanMeta === "object") {
-      metaStr = " " + JSON.stringify(cleanMeta);
+      metaStr = ` ${JSON.stringify(cleanMeta)}`;
     }
     const line = `[${getTimestamp()}] [Mission:${missionId.slice(0, 8)}] [${event}] ${msg}${metaStr}\n`;
     appendFileSync(logPath, line, "utf-8");

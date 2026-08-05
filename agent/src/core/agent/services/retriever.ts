@@ -2,23 +2,13 @@ import type { ToolDefinition } from "../../../shared/types";
 import { MATCH_WEIGHTS, RETRIEVER_CONFIG, RETRIEVER_FALLBACK_TOOLS } from "./constants";
 
 export class ToolRetriever {
-  private tools: ToolDefinition[];
-
-  constructor(tools: ToolDefinition[]) {
-    this.tools = tools;
-  }
-
-  public updateIndex(tools: ToolDefinition[]) {
-    this.tools = tools;
-  }
-
   /**
    * Returns a list of tools most relevant to the user prompt.
    */
   public getRelevantTools(
     userPrompt: string,
     allTools: ToolDefinition[],
-    limit = RETRIEVER_CONFIG.DEFAULT_LIMIT,
+    limit: number = RETRIEVER_CONFIG.DEFAULT_LIMIT,
   ): ToolDefinition[] {
     const query = userPrompt.toLowerCase();
 

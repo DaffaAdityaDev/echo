@@ -3,8 +3,8 @@
 ================================================================================
   Module    : API Routes
   Service   : agent
-  Version   : 1.1
-  Updated   : 2026-07-31 (planned: GET /api/strategies catalog route)
+  Version   : 1.3
+  Updated   : 2026-08-04 (Feature Pod Convention applied)
 ================================================================================
 
 ## Description
@@ -12,6 +12,10 @@
 The API layer is built on the Hono framework with a modular route aggregator
 pattern. All routes are mounted under the `/api` prefix with global middleware
 for CORS, monitoring, and authentication.
+
+Every feature pod under `api/<feature>/` follows the Feature Pod Convention
+(routes / controller / schema / optional constants) — see
+[`docs/agent/application/patterns/code-conventions/api-pod-convention.md`](../application/patterns/code-conventions/api-pod-convention.md).
 
 ---
 
@@ -23,18 +27,33 @@ src/adapter/inbound/
     routes.ts                     # Route aggregator
     missions/
       mission.routes.ts           # POST /generate-mission
-      mission.controller.ts       # MissionController
+      mission.controller.ts       # handler functions: createMission, handleHitlDecision
       mission.schema.ts           # Zod input validation
       mission.constants.ts        # Route paths & messages
       stream.transport.ts         # SSE packet serialization
     models/
       model.routes.ts             # GET /models
-      model.controller.ts         # ModelController
+      model.controller.ts         # listModels
+      model.schema.ts             # Response schema
       model.constants.ts          # API paths & messages
     features/
       features.routes.ts          # GET /features
+      features.controller.ts      # getFeatures
+      features.schema.ts          # Response schema
+    skills/
+      skills.routes.ts            # GET /skills
+      skills.controller.ts        # listSkills
+      skills.schema.ts            # Response schema
     strategies/
-      strategies.routes.ts        # GET /strategies  [Active]
+      strategies.routes.ts        # GET /strategies
+      strategies.controller.ts    # listStrategies
+      strategies.schema.ts        # Response schema
+    internal/
+      internal.routes.ts          # POST /internal/sessions/summarize
+      internal.controller.ts      # summarizeSession
+      internal.schema.ts          # Summarize request/response schemas
+    docs/
+      docs.ts                     # Scalar API reference (infra, not a pod)
 
   middleware/
     auth.ts                       # Bearer/X-Internal-Token auth
@@ -64,7 +83,7 @@ src/adapter/inbound/
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                   Route Aggregator (routes.ts)                            │
 │                                                                           │
-│  ┌─ /api/generate-mission  ──→  MissionController.createMission          │
+│  ┌─ /api/generate-mission  ──→  createMission                            │
 │  │                            ├─ Zod schema validation                   │
 │  │                            ├─ AdapterFactory.create (via              │
 │  │                            │    ConnectionManager — llm, backend)     │
@@ -75,7 +94,7 @@ src/adapter/inbound/
 │  │                            ├─ ConnectionManager.disconnectAll()       │
 │  │                            └─ SSE stream (HttpStreamTransport)        │
 │  │                                                                        │
-│  ┌─ /api/models             ──→  ModelController.listModels             │
+│  ┌─ /api/models             ──→  listModels                             │
 │  │                            └─ Proxy to LLM provider /v1/models       │
 │  │                                                                        │
 │  ┌─ /api/features           ──→  Returns implemented tool registry       │
@@ -107,12 +126,21 @@ src/adapter/inbound/
 | `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` handler                 |
 | `modelRouter`                    | `adapter/inbound/api/models/model.routes.ts`            | `GET /models` handler                            |
 | `featuresRouter`                 | `adapter/inbound/api/features/features.routes.ts`       | `GET /features` handler                          |
-| `strategiesRouter`               | `adapter/inbound/api/strategies/strategies.routes.ts`   | `GET /strategies` handler [Active]               |
+| `skillsRouter`                   | `adapter/inbound/api/skills/skills.routes.ts`           | `GET /skills` handler                            |
+| `strategiesRouter`               | `adapter/inbound/api/strategies/strategies.routes.ts`   | `GET /strategies` handler                        |
+| `internalRouter`                 | `adapter/inbound/api/internal/internal.routes.ts`       | `POST /sessions/summarize` handler               |
 
-| `missionController`              | `adapter/inbound/api/missions/mission.controller.ts`    | `MissionController` instance                     |
-| `modelController`                | `adapter/inbound/api/models/model.controller.ts`        | `ModelController` instance                       |
+| `createMission`                  | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
+| `handleHitlDecision`             | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
+| `listModels`                     | `adapter/inbound/api/models/model.controller.ts`        | Module-level handler function                    |
+| `getFeatures`                    | `adapter/inbound/api/features/features.controller.ts`   | Module-level handler function                    |
+| `listSkills`                     | `adapter/inbound/api/skills/skills.controller.ts`       | Module-level handler function                    |
+| `listStrategies`                 | `adapter/inbound/api/strategies/strategies.controller.ts` | Module-level handler function                  |
+| `summarizeSession`               | `adapter/inbound/api/internal/internal.controller.ts`   | Module-level handler function                    |
 | `HttpStreamTransport`            | `adapter/inbound/api/missions/stream.transport.ts`      | SSE packet serializer with sequence numbers      |
 | `createMissionSchema`            | `adapter/inbound/api/missions/mission.schema.ts`        | Zod schema for mission payload validation        |
+| `hitlDecisionSchema`             | `adapter/inbound/api/missions/mission.schema.ts`        | Zod schema for HITL approve/deny payload         |
+| `SummarizeRequestSchema`         | `adapter/inbound/api/internal/internal.schema.ts`       | Zod schema for summarize request validation      |
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 
 ### Mission Endpoint - POST /api/generate-mission

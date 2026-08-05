@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { DEFAULT_MISSION_VALUES, MISSION_STRATEGIES, STRATEGY_MAPPING, VALIDATION_MESSAGES } from "./mission.constants";
+import {
+  DEFAULT_MISSION_VALUES,
+  HITL_DECISIONS,
+  MISSION_STRATEGIES,
+  STRATEGY_MAPPING,
+  VALIDATION_MESSAGES,
+} from "./mission.constants";
 
 export const ProviderConfigSchema = z.object({
   type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
@@ -215,18 +221,15 @@ export const AgentConfigSchema = z
   });
 
 export const createMissionSchema = z.preprocess(
-  (input: any) => {
+  (input: unknown) => {
     if (!input || typeof input !== "object") return input;
+    const raw = input as Record<string, unknown>;
 
-    const rawStrategyVersion = String(input.strategy_version || input.strategyVersion || "")
+    const rawStrategyVersion = String(raw.strategy_version || raw.strategyVersion || "")
       .toLowerCase()
       .trim();
     const rawStrategy = String(
-      input.strategy_version ||
-        input.strategyVersion ||
-        input.strategy ||
-        input.mode ||
-        DEFAULT_MISSION_VALUES.STRATEGY,
+      raw.strategy_version || raw.strategyVersion || raw.strategy || raw.mode || DEFAULT_MISSION_VALUES.STRATEGY,
     ).toLowerCase();
     let strategy: (typeof MISSION_STRATEGIES)[number] = DEFAULT_MISSION_VALUES.STRATEGY;
     if (STRATEGY_MAPPING.standard.includes(rawStrategy)) {
@@ -235,24 +238,24 @@ export const createMissionSchema = z.preprocess(
       strategy = "agent";
     }
 
-    const userIdRaw = input.userId ?? input.user_id;
-    const tenantIdRaw = input.tenantId ?? input.tenant_id;
-    const orgIdRaw = input.orgId ?? input.org_id;
+    const userIdRaw = raw.userId ?? raw.user_id;
+    const tenantIdRaw = raw.tenantId ?? raw.tenant_id;
+    const orgIdRaw = raw.orgId ?? raw.org_id;
 
     return {
-      ...input,
+      ...raw,
       strategy,
       strategy_version: rawStrategyVersion || undefined,
-      prompt: input.prompt || input.message,
+      prompt: raw.prompt || raw.message,
       tenantId: tenantIdRaw != null ? String(tenantIdRaw) : DEFAULT_MISSION_VALUES.TENANT_ID,
       userId: userIdRaw != null ? String(userIdRaw) : DEFAULT_MISSION_VALUES.USER_ID,
       orgId: orgIdRaw != null ? String(orgIdRaw) : DEFAULT_MISSION_VALUES.ORG_ID,
-      history: input.history ?? undefined,
-      features: input.features ?? undefined,
-      skills: input.skills ?? undefined,
-      missionId: input.missionId ?? undefined,
-      model: input.model ?? undefined,
-      config: input.config,
+      history: raw.history ?? undefined,
+      features: raw.features ?? undefined,
+      skills: raw.skills ?? undefined,
+      missionId: raw.missionId ?? undefined,
+      model: raw.model ?? undefined,
+      config: raw.config,
     };
   },
   z.object({
@@ -288,3 +291,11 @@ export const createMissionSchema = z.preprocess(
 
 export type CreateMissionInput = z.infer<typeof createMissionSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+export const hitlDecisionSchema = z.object({
+  approvalId: z.string(),
+  decision: z.enum([HITL_DECISIONS.APPROVE, HITL_DECISIONS.DENY]),
+  reason: z.string().optional(),
+});
+
+export type HitlDecisionInput = z.infer<typeof hitlDecisionSchema>;

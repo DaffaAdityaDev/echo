@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Patterns
   Service   : agent
-  Version   : 1.0
-  Updated   : 2026-07-10
+  Version   : 1.1
+  Updated   : 2026-08-04
 ================================================================================
 
 ## Overview
@@ -22,8 +22,8 @@ error propagation, auth implementation, and architectural patterns.
 patterns/
 ├── auth/               ← Authentication & authorization patterns
 ├── api-docs/           ← OpenAPI spec authoring & Scalar rendering
-├── code-conventions/   ← Naming, file structure, constants style
-├── (more as needed)    ← e.g. error-handling, dependency-injection
+├── code-conventions/   ← File structure, naming, constants style
+└── (more as needed)    ← e.g. error-handling, dependency-injection
 ```
 
 ---
@@ -51,8 +51,13 @@ Documents covering the API documentation pattern using Scalar and OpenAPI.
 
 ### code-conventions/
 
-(Planned) Documents covering:
-- File and folder naming conventions
+Documents covering file structure and naming conventions.
+
+- [`api-pod-convention.md`](code-conventions/api-pod-convention.md) — Feature
+  Pod Convention: the single standard for `api/<feature>/` file placement
+  (`<feature>.routes.ts` / `.controller.ts` / `.schema.ts` / `.constants.ts`)
+
+(Planned) More documents covering:
 - Constant and environment variable naming
 - Import ordering and module structure
 - TypeScript type conventions

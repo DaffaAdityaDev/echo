@@ -35,7 +35,32 @@ export const MISSION_ROUTES = {
   DENY: "/:id/deny",
 } as const;
 
+export const HITL_DECISIONS = {
+  APPROVE: "approve",
+  DENY: "deny",
+} as const;
+
 export const MISSION_LOG_MESSAGES = {
   STREAM_WRITE_FAILED: "Failed to write packet to stream",
   EXECUTION_FAILURE: "Execution failure",
+} as const;
+
+export const STREAM_CONSTANTS = {
+  CANCELLED_MESSAGE: "Mission cancelled by client disconnect",
+  ERROR_CODE: "STREAM_EXECUTION_ERROR",
+  ERROR_STEP: 0,
+} as const;
+
+export const STREAM_LOG_MESSAGES = {
+  EXECUTION_FAILED: "Stream execution failed:",
+  RESUME_EXECUTION_FAILED: "Resume stream execution failed:",
+  SEND_ERROR_FAILED: "Failed to send error packet to client:",
+  SEND_RESUME_ERROR_FAILED: "Failed to send error packet:",
+} as const;
+
+export const MISSION_ERROR_MESSAGES = {
+  UNKNOWN_FEATURE: (id: string) => `Unknown feature '${id}'`,
+  PROVIDER_UNREACHABLE: "Provider unreachable",
+  APPROVAL_EXPIRED_OR_NOT_FOUND: "APPROVAL_EXPIRED_OR_NOT_FOUND",
+  INVALID_DECISION: "Invalid decision payload",
 } as const;

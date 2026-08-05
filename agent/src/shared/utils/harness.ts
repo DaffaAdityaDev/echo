@@ -46,12 +46,19 @@ export function selectiveTruncateToolResults(messages: BaseMessage[], threshold:
     if (msg._getType() === "tool") {
       const contentStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
       if (contentStr.length > threshold) {
-        const ToolMsgClass = msg.constructor as any;
+        const ToolMsgClass = msg.constructor as unknown as new (init: {
+          content: string;
+          name?: string;
+          id?: string;
+          tool_call_id?: string;
+          additional_kwargs?: Record<string, unknown>;
+          response_metadata?: Record<string, unknown>;
+        }) => BaseMessage;
         return new ToolMsgClass({
           content: `[Tool output truncated: original length ${contentStr.length} chars exceeding threshold ${threshold}]`,
           name: msg.name,
           id: msg.id,
-          tool_call_id: (msg as any).tool_call_id,
+          tool_call_id: (msg as BaseMessage & { tool_call_id?: string }).tool_call_id,
           additional_kwargs: msg.additional_kwargs,
           response_metadata: msg.response_metadata,
         });
@@ -83,14 +90,14 @@ export function validateContent(filename: string, content: string): { valid: boo
   if (ext === "json") {
     try {
       JSON.parse(content);
-    } catch (err: any) {
-      return { valid: false, reason: `Invalid JSON syntax: ${err.message}` };
+    } catch (err: unknown) {
+      return { valid: false, reason: `Invalid JSON syntax: ${(err as Error).message}` };
     }
   } else if (ext === "ts" || ext === "js" || ext === "tsx" || ext === "jsx") {
     try {
       new Function(content);
-    } catch (err: any) {
-      return { valid: false, reason: `Syntax error: ${err.message}` };
+    } catch (err: unknown) {
+      return { valid: false, reason: `Syntax error: ${(err as Error).message}` };
     }
   }
   return { valid: true };

@@ -8,7 +8,8 @@ if (!parsedEnv.success) {
   const formattedErrors = parsedEnv.error.format();
   Object.keys(formattedErrors).forEach((key) => {
     if (key !== "_errors") {
-      console.error(`   👉  ${key}: ${(formattedErrors as any)[key]?._errors.join(", ")}`);
+      const entry = (formattedErrors as unknown as Record<string, { _errors: string[] }>)[key];
+      console.error(`   👉  ${key}: ${entry?._errors.join(", ")}`);
     }
   });
 
