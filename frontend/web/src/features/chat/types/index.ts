@@ -61,6 +61,8 @@ export interface TokenUsage {
   totalTokens: number;
   reasoningTokens?: number;
   cachedTokens?: number;
+  estimatedCostUsd?: number;
+  maxContextTokens?: number;
 }
 
 export type ChatMode = "standard" | "agent";

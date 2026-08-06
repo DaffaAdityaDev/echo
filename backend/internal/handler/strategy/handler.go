@@ -49,4 +49,3 @@ func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
 
 	return handlerutil.RespondSuccess(c, fiber.Map{"strategies": catalog})
 }
-

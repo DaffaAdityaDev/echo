@@ -40,24 +40,6 @@ func (r *Repository) GetByHash(ctx context.Context, hash string) (*authmodel.Api
 	return &key, nil
 }
 
-func (r *Repository) GetByUserID(ctx context.Context, userID string) ([]authmodel.ApiKey, error) {
-	rows, err := r.pool.Query(ctx, db.QueryGetApiKeysByUser, userID)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
-	}
-	defer rows.Close()
-
-	var keys []authmodel.ApiKey
-	for rows.Next() {
-		var key authmodel.ApiKey
-		if err := rows.Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt); err != nil {
-			return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
-		}
-		keys = append(keys, key)
-	}
-	return keys, rows.Err()
-}
-
 func (r *Repository) List(ctx context.Context) ([]authmodel.ApiKey, error) {
 	rows, err := r.pool.Query(ctx, db.QueryListApiKeys)
 	if err != nil {

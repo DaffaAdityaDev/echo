@@ -26,7 +26,6 @@ func (m *mockSessionRepo) CreateSession(ctx context.Context, userID int, title s
 	return args.Get(0).(*chatmodel.Session), args.Error(1)
 }
 
-
 func (m *mockSessionRepo) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
@@ -106,11 +105,11 @@ func TestHandleCreateSession(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		body          string
-		setUserID     string
-		mockSetup     func(*mockSessionRepo, *mockConsolidationSvc, *mockModelSvc)
-		wantStatus    int
+		name       string
+		body       string
+		setUserID  string
+		mockSetup  func(*mockSessionRepo, *mockConsolidationSvc, *mockModelSvc)
+		wantStatus int
 	}{
 		{
 			name:      "authenticated user with valid title returns 201",
@@ -175,11 +174,11 @@ func TestHandleDeleteSession(t *testing.T) {
 	otherUserSession := &chatmodel.Session{ID: "sess_other", UserID: 2, Status: "active"}
 
 	tests := []struct {
-		name          string
-		sessionID     string
-		setUserID     string
-		mockSetup     func(*mockSessionRepo, *mockConsolidationSvc, *mockModelSvc)
-		wantStatus    int
+		name       string
+		sessionID  string
+		setUserID  string
+		mockSetup  func(*mockSessionRepo, *mockConsolidationSvc, *mockModelSvc)
+		wantStatus int
 	}{
 		{
 			name:      "session owned by requesting user returns 200",

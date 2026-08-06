@@ -13,12 +13,10 @@ import (
 
 type Repository interface {
 	CreateTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error)
-	GetTemplateByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptTemplate, error)
 	GetTemplateByID(ctx context.Context, templateID string) (*llmopsmodel.PromptTemplate, error)
 	ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error)
 	CreateVersion(ctx context.Context, v *llmopsmodel.PromptVersion) (*llmopsmodel.PromptVersion, error)
 	GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error)
-	GetActiveVersion(ctx context.Context, templateID string) (*llmopsmodel.PromptVersion, error)
 	GetActiveVersionByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptVersion, error)
 	ListVersions(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error)
 	PromoteVersion(ctx context.Context, templateID string, version int, actor string) error
@@ -67,24 +65,6 @@ func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc st
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create template: %w", err)
-	}
-	return t, nil
-}
-
-func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptTemplate, error) {
-	query := `
-		SELECT id, tenant_id, name, description, active_version, created_at, updated_at
-		FROM prompt_templates WHERE tenant_id = $1 AND name = $2
-	`
-	t := &llmopsmodel.PromptTemplate{}
-	err := r.pool.QueryRow(ctx, query, tenantID, name).Scan(
-		&t.ID, &t.TenantID, &t.Name, &t.Description, &t.ActiveVersion, &t.CreatedAt, &t.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get template by name: %w", err)
 	}
 	return t, nil
 }
@@ -139,29 +119,6 @@ func (r *repository) GetVersion(ctx context.Context, templateID string, version 
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get version: %w", err)
-	}
-	_ = json.Unmarshal(toolsBytes, &v.BoundTools)
-	_ = json.Unmarshal(varsBytes, &v.Variables)
-	return v, nil
-}
-
-func (r *repository) GetActiveVersion(ctx context.Context, templateID string) (*llmopsmodel.PromptVersion, error) {
-	query := `
-		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
-		FROM prompt_versions v
-		JOIN prompt_templates t ON t.id = v.template_id AND t.active_version = v.version
-		WHERE t.id = $1
-	`
-	v := &llmopsmodel.PromptVersion{}
-	var toolsBytes, varsBytes []byte
-	err := r.pool.QueryRow(ctx, query, templateID).Scan(
-		&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get active version: %w", err)
 	}
 	_ = json.Unmarshal(toolsBytes, &v.BoundTools)
 	_ = json.Unmarshal(varsBytes, &v.Variables)

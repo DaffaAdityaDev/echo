@@ -16,12 +16,13 @@ export class LMStudioProvider implements LLMProvider {
   private interceptor = new ReasoningInterceptor();
   public modelName: string;
   public baseURL: string;
-  public maxContextTokens: number;
+  public maxContextTokens?: number;
 
-  constructor(baseURL: string, modelName: string, apiKey: string = "lm-studio") {
+  constructor(baseURL: string, modelName: string, apiKey: string = "lm-studio", maxContextTokens?: number) {
     this.modelName = modelName;
     const clean = baseURL.replace(/\/+$/, "");
     this.baseURL = clean.endsWith("/v1") ? clean : `${clean}/v1`;
+    this.maxContextTokens = maxContextTokens;
     this.chat = new ChatOpenAI({
       configuration: {
         baseURL: this.baseURL,
@@ -32,16 +33,6 @@ export class LMStudioProvider implements LLMProvider {
       temperature: LLM_CONFIG.DEFAULT_TEMPERATURE,
       streaming: true,
     });
-    this.maxContextTokens = this.resolveContextWindow(modelName);
-  }
-
-  private resolveContextWindow(model: string): number {
-    const lowerModel = model.toLowerCase();
-    if (lowerModel.includes("32k")) return 32768;
-    if (lowerModel.includes("16k")) return 16384;
-    if (lowerModel.includes("8k")) return 8192;
-    if (lowerModel.includes("4k")) return 4096;
-    return 8192; // Safe default for local models
   }
 
   /**

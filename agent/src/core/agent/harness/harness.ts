@@ -427,8 +427,8 @@ export class NlahHarness {
     iteration: number,
     onPacket: (p: HarnessEvent) => Promise<void>,
   ): Promise<void> {
-    if (!this.compressionEnabled) return;
-    const maxContextTokens = this.provider.maxContextTokens ?? HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS;
+    if (!this.compressionEnabled || !this.provider.maxContextTokens) return;
+    const maxContextTokens = this.provider.maxContextTokens;
     const currentTokens = getHistoryTokens(state.messages);
     const tokenUsageRatio = currentTokens / maxContextTokens;
     if (tokenUsageRatio <= HARNESS_CONFIG.COMPACTION_RATIO) return;
@@ -569,7 +569,19 @@ export class NlahHarness {
           );
         }
         if (event.usage) {
-          await this.emitUsage(onPacket, iteration, event.usage);
+          const { stepCost } = calculateUsageCost(
+            this.provider.modelName ?? "unknown",
+            this.provider.baseURL ?? "",
+            event.usage.promptTokens,
+            event.usage.completionTokens,
+            event.usage.cachedTokens ?? 0,
+          );
+          const enrichedUsage = {
+            ...event.usage,
+            estimatedCostUsd: stepCost,
+            maxContextTokens: this.provider.maxContextTokens,
+          };
+          await this.emitUsage(onPacket, iteration, enrichedUsage);
           usageResult = {
             promptTokens: event.usage.promptTokens,
             completionTokens: event.usage.completionTokens,
@@ -834,12 +846,7 @@ export class NlahHarness {
       this.strategy.name === "standard" ? "standard" : "agent",
     );
     await this.updateStatus(onPacket, { state: "running" }, iteration);
-    const maxContextTokens = this.provider.maxContextTokens ?? HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS;
-    if (this.provider.maxContextTokens === undefined) {
-      logger.warn(
-        `maxContextTokens undefined for provider=${this.provider.constructor.name} model=${this.provider.modelName ?? "unknown"}. Using fallback=${HARNESS_CONFIG.DEFAULT_MAX_CONTEXT_TOKENS}.`,
-      );
-    }
+    const maxContextTokens = this.provider.maxContextTokens;
 
     const budgetMonitor = new BudgetMonitor(this.featureToggles.budgetMonitor);
     let totalInputTokensSum = 0;
@@ -1076,7 +1083,7 @@ export class NlahHarness {
                 circuit,
                 degradation,
                 totalInputTokensSum,
-                maxContextTokens,
+                maxContextTokens ?? 0,
               );
             } else if (!hasContentEmitted && assistantContent) {
               await this.emitContent(onPacket, iteration, assistantContent);
@@ -1105,7 +1112,7 @@ export class NlahHarness {
                   circuit,
                   degradation,
                   totalInputTokensSum,
-                  maxContextTokens,
+                  maxContextTokens ?? 0,
                 );
               }
               if (!isComplete && !hasContentEmitted && assistantContent) {

@@ -37,13 +37,13 @@ func main() {
 }
 
 type Spec struct {
-	Swagger  string                `json:"swagger"`
-	Info     json.RawMessage       `json:"info"`
-	Host     string                `json:"host"`
-	BasePath string                `json:"basePath"`
-	Paths    map[string]PathItem   `json:"paths"`
+	Swagger  string                     `json:"swagger"`
+	Info     json.RawMessage            `json:"info"`
+	Host     string                     `json:"host"`
+	BasePath string                     `json:"basePath"`
+	Paths    map[string]PathItem        `json:"paths"`
 	Defs     map[string]json.RawMessage `json:"definitions"`
-	SecDefs  json.RawMessage       `json:"securityDefinitions"`
+	SecDefs  json.RawMessage            `json:"securityDefinitions"`
 }
 
 type PathItem struct {
@@ -54,14 +54,14 @@ type PathItem struct {
 }
 
 type Operation struct {
-	Tags        []string               `json:"tags"`
-	Summary     string                 `json:"summary"`
-	Description string                 `json:"description"`
-	Parameters  []json.RawMessage      `json:"parameters"`
-	Responses   map[string]Response    `json:"responses"`
-	Security    []map[string][]string  `json:"security"`
-	Consumes    []string               `json:"consumes"`
-	Produces    []string               `json:"produces"`
+	Tags        []string              `json:"tags"`
+	Summary     string                `json:"summary"`
+	Description string                `json:"description"`
+	Parameters  []json.RawMessage     `json:"parameters"`
+	Responses   map[string]Response   `json:"responses"`
+	Security    []map[string][]string `json:"security"`
+	Consumes    []string              `json:"consumes"`
+	Produces    []string              `json:"produces"`
 }
 
 type Response struct {
@@ -224,11 +224,11 @@ func writeShared(path string, spec *Spec, sharedDefs map[string]bool) {
 		defs = nil
 	}
 	obj := map[string]any{
-		"swagger": spec.Swagger,
-		"info":    spec.Info,
-		"host":    spec.Host,
+		"swagger":  spec.Swagger,
+		"info":     spec.Info,
+		"host":     spec.Host,
 		"basePath": spec.BasePath,
-		"paths":   map[string]any{},
+		"paths":    map[string]any{},
 	}
 	if spec.SecDefs != nil {
 		obj["securityDefinitions"] = spec.SecDefs

@@ -10,11 +10,12 @@ export class OpenAIProvider implements LLMProvider {
   private interceptor = new ReasoningInterceptor();
   public modelName: string;
   public baseURL: string;
-  public maxContextTokens: number;
+  public maxContextTokens?: number;
 
-  constructor(baseURL: string, modelName: string, apiKey: string = "dummy") {
+  constructor(baseURL: string, modelName: string, apiKey: string = "dummy", maxContextTokens?: number) {
     this.modelName = modelName;
     this.baseURL = baseURL;
+    this.maxContextTokens = maxContextTokens;
     this.chat = new ChatOpenAI({
       configuration: {
         baseURL,
@@ -25,46 +26,6 @@ export class OpenAIProvider implements LLMProvider {
       temperature: LLM_CONFIG.DEFAULT_TEMPERATURE,
       streaming: true,
     });
-    this.maxContextTokens = this.resolveContextWindow(modelName, baseURL);
-  }
-
-  private resolveContextWindow(model: string, url: string): number {
-    const lowerModel = model.toLowerCase();
-    const lowerURL = url.toLowerCase();
-
-    if (lowerURL.includes("localhost") || lowerURL.includes("127.0.0.1") || lowerURL.includes("lm-studio")) {
-      if (lowerModel.includes("128k")) return 128000;
-      if (lowerModel.includes("32k")) return 32768;
-      if (lowerModel.includes("16k")) return 16384;
-      if (lowerModel.includes("8k")) return 8192;
-      if (lowerModel.includes("4k")) return 4096;
-      return 8192;
-    }
-
-    const modelMap: [string, number][] = [
-      ["gpt-4o-mini", 128000],
-      ["gpt-4o", 128000],
-      ["gpt-4", 8192],
-      ["gpt-3.5", 16384],
-      ["deepseek-", 1_000_000],
-      ["minimax-m3", 1_000_000],
-      ["minimax-m2.5", 192_000],
-      ["minimax-", 256_000],
-      ["kimi-", 256_000],
-      ["glm-5.2", 1_000_000],
-      ["glm-5", 198_000],
-      ["glm-", 198_000],
-      ["qwen", 1_000_000],
-      ["mimo-v2.5-pro", 1_000_000],
-      ["mimo-", 128_000],
-      ["hy3-", 128_000],
-    ];
-
-    for (const [pattern, tokens] of modelMap) {
-      if (lowerModel.includes(pattern)) return tokens;
-    }
-
-    return 128_000;
   }
 
   async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {

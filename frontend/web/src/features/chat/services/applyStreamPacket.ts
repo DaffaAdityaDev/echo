@@ -30,6 +30,7 @@ export function applyStreamPacket(data: StreamPacket, opts: ApplyPacketOptions =
   const lastMessage: Message = {
     ...currentMsgs[lastIdx],
     steps: [...(currentMsgs[lastIdx].steps || [])],
+    status: currentMsgs[lastIdx].status === "complete" ? "complete" : "streaming",
   };
 
   switch (data.type) {
@@ -202,12 +203,14 @@ export function applyStreamPacket(data: StreamPacket, opts: ApplyPacketOptions =
         lastMessage.usage = data.usage;
         store.setCumulativeUsage(data.usage);
       }
+      lastMessage.status = "complete";
       store.setAgentState("completed");
       break;
     case PACKET_TYPES.ERROR: {
       const errDetail = data.content || "Stream execution failed";
       const currentContent = lastMessage.content || "";
       lastMessage.content = currentContent ? `${currentContent}\n\n[Error: ${errDetail}]` : `Error: ${errDetail}`;
+      lastMessage.status = "complete";
       store.setAgentState("error");
       break;
     }
@@ -246,6 +249,7 @@ export function applyStreamPacket(data: StreamPacket, opts: ApplyPacketOptions =
       }
       break;
     case PACKET_TYPES.MISSION_COMPLETED:
+      lastMessage.status = "complete";
       store.setAgentState("completed");
       break;
     default: {

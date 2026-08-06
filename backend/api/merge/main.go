@@ -13,7 +13,7 @@ type ModuleSpec struct {
 	Host                string                            `json:"host"`
 	BasePath            string                            `json:"basePath"`
 	Paths               map[string]map[string]interface{} `json:"paths"`
-	Definitions         map[string]json.RawMessage       `json:"definitions"`
+	Definitions         map[string]json.RawMessage        `json:"definitions"`
 	SecurityDefinitions json.RawMessage                   `json:"securityDefinitions"`
 }
 
@@ -23,7 +23,7 @@ type MonolithSpec struct {
 	Host                string                            `json:"host"`
 	BasePath            string                            `json:"basePath"`
 	Paths               map[string]map[string]interface{} `json:"paths"`
-	Definitions         map[string]json.RawMessage       `json:"definitions"`
+	Definitions         map[string]json.RawMessage        `json:"definitions"`
 	SecurityDefinitions json.RawMessage                   `json:"securityDefinitions"`
 }
 

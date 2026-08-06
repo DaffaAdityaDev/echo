@@ -122,7 +122,7 @@ Prompt Engineer ──► Domain Expert ──► Admin Bisnis ──► PRODUCT
 ## Data Flow
 
 ```
-Studio promote ──► prompt_versions (status=production)
+Prompt Library (/prompts) promote ──► prompt_versions (status=production)
                       │
                       ▼
 Agent GET /api/v1/internal/prompts/active?template=<name>
@@ -137,10 +137,9 @@ Fallback: hardcoded prompts (when no production version)
 ## UI Route Structure
 
 ```
-/studio/prompts                   — Prompt version library
-/studio/prompts/:id               — Version history + diff view
-/studio/prompts/:id/versions/:v   — Specific version detail
-/studio/settings                  — Evaluator model config, user prefs
+/prompts                          — Prompt Library: template list, version timeline,
+                                     diff viewer, promote/rollback, draft editor
+/maturity                         — AI-readiness maturity assessment
 ```
 
 ## Phase Roadmap

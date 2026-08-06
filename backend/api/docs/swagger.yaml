@@ -260,27 +260,6 @@ definitions:
       name:
         type: string
     type: object
-  echo-backend_internal_service_llmops.PlaygroundRequest:
-    properties:
-      features:
-        items:
-          type: string
-        type: array
-      models:
-        items:
-          type: string
-        type: array
-      prompt:
-        type: string
-      skills:
-        items:
-          type: string
-        type: array
-      variables:
-        additionalProperties:
-          type: string
-        type: object
-    type: object
   internal_handler_admin.createAPIKeyRequest:
     properties:
       name:
@@ -1504,36 +1483,6 @@ paths:
       summary: List strategy catalog
       tags:
       - Strategies
-  /api/v1/studio/playground:
-    post:
-      consumes:
-      - application/json
-      description: Streams multi-model prompt comparison results as Server-Sent Events
-      parameters:
-      - description: Playground payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/echo-backend_internal_service_llmops.PlaygroundRequest'
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: Event stream
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Run LLM playground
-      tags:
-      - Studio
   /api/v1/studio/prompts:
     get:
       description: Returns all prompt templates (LLMOps Studio)

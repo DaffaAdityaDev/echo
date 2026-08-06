@@ -129,17 +129,19 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
     return <Markdown content={stripProtocolMarkup(msg.content)} />;
   };
 
+  const isStreaming = isAssistant && (msg.status === "streaming" || (isLast && isLoading));
+
   return (
     <div
       className={cn(
-        "flex gap-3 md:gap-4 group animate-in py-2 max-w-5xl mx-auto w-full",
+        "flex gap-3 md:gap-4 group animate-in fade-in duration-300 py-2 max-w-5xl mx-auto w-full",
         !isAssistant ? "flex-row-reverse" : "flex-row",
       )}
     >
       {/* Avatar Icon */}
       <div
         className={cn(
-          "w-8 h-8 rounded-xs flex items-center justify-center shrink-0 shadow-xs border font-mono font-bold text-xs",
+          "w-8 h-8 rounded-xs flex items-center justify-center shrink-0 shadow-xs border font-mono font-bold text-xs transition-colors",
           !isAssistant
             ? "bg-foreground text-white border-foreground"
             : "bg-blue-50 text-gb-blue border-gb-bright-blue/30",
@@ -148,7 +150,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
         {!isAssistant ? (
           <User className="h-4 w-4" aria-hidden="true" />
         ) : (
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <Sparkles className="h-4 w-4 text-gb-blue" aria-hidden="true" />
         )}
       </div>
 
@@ -161,20 +163,21 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
       >
         {/* Mission metadata bar */}
         {isAssistant && msg.meta && (
-          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-border">
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider",
-                msg.meta.strategy === "react"
-                  ? "bg-blue-50 text-gb-blue border border-gb-bright-blue/30"
-                  : "bg-surface-hover text-slate-600 border border-border",
-              )}
-            >
-              {msg.meta.strategy === "react" ? "âš¡ Agent Mode" : "ðŸ’¬ Standard"}
-            </span>
+          <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-zinc-200/80 dark:border-zinc-800">
+            {msg.meta.strategy === "react" ? (
+              <span className="inline-flex items-center gap-1 text-purple-700 dark:text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-md font-bold text-[10px]">
+                <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                <span>Agent Mode</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-md font-semibold text-[10px]">
+                <Terminal className="h-3 w-3 text-blue-500" />
+                <span>Standard Mode</span>
+              </span>
+            )}
 
             {msg.usage && (
-              <span className="text-[10px] font-mono text-muted ml-auto">{msg.usage.totalTokens} tokens</span>
+              <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 ml-auto">{msg.usage.totalTokens} tokens</span>
             )}
           </div>
         )}
@@ -207,9 +210,9 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
           </div>
         )}
         {isAssistant && msg.status === "interrupted" && (
-          <div className="flex items-center gap-1.5 py-1 text-[10px] text-muted italic border-t border-dashed border-slate-300 mt-1 font-mono">
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-zinc-500 italic border-t border-dashed border-zinc-300 dark:border-zinc-700 mt-1 font-mono">
             <AlertTriangle className="h-3 w-3" />
-            Response was interrupted â€” send a reply to continue
+            Response was interrupted — send a reply to continue
           </div>
         )}
 
@@ -370,3 +373,5 @@ function ThoughtStepView({ step }: { step: ThoughtStep }) {
 
   return null;
 }
+
+

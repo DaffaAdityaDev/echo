@@ -65,11 +65,11 @@ func TestResolveProviderConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:     "nil preferences returns error",
-			userID:   3,
-			modelID:  "gpt-4o",
-			prefs:    nil,
-			wantErr:  true,
+			name:    "nil preferences returns error",
+			userID:  3,
+			modelID: "gpt-4o",
+			prefs:   nil,
+			wantErr: true,
 		},
 		{
 			name:    "empty modelID falls back to system default provider config",

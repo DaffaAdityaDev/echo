@@ -24,16 +24,11 @@ src/features/studio/
 │   └── usePrompts.ts
 ├── hooks/
 │   ├── useMaturityModel.ts
-│   ├── usePromptLibrary.ts
-│   └── useStudioDashboard.ts
-├── stores/
-│   └── studioStore.ts
+│   ├── useMaturityPage.ts
+│   └── usePromptLibrary.ts
 ├── components/
-│   ├── dashboard/
-│   │   └── StudioDashboard.tsx
 │   ├── shared/
-│   │   ├── EmptyState.tsx
-│   │   └── JsonViewer.tsx
+│   │   └── EmptyState.tsx
 │   ├── prompts/
 │   │   ├── PromptsPage.tsx
 │   │   ├── PromptLibrary.tsx
@@ -54,16 +49,6 @@ src/features/studio/
 ### Component Architecture
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                       StudioDashboard (orchestrator)                      │
-│                                                                           │
-│  ┌──────────────────┐   ┌────────────────────────────────────────────┐   │
-│  │   Summary Cards   │   │        Sub-feature Navigation Tabs         │   │
-│  │  prompt/          │   │  Prompts │ Maturity                        │   │
-│  │  counts + level   │   └────────────────────────────────────────────┘   │
-│  └──────────────────┘                                                    │
-└───────────────────────────────────────────────────────────────────────────┘
-
 ┌───────────────────────────────────────────────────────────────────────────┐
 │  PromptsPage                                                             │
 │  ┌────────────────────────┐                                             │
@@ -99,9 +84,7 @@ src/features/studio/
 +----------------------------+-------------+------------------------------------------------------+
 | Export                     | Kind        | Source                                               |
 +----------------------------+-------------+------------------------------------------------------+
-| StudioDashboard            | Component   | components/dashboard/StudioDashboard.tsx              |
 | EmptyState                 | Component   | components/shared/EmptyState.tsx                      |
-| JsonViewer                 | Component   | components/shared/JsonViewer.tsx                      |
 | MaturityDashboard          | Component   | components/maturity/MaturityDashboard.tsx             |
 | MaturityMatrix             | Component   | components/maturity/MaturityMatrix.tsx                |
 | MaturityRoadmap            | Component   | components/maturity/MaturityRoadmap.tsx               |
@@ -111,22 +94,18 @@ src/features/studio/
 | PromptVersionTimeline      | Component   | components/prompts/PromptVersionTimeline.tsx          |
 | VersionDiffViewer          | Component   | components/prompts/VersionDiffViewer.tsx              |
 | VersionStatusBadge         | Component   | components/prompts/VersionStatusBadge.tsx             |
-| useStudioDashboard         | Hook        | hooks/useStudioDashboard.ts                           |
 | useMaturityModel           | Hook        | hooks/useMaturityModel.ts                             |
+| useMaturityPage            | Hook        | hooks/useMaturityPage.ts                              |
 | usePromptLibrary           | Hook        | hooks/usePromptLibrary.ts                             |
 | all types                  | Type        | types/index.ts                                        |
 +----------------------------+-------------+------------------------------------------------------+
 
-> **Note:** `api/`, `stores/`, `constants.ts`, and `data/` are internal — not re-exported from the barrel.
+> **Note:** `api/`, `constants.ts`, and `data/` are internal — not re-exported from the barrel.
 
 ### Components
 
 +-----------------------+--------------------------------------------------------------+
 | Component             | Description                                                  |
-+-----------------------+--------------------------------------------------------------+
-| StudioDashboard       | Overview page — prompt counts, maturity                     |
-|                       | level, weakest dimension, roadmap progress. Props: all       |
-|                       | data from useStudioDashboard.                                |
 +-----------------------+--------------------------------------------------------------+
 | PromptsPage           | Full prompt management page with library + version timeline. |
 +-----------------------+--------------------------------------------------------------+
@@ -150,19 +129,17 @@ src/features/studio/
 +-----------------------+--------------------------------------------------------------+
 | EmptyState            | Reusable empty state placeholder.                            |
 +-----------------------+--------------------------------------------------------------+
-| JsonViewer            | Collapsible JSON payload viewer.                             |
-+-----------------------+--------------------------------------------------------------+
 
 ### Hooks & API
 
 +---------------------------+---------------------------+-----------------------------------------------------+
 | Export                    | File                      | Purpose                                             |
 +---------------------------+---------------------------+-----------------------------------------------------+
-| useStudioDashboard        | hooks/useStudioDashboard  | Orchestrator — wraps prompt queries                  |
-|                           |                           | + maturity model. Returns counts, level, progress.  |
-+---------------------------+---------------------------+-----------------------------------------------------+
 | usePromptLibrary          | hooks/usePromptLibrary    | Prompt CRUD — wraps api/usePrompts hooks.           |
 |                           |                           | Manages selected template, version, draft prompt.   |
++---------------------------+---------------------------+-----------------------------------------------------+
+| useMaturityPage           | hooks/useMaturityPage     | Maturity page orchestration — counts, matrix,       |
+|                           |                           | roadmap, scoring, client assessment.                |
 +---------------------------+---------------------------+-----------------------------------------------------+
 | useMaturityModel          | hooks/useMaturityModel    | Maturity assessment logic — computes overall level, |
 |                           |                           | manages client assessments, roadmap, scoring.       |
@@ -182,14 +159,6 @@ src/features/studio/
 | useMaturityAssessment | api/useMaturity.ts         | Query — system maturity assessment                  |
 | useSaveClientAssessment| api/useMaturity.ts        | Mutation — save client assessment                   |
 +----------------------+---------------------------+-----------------------------------------------------+
-
-### Zustand Store (`stores/studioStore.ts`)
-
-+-----------------------+---------------------------+-----------------------------------------------------+
-| State                 | Type                      | Description                                         |
-+-----------------------+---------------------------+-----------------------------------------------------+
-| activePromptId        | string | null            | Currently selected prompt in library                |
-+-----------------------+---------------------------+-----------------------------------------------------+
 
 ### Types (`types/index.ts`)
 
@@ -248,6 +217,13 @@ src/features/studio/
 - `zustand` — studio state management
 - `@tanstack/react-query` — server state (prompts, maturity)
 
+## Page Routes
+
+| Route      | Page                              | Component                                 |
+|------------|-----------------------------------|-------------------------------------------|
+| `/prompts` | `app/(main)/prompts/page.tsx`     | `PromptsPage` — prompt library, versions, diff, promote/rollback |
+| `/maturity`| `app/(main)/maturity/page.tsx`    | `MaturityDashboard` — AI-readiness assessment |
+
 ## API Routes
 
 All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full route table.
@@ -264,19 +240,17 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 | src/features/studio/data/maturity-data.ts                 | 1-315   | MATURITY_LEVELS, MATURITY_DIMENSIONS,            |
 |                                                           |         | ECHO_SELF_ASSESSMENT_ROADMAP, SCORING_QUESTIONS  |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/stores/studioStore.ts                 | 1-34    | Zustand store — studio state + setters           |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/api/usePrompts.ts                     | 1-100   | TanStack Query hooks for prompt CRUD             |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/api/useMaturity.ts                    | 1-25    | TanStack Query hooks for maturity assessment     |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/hooks/useStudioDashboard.ts           | 1-35    | Orchestrator — counts, maturity, refresh         |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/usePromptLibrary.ts             | 1-70    | Prompt CRUD orchestration + state                |
++-----------------------------------------------------------+---------+--------------------------------------------------+
+| src/features/studio/hooks/useMaturityPage.ts              | 1-80    | Maturity page orchestration                      |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/useMaturityModel.ts             | 1-187   | Maturity assessment logic                        |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/index.ts                              | 1-52    | Barrel exports — components, hooks, types        |
+| src/features/studio/index.ts                              | 1-31    | Barrel exports — components, hooks, types        |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 
 ===============================================================================

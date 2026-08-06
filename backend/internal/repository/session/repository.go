@@ -21,14 +21,6 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) UpdateSessionTimestamp(ctx context.Context, sessionID string) error {
-	_, err := r.pool.Exec(ctx, db.QueryUpdateSessionUpdatedAt, sessionID)
-	if err != nil {
-		return fmt.Errorf("failed to update session timestamp: %w", err)
-	}
-	return nil
-}
-
 func (r *Repository) CreateSession(ctx context.Context, userID int, title string, strategyVersion string) (*chatmodel.Session, error) {
 	var s chatmodel.Session
 	err := r.pool.QueryRow(ctx, db.QueryCreateSession, userID, title, strategyVersion).
@@ -91,14 +83,6 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error 
 	_, err := r.pool.Exec(ctx, db.QueryDeleteSession, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) UpdateContextSummary(ctx context.Context, sessionID string, summary string) error {
-	_, err := r.pool.Exec(ctx, db.QueryUpdateContextSummary, sessionID, summary)
-	if err != nil {
-		return fmt.Errorf("failed to update context summary: %w", err)
 	}
 	return nil
 }
@@ -240,24 +224,6 @@ func (r *Repository) SaveTurnMessages(ctx context.Context, sessionID string, use
 	return tx.Commit(ctx)
 }
 
-func (r *Repository) InsertMessage(ctx context.Context, sessionID, role, content string, tokenCount, turnNumber int, status string) (int64, error) {
-	var id int64
-	err := r.pool.QueryRow(ctx, db.QueryInsertMessageWithStatus, sessionID, role, content, tokenCount, turnNumber, status).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert message: %w", err)
-	}
-	return id, nil
-}
-
-func (r *Repository) InsertAssistantPlaceholder(ctx context.Context, sessionID string, turnNumber int) (int64, error) {
-	var id int64
-	err := r.pool.QueryRow(ctx, db.QueryInsertAssistantPlaceholder, sessionID, turnNumber).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert assistant placeholder: %w", err)
-	}
-	return id, nil
-}
-
 func (r *Repository) UpdateMessageContent(ctx context.Context, msgID int64, content string, steps json.RawMessage, tokenCount int) error {
 	if steps == nil {
 		steps = json.RawMessage("null")
@@ -265,22 +231,6 @@ func (r *Repository) UpdateMessageContent(ctx context.Context, msgID int64, cont
 	_, err := r.pool.Exec(ctx, db.QueryUpdateMessageContent, msgID, content, steps, tokenCount)
 	if err != nil {
 		return fmt.Errorf("failed to update message content: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) UpdateMessageStatus(ctx context.Context, msgID int64, status string) error {
-	_, err := r.pool.Exec(ctx, db.QueryUpdateMessageStatus, msgID, status)
-	if err != nil {
-		return fmt.Errorf("failed to update message status: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) MarkStreamingAsInterrupted(ctx context.Context, sessionID string) error {
-	_, err := r.pool.Exec(ctx, db.QueryMarkSessionStreamingInterrupted, sessionID)
-	if err != nil {
-		return fmt.Errorf("failed to mark streaming messages as interrupted: %w", err)
 	}
 	return nil
 }

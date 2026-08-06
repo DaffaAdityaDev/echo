@@ -138,6 +138,8 @@ export const useChatStore = create<ChatState>((set) => ({
           totalTokens: (state.cumulativeUsage.totalTokens || 0) + (usage.totalTokens || 0),
           reasoningTokens: (state.cumulativeUsage.reasoningTokens || 0) + (usage.reasoningTokens || 0),
           cachedTokens: (state.cumulativeUsage.cachedTokens || 0) + (usage.cachedTokens || 0),
+          estimatedCostUsd: (state.cumulativeUsage.estimatedCostUsd || 0) + (usage.estimatedCostUsd || 0),
+          maxContextTokens: usage.maxContextTokens ?? state.cumulativeUsage.maxContextTokens,
         },
       };
     }),

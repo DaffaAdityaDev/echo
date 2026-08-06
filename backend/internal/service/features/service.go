@@ -49,7 +49,6 @@ func (e ErrFeatureLocked) Error() string {
 
 type FeatureRepository interface {
 	ListActive(ctx context.Context) ([]featuresmodel.Feature, error)
-	GetByID(ctx context.Context, id string) (*featuresmodel.Feature, error)
 }
 
 type Service struct {

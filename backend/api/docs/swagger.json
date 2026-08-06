@@ -1527,54 +1527,6 @@
                 ]
             }
         },
-        "/api/v1/studio/playground": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "description": "Streams multi-model prompt comparison results as Server-Sent Events",
-                "parameters": [
-                    {
-                        "description": "Playground payload",
-                        "in": "body",
-                        "name": "request",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_service_llmops.PlaygroundRequest"
-                        }
-                    }
-                ],
-                "produces": [
-                    "text/event-stream"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Event stream",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "additionalProperties": {
-                                "type": "string"
-                            },
-                            "type": "object"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "summary": "Run LLM playground",
-                "tags": [
-                    "Studio"
-                ]
-            }
-        },
         "/api/v1/studio/prompts": {
             "get": {
                 "consumes": null,
@@ -2193,38 +2145,6 @@
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "echo-backend_internal_service_llmops.PlaygroundRequest": {
-            "type": "object",
-            "properties": {
-                "features": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "models": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "prompt": {
-                    "type": "string"
-                },
-                "skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "variables": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
                 }
             }
         },

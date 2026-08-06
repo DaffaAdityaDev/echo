@@ -160,5 +160,16 @@ func (s *Service) ResolvePromptTemplateNameForTenant(ctx context.Context, tenant
 		cfgDefault = s.cfg.PromptTemplateName
 	}
 
-	return ResolvePromptTemplateName(raw, tenantID, cfgDefault), nil
+	res := ResolvePromptTemplateName(raw, tenantID, cfgDefault)
+	if res != "" {
+		return res, nil
+	}
+
+	latest, err := s.settingsRepo.GetLatestActivePromptTemplateName(ctx, tenantID)
+	if err != nil {
+		log.Printf("[SETTINGS] Failed to query latest active prompt template: %v", err)
+		return "", nil
+	}
+
+	return latest, nil
 }

@@ -25,10 +25,9 @@ Page TIDAK boleh berisi:
 
 ```
 src/app/
-├── (main)/                  ← Main app shell (includes studio sub-pages)
+├── (main)/                  ← Main app shell (chat, prompts, maturity)
 │   ├── layout.tsx           ← Main layout shell
 │   ├── page.tsx             ← Chat route — useChatPage() → <ChatPage>
-│   ├── studio/page.tsx      ← Studio dashboard
 │   ├── prompts/page.tsx     ← Prompt library
 │   ├── maturity/page.tsx    ← Maturity assessment
 │
@@ -79,7 +78,9 @@ src/app/
 │           ├── active/route.ts
 │           └── [id]/
 │               ├── versions/route.ts
-│               └── versions/[v]/route.ts
+│               ├── versions/[v]/route.ts
+│               ├── promote/[version]/route.ts
+│               └── rollback/[version]/route.ts
 │
 ├── globals.css
 ├── layout.tsx

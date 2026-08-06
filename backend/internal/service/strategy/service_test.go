@@ -63,10 +63,10 @@ func TestResolveVersion_ExplicitRequest(t *testing.T) {
 	noRollouts := map[string]RolloutCfg{}
 
 	tests := []struct {
-		name            string
-		requested       string
-		want            string
-		wantErr         bool
+		name      string
+		requested string
+		want      string
+		wantErr   bool
 	}{
 		{name: "exact version", requested: "nlah:v1", want: "nlah:v1"},
 		{name: "case-insensitive version", requested: "NLAH:v1", want: "nlah:v1"},

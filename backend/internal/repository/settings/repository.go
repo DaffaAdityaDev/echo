@@ -5,6 +5,7 @@ import (
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/user"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -126,3 +127,19 @@ func (r *Repository) UpsertAppSetting(ctx context.Context, key string, value []b
 	return nil
 }
 
+func (r *Repository) GetLatestActivePromptTemplateName(ctx context.Context, tenantID string) (string, error) {
+	var name string
+	query := `
+		SELECT name FROM prompt_templates 
+		WHERE (tenant_id = $1 OR tenant_id = 'local') AND active_version IS NOT NULL 
+		ORDER BY updated_at DESC LIMIT 1
+	`
+	err := r.pool.QueryRow(ctx, query, tenantID).Scan(&name)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to query latest active prompt template: %w", err)
+	}
+	return name, nil
+}

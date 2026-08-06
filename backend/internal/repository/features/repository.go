@@ -6,7 +6,6 @@ import (
 	featuresmodel "echo-backend/internal/models/features"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,17 +36,4 @@ func (r *Repository) ListActive(ctx context.Context) ([]featuresmodel.Feature, e
 		return nil, fmt.Errorf("failed to iterate feature rows: %w", err)
 	}
 	return features, nil
-}
-
-func (r *Repository) GetByID(ctx context.Context, id string) (*featuresmodel.Feature, error) {
-	var f featuresmodel.Feature
-	err := r.pool.QueryRow(ctx, db.QueryGetFeatureByID, id).
-		Scan(&f.ID, &f.Name, &f.Description, &f.TierRequirement, &f.UISchema, &f.Status, &f.CreatedAt, &f.UpdatedAt)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get feature %s: %w", id, err)
-	}
-	return &f, nil
 }

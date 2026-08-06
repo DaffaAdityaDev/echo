@@ -36,12 +36,12 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 
 		authHeader := c.Get(auth.HeaderAuthorization)
 		if !strings.HasPrefix(authHeader, auth.BearerPrefix) {
-		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
 		}
 
 		tokenString = strings.TrimPrefix(authHeader, auth.BearerPrefix)
 		if tokenString == "" {
-		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Missing token")
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

@@ -13,13 +13,13 @@ type PromptTemplate struct {
 }
 
 type PromptVersion struct {
-	ID           string   `json:"id"`
-	TemplateID   string   `json:"template_id"`
-	Version      int      `json:"version"`
-	SystemPrompt string   `json:"system_prompt"`
-	BoundTools   []string `json:"bound_tools"`
-	Variables    []string `json:"variables"`
-	Status       string   `json:"status"`
-	CreatedBy    string   `json:"created_by"`
+	ID           string    `json:"id"`
+	TemplateID   string    `json:"template_id"`
+	Version      int       `json:"version"`
+	SystemPrompt string    `json:"system_prompt"`
+	BoundTools   []string  `json:"bound_tools"`
+	Variables    []string  `json:"variables"`
+	Status       string    `json:"status"`
+	CreatedBy    string    `json:"created_by"`
 	CreatedAt    time.Time `json:"created_at"`
 }

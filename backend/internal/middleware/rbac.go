@@ -22,7 +22,3 @@ func RequireRoles(allowedRoles ...string) fiber.Handler {
 		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
 	}
 }
-
-func RequireAdmin() fiber.Handler {
-	return RequireRoles("admin")
-}

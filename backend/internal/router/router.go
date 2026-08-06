@@ -4,34 +4,33 @@ import (
 	"context"
 	"log"
 
-
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/constants/routes"
 	"echo-backend/internal/database"
-	"echo-backend/internal/handler/handlerutil"
-	authhdl "echo-backend/internal/handler/auth"
 	adminhdl "echo-backend/internal/handler/admin"
+	aimodelhdl "echo-backend/internal/handler/aimodel"
+	authhdl "echo-backend/internal/handler/auth"
 	chathdl "echo-backend/internal/handler/chat"
 	featureshdl "echo-backend/internal/handler/features"
+	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/handler/llmops"
 	memhdl "echo-backend/internal/handler/memory"
-	aimodelhdl "echo-backend/internal/handler/aimodel"
 	sessionhdl "echo-backend/internal/handler/session"
 	setthdl "echo-backend/internal/handler/settings"
 	strathdl "echo-backend/internal/handler/strategy"
-	"echo-backend/internal/handler/llmops"
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models/config"
-	authrepo "echo-backend/internal/repository/auth"
 	adminrepo "echo-backend/internal/repository/admin"
+	authrepo "echo-backend/internal/repository/auth"
 	featuresrepo "echo-backend/internal/repository/features"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
 	sessrepo "echo-backend/internal/repository/session"
 	setrepo "echo-backend/internal/repository/settings"
+	aimodelSvc "echo-backend/internal/service/aimodel"
 	authsvc "echo-backend/internal/service/auth"
 	consolid "echo-backend/internal/service/consolidation"
-	llmopsSvc "echo-backend/internal/service/llmops"
-	aimodelSvc "echo-backend/internal/service/aimodel"
 	featuressvc "echo-backend/internal/service/features"
+	llmopsSvc "echo-backend/internal/service/llmops"
 	settsvc "echo-backend/internal/service/settings"
 	stratsvc "echo-backend/internal/service/strategy"
 	"echo-backend/internal/worker"
@@ -80,13 +79,10 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	lifecycleWorker := worker.NewLifecycleWorker(cfg, sessionRepo, settingsSvc, consolidationSvc, strategySvc, rdb)
 	go lifecycleWorker.Start(context.Background())
 
-
-
 	// 5. Initialize LLMOps Module
 	llmopsPromptRepo := propsrepo.NewRepository(pool)
 
 	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo, rdb)
-
 
 	llmopsPromptHandler := llmops.NewPromptHandler(llmopsPromptSvc)
 	llmopsAgentPromptHandler := llmops.NewAgentPromptHandler(llmopsPromptSvc)
@@ -148,7 +144,6 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	api.Get(routes.V1PathFeatures, featuresHandler.HandleGetFeatures)
 	api.Get(routes.V1PathStrategies, middleware.AuthRequired(cfg.JWTSecret), strategyHandler.HandleGetStrategies)
 
-
 	// Settings routes
 	api.Get(routes.V1PathSettingsDefaults, settingsHandler.HandleGetDefaults)
 	api.Get(routes.V1PathSettings, middleware.AuthRequired(cfg.JWTSecret), settingsHandler.HandleGetSettings)
@@ -176,9 +171,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	prompts := studio.Group("/prompts")
 	prompts.Get("", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
-	prompts.Get("/", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
 	prompts.Post("", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
-	prompts.Post("/", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
 	prompts.Get("/active", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetActivePrompt)
 	prompts.Get("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListVersions)
 	prompts.Get("/:id/versions/:v", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetVersion)
@@ -188,7 +181,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))
-	
+
 	internalGroup.Get("/prompts/active", llmopsAgentPromptHandler.HandleGetAgentActivePrompt)
 
 	internalSessionsGroup := internalGroup.Group("/sessions")

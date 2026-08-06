@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 )
 
 func Load() *cfgmodel.Config {
@@ -16,11 +15,8 @@ func Load() *cfgmodel.Config {
 	c.JWTSecret = envStr("JWT_SECRET", cfgConst.DefaultJWTSecret)
 	c.Environment = envStr("ENVIRONMENT", cfgConst.DefaultEnvironment)
 	c.AgentHTTPURL = envStr("HONO_API_URL", envStr("AGENT_HTTP_URL", cfgConst.DefaultAgentHTTPURL))
-	c.AllowOrigins = envStr("ALLOW_ORIGINS", cfgConst.DefaultAllowOrigins)
 	c.RedisAddr = envStr("REDIS_ADDR", cfgConst.DefaultRedisAddr)
 	c.RedisPassword = envStr("REDIS_PASSWORD", cfgConst.DefaultRedisPass)
-	c.OtelCollectorAddr = envStr("OTEL_COLLECTOR_ADDR", "otel-collector:4317")
-	c.EnableOtel = envStr("ENABLE_OTEL", "false") == "true"
 	c.InternalAuthToken = envStr("INTERNAL_AUTH_TOKEN", "default-internal-token-secret")
 	c.DefaultModel = envStr("DEFAULT_MODEL", cfgConst.DefaultModel)
 	c.ServiceJWTSecret = envStr("SERVICE_JWT_SECRET", cfgConst.DefaultServiceJWTSecret)
@@ -30,9 +26,6 @@ func Load() *cfgmodel.Config {
 	c.HistoryMaxTokens = envInt("HISTORY_MAX_TOKENS", 50000)
 	c.HistoryMaxMsgChars = envInt("HISTORY_MAX_MSG_CHARS", 100000)
 	c.ConsolidationSkipTokens = envInt("CONSOLIDATION_SKIP_TOKENS", 200000)
-	c.EvaluatorEndpoint = envStr("EVALUATOR_ENDPOINT", "https://api.openai.com/v1/chat/completions")
-	c.EvaluatorAPIKey = os.Getenv("EVALUATOR_API_KEY")
-	c.EvaluatorModel = envStr("EVALUATOR_MODEL", "gpt-4o")
 	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
 	if c.EncryptionKey == "" {
 		log.Println("ENCRYPTION_KEY is empty; API key encryption will fail at runtime. Set a 32-char key.")
@@ -68,17 +61,4 @@ func envFloat(key string, def float64) float64 {
 		}
 	}
 	return def
-}
-
-
-func splitEnv(val string) []string {
-	parts := strings.Split(val, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
 }

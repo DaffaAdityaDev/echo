@@ -93,7 +93,7 @@ type PaginationMeta struct {
 
 type ListSessionsResponse struct {
 	Sessions   []*chatmodel.Session `json:"sessions"`
-	Pagination PaginationMeta        `json:"pagination"`
+	Pagination PaginationMeta       `json:"pagination"`
 }
 
 type GetMessagesResponse struct {
@@ -140,7 +140,6 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 
 	return handlerutil.RespondCreated(c, session)
 }
-
 
 // HandleListSessions godoc
 // @Summary List user sessions
@@ -616,4 +615,3 @@ func buildChatCompletionsURL(baseURL string) string {
 	}
 	return base + "/chat/completions"
 }
-

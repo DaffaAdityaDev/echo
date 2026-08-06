@@ -85,26 +85,4 @@ func TestFeatureRepository(t *testing.T) {
 	if byID["write_todos"] != "free" {
 		t.Errorf("Expected write_todos tier 'free', got %q", byID["write_todos"])
 	}
-
-	feat, err := repo.GetByID(ctx, "web_search")
-	if err != nil {
-		t.Fatalf("Failed to get feature by ID: %v", err)
-	}
-	if feat == nil {
-		t.Fatal("Expected web_search feature, got nil")
-	}
-	if feat.Name != "Web Search" {
-		t.Errorf("Expected name 'Web Search', got %q", feat.Name)
-	}
-	if len(feat.UISchema) == 0 {
-		t.Error("Expected ui_schema to be populated")
-	}
-
-	missing, err := repo.GetByID(ctx, "no_such_feature")
-	if err != nil {
-		t.Fatalf("Failed to query missing feature: %v", err)
-	}
-	if missing != nil {
-		t.Errorf("Expected nil for missing feature, got %+v", missing)
-	}
 }

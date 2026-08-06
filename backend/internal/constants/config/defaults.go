@@ -6,7 +6,6 @@ const (
 	DefaultJWTSecret    = "your-secret-key"
 	DefaultEnvironment  = "development"
 	DefaultAgentHTTPURL = "http://localhost:3001"
-	DefaultAllowOrigins = "http://localhost:3000"
 )
 
 const (
@@ -15,6 +14,6 @@ const (
 )
 
 const (
-	DefaultModel              = "opencode-go/deepseek-v4-flash"
-	DefaultServiceJWTSecret   = "default-service-jwt-secret"
+	DefaultModel            = "opencode-go/deepseek-v4-flash"
+	DefaultServiceJWTSecret = "default-service-jwt-secret"
 )

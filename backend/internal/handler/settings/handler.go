@@ -23,14 +23,14 @@ func NewHandler(cfg *cfgmodel.Config, settingsSvc *settings.Service) *Handler {
 }
 
 type UpdateSettingsRequest struct {
-	DefaultMode     string                        `json:"default_mode"`
-	DefaultModel    string                        `json:"default_model"`
-	DefaultFeatures []string                      `json:"default_features"`
-	DefaultSkills   []string                      `json:"default_skills"`
-	ProviderType    string                        `json:"provider_type"`
-	APIKey          *string                       `json:"api_key"`
-	KeepAPIKey      bool                          `json:"keep_api_key"`
-	BaseURL         string                        `json:"base_url"`
+	DefaultMode     string                           `json:"default_mode"`
+	DefaultModel    string                           `json:"default_model"`
+	DefaultFeatures []string                         `json:"default_features"`
+	DefaultSkills   []string                         `json:"default_skills"`
+	ProviderType    string                           `json:"provider_type"`
+	APIKey          *string                          `json:"api_key"`
+	KeepAPIKey      bool                             `json:"keep_api_key"`
+	BaseURL         string                           `json:"base_url"`
 	HarnessToggles  *usermodel.HarnessFeatureToggles `json:"harness_toggles"`
 }
 

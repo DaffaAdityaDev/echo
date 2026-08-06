@@ -14,7 +14,7 @@ import (
 )
 
 type Service struct {
-	cfg    *cfgmodel.Config
+	cfg      *cfgmodel.Config
 	userRepo *auth.Repository
 }
 

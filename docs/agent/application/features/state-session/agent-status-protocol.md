@@ -298,9 +298,6 @@ features/chat/components/AgentStatusBadge.tsx:
 
 features/chat/components/AgentProgress.tsx:
   - Progress + state display
-
-features/studio/components/debug/StatusDashboard.tsx:
-  - Debug dashboard: state, strategy, degradation, circuit breakers
 ```
 
 There is no `useAgentStatus` hook and no `AgentStatusObserver` class — the

@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Menu,
   Settings,
+  Share2,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -116,6 +117,22 @@ export function ChatPage() {
     downloadAnchor.click();
     downloadAnchor.remove();
     setToastMessage("Chat session exported to JSON!");
+  };
+
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
+
+  const handleShareSession = async () => {
+    if (!activeSessionId) {
+      setToastMessage("No active session selected.");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/session/${activeSessionId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setToastMessage("Session URL copied to clipboard!");
+    } catch {
+      setToastMessage("Failed to copy session URL.");
+    }
   };
 
   const promptSuggestions = [
@@ -240,6 +257,14 @@ export function ChatPage() {
               title="Clear Chat"
             >
               <Trash2 className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={handleShareSession}
+              className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Copy Session URL Slug"
+            >
+              <Share2 className="h-4 w-4 text-purple-500" />
             </button>
 
             <button

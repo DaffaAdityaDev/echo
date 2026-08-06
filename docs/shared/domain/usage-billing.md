@@ -103,8 +103,7 @@ usage quotas below follow the same sketch.
    lines 180-195) — reject or degrade when quota exhausted.
 4. **Cost computation**: per-provider price list keyed by model; the agent
    only reports tokens, the backend computes USD.
-5. **Frontend display**: usage meter in `frontend/web/src/features/settings/`
-   or `features/studio/` (e.g. TokenCostMeter already exists in studio debug).
+5. **Frontend display**: usage meter in `frontend/web/src/features/settings/`.
 6. **Public read endpoint**: `GET /api/v1/usage` (user JWT) for the frontend.
 
 ## Non-Goals

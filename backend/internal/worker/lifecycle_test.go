@@ -9,7 +9,7 @@ func TestNewLifecycleWorker(t *testing.T) {
 	t.Parallel()
 
 	cfg := &cfgmodel.Config{
-		WorkerInterval:       "15m",
+		WorkerInterval:      "15m",
 		DecayDeprecateAfter: 30,
 		DecayArchiveAfter:   90,
 	}

@@ -11,14 +11,14 @@ interface AgentStatusBadgeProps {
 }
 
 const stateConfig: Record<AgentState, { label: string; className: string }> = {
-  starting: { label: "Starting...", className: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
-  running: { label: "Running", className: "bg-green-500/20 text-green-400 border-green-500/30" },
-  looping: { label: "Looping", className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  stalled: { label: "Stalled", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  degraded: { label: "Degraded", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-  completed: { label: "Completed", className: "bg-green-500/20 text-green-400 border-green-500/30" },
-  aborted: { label: "Aborted", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-  error: { label: "Error", className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  starting: { label: "Starting...", className: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700" },
+  running: { label: "Running", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold" },
+  looping: { label: "Looping", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold" },
+  stalled: { label: "Stalled", className: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/40" },
+  degraded: { label: "Degraded", className: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/40 font-bold" },
+  completed: { label: "Completed", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold" },
+  aborted: { label: "Aborted", className: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/40" },
+  error: { label: "Error", className: "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 font-bold" },
 };
 
 export function AgentStatusBadge({ state, className }: AgentStatusBadgeProps) {

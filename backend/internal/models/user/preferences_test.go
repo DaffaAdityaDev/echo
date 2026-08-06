@@ -25,11 +25,11 @@ func TestHarnessFeatureTogglesRoundTrip(t *testing.T) {
 			name: "loop detection only",
 			toggle: &HarnessFeatureToggles{
 				LoopDetection: &LoopDetectionConfig{
-					Enabled:                     true,
-					EnableExactMatch:            ptr(true),
+					Enabled:                      true,
+					EnableExactMatch:             ptr(true),
 					MaxConsecutiveIdenticalCalls: ptr(5),
-					WindowSize:                  ptr(20),
-					SimilarityThreshold:         ptr(0.85),
+					WindowSize:                   ptr(20),
+					SimilarityThreshold:          ptr(0.85),
 				},
 			},
 		},
@@ -85,9 +85,9 @@ func TestHarnessFeatureTogglesRoundTrip(t *testing.T) {
 			name: "all toggles enabled",
 			toggle: &HarnessFeatureToggles{
 				LoopDetection: &LoopDetectionConfig{
-					Enabled:                     true,
+					Enabled:                      true,
 					MaxConsecutiveIdenticalCalls: ptr(3),
-					WindowSize:                  ptr(10),
+					WindowSize:                   ptr(10),
 				},
 				BudgetMonitor: &BudgetMonitorConfig{
 					Enabled:  true,
@@ -144,7 +144,7 @@ func TestUserPreferencesHarnessTogglesRoundTrip(t *testing.T) {
 		DefaultModel: "gpt-4o",
 		HarnessToggles: &HarnessFeatureToggles{
 			LoopDetection: &LoopDetectionConfig{
-				Enabled:                     true,
+				Enabled:                      true,
 				MaxConsecutiveIdenticalCalls: ptr(5),
 			},
 			BudgetMonitor: &BudgetMonitorConfig{

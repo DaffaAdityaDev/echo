@@ -238,9 +238,8 @@ const (
 )
 
 const (
-	ErrCreateUser   = "failed to create user"
-	ErrGetUserEmail = "failed to get user by email"
-	ErrGetUser      = "failed to get user by id"
+	ErrCreateUser = "failed to create user"
+	ErrGetUser    = "failed to get user by id"
 )
 
 // Feature queries
@@ -251,21 +250,15 @@ const (
 		WHERE status = 'active'
 		ORDER BY id
 	`
-	QueryGetFeatureByID = `
-		SELECT id, name, description, tier_requirement, ui_schema, status, created_at, updated_at
-		FROM features
-		WHERE id = $1
-	`
 )
 
 // API Key queries
 const (
-	QueryCreateApiKey     = `INSERT INTO api_keys (key_hash, prefix, name, scopes, user_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`
-	QueryGetApiKeyByHash  = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE key_hash = $1`
-	QueryGetApiKeysByUser = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC`
-	QueryListApiKeys      = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys ORDER BY created_at DESC`
-	QueryRevokeApiKey     = `UPDATE api_keys SET status = 'revoked' WHERE id = $1 AND status = 'active'`
-	QueryGetApiKeyByID    = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE id = $1`
+	QueryCreateApiKey    = `INSERT INTO api_keys (key_hash, prefix, name, scopes, user_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`
+	QueryGetApiKeyByHash = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE key_hash = $1`
+	QueryListApiKeys     = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys ORDER BY created_at DESC`
+	QueryRevokeApiKey    = `UPDATE api_keys SET status = 'revoked' WHERE id = $1 AND status = 'active'`
+	QueryGetApiKeyByID   = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE id = $1`
 )
 
 // API Key error messages
@@ -274,9 +267,4 @@ const (
 	ErrGetApiKey    = "failed to get API key"
 	ErrListApiKeys  = "failed to list API keys"
 	ErrRevokeApiKey = "failed to revoke API key"
-)
-
-const (
-	MsgApiKeyCreated = "API key created successfully"
-	MsgApiKeyRevoked = "API key revoked successfully"
 )

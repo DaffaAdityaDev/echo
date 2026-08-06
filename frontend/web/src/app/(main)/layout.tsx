@@ -10,7 +10,7 @@ import { SidebarContext } from "@/lib/sidebar-context";
 
 export default function MainAppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isChatRoute = pathname === "/";
+  const isChatRoute = pathname === "/" || pathname.startsWith("/session/");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen((v) => !v);

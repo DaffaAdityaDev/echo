@@ -78,10 +78,12 @@ export function SessionSidebar({
     if (flattenedSessions.length === 0) return;
     setSessions(flattenedSessions);
     const currentId = useChatStore.getState().activeSessionId;
+    const urlSessionMatch = pathname.match(/^\/(?:session|c)\/([^/]+)/);
+    if (urlSessionMatch) return;
     if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
       setActiveSession(flattenedSessions[0].id);
     }
-  }, [flattenedSessions, setSessions, setActiveSession]);
+  }, [flattenedSessions, pathname, setSessions, setActiveSession]);
 
   const initialised = useRef(false);
 
@@ -123,12 +125,17 @@ export function SessionSidebar({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleCreateSession = async () => {
+    let createdId: string | null = null;
     if (createSessionProp) {
       await createSessionProp();
+      createdId = useChatStore.getState().activeSessionId;
     } else {
-      await storeCreateSession();
+      const sess = await storeCreateSession();
+      if (sess) createdId = sess.id;
     }
-    if (pathname !== "/") {
+    if (createdId) {
+      router.push(`/session/${createdId}`);
+    } else {
       router.push("/");
     }
   };
@@ -141,9 +148,7 @@ export function SessionSidebar({
     } else {
       await storeSelectSession(id);
     }
-    if (pathname !== "/") {
-      router.push("/");
-    }
+    router.push(`/session/${id}`);
   };
 
   // Filter sessions by search term

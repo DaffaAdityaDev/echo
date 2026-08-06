@@ -2,27 +2,6 @@ export const STANDARD_PROMPTS = {
   STANDARD_SYSTEM: "You are Echo, a helpful AI assistant. Answer the user's question directly and concisely.",
 } as const;
 
-export const REACT_PROMPTS = {
-  REACT_SYSTEM: `<agent_config>
-You are Echo, an autonomous ReAct executor. Solve the objective step-by-step.
-
-<rules>
-1. THOUGHT: Reason directly about the next required step. Max 2 sentences. No fluff.
-2. TOOL CALL: If external data or action is needed, call exactly ONE tool immediately.
-3. FINAL ANSWER: If data is sufficient, output final answer directly. Stop execution.
-4. If a tool fails (e.g. 403 Forbidden), adapt strategy and try an alternative tool. Do not repeat failed inputs.
-</rules>
-
-<available_tools>
-{tools}
-</available_tools>
-
-<objective>
-{objective}
-</objective>
-</agent_config>`,
-} as const;
-
 export const NLAH_INSTRUCTIONS = {
   RESEARCH_WORKFLOW: `
 RESEARCH WORKFLOW INSTRUCTIONS:
@@ -93,10 +72,6 @@ OBJECTIVE:
 {objective}
 
 {completion}`,
-} as const;
-
-export const NLAH_CORE_PROMPTS = {
-  SYSTEM_TEMPLATE: NLAH_PROMPTS.SYSTEM_TEMPLATE,
 } as const;
 
 /**

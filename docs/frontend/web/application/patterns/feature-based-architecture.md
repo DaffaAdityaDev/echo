@@ -161,7 +161,7 @@ export type { Message, StreamPacket, ... } from "./types";
 | Constants | UPPER_SNAKE for     | AUTH_ENDPOINTS, CHAT_ROLES               |
 |           | endpoint/query-key  |                                          |
 +-----------+---------------------+------------------------------------------+
-| Files     | kebab-case          | chat-api.ts, use-local-storage.ts        |
+| Files     | kebab-case          | chat-api.ts, chat-stream.ts             |
 +-----------+---------------------+------------------------------------------+
 
 ## Dependencies

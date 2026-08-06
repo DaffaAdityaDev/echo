@@ -51,13 +51,3 @@ func RespondErrorDetail(c fiber.Ctx, status int, msg string, details string) err
 		"details": details,
 	})
 }
-
-// HealthCheck godoc
-// @Summary Health check
-// @Description Returns the health status of the backend API
-// @Tags Health
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /health [get]
-func HealthCheck() {}
-

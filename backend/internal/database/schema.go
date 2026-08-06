@@ -205,7 +205,6 @@ func Migrate(pool *pgxpool.Pool) error {
 		log.Printf("failed to create app_settings table: %v", err)
 	}
 
-
 	if _, err := pool.Exec(ctx, schemaMessages); err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)
 	}

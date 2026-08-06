@@ -58,6 +58,7 @@ export function useChatStream() {
       content: "",
       steps: [],
       id: crypto.randomUUID(),
+      status: "streaming",
     };
 
     try {
@@ -138,7 +139,18 @@ export function useChatStream() {
       };
       store.setMessages([...currentMsgs.slice(0, -1), lastMessage]);
     } finally {
-      const sid = useChatStore.getState().activeSessionId;
+      const store = useChatStore.getState();
+      const currentMsgs = store.messages;
+      if (currentMsgs.length > 0) {
+        const lastIdx = currentMsgs.length - 1;
+        if (currentMsgs[lastIdx].role === CHAT_ROLES.ASSISTANT && currentMsgs[lastIdx].status === "streaming") {
+          const updated = [...currentMsgs];
+          updated[lastIdx] = { ...updated[lastIdx], status: "complete" };
+          store.setMessages(updated);
+        }
+      }
+
+      const sid = store.activeSessionId;
       if (sid) {
         try {
           await queryClient.invalidateQueries({ queryKey: ["sessions", sid, "messages"] });

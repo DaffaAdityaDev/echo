@@ -143,7 +143,6 @@ func (w *Worker) runDecayAndGCJob(ctx context.Context) {
 		log.Printf("[LIFECYCLE] Archived %d inactive sessions", len(archivedIDs))
 	}
 
-
 	gcRetentionDays := archiveDays + 30
 	gcCutoff := time.Now().AddDate(0, 0, -gcRetentionDays)
 	deletedMsgCount, err := w.sessionRepo.DeleteMessagesForArchivedSessions(ctx, gcCutoff)
