@@ -31,31 +31,31 @@ src/lib/
 
 ```
 +-------------------------------------------------------------------------+
-¦                  Feature Hook (e.g., useAuth)                          ¦
-¦                          ¦                                              ¦
-¦                          v                                              ¦
-¦              useQuery/useMutation({ queryFn })                         ¦
-¦                          ¦                                              ¦
-¦                          v                                              ¦
-¦              api.get<T>("/auth/me")                                     ¦
-¦              api.post<T>("/auth/login", body)                          ¦
-¦                          ¦                                              ¦
-¦                          v                                              ¦
-¦            request<T>(endpoint, options)                                ¦
-¦                          ¦                                              ¦
-¦        +-----------------+-----------------+                           ¦
-¦        v                 v                 v                           ¦
-¦ +--------------+  +------------------+  +------------------+           ¦
-¦ ¦ Axios        ¦  ¦ Request          ¦  ¦ Response         ¦           ¦
-¦ ¦ client       ¦  ¦ interceptor:     ¦  ¦ interceptor:     ¦           ¦
-¦ ¦ (axios.create¦  ¦ inject           ¦  ¦ unwrap data,     ¦           ¦
-¦ ¦  with        ¦  ¦ traceparent,     ¦  ¦ normalize errors ¦           ¦
-¦ ¦  baseURL,    ¦  ¦ x-agent-         ¦  ¦                  ¦           ¦
-¦ ¦  timeout)    ¦  ¦ session-id       ¦  ¦                  ¦           ¦
-¦ +--------------+  +------------------+  +------------------+           ¦
-¦                          ¦                                              ¦
-¦                          v                                              ¦
-¦                 return response.data (as T)                             ¦
+ï¿½                  Feature Hook (e.g., useAuth)                          ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½                          v                                              ï¿½
+ï¿½              useQuery/useMutation({ queryFn })                         ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½                          v                                              ï¿½
+ï¿½              api.get<T>("/auth/me")                                     ï¿½
+ï¿½              api.post<T>("/auth/login", body)                          ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½                          v                                              ï¿½
+ï¿½            request<T>(endpoint, options)                                ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½        +-----------------+-----------------+                           ï¿½
+ï¿½        v                 v                 v                           ï¿½
+ï¿½ +--------------+  +------------------+  +------------------+           ï¿½
+ï¿½ ï¿½ Axios        ï¿½  ï¿½ Request          ï¿½  ï¿½ Response         ï¿½           ï¿½
+ï¿½ ï¿½ client       ï¿½  ï¿½ interceptor:     ï¿½  ï¿½ interceptor:     ï¿½           ï¿½
+ï¿½ ï¿½ (axios.createï¿½  ï¿½ inject           ï¿½  ï¿½ unwrap data,     ï¿½           ï¿½
+ï¿½ ï¿½  with        ï¿½  ï¿½ traceparent,     ï¿½  ï¿½ normalize errors ï¿½           ï¿½
+ï¿½ ï¿½  baseURL,    ï¿½  ï¿½ x-agent-         ï¿½  ï¿½                  ï¿½           ï¿½
+ï¿½ ï¿½  timeout)    ï¿½  ï¿½ session-id       ï¿½  ï¿½                  ï¿½           ï¿½
+ï¿½ +--------------+  +------------------+  +------------------+           ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½                          v                                              ï¿½
+ï¿½                 return response.data (as T)                             ï¿½
 +-------------------------------------------------------------------------+
 ```
 
@@ -63,35 +63,37 @@ src/lib/
 
 ```
 +-------------------------------------------------------------------------+
-¦                   useChatStream.sendMessage(text)                       ¦
-¦                          ¦                                              ¦
-¦                          v                                              ¦
-¦              api.stream<StreamPacket>("/chat", payload, onChunk)        ¦
-¦                          ¦                                              ¦
-¦        +-----------------+-----------------+                           ¦
-¦        v                 v                 v                           ¦
-¦ +------------------+  +------------------+  +----------------------+   ¦
-¦ ¦ POST /chat with  ¦  ¦ Get ReadableStream¦ ¦ Read chunks via       ¦   ¦
-¦ ¦ JSON body +      ¦  ¦ from response.body¦ ¦ reader.read() loop    ¦   ¦
-¦ ¦ trace headers    ¦  ¦ (native fetch)    ¦ ¦                      ¦   ¦
-¦ +------------------+  +------------------+  +----------------------+   ¦
-¦                                                    ¦                   ¦
-¦                                                    v                   ¦
-¦                              +--------------------------------------+   ¦
-¦                              ¦     Buffer partial lines             ¦   ¦
-¦                              ¦     (handle split packets)           ¦   ¦
-¦                              +--------------------------------------+   ¦
-¦                                               v                         ¦
-¦                              +--------------------------------------+   ¦
-¦                              ¦     For each complete line:          ¦   ¦
-¦                              ¦ +----------------------------------+ ¦   ¦
-¦                              ¦ ¦ Strip "data: " prefix            ¦ ¦   ¦
-¦                              ¦ ¦ Skip "[DONE]"                    ¦ ¦   ¦
-¦                              ¦ ¦ JSON.parse ? onChunk(parsed)     ¦ ¦   ¦
-¦                              ¦ ¦ Fallback ? onChunk({             ¦ ¦   ¦
-¦                              ¦ ¦   content: raw })                ¦ ¦   ¦
-¦                              ¦ +----------------------------------+ ¦   ¦
-¦                              +--------------------------------------+   ¦
+ï¿½                   useChatStream.sendMessage(text)                       ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½                          v                                              ï¿½
+ï¿½              api.stream<StreamPacket>("/chat", payload, onChunk)        ï¿½
+ï¿½                          ï¿½                                              ï¿½
+ï¿½        +-----------------+-----------------+                           ï¿½
+ï¿½        v                 v                 v                           ï¿½
+ï¿½ +------------------+  +------------------+  +----------------------+   ï¿½
+ï¿½ ï¿½ POST /chat with  ï¿½  ï¿½ Get ReadableStreamï¿½ ï¿½ Read chunks via       ï¿½   ï¿½
+ï¿½ ï¿½ JSON body +      ï¿½  ï¿½ from response.bodyï¿½ ï¿½ reader.read() loop    ï¿½   ï¿½
+ï¿½ ï¿½ trace headers    ï¿½  ï¿½ (native fetch)    ï¿½ ï¿½                      ï¿½   ï¿½
+ï¿½ +------------------+  +------------------+  +----------------------+   ï¿½
+ï¿½                                                    ï¿½                   ï¿½
+ï¿½                                                    v                   ï¿½
+ï¿½                              +--------------------------------------+   ï¿½
+ï¿½                              ï¿½     Buffer partial lines             ï¿½   ï¿½
+ï¿½                              ï¿½     (handle split packets)           ï¿½   ï¿½
+ï¿½                              +--------------------------------------+   ï¿½
+ï¿½                                               v                         ï¿½
+ï¿½                              +--------------------------------------+   ï¿½
+ï¿½                              ï¿½     For each complete line:          ï¿½   ï¿½
+ï¿½                              ï¿½ +----------------------------------+ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½ Skip empty + comment lines       ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½   (": heartbeat" SSE comments)   ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½ Strip "data: " prefix            ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½ Skip "[DONE]"                    ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½ JSON.parse ? onChunk(parsed)     ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½ Fallback ? onChunk({             ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ ï¿½   content: raw })                ï¿½ ï¿½   ï¿½
+ï¿½                              ï¿½ +----------------------------------+ ï¿½   ï¿½
+ï¿½                              +--------------------------------------+   ï¿½
 +-------------------------------------------------------------------------+
 ```
 
@@ -131,6 +133,8 @@ type ApiRequestOptions = AxiosRequestConfig & {
 | api.stream | api.stream(endpoint, body, onChunk, opts?)  | SSE streaming POST (native fetch)          |
 |          | => Promise<void>                               |                                            |
 +----------+------------------------------------------------+--------------------------------------------+
+| api.streamGet | api.streamGet(endpoint, onChunk, opts?) => Promise<void> | SSE streaming GET (native fetch) â€” used for mission log replay (`/v1/missions/{id}/stream`) |
++----------+------------------------------------------------+--------------------------------------------+
 
 ### Axios Instance Configuration
 
@@ -163,7 +167,7 @@ Uses `crypto.getRandomValues()` when available, falls back to `Math.random()`.
 
 ### `traceAwareFetch()` (removed)
 
-Was a standalone fetch wrapper — removed as dead code. The axios interceptor
+Was a standalone fetch wrapper ï¿½ removed as dead code. The axios interceptor
 handles all trace context injection.
 
 ## React Query Integration
@@ -229,13 +233,13 @@ export const chatApi = {
 
 ### Internal
 
-- `@/constants` — `API_CONFIG`, `API_VERSION`
+- `@/constants` ï¿½ `API_CONFIG`, `API_VERSION`
 
 ### External
 
-- `axios` ^1.16.0 — HTTP client
-- `@tanstack/react-query` — server-state management
-- `@tanstack/react-query-devtools` — dev tools
+- `axios` ^1.16.0 ï¿½ HTTP client
+- `@tanstack/react-query` ï¿½ server-state management
+- `@tanstack/react-query-devtools` ï¿½ dev tools
 
 ## Source References
 
@@ -247,23 +251,23 @@ export const chatApi = {
 +---------------------------+---------+----------------------------------------------------+
 | src/lib/api-client.ts     | 1-11    | Imports, BASE_URL, axios.create(config)            |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 13-26   | Request interceptor — traceparent injection        |
+| src/lib/api-client.ts     | 13-26   | Request interceptor ï¿½ traceparent injection        |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 28-37   | Response interceptor — error normalization         |
+| src/lib/api-client.ts     | 28-37   | Response interceptor ï¿½ error normalization         |
 +---------------------------+---------+----------------------------------------------------+
 | src/lib/api-client.ts     | 39-42   | ApiRequestOptions type (extends AxiosRequestConfig) |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 44-53   | request<T>() — axios-based HTTP request            |
+| src/lib/api-client.ts     | 44-53   | request<T>() ï¿½ axios-based HTTP request            |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 55-100  | stream<T>() — SSE streaming (native fetch)         |
+| src/lib/api-client.ts     | 55-100  | stream<T>() ï¿½ SSE streaming (native fetch)         |
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/api-client.ts     | 102-109 | api object — exposes get, post, put, delete, stream|
+| src/lib/api-client.ts     | 102-109 | api object ï¿½ exposes get, post, put, delete, stream|
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/telemetry-fetch.ts| 12-40   | generateTraceContext() — W3C traceparent generation|
+| src/lib/telemetry-fetch.ts| 12-40   | generateTraceContext() ï¿½ W3C traceparent generation|
 +---------------------------+---------+----------------------------------------------------+
-| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() — removed (dead code)           |
+| src/lib/telemetry-fetch.ts| 45-57   | traceAwareFetch() ï¿½ removed (dead code)           |
 +---------------------------+---------+----------------------------------------------------+
 
 ===============================================================================
-  © 2026 Echo — All Rights Reserved
+  ï¿½ 2026 Echo ï¿½ All Rights Reserved
 ===============================================================================

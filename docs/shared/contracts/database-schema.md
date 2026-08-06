@@ -1,23 +1,29 @@
-===============================================================================
+﻿===============================================================================
   DATABASE SCHEMA — Complete Reference
 ===============================================================================
   Module    : Database Schema
   Service   : Shared / Contracts
   Version   : 2.4
-  Updated   : 2026-08-04 (active migration 009: features table — feature catalog metadata)
+  Updated   : 2026-08-05 (schema.go auto-migration is the single source of truth)
 ===============================================================================
 
 ## Description
 
 Complete PostgreSQL schema with pgvector extension + Redis data layout for
-Echo's platform. Covers all tables found in source code (`schema.go`,
-`init-*.sql`), tables designed for upcoming features (session management),
-and legacy planned tables (goals, spaced repetition).
+Echo's platform. Covers all tables created by `schema.go:Migrate()`
+(auto-run at server start, router.go:48), the init SQL scripts
+(`init-pgvector.sql`, `init-nuq.sql`), and legacy planned tables.
+
+**Migration note:** the files under `backend/migrations/` (001-009 +
+20260725_001) are NOT executed by any tool. The real migration path is
+`backend/internal/database/schema.go:Migrate()`, which runs automatically at
+server start. The migration files exist for reference only.
 
 **Status Convention:**
-  - `Active` — table exists in code (`CREATE TABLE` in a SQL/migration file)
+  - `Active` — table exists in code (`CREATE TABLE` in schema.go or an init script)
   - `Draft` — designed but not yet implemented in code
   - `Planned` — legacy design from earlier architecture, not yet implemented
+    (or only present in unexecuted migration files)
 
 ---
 
@@ -26,15 +32,18 @@ and legacy planned tables (goals, spaced repetition).
 +------------------------------------------+---------------------------------------------+
 | File                                     | Role                                        |
 +------------------------------------------+---------------------------------------------+
-| backend/internal/database/schema.go      | Auto-migrate: users, memory_semantic,       |
-|                                          |   memory_procedural                         |
+| backend/internal/database/schema.go      | Migrate(): creates ALL app tables           |
+|                                          |   (users, sessions, messages,               |
+|                                          |   user_preferences, api_keys, features,     |
+|                                          |   prompt_templates, prompt_versions,        |
+|                                          |   app_settings, memory_semantic,            |
+|                                          |   memory_procedural) at server start        |
+| backend/internal/database/db.go          | NewPostgresPool(cfg) -> *pgxpool.Pool       |
 | backend/scripts/init-pgvector.sql        | pgvector + tool_catalog table + HNSW index  |
 | backend/scripts/init-nuq.sql             | NUQ queue system (4 tables) + pg_cron jobs  |
-| backend/internal/database/schema.go      | api_keys table DDL + auto-migration         |
-| backend/internal/models/models.go        | ApiKey struct definition                    |
 | backend/internal/constants/db/postgres.go| SQL queries (users CRUD)                    |
-| backend/internal/database/postgres.go    | pgx pool initialization                     |
-| backend/migrations/009_create_features.* | features table (catalog metadata) + seed    |
+| backend/migrations/                      | Reference-only migration files (001-009,    |
+|                                          |   20260725_001) — NOT executed by any tool  |
 | infra/k8s/postgres.yaml                  | K8s with init SQL ConfigMap                 |
 +------------------------------------------+---------------------------------------------+
 
@@ -56,6 +65,11 @@ PostgreSQL                              Redis
 │  messages (Active)           │
 │  prompt_templates (Active)   │        NUQ (PostgreSQL schema)
 │  prompt_versions (Active)    │        ┌─────────────────────────┐
+│  app_settings (Active)       │
+│  eval_datasets (Planned)    │
+│  eval_runs (Planned)        │
+│  shadow_runs (Planned)      │
+│  audit_logs (Planned)       │
 │  goals (Planned)             │        └─────────────────────────┘
 │  skill_nodes (Planned)       │
 │  topics (Planned)            │
@@ -140,10 +154,12 @@ ON tool_catalog USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```
 
-### features `[Active — migration 009_create_features]`
+### features `[Active — schema.go:111]`
 
 Feature catalog metadata — the **backend-owned** source of truth for
-`tier_requirement`, `ui_schema`, and `status`. The agent does not hold this
+`tier_requirement`, `ui_schema`, and `status`. Created by `schema.go:Migrate()`
+with an idempotent seed for the 3 canonical features (the `009_create_features`
+migration file is not executed by any tool). The agent does not hold this
 metadata; it reports its implemented registry (`[{id, name, description}]`)
 via `GET /api/features`, and the backend composes the public catalog as
 **features table ∩ agent implemented set**. Referenced by
@@ -178,10 +194,11 @@ ON CONFLICT (id) DO NOTHING;
 - Seeded with the canonical 3 features; seed is idempotent
   (`ON CONFLICT (id) DO NOTHING`).
 
-### user_preferences `[Active — schema.go:80]`
+### user_preferences `[Active — schema.go:83 + ALTERs]`
 
-Per-user default preferences for mode, model, features, and skills. Used
-by Settings page and chat initialization.
+Per-user default preferences for mode, model, features, and skills, plus the
+per-user LLM provider configuration. Used by Settings page and chat
+initialization.
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_preferences (
@@ -193,6 +210,20 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+Provider configuration columns are added by schema.go ALTERs
+(schema.go:225-234) — no migration file covers them:
+
+```sql
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS provider_type TEXT DEFAULT 'opencode-go';
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS api_key TEXT DEFAULT '';
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS base_url TEXT DEFAULT '';
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS harness_toggles JSONB DEFAULT '{}';
+```
+
+- `api_key` stores the encrypted provider key (AES-256-GCM, ENCRYPTION_KEY).
+- `base_url` is the user's provider endpoint (empty = provider default).
+- `harness_toggles` mirrors the agent harness feature toggles as JSONB.
 
 ### api_keys `[Active — schema.go DDL]`
 
@@ -243,14 +274,14 @@ for active sessions during rollout) and tracks last access for memory decay
 scoring (lifecycle worker).
 
 ```sql
--- Migration 006 (strategy version pin):
-ALTER TABLE sessions ADD COLUMN strategy_version TEXT DEFAULT '';
-
--- Migration 007 (memory decay scoring):
-ALTER TABLE sessions ADD COLUMN last_accessed_at TIMESTAMPTZ DEFAULT NOW();
-UPDATE sessions SET last_accessed_at = updated_at;
-CREATE INDEX idx_sessions_last_accessed ON sessions (last_accessed_at);
+-- schema.go ALTERs (no migration files are executed):
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS strategy_version TEXT DEFAULT '';
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_sessions_last_accessed ON sessions(last_accessed_at);
 ```
+
+(The `006_add_session_strategy_version` / `007_add_last_accessed_at` migration
+files exist for reference only.)
 
 - `strategy_version` — immutable per session. Set on session creation / first
   turn from the gateway's strategy resolution; never changed mid-session.
@@ -262,7 +293,7 @@ CREATE INDEX idx_sessions_last_accessed ON sessions (last_accessed_at);
   `last_accessed_at` recency windows (see `docs/shared/patterns/strategy-lifecycle.md`),
   not a DB status — no CHECK constraint change required.
 
-### messages `[Active — schema.go:65, 004 migration]`
+### messages `[Active — schema.go:67 + ALTERs]`
 
 Canonical conversation history per session. Written by Go incrementally during
 streaming (not just on turn_complete). Read by Go to build BLOCK 4 (Accumulated
@@ -283,12 +314,16 @@ CREATE TABLE messages (
                                CHECK (status IN ('streaming', 'complete', 'interrupted')),
     created_at   TIMESTAMPTZ   DEFAULT NOW()
 );
+```
 
--- Migration 004 (2026-07-23):
---   ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'
---     CHECK (status IN ('streaming', 'complete', 'interrupted'));
---   CREATE INDEX idx_messages_session_status ON messages(session_id, status);
+The `steps` column is added by a schema.go ALTER
+(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps JSONB`, schema.go:212)
+— it exists in the base CREATE TABLE above but is not part of any migration
+file. `status` and `idx_messages_session_status` are likewise applied via
+schema.go ALTERs (schema.go:215, 218); the `004_add_message_status` migration
+file is reference-only.
 
+```sql
 -- Role semantics:
 --   user        — user message (stored in history)
 --   assistant   — final assistant response (stored in history)
@@ -307,13 +342,38 @@ CREATE INDEX idx_messages_session ON messages (session_id, turn_number);
 CREATE INDEX idx_messages_session_status ON messages (session_id, status);
 ```
 
+### app_settings `[Active — schema.go:196]`
+
+Key/value store for app-wide runtime settings. Created and seeded by
+`schema.go:Migrate()`:
+
+```sql
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO app_settings (key, value) VALUES ('strategy_rollout', '{}')
+ON CONFLICT (key) DO NOTHING;
+```
+
+- `strategy_rollout` — rollout fraction map per strategy version
+  (e.g. `{"nlah:v2": {"rollout": 0.1}}`); read by
+  `service/strategy/service.go:107` and cached in Redis under
+  `strategy:rollout` (refreshed every 10 min).
+
 ---
 
-## LLMOps Studio Tables `[Active — schema.go:111, migration 20260725_001]`
+## LLMOps Studio Tables
 
-Created by auto-migration (`schema.go:Migrate()`) and migration `20260725_001_llmops_studio`.
+`prompt_templates` and `prompt_versions` are `[Active — schema.go:130]`,
+created by `schema.go:Migrate()` at server start. The other four LLMOps
+tables (`eval_datasets`, `eval_runs`, `shadow_runs`, `audit_logs`) exist
+ONLY in the unexecuted `20260725_001_llmops_studio` migration file and are
+NOT created by any tool — they are `[Planned]`.
 
-### prompt_templates `[Active — schema.go:111]`
+### prompt_templates `[Active — schema.go:131]`
 
 Top-level prompt template container. Each template has a name, description, and
 tracks the currently active version number.
@@ -321,17 +381,17 @@ tracks the currently active version number.
 ```sql
 CREATE TABLE IF NOT EXISTS prompt_templates (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id      UUID NOT NULL,
-    name           TEXT NOT NULL,
-    description    TEXT NOT NULL DEFAULT '',
-    active_version INTEGER NOT NULL DEFAULT 0,
+    tenant_id      VARCHAR(64) NOT NULL DEFAULT 'local',
+    name           VARCHAR(128) NOT NULL,
+    description    TEXT,
+    active_version INT DEFAULT 1,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(tenant_id, name)
+    CONSTRAINT uq_prompt_templates_tenant_name UNIQUE (tenant_id, name)
 );
 ```
 
-### prompt_versions `[Active — schema.go:125]`
+### prompt_versions `[Active — schema.go:142]`
 
 Versioned snapshots of a prompt template with status lifecycle.
 Each version stores the system prompt, bound tool list, and variable schema.
@@ -340,17 +400,31 @@ Each version stores the system prompt, bound tool list, and variable schema.
 CREATE TABLE IF NOT EXISTS prompt_versions (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     template_id    UUID NOT NULL REFERENCES prompt_templates(id) ON DELETE CASCADE,
-    version        INTEGER NOT NULL,
+    version        INT NOT NULL,
     system_prompt  TEXT NOT NULL,
-    bound_tools    TEXT[] DEFAULT '{}',
-    variables      TEXT[] DEFAULT '{}',
-    status         TEXT NOT NULL DEFAULT 'draft'
+    bound_tools    JSONB NOT NULL DEFAULT '[]'::jsonb,
+    variables      JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status         VARCHAR(32) NOT NULL DEFAULT 'draft'
                    CHECK (status IN ('draft', 'in_review', 'approved', 'production', 'rolled_back')),
-    created_by     TEXT NOT NULL DEFAULT '',
+    created_by     VARCHAR(128) NOT NULL,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(template_id, version)
+    CONSTRAINT uq_prompt_versions_template_version UNIQUE (template_id, version)
 );
+
+CREATE INDEX IF NOT EXISTS idx_prompt_versions_template ON prompt_versions(template_id, version);
 ```
+
+Note: the schema.go DDL uses VARCHAR(64)/VARCHAR(128)/VARCHAR(32) and JSONB
+for `bound_tools`/`variables`. The reference-only migration file
+(`20260725_001_llmops_studio.up.sql`) differs (UUID tenant_id, TEXT columns,
+TEXT[] bound_tools/variables, `'shadow'` in the status CHECK) — it is not
+executed.
+
+### eval_datasets, eval_runs, shadow_runs, audit_logs `[Planned]`
+
+Defined only in the unexecuted `20260725_001_llmops_studio.up.sql` migration
+file (eval_datasets:30, eval_runs:40, shadow_runs:53, audit_logs:68). Not
+created by `schema.go:Migrate()` — no running tool executes them.
 
 
 
@@ -536,7 +610,7 @@ ALTER TABLE nuq.queue_scrape SET (
 );
 ```
 
-**Indexes (11 partial indexes — see `init-nuq.sql:72-100`):**
+**Indexes (10 partial indexes — see `init-nuq.sql:72-100`):**
   - `queue_scrape_active_locked_at_idx` — WHERE status = 'active'
   - `nuq_queue_scrape_queued_optimal_2_idx` — WHERE status = 'queued'
   - `nuq_queue_scrape_failed_created_at_idx` — WHERE status = 'failed'
@@ -547,7 +621,7 @@ ALTER TABLE nuq.queue_scrape SET (
   - `nuq_queue_scrape_group_mode_status_idx` — WHERE mode = 'single_urls'
   - `nuq_queue_scrape_group_completed_listing_idx` — WHERE status = 'completed' AND mode = 'single_urls'
   - `idx_queue_scrape_group_status` — WHERE status IN ('active', 'queued')
-  - Plus full table reindex cadence via pg_cron (16 staggered schedules)
+  - Plus full table reindex cadence via pg_cron (25 staggered schedules)
 
 ### queue_scrape_backlog `[Active — init-nuq.sql:102]`
 
@@ -627,7 +701,7 @@ nuq_queue_crawl_finished_lock    15 sec        Same as queue_scrape pattern
 nuq_group_crawl_finished         15 sec        Auto-finish groups with no active jobs
 nuq_group_crawl_clean            * * * * *     Batched cleanup (500/victim, SKIP LOCKED)
 nuq_maintenance_watchdog         * * * * *     Cancel REINDEX running >18 min
-nuq_reindex_* (16 schedules)     02:00-10:20   Staggered per-index REINDEX CONCURRENTLY
+nuq_reindex_* (25 schedules)     02:00-10:20   Staggered per-index REINDEX CONCURRENTLY
 cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 ```
 
@@ -642,11 +716,12 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 | memory_semantic | `idx_memory_semantic_embedding` | ivfflat (vector_cosine_ops) | Active |
 | tool_catalog | `tool_catalog_hnsw_idx` | hnsw (vector_cosine_ops) | Active |
 | sessions | `idx_sessions_user_id` | btree (user_id, updated_at DESC) | Active |
-| sessions | `idx_sessions_last_accessed` | btree (last_accessed_at) | Active (007) |
+| sessions | `idx_sessions_last_accessed` | btree (last_accessed_at) | Active (schema.go ALTER) |
 | messages | `idx_messages_session` | btree (session_id, turn_number) | Active |
-| messages | `idx_messages_session_status` | btree (session_id, status) | Active |
+| messages | `idx_messages_session_status` | btree (session_id, status) | Active (schema.go ALTER) |
 | api_keys | `idx_api_keys_user_id` | btree (user_id) | Active |
 | api_keys | `idx_api_keys_key_hash` | btree (key_hash) | Active |
+| prompt_versions | `idx_prompt_versions_template` | btree (template_id, version) | Active |
 
 | prompt_templates | (unique constraint) | btree (tenant_id, name) | Active |
 | prompt_versions | (unique constraint) | btree (template_id, version) | Active |
@@ -655,7 +730,7 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 
 | Table | Index Count | Type |
 |-------|-------------|------|
-| queue_scrape | 11 | Partial btree |
+| queue_scrape | 10 | Partial btree |
 | queue_scrape_backlog | 4 | btree |
 | queue_crawl_finished | 7 | Partial btree |
 | group_crawl | 2 | Partial btree |
@@ -664,28 +739,20 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 
 ## Migration Strategy
 
-- **Tool**: Auto-migration via `backend/internal/database/schema.go:Migrate()` at
-  startup. Creates users, memory_semantic, memory_procedural with best-effort
-  pgvector support.
+- **Tool**: Auto-migration via `backend/internal/database/schema.go:Migrate()`
+  runs automatically at server start (router.go:48). It creates ALL app
+  tables: users, sessions (+strategy_version, +last_accessed_at ALTERs),
+  messages (+steps, +status ALTERs), user_preferences (+provider_type,
+  +api_key, +base_url, +harness_toggles ALTERs), api_keys, features
+  (with idempotent seed), prompt_templates, prompt_versions, app_settings
+  (seeded with strategy_rollout), memory_semantic, memory_procedural.
 - **Vector extension**: `CREATE EXTENSION IF NOT EXISTS vector` attempted before
   memory_semantic creation. Falls back to content-only if unavailable.
 - **Init scripts**: `init-pgvector.sql` and `init-nuq.sql` mounted to PostgreSQL
   init directory for Docker/K8s.
-- **Sessions + Messages + User Preferences**: Created at startup via
-  `schema.go:Migrate()`. Raw SQL migrations also exist in `backend/migrations/`
-  for reference and manual use.
-- **Migration 004**: Adds `status` column to `messages` table with CHECK
-  constraint and `idx_messages_session_status` index. Must be run manually or
-  via migration tool after deploy.
-- **Migration 20260725_001**: Creates LLMOps Studio tables
-  (`prompt_templates`, `prompt_versions`). Run via migration tool.
-- **Migration 006**: Adds `sessions.strategy_version` (strategy
-  version pin). Run via migration tool.
-- **Migration 007**: Adds `sessions.last_accessed_at` +
-  `idx_sessions_last_accessed` (memory decay scoring). Backfills
-  `last_accessed_at = updated_at`. Run via migration tool.
-- **Migration 009**: Creates the `features` table (catalog metadata) with
-  idempotent seed data for the 3 canonical features. Run via migration tool.
+- **backend/migrations/ (001-009, 20260725_001)**: reference-only files.
+  NOT executed by any tool — do not rely on them being applied. The
+  corresponding schema changes are all covered by `schema.go:Migrate()`.
 - **K8s**: ConfigMap with init SQL mounted to `/docker-entrypoint-initdb.d/`.
 - **Development**: Docker Compose mounts init scripts directly.
 
@@ -694,10 +761,13 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 ## Entry Points & Exports
 
 - **Auto-migration**: `backend/internal/database/schema.go` — `Migrate()`
+  (runs at server start, router.go:48)
+- **DB connection**: `backend/internal/database/db.go` —
+  `database.NewPostgresPool(cfg) (*pgxpool.Pool)`
 - **Init scripts**: `backend/scripts/init-pgvector.sql`, `backend/scripts/init-nuq.sql`
-- **Go models**: `backend/internal/models/models.go`
+- **Go models**: `backend/internal/models/*` (split by domain — auth, chat,
+  features, llmops, user, ai, agent, config)
 - **SQL constants**: `backend/internal/constants/db/postgres.go`
-- **DB connection**: `backend/internal/database/postgres.go`
 
 ---
 
@@ -706,20 +776,19 @@ cron_job_run_details_prune       0 * * * *     DELETE pg_cron logs >24h
 +------------------------------------------------+-----------+-----------------------------------+
 | File                                           | Lines     | Role                              |
 +------------------------------------------------+-----------+-----------------------------------+
-| backend/internal/database/schema.go            | 9-53      | users, memory_semantic,           |
-|                                                |           |   memory_procedural, api_keys DDL |
-| backend/internal/database/schema.go            | 60-108    | sessions, messages,               |
-|                                                |           |   user_preferences DDL            |
-| backend/internal/database/schema.go            | 111-191   | LLMOps Studio tables DDL          |
-|                                                |           |   (prompt_templates, prompt_versions) |
-| backend/internal/database/postgres.go          | 1-48      | pgx pool + Migrate() call         |
+| backend/internal/database/schema.go            | 11-156    | All table DDL (memory, users,     |
+|                                                |           |   sessions, messages,             |
+|                                                |           |   user_preferences, api_keys,     |
+|                                                |           |   features, prompt_*, app_settings)|
+| backend/internal/database/schema.go            | 158-263   | Migrate() auto-migration flow     |
+| backend/internal/database/db.go                | 28-40     | NewPostgresPool(cfg) -> pgxpool   |
+| backend/internal/router/router.go              | 48        | Migrate() call at server start    |
 | backend/scripts/init-pgvector.sql              | 1-16      | tool_catalog DDL + HNSW index     |
-| backend/scripts/init-nuq.sql                   | 1-332     | NUQ: 4 tables, 30+ indexes,       |
-|                                                |           |   enums, pg_cron jobs             |
-| backend/internal/handler/memory/handler.go     | 34-131    | Episodic (Redis) storage          |
-| backend/internal/models/models.go              | 32-78     | Config struct + ApiKey struct     |
-| backend/migrations/20260725_001_llmops_studio   | 1-120     | LLMOps Studio migration SQL       |
-| backend/migrations/009_create_features.up.sql   | 1-16      | features table DDL + seed data    |
+| backend/scripts/init-nuq.sql                   | 1-332     | NUQ: 4 tables, indexes, enums,    |
+|                                                |           |   pg_cron jobs (25 REINDEX)       |
+| backend/internal/handler/memory/handler.go     | 34-155    | Episodic (Redis) storage          |
+| backend/internal/models/*                     |           | Domain structs (per-package)      |
+| backend/migrations/                           | 1-120     | Reference-only migration files    |
 | docs/agent/application/features/state-session/ |           | sessions + messages table design  |
 |   session-management.md                        |           |                                   |
 | docs/architecture-plan.md                      |           | Legacy planned table definitions  |

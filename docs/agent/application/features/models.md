@@ -71,9 +71,9 @@ func modelsURL(baseURL string) string {
 +--------------------+-----------------------------+----------------------------+
 | Export             | Source                      | Type                       |
 +--------------------+-----------------------------+----------------------------+
-| Go GET /models     | backend/router.go:121       | JWT-protected route        |
-| Go GetModels()     | service/aimodel/service.go:55 | Per-user model fetch       |
-| Go modelsURL()     | service/aimodel/service.go:110| URL constructor helper     |
+| Go GET /models     | backend/router.go:148       | JWT-protected route        |
+| Go GetModels()     | service/aimodel/service.go:83 | Per-user model fetch       |
+| Go modelsURL()     | service/aimodel/service.go:132| URL constructor helper     |
 | Agent GET /models  | adapter/inbound/api/models/model.routes.ts:6 | Internal proxy (secondary) |
 +--------------------+-----------------------------+----------------------------+
 
@@ -93,13 +93,13 @@ func modelsURL(baseURL string) string {
 +-----------------------+-----------------------------+----------------------------------------------+
 | Ref                   | File                        | Key Lines                                    |
 +-----------------------+-----------------------------+----------------------------------------------+
-| Go route              | router.go:121               | GET /api/v1/models (JWT required)            |
+| Go route              | router.go:148               | GET /api/v1/models (JWT required)            |
 | Go handler            | handler/aimodel/handler.go:30 | HandleGetModels — extracts userID from JWT   |
-| Go service            | service/aimodel/service.go:55 | GetModels(ctx, userID)                       |
-| modelsURL()           | service/aimodel/service.go:110| URL construction logic                       |
+| Go service            | service/aimodel/service.go:83 | GetModels(ctx, userID)                       |
+| modelsURL()           | service/aimodel/service.go:132| URL construction logic                       |
 | Cache                 | service/aimodel/service.go:28 | 30s TTL, shared across all users             |
 | Agent route           | adapter/inbound/api/models/model.routes.ts:6 | GET /api/models (Internal auth)              |
-| Agent controller      | adapter/inbound/api/models/model.controller.ts:8-10 | Proxies to LLM_MODEL_API_URL                 |
+| Agent controller      | adapter/inbound/api/models/model.controller.ts:8-30 | Proxies to LLM_MODEL_API_URL                 |
 +-----------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

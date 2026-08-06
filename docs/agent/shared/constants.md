@@ -21,8 +21,9 @@ settings, and credential manager parameters.
 
 ```
 src/shared/constants/
-  index.ts               # LLM API versions, model config, paths
-  errors.ts              # Error type tags and user-facing messages
+  index.ts               # LLM API versions, model config
+  errors.ts              # Error type tags, status, and user-facing messages
+  http.ts                # HTTP_STATUS code map
   middleware.ts          # Auth and monitor header/key constants
 
 src/infrastructure/providers/constants/
@@ -46,39 +47,37 @@ LLM_API_VERSIONS = {
 LLM_CONFIG = {
   DEFAULT_TEMPERATURE: 0.7,
 };
-
-PATHS = {
-  STATE_ROOT: join(SA_OUTPUT_PATH || cwd(), 'runtime'),
-  ARTIFACTS_ROOT: join(SA_OUTPUT_PATH || cwd(), 'artifacts'),
-};
 ```
+
+There are no `PATHS` / `STATE_ROOT` / `ARTIFACTS_ROOT` constants — the file
+only contains `LLM_API_VERSIONS` and `LLM_CONFIG`.
 
 ### Strategy Version Constants `[Active]`
 
 
 ```typescript
 STRATEGY_VERSIONS = {
-  STANDARD_V1: "standard:v1",
-  NLAH_V1:     "nlah:v1",
+  standard: "standard:v1",
+  nlah:     "nlah:v1",
 };
 
 STRATEGY_VERSION_ALIASES = {
   "standard:v1": ["chat"],
-  "nlah:v1":     ["agent", "nlah", "deep-research", "react", "sequential"],
+  "nlah:v1":     ["agent", "deep-research", "react", "sequential"],
 };
 
-DEFAULT_STRATEGY_VERSION = STRATEGY_VERSIONS.NLAH_V1;
+DEFAULT_STRATEGY_VERSION = "nlah:v1";
 ```
 
-Source: `src/core/agent/strategies/constants.ts` (extended with version map).
+Source: `src/core/agent/strategies/constants.ts` — note the keys are
+lowercase (`standard` / `nlah`, not `STANDARD_V1` / `NLAH_V1`) and the
+`nlah:v1` aliases do NOT include `"nlah"` itself.
 
 +----------------------------+---------------------------------------------+------------------------------------------+
 | Constant                   | Value                                       | Purpose                                  |
 +----------------------------+---------------------------------------------+------------------------------------------+
 | `LLM_API_VERSIONS.V1`      | `"/v1"`                                     | Standard API version path                |
 | `LLM_CONFIG.DEFAULT_TEMPERATURE`| `0.7`                                   | Default LLM sampling temperature         |
-| `PATHS.STATE_ROOT`         | `{SA_OUTPUT_PATH}/runtime`                 | Agent state file directory               |
-| `PATHS.ARTIFACTS_ROOT`     | `{SA_OUTPUT_PATH}/artifacts`               | Artifact output directory                |
 +----------------------------+---------------------------------------------+------------------------------------------+
 
 ---
@@ -97,9 +96,11 @@ ERROR_TYPES = {
 ERROR_MESSAGES = {
   RATE_LIMIT: "Upstream LLM Provider API rate limit exceeded. Please retry shortly.",
   TIMEOUT: "Upstream LLM Provider query timed out. Please retry.",
-  BAD_REQUEST: "Malformed request payload body. Ensure valid JSON structure.",
+  BAD_REQUEST: "Malformed request payload body. Ensure valid JSON structure is supplied.",
   INTERNAL_SERVER: "Internal server error",
 };
+
+ERROR_STATUS = "error";
 ```
 
 Used by `errorHandler` middleware (`src/adapter/inbound/middleware/error.ts`) to classify and
@@ -117,7 +118,7 @@ AUTH_CONSTANTS = {
   HEADER_FORWARDED_FOR: "x-forwarded-for",
   BEARER_PREFIX: "Bearer ",
   DEFAULT_IP: "unknown",
-  FORBIDDEN_MESSAGE: "Forbidden: Invalid or missing internal token credentials.",
+  FORBIDDEN_MESSAGE: "Forbidden: Invalid or missing internal token authentication credentials.",
 };
 
 MONITOR_CONSTANTS = {
@@ -179,7 +180,7 @@ MATCH_WEIGHTS = {
   NAME: 0.1,
 };
 
-RETRIEVER_FALLBACK_TOOLS = ['web_search'] as const;
+RETRIEVER_FALLBACK_TOOLS = [] as const; -- empty: no implicit tool fallback (strict allowlist)
 ```
 
 ---
@@ -201,8 +202,9 @@ RETRIEVER_FALLBACK_TOOLS = ['web_search'] as const;
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+
 | File                                             | Line                        | Description                                       |
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+
-| `shared/constants/index.ts`                      | 6-19                        | LLM versions, temperature, paths                  |
-| `shared/constants/errors.ts`                     | 1-14                        | Error types and messages                          |
+| `shared/constants/index.ts`                      | 4-12                        | LLM versions and temperature                      |
+| `shared/constants/errors.ts`                     | 1-16                        | Error types, messages, ERROR_STATUS               |
+| `shared/constants/http.ts`                       | 1-9                         | HTTP_STATUS code map                              |
 | `shared/constants/middleware.ts`                  | 1-20                        | Auth and monitor constants                        |
 | `infrastructure/providers/constants/index.ts`    | 1-34                        | Local URL detection, pricing models               |
 | `core/agent/services/constants.ts`     | 1-12                        | Retriever config, weights, fallback               |

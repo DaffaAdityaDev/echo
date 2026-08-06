@@ -95,7 +95,7 @@ input.prompt || input.message    -> prompt
 |        |                                                               | Handler   |
 |        |                                                               | .Bind()   |
 |        |                                                               | .JSON     |
-| 400    | "Unknown model '{id}'"                                        | Chat-     |
+| 400    | "Provider config error: {err}"                                | Chat-     |
 |        |                                                               | Handler   |
 |        |                                                               | ModelSvc  |
 | 401    | "Unauthorized: Missing token"                                 | Auth      |
@@ -115,12 +115,10 @@ input.prompt || input.message    -> prompt
 |        |                                                               | Handler   |
 | 500    | "Agent service unreachable"                                   | Chat-     |
 |        |                                                               | Handler   |
-| 500    | "Agent request failed"                                        | Chat-     |
-|        |                                                               | Handler   |
-|        |                                                               | (non-200  |
-|        |                                                               | from      |
-|        |                                                               | agent)    |
-| 500    | "Failed to retrieve features"                                 | Chat-     |
+| <agent | "Agent request failed: {agent body}" — the agent's HTTP       | Chat-     |
+| status | status code is passed through, NOT fixed to 500               | Handler   |
+| code>  |                                                               |           |
+| 500    | "Failed to retrieve features"                                 | Features- |
 |        |                                                               | Handler   |
 +--------+---------------------------------------------------------------+-----------+
 
@@ -137,14 +135,18 @@ ERROR_TYPES = {
 }
 ```
 
-Error format from agent:
+Error format from agent (error handler + auth middleware):
 
 ```json
 {
-  "error": "Execution failed",
-  "details": "Detailed error message"
+  "status": "error",
+  "error_type": "BAD_REQUEST",
+  "message": "Human-readable description"
 }
 ```
+
+Auth rejection uses the same envelope with only `status` + `message`
+(`AUTH_CONSTANTS.FORBIDDEN_MESSAGE`).
 
 ## HTTP Status Codes
 
@@ -170,19 +172,26 @@ Standard SSE with `data:` lines. No named `event:` fields — type is in the
 JSON payload.
 
 ```
-data: { "type": "metadata",     "missionId": "...", "meta": { ... } }
+data: { "type": "metadata",     "missionId": "...", "content": "..." }
 data: { "type": "reasoning",    "content": "I need to search for..." }
 data: { "type": "content",      "content": "The answer is..." }
 data: { "type": "tool_call",    "toolName": "web_search", "toolInput": {...} }
 data: { "type": "tool_result",  "toolName": "web_search", "content": "..." }
-data: { "type": "usage",        "meta": { "promptTokens": 100, "completionTokens": 50 } }
+data: { "type": "usage",        "usage": { "promptTokens": 100, "completionTokens": 50 } }
 data: { "type": "todo",         "todos": [{ "id": "...", "description": "...", "status": "pending" }] }
 data: { "type": "subagent_call",  "subagent": { "name": "...", "instruction": "...", "status": "calling" } }
 data: { "type": "subagent_result","subagent": { "name": "...", "status": "completed", "result": "..." } }
-data: { "type": "checkpoint",  ... }
 data: { "type": "debug",       ... }
-data: { "type": "ping" }
+data: { "type": "system_notice",  "payload": { "level": "warning", "code": "LOOP_DETECTED", "message": "..." } }
+data: { "type": "token_metrics",  "payload": { "promptTokens": 100, "completionTokens": 50, "totalTokens": 150, "estimatedCostUsd": 0.001 } }
+data: { "type": "hitl_approval_required", "payload": { "approvalId": "...", "toolName": "...", "args": {...}, "riskLevel": "high", "expiresAt": 1712315678 } }
+data: { "type": "mission_completed", "payload": { "completed": true, "totalSteps": 12, "totalCostUsd": 0.42, "durationMs": 83000 } }
 ```
+
+All fields are flat — no `meta:` wrapper, no named SSE `event:` fields. The
+`checkpoint` and `ping` packet types are never emitted; `swarm_status` and
+`file_operation` are legacy types retained in the frontend's
+`StreamPacket` union but never emitted by the harness.
 
 ### StreamPacket (Frontend type — Discriminated Union)
 
@@ -198,7 +207,7 @@ interface StreamPacketBase {
 }
 
 type StreamPacket =
-  | (StreamPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; })
+  | (StreamPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; title?: string; summary?: string; })
   | (StreamPacketBase & { type: 'reasoning' | 'content'; content: string; })
   | (StreamPacketBase & { type: 'tool_call'; toolName: string; toolInput: Record<string, unknown>; })
   | (StreamPacketBase & { type: 'tool_result'; toolName: string; content: string; toolResult?: unknown; })
@@ -213,8 +222,10 @@ type StreamPacket =
   | (StreamPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
   | (StreamPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{role, content}>; })
   | (StreamPacketBase & { type: 'error'; content: string; code?: string; })
-  | (StreamPacketBase & { type: 'swarm_status'; swarm: SwarmData; })
-  | (StreamPacketBase & { type: 'file_operation'; fileOp: FileOp; });
+  | (StreamPacketBase & { type: 'system_notice'; payload: { level: 'info'|'warning'|'error'; code: string; message: string }; })
+  | (StreamPacketBase & { type: 'token_metrics'; payload: TokenUsage & { estimatedCostUsd: number }; })
+  | (StreamPacketBase & { type: 'hitl_approval_required'; payload: HitlApproval; })
+  | (StreamPacketBase & { type: 'mission_completed'; payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number }; });
 ```
 
 Fields are **flat** — no `meta:` wrapper. `agentStatus` is present when the
@@ -270,12 +281,11 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
   "message": "string",
   "model": "string",
   "mode": "standard | agent",
-  "strategy": "nlah | standard (optional, defaults to mode resolution)",
   "strategyVersion": "nlah:v1 (optional, resolved by gateway if absent) [Active]",
   "sessionId": "string (optional)",
   "missionId": "string (optional)",
   "history": [
-    { "role": "user | assistant", "content": "string" }
+    { "role": "user | assistant | system", "content": "string" }
   ],
   "features": ["string (feature IDs)"],
   "skills": ["string (skill names)"]
@@ -283,6 +293,9 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 
 // Response 200 -> SSE Stream (text/event-stream)
 ```
+
+> There is no top-level `strategy` field on the chat request — the mode is
+> conveyed by `mode` and the version by `strategyVersion`.
 
 > **Strategy Lifecycle**: The gateway resolves `strategyVersion`
 > when `sessionId` is present — pinned from the session if set, otherwise
@@ -297,7 +310,7 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 ```json
 // Request (Go -> Agent)
 {
-  "user_id": 1,
+  "user_id": "1",
   "message": "string",
   "model": "string",
   "history": [{ "role": "string", "content": "string" }],
@@ -310,12 +323,14 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
   "missionId": "string (optional)",
   "features": ["string (always sent — empty [] means 'no tools')"],
   "skills": ["string (optional)"],
-  "strategy": "string (optional, e.g. 'nlah') [Active]",
   "strategy_version": "string (optional, e.g. 'nlah:v1') [Active]"
 }
 
 // Response 200 -> SSE Stream
 ```
+
+> The payload carries `strategy_version` only — there is no `strategy` key.
+> `user_id` is a string.
 
 ### Agent Zod Schema (CreateMission)
 
@@ -324,9 +339,9 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 {
   prompt: string,              // required
   strategy: 'standard'|'agent',
-  tenantId: string,            // default: 'local'
-  userId: string,              // default: 'local'
-  orgId: string,               // default: 'local'
+  tenantId: string,            // default: 'local-developer'
+  userId: string,              // default: 'local-dev-user'
+  orgId: string,               // default: 'local-org'
   missionId: string | null,    // optional (generated if absent)
   model: string | null,        // optional
   provider_config: {
@@ -334,12 +349,33 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
     base_url: string,
     api_key: string | null | undefined,
     model: string
-  },
+  },                           // REQUIRED
   features: string[] | null | undefined,
+  skills: string[] | null | undefined,
   history: Array<{ role: string, content: string }> | null | undefined,
   strategy_version: string | null | undefined   // Active — "nlah:v1"
+  config: {                    // optional nested session config (camelCase)
+    memory: { episodic: boolean, semantic: boolean, procedural: boolean, ttl: number },
+    harness: {
+      compression: { enabled: boolean, ratio: number, keepLastTurns: number },
+      pacing: { enabled: boolean, threshold: number },
+      loopDetection: { enabled: boolean, similarityThreshold: number },
+      maxIterations: number,
+      costCap: number,
+      delegationDepth: number
+    },
+    harnessConfig?: { circuitBreaker?, degradation?, contextResolver?, agentStatus? },
+    featureToggles?: {...},
+    skills?: string[],
+    mcpServers?: Array<{ name, url, command?, args?, transport, credentials? }>,
+    restTools?: Array<{ name, endpoint, url?, method, description, headers?, global_headers?, inputSchema, auth?, timeout, url_interpolation }>
+  }
 }
 ```
+
+Defaults come from `DEFAULT_MISSION_VALUES` (`mission.constants.ts`):
+`tenantId: "local-developer"`, `userId: "local-dev-user"`,
+`orgId: "local-org"`, `strategy: "agent"`.
 
 ### Strategy Catalog
 
@@ -347,35 +383,37 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 
 
 ```json
-// Response 200
+// Response 200 — agent shape: { strategies: [{ name, versions: [...] }] }
+// (no top-level status per strategy)
 {
   "strategies": [
     {
-      "name": "nlah",
-      "status": "active",
+      "name": "standard",
       "versions": [
         {
-          "version": "nlah:v1",
+          "version": "standard:v1",
           "status": "active",
-          "aliases": ["agent", "deep-research", "react", "sequential"],
-          "rollout": 1.0
+          "aliases": ["chat"]
         }
       ]
     },
     {
-      "name": "deep_research",
-      "status": "active",
+      "name": "nlah",
       "versions": [
-        { "version": "deep_research:v1", "status": "active", "rollout": 0.2 }
+        {
+          "version": "nlah:v1",
+          "status": "active",
+          "aliases": ["agent", "deep-research", "react", "sequential"]
+        }
       ]
     }
   ]
 }
 ```
 
-Agent internal `GET /api/strategies` returns the same shape without the
-gateway-resolved `rollout` field (source of truth for catalog; rollout is
-gateway-owned).
+The Go gateway's `GET /api/v1/strategies` wraps the same catalog and merges
+the gateway-resolved `rollout` field per version. The agent's internal
+`GET /api/strategies` returns the shape above with no rollout.
 
 ### Models
 

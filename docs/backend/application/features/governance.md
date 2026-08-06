@@ -3,7 +3,7 @@
 Module     : LLMOps Governance
 Service    : Backend / Application / Module
 Version    : 1.0
-Updated    : 2026-07-25
+Updated    : 2026-08-05
 
 ## Description
 
@@ -110,8 +110,29 @@ Prompt Engineer ──► Domain Expert ──► Admin Bisnis ──► PRODUCT
 
 | Pillar        | Integration Point                                                     |
 |---------------|-----------------------------------------------------------------------|
-| Governance    | New tables (prompt_templates, prompt_versions). Agent reads prompt    |
-|               | from DB at runtime (fallback to hardcoded prompts if no DB entry).    |
+| Governance    | Agent fetches the production prompt version via internal endpoint     |
+|               | GET /api/v1/internal/prompts/active (Service JWT, X-Tenant-ID). The   |
+|               | agent caches the response in Redis for 60s (key                       |
+|               | agent:prompts:<tenant>:<name>); the backend invalidates that key on   |
+|               | promote/rollback. Falls back to hardcoded prompts when no production  |
+|               | version exists. Per-tenant template selection via app_settings        |
+|               | 'prompt_template_name' (tenantId→name map, then "default" →           |
+|               | PROMPT_TEMPLATE_NAME → none).                                         |
+
+## Data Flow
+
+```
+Studio promote ──► prompt_versions (status=production)
+                      │
+                      ▼
+Agent GET /api/v1/internal/prompts/active?template=<name>
+                      │   (Service JWT, X-Tenant-ID; Redis cache 60s)
+                      ▼
+Agent system prompt assembly (behavior layer)
+                      │
+                      ▼
+Fallback: hardcoded prompts (when no production version)
+```
 
 ## UI Route Structure
 
@@ -126,8 +147,7 @@ Prompt Engineer ──► Domain Expert ──► Admin Bisnis ──► PRODUCT
 
 | Phase | Scope                          | Dependencies                    |
 |-------|--------------------------------|---------------------------------|
-| 1     | Playground (single-model) +    | None                            |
-|       | Prompt Versioning              |                                 |
+| 1     | Prompt Versioning              | None                            |
 | 3     | Approval Flow                  |                                 |
 
 ## Dependencies

@@ -100,16 +100,19 @@ Weaknesses:
 Go Backend (PostgreSQL + Redis)                    Agent (Hono)
 ┌────────────────────────────────────┐             ┌──────────────────┐
 │                                    │             │                  │
-│  memory_semantic (PostgreSQL)      │◄──Service──│  MemoryPlugin    │
-│  - content, embedding, metadata    │    JWT      │  → calls via     │
-│  - pgvector HNSW index (planned)   │             │    HTTP          │
+│  memory_semantic (PostgreSQL)      │◄──Service──│  MemoryAdapter   │
+│  - content, embedding, metadata    │    JWT      │  (adapter/       │
+│  - pgvector HNSW index (planned)   │             │  outbound/       │
+│                                    │             │  backend/        │
+│  memory_procedural (PostgreSQL)    │             │  memory.adapter  │
+│  - id, name, content, metadata     │             │  .ts)            │
+│                                    │             │  → HTTP calls    │
+│  memory:episodic (Redis)           │             │                  │
+│  - session_id → list               │             │  ToolRegistry    │
+│  - 24h TTL                         │             │  → tool defs     │
 │                                    │             │                  │
-│  memory_procedural (PostgreSQL)    │             │  ToolRegistry    │
-│  - id, name, content, metadata     │             │  → tool defs     │
-│                                    │             │                  │
-│  memory:episodic (Redis)           │             │  Classifier      │
-│  - session_id → list               │             │  → topic detect  │
-│  - 24h TTL                         │             │                  │
+│                                    │             │  Classifier      │
+│                                    │             │  → topic detect  │
 └────────────────────────────────────┘             └──────────────────┘
 ```
 
@@ -213,7 +216,8 @@ Tool Reliability:
    → Models: sentence-transformers/all-MiniLM-L6-v2 (384d)
 
 9. Full hybrid: BM25 + pgvector + RRF + structured filters
-   → Gradual rollout — feature flag ENABLE_HYBRID_SEARCH
+   → Planned — no ENABLE_HYBRID_SEARCH env flag exists in the agent or
+     backend today; retrieval remains ToolRetriever keyword scoring + ILIKE
 
 10. Fallback chain:
     Hybrid → BM25-only → keyword → fallback web_search
@@ -304,10 +308,8 @@ Prompt Layout:
 **Rules:**
   - Knowledge fragments MUST NOT be inserted between BLOCK 4 and the user query.
     They belong inside the same HumanMessage as the query, at the tail.
-  - If `RAG_REFRESH: 'first'` (default), knowledge is fetched only on turn 1.
-    Subsequent turns reuse the same topic context from BLOCK 3.
-  - If `RAG_REFRESH: 'every_turn'`, each turn appends fresh knowledge to BLOCK 5,
-    accepting the cache miss cost per turn.
+  - No `RAG_REFRESH` env var exists in the agent env schema or backend
+    config — refresh policy is not yet configurable (planned).
 
 See `../application/features/execution/context-resolver-pattern.md` for detailed injection code and
 `../../shared/architecture/headless-haas.md` for the full 5-block KV cache diagram.

@@ -81,9 +81,11 @@ POST   /v1/sessions                → Create session
 GET    /v1/sessions                → List sessions (by user)
 GET    /v1/sessions/:id            → Load session metadata + message count
 GET    /v1/sessions/:id/messages    → HandleGetSessionMessages
+PATCH  /v1/sessions/:id            → Update session (title, context summary)
 DELETE /v1/sessions/:id            → Delete session
+POST   /v1/sessions/:id/generate-title → Auto-generate a session title
 
-POST   /v1/sessions/:id/prune      → Trigger hard consolidation (internal)
+POST   /api/v1/internal/sessions/{id}/prune → Trigger hard consolidation (internal)
 ```
 
 ### Request/Response Shapes
@@ -301,12 +303,13 @@ Next turn → prompt built from: system + tools + context_summary + remaining hi
 
 ```
 POST /api/internal/sessions/summarize
-  Host: Agent Hono (Go → Agent HTTP call, NOT a Go route)
+  Host: Agent (Go → Agent HTTP call, NOT a Go route)
   Auth: X-Internal-Token
   Request: {
-    session_id: string,
-    messages: [{ role: string, content: string }],  // oldest 50% of turns
-    max_summary_tokens: 500
+    session_id: string,            // optional
+    messages: [{ role: string, content: string }],  // required — oldest turns
+    max_summary_tokens: 500,
+    provider_config: { type, base_url, model, api_key? }   // required
   }
   Response: {
     summary: string,
@@ -419,14 +422,15 @@ Not applicable for typical chat (serial by nature), but required for API access.
 ## Configuration
 
 ```
-SESSION_MANAGEMENT = {
-  ENABLED: true,
-  PRUNE_THRESHOLD: 100_000,          // tokens — trigger consolidation at 80%
-  PRUNE_KEEP_LATEST_TURNS: 10,       // keep newest N turns after consolidation
-  SUMMARIZE_MAX_TOKENS: 500,         // max tokens for summary block
-  INTERRUPTED_TURN_TIMEOUT: "24h",   // discard interrupted turns after
-}
+PRUNE_THRESHOLD          = 100_000  // tokens — trigger consolidation
+PRUNE_KEEP_LATEST_TURNS  = 10      // keep newest N turns after consolidation
+SUMMARIZE_MAX_TOKENS     = 500     // max tokens for summary block
 ```
+
+Loaded from env vars in `backend/internal/config/config.go`. There is no
+`SESSION_MANAGEMENT` block and no `INTERRUPTED_TURN_TIMEOUT` — interrupted
+turn cleanup is handled by `MarkStreamingAsInterrupted` before each new
+turn.
 
 ---
 
@@ -437,15 +441,18 @@ SESSION_MANAGEMENT = {
 +-----------------------------+----------------------------------+--------------------------------------------+
 | SessionHandler              | backend/internal/handler/        | Go Fiber handler (CRUD endpoints)          |
 |                             |   session/handler.go             |                                            |
-| SessionRepository           | backend/internal/repository/     | 16 methods: CreateSession, ListByUser,        |
-|                             |   session/repository.go          | GetByID, DeleteSession, UpdateContextSummary,|
-|                             |                                | GetSessionMessages, GetSessionTokenCount,   |
-|                             |                                | GetMaxTurnNumber, DeleteMessagesUpToTurn,   |
-|                             |                                | SaveTurnMessages, InsertMessage,            |
-|                             |                                | InsertAssistantPlaceholder,                 |
-|                             |                                | UpdateMessageContent, UpdateMessageStatus,  |
-|                             |                                | MarkStreamingAsInterrupted,                 |
-|                             |                                | UpdateSessionTimestamp                      |
+| SessionRepository           | backend/internal/repository/     | 27 methods: NewRepository, CreateSession, ListByUser, |
+|                             |   session/repository.go          | GetByID, UpdateSessionTimestamp, PinStrategyVersion,  |
+|                             |                                  | TouchSession, DeleteSession, UpdateContextSummary,    |
+|                             |                                  | UpdateTitleAndSummary, GetSessionMessages,            |
+|                             |                                  | GetSessionTokenCount, GetMaxTurnNumber,               |
+|                             |                                  | DeleteMessagesUpToTurn, SaveTurnMessages,             |
+|                             |                                  | InsertMessage, InsertAssistantPlaceholder,            |
+|                             |                                  | UpdateMessageContent, UpdateMessageStatus,            |
+|                             |                                  | MarkStreamingAsInterrupted, PrepareTurn, CompleteTurn,|
+|                             |                                  | PruneSession, ScanSessionsForConsolidation,           |
+|                             |                                  | ScanSessionsForArchive, ScanSessionsForDeprecate,     |
+|                             |                                  | DeleteMessagesForArchivedSessions                     |
 | streamContent               | backend/internal/handler/        | struct in HandleChat SendStreamWriter:      |
 |                             |   chat/handler.go               | content, thinking (strings.Builder),       |
 |                             |                                | toolCalls, toolResults slices,             |
@@ -453,7 +460,7 @@ SESSION_MANAGEMENT = {
 | ConsolidationService        | backend/internal/service/        | Orchestrates threshold check → Agent call  |
 |                             |   consolidation/service.go      |                                            |
 | SummarizeEndpoint           | agent/src/adapter/inbound/api/internal/ | Hono endpoint for LLM summarization        |
-|                             |   summarize.ts                  |                                            |
+|                             |   internal.controller.ts        |                                            |
 +-----------------------------+----------------------------------+--------------------------------------------+
 
 ---
@@ -463,8 +470,8 @@ SESSION_MANAGEMENT = {
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Current state storage    | agent/src/core/agent/storage/            | Existing IStateStore — to be replaced by session      |
-|                          |   backend.ts + memory.ts                 |   loading from Go                                     |
+| Current state storage    | agent/src/adapter/outbound/     | Agent session state kept out of process — |
+|                          |   backend/memory.adapter.ts     |   loaded from Go per turn                 |
 | Current mission          | agent/src/adapter/inbound/api/missions/ | Controller that currently loads from stateStorage     |
 | controller               |   mission.controller.ts          |   → will receive messages[] from Go instead           |
 | Chat handler (Go)        | backend/internal/handler/        | Existing proxy — will add session loading + commit    |

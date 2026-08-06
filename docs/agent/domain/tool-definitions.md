@@ -4,7 +4,7 @@
   Module    : Tool Definitions
   Service   : agent
   Version   : 2.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-06
 ================================================================================
 
 ## Description
@@ -101,8 +101,12 @@ z.object({ query: z.string() })
 
 ### Purpose
 
-Creates, updates, or reorganizes the agent's task plan. Writes a `STATE.md` file
-to the `runtime/` directory with formatted markdown task list.
+Creates, updates, or reorganizes the agent's task plan. Writes a `STATE.md`
+file with formatted markdown task list, scoped to the current mission:
+`<STATE_ROOT>/{missionId}/STATE.md` (missionId read from the tool execution
+context), so concurrent missions on one agent process do not clobber each
+other's plan. Falls back to `<STATE_ROOT>/STATE.md` when no mission id is
+available.
 
 ### Schema
 
@@ -119,11 +123,12 @@ z.object({
 ### Execute Flow
 
 ```
-  input.todos
-    → mkdir(STATE_ROOT)
+  input.todos  (exec ctx: { ..., missionId })
+    → missionDir = STATE_ROOT/{missionId} (sanitized) or STATE_ROOT
+    → mkdir(missionDir)
     → Format markdown with status markers:
       [x] = done, [/] = in_progress, [!] = failed, [ ] = pending
-    → writeFile(STATE.md)
+    → writeFile(missionDir/STATE.md)
     → Return Observation
 ```
 

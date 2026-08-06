@@ -58,7 +58,7 @@ missions/
 │  Parse body + query params       │  │  MissionPayload Construction         │
 │                                  │  │                                      │
 │  createMissionSchema.safeParse() │  │  ProviderFactory.fromConfig(config)  │
-│                                  │  │  StrategyFactory.create(strategy)    │
+│                                  │  │  strategyRegistry.resolve(strategyKey)│
 │  Zod preprocessing:              │  │  stateStorage.get(missionId)         │
 │  - strategy alias normalization  │  │  toolRegistry.resolveTools(features) │
 │  - prompt from "message" field  │  │  If features explicitly set:          │
@@ -76,8 +76,9 @@ missions/
           ┌─────────────────────────────────────────────────────┐
           │  streamSSE(c, async (streamInstance) => { ... })    │
           │  HttpStreamTransport(streamInstance)                │
-          │  Heartbeat interval (15s ping)                      │
           │  CancellationManager.register(missionId)            │
+          │  (no controller heartbeat — the harness emits       │
+          │   heartbeat packets every 5s during streaming)      │
           └──────────────────────┬──────────────────────────────┘
                                  │
                                  ▼
@@ -147,16 +148,24 @@ missions/
 +--------------------------+----------------------------------------+------------------------------------------+
 | Route registration       | `mission.routes.ts`                    | `router.post("/generate-mission", ...)`   |
 | Controller               | `mission.controller.ts`                | `createMission()` orchestrates flow      |
-| Schema preprocessing     | `mission.schema.ts:9-39`               | Normalizes strategy aliases, IDs         |
-| Schema validation        | `mission.schema.ts:40-61`              | Zod object with prompt, strategy, etc.   |
+| Strategy resolution      | `mission.controller.ts:75-76`          | `strategyRegistry.resolve(strategyKey)`  |
+| Schema preprocessing     | `mission.schema.ts:223-260`            | Normalizes strategy aliases, IDs         |
+| Schema validation        | `mission.schema.ts:261-290`            | Zod object with prompt, strategy, etc.   |
 | Strategy constants       | `mission.constants.ts`                 | `STRATEGY_MAPPING` alias map             |
 | SSE transport            | `stream.transport.ts`                  | `HttpStreamTransport.send()` enrichment  |
-| Heartbeat                | `mission.controller.ts:97-99`          | 15-second ping interval                  |
-| Cancellation             | `mission.controller.ts:101,122-123`    | Registers `AbortSignal` on start         |
-| State reconstruction     | `mission.controller.ts:71-91`          | Loads prior state or creates fresh       |
-| Provider config          | `mission.schema.ts:48-53`              | `provider_config` with type, URL, key    |
-| Provider init            | `infrastructure/providers/factory.ts`  | `ProviderFactory.fromConfig()`          |
+| Cancellation             | `mission.controller.ts:288,316`        | Registers `AbortSignal` on start         |
+| State reconstruction     | `mission.controller.ts:78-93`          | Loads prior state or creates fresh       |
+| Provider config          | `mission.schema.ts:271-276`            | `provider_config` with type, URL, key    |
+| Provider init            | `infrastructure/providers/factory.ts`  | `ProviderFactory.fromConfig()`           |
+| HITL resume strategy     | `mission.controller.ts:253`            | `StrategyFactory.create()` — ONLY used   |
+|                         |                                        | for HITL resume, not for createMission   |
 +--------------------------+----------------------------------------+------------------------------------------+
+
+> The createMission flow does NOT run a controller-side heartbeat interval.
+> Heartbeat packets are emitted by the harness every 5s
+> (`HARNESS_CONFIG.AGENT_STATUS.HEARTBEAT_INTERVAL`); the controller-level
+> 15s `: heartbeat\n\n` comment interval exists only in the mission-log
+> stream (`mission.controller.ts:336-338`).
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

@@ -37,8 +37,12 @@ adapter/outbound/backend/    ← External persistence (via adapter layer)
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  factory.ts                                                               │
-│  new InMemoryStateProvider() → Map<string, string> cache                  │
-│  export stateStorage: IStateProvider                                      │
+│  createStateProvider()                                                    │
+│  ENV.STATE_BACKEND === "backend"                                          │
+│    → new MemoryAdapter(ENV.BACKEND_URL)   (calls Go backend API)          │
+│  else                                                                     │
+│    → new InMemoryStateProvider()          (Map<string, string> cache)     │
+│  export stateStorage (untyped union of both provider shapes)              │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │
                                  ▼
@@ -99,13 +103,19 @@ adapter/outbound/backend/    ← External persistence (via adapter layer)
 +---------------------------+-----------------------------+------------------------------------------------+
 | Export                    | Source                      | Type                                           |
 +---------------------------+-----------------------------+------------------------------------------------+
-| `stateStorage`            | `factory.ts`                | `IStateProvider` instance                      |
-| `IStateProvider`          | (inlined in factory.ts)       | Interface (get, set, delete)                   |
+| `stateStorage`            | `factory.ts:17`             | `InMemoryStateProvider \| MemoryAdapter`       |
 | `InMemoryStateProvider`   | `memory.ts`                 | Implementation                                 |
+| `MemoryAdapter`           | `adapter/outbound/backend/  | Go backend-backed persistence (HTTP)           |
+|                           |   memory.adapter.ts`        |                                                |
 | `serializeAgentState`     | `serializer.ts`             | State → JSON                                   |
 | `deserializeAgentState`   | `serializer.ts`             | JSON → State                                   |
 | `STORAGE_CONSTANTS`       | `constants.ts`              | Constants                                      |
 +---------------------------+-----------------------------+------------------------------------------------+
+
+> `stateStorage` has no named interface type — it is the untyped union of
+> `InMemoryStateProvider` and `MemoryAdapter` chosen by
+> `createStateProvider()` in `factory.ts:7-15` (branch on
+> `ENV.STATE_BACKEND === "backend"`).
 
 ---
 
@@ -128,16 +138,20 @@ adapter/outbound/backend/    ← External persistence (via adapter layer)
 +----------------------------+----------------------------------------+----------------------------------------------------+
 | Ref                        | File                                   | Key Lines                                          |
 +----------------------------+----------------------------------------+----------------------------------------------------+
-| Singleton creation         | `factory.ts:6-7`                       | `new InMemoryStateProvider()`                      |
+| Singleton creation         | `factory.ts:14-17`                     | Provider chosen per `ENV.STATE_BACKEND`; singleton `stateStorage` |
 | Memory backend             | `memory.ts:6-22`                       | `Map<string, string>` with get/set/delete          |
 | Serialize                  | `serializer.ts:4-18`                   | Maps each message to `{ type, content, ... }`     |
 | Deserialize                | `serializer.ts:20-70`                  | Switch on `msg.type`, reconstructs LangChain class |
-| Interface                  | `factory.ts`                           | `IStateProvider` with get/set/delete               |
 | Controller usage           | `mission.controller.ts:76`             | `stateStorage.get(missionId)` on mission start     |
-| Harness persistence        | `harness.ts:528`                  | `stateStorage.set()` after each turn               |
-| Final save                 | `harness.ts:554`                  | `stateStorage.set()` after loop ends               |
+| Harness persistence        | `harness.ts:1066`                  | `stateStorage.set()` after each iteration          |
+| Final save                 | `harness.ts:1100`                  | `stateStorage.set()` after loop ends (TTL 600)     |
 | Backend persistence        | `adapter/outbound/backend/memory.adapter.ts` | External persistence via Go backend API            |
 +----------------------------+----------------------------------------+----------------------------------------------------+
+
+> `STORAGE_CONSTANTS.BACKEND_MEMORY` is dead code (the factory branches on
+> `ENV.STATE_BACKEND`, never on the constant) and `DEFAULT_TTL_SECONDS` is
+> unused — the harness passes an explicit TTL of 600 seconds to
+> `stateStorage.set()`.
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

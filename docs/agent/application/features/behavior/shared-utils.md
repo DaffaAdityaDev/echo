@@ -23,13 +23,19 @@ shared/
     index.ts             # Core interfaces: LLMProvider, AgentStrategy,
                          # AgentState, ToolDefinition, ProviderEvent
   constants/
-    index.ts             # LLM_API_VERSIONS, LLM_CONFIG, PATHS
-    errors.ts            # ERROR_TYPES, ERROR_MESSAGES
+    index.ts             # LLM_API_VERSIONS, LLM_CONFIG
+    errors.ts            # ERROR_TYPES, ERROR_STATUS, ERROR_MESSAGES
+    http.ts              # HTTP_STATUS code map
     middleware.ts        # AUTH_CONSTANTS, MONITOR_CONSTANTS
   utils/
     errors.ts            # AppError, ValidationError, NotFoundError, ForbiddenError
     logger.ts            # Structured Logger with file + console output
     messages.ts          # mapHistoryToMessages
+    harness.ts           # Cosine similarity, token counting, validateContent
+    jwt.ts               # Service JWT signing/verification
+    langfuse.ts          # Langfuse trace helpers
+    telemetry.ts         # OTel telemetry helpers
+    http.ts              # HTTP request wrapper
 
 adapter/inbound/middleware/
   auth.ts                # Token-based authentication guard
@@ -57,7 +63,7 @@ adapter/inbound/middleware/
                                  ▼
     ┌─────────────────────────────────────────────────────────────────┐
     │  authMiddleware                                                  │
-    │  - Bypass for root health check "/"                             │
+    │  - Bypass for "/", "/api/docs", and "/docs"                      │
     │  - Check Authorization: Bearer <token>                          │
     │  - Check X-Internal-Token header                                │
     │  - Compare against ENV.INTERNAL_AUTH_TOKEN                      │
@@ -130,7 +136,6 @@ adapter/inbound/middleware/
 | `MissionPayload`           | `shared/types/index.ts`              | Mission input                                |
 | `AgentPacketType`          | `shared/types/index.ts`              | Packet type union                            |
 | `LLM_API_VERSIONS`         | `shared/constants/index.ts`          | API version strings                          |
-| `PATHS`                    | `shared/constants/index.ts`          | Runtime/artifact paths                       |
 | `ERROR_TYPES`              | `shared/constants/errors.ts`         | Error category labels                        |
 | `ERROR_MESSAGES`           | `shared/constants/errors.ts`         | User-facing error strings                    |
 | `AUTH_CONSTANTS`           | `shared/constants/middleware.ts`     | Auth header config                           |
@@ -166,21 +171,20 @@ adapter/inbound/middleware/
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| LLMProvider              | `shared/types/index.ts:162-172`          | Stream + cleanupReasoning interface                   |
-| ProviderEvent            | `shared/types/index.ts:139-156`          | Content, reasoning, toolCall, usage variants          |
-| AgentStrategy            | `shared/types/index.ts:119-122`          | `name` + `buildSystemPrompt()`                        |
-| ToolDefinition           | `shared/types/index.ts:127-133`          | `name`, `description`, `schema`, `execute`, `keywords`|
-| PATHS                    | `shared/constants/index.ts:16-18`        | `STATE_ROOT`, `ARTIFACTS_ROOT`                        |
-| ERROR_TYPES              | `shared/constants/errors.ts:1-7`         | Error category labels                                 |
-| ERROR_MESSAGES           | `shared/constants/errors.ts:9-14`        | User-facing messages                                  |
-| AUTH_CONSTANTS           | `shared/constants/middleware.ts:1-9`     | Header names, bearer prefix, bypass path              |
-| MONITOR_CONSTANTS        | `shared/constants/middleware.ts:11-20`   | Request ID header, traceparent                        |
-| AppError                 | `shared/utils/errors.ts:4-16`           | Base error with statusCode + isOperational            |
-| Logger                   | `shared/utils/logger.ts:92-165`         | info, warn, error, debug, langfuse, telemetry         |
-| mapHistoryToMessages     | `shared/utils/messages.ts:6-15`         | Maps `{ role, content }` to HumanMessage/AIMessage    |
-| Auth middleware           | `adapter/inbound/middleware/auth.ts:8-33`           | Token comparison against ENV.INTERNAL_AUTH_TOKEN      |
-| Error handler            | `adapter/inbound/middleware/error.ts:8-58`          | Pattern-matched error categories                      |
-| Monitor middleware       | `adapter/inbound/middleware/monitor.ts:5-56`        | Request/response logging with timing                  |
+| LLMProvider              | `shared/types/index.ts:310-323`      | Stream, cleanupReasoning, validate, multimodal |
+| ProviderEvent            | `shared/types/index.ts:287-304`      | Content, reasoning, toolCall, usage variants  |
+| AgentStrategy            | `shared/types/index.ts:248-251`      | `name` + `buildSystemPrompt()`                |
+| ToolDefinition           | `shared/types/index.ts:275-281`      | `name`, `description`, `schema`, `execute`, `keywords`|
+| ERROR_TYPES              | `shared/constants/errors.ts:1-7`     | Error category labels                         |
+| ERROR_MESSAGES           | `shared/constants/errors.ts:11-16`   | User-facing messages                          |
+| AUTH_CONSTANTS           | `shared/constants/middleware.ts:1-9` | Header names, bearer prefix, bypass path      |
+| MONITOR_CONSTANTS        | `shared/constants/middleware.ts:11-20`   | Request ID header, traceparent            |
+| AppError                 | `shared/utils/errors.ts:4-16`           | Base error with statusCode + isOperational |
+| Logger                   | `shared/utils/logger.ts:92-165`         | info, warn, error, debug, langfuse, telemetry |
+| mapHistoryToMessages     | `shared/utils/messages.ts:6-41`         | Maps user/system/tool roles to LangChain messages |
+| Auth middleware           | `adapter/inbound/middleware/auth.ts:8-42`           | Bearer/X-Internal-Token check against ENV.INTERNAL_AUTH_TOKEN; bypasses "/", "/api/docs", "/docs" |
+| Error handler            | `adapter/inbound/middleware/error.ts:8-73`          | Pattern-matched error categories                      |
+| Monitor middleware       | `adapter/inbound/middleware/monitor.ts:5-54`        | Request/response logging with timing                  |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ================================================================================

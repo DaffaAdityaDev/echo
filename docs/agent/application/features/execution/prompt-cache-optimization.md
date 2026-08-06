@@ -22,22 +22,25 @@ a mission and across missions sharing the same system prompt prefix.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  ZONE 1: SYSTEM PROMPT (FIXED)                                 │
-│  ─────────────────────────────                                 │
+│  ZONE 1: SYSTEM PROMPT (FIXED — EXCEPT DEGRADATION)             │
+│  ─────────────────────────────────────────────                  │
 │  - Strategy template (NLAH, ReAct, etc.)                       │
 │  - Skill behavioral prompts (if any)                           │
-│  - NEVER changes mid-mission                                   │
+│  - Stable across turns — BUT replaced when the mission         │
+│    degrades (restricted/standard levels rebuild it with no     │
+│    tools)                                                      │
 │  - Anthropic: sent as top-level `system` parameter             │
 │  - OpenAI: messages[0] with role="system"                      │
-│  ⇒ 100% cache hit after first turn                             │
+│  ⇒ 100% cache hit until a degradation event                    │
 ├────────────────────────────────────────────────────────────────┤
-│  ZONE 2: STRUCTURED TOOLS (FIXED)                              │
-│  ───────────────────────────────                                │
+│  ZONE 2: STRUCTURED TOOLS (FIXED — EXCEPT DEGRADATION)         │
+│  ───────────────────────────────────────────────               │
 │  - Array of tool definitions (name, schema, description)       │
-│  - NEVER cleared mid-mission (pacing uses flag, not tools=[])  │
+│  - Stable across turns; pacing uses a flag (not tools=[]), but │
+│    restricted degradation passes tools=[] to the stream        │
 │  - Anthropic: tools[] in API + cache_control on ALL tools      │
 │  - OpenAI: tools[] in API (auto prefix cached by OpenAI)       │
-│  ⇒ 100% cache hit after first turn                             │
+│  ⇒ 100% cache hit until a degradation event                    │
 ├────────────────────────────────────────────────────────────────┤
 │  ZONE 3: ANCHOR + HISTORY (SEMI-FIXED)                         │
 │  ───────────────────────────────────────                       │
@@ -63,9 +66,10 @@ reuses these tokens at near-zero cost after the first turn.
 
 ## Golden Rules
 
-### 1. System Prompt NEVER changes mid-mission
+### 1. System Prompt stable mid-mission — EXCEPT degradation
 
-Built once before the harness loop in `harness.ts:130`:
+Built once before the harness loop in `harness.ts:756` (via
+`buildSystemPrompt()` at `harness.ts:342`):
 
 ```typescript
 let systemPrompt = this.strategy.buildSystemPrompt(state, tools);
@@ -74,12 +78,19 @@ if (this.skills && this.skills.length > 0) {
 }
 ```
 
-This runs ONCE. Never modified inside the `while` loop.
+This runs ONCE and is not modified inside the `while` loop — **unless the
+mission degrades**. `handleDegradation()` (`harness.ts:364-398`) rebuilds the
+system prompt with an empty tool list at the `restricted` level and switches
+the strategy to `standard` at the `standard` level, replacing
+`currentSystemPrompt` for the rest of the mission.
 
-### 2. Tools parameter NEVER changes mid-mission
+### 2. Tools parameter stable mid-mission — EXCEPT degradation
 
-The `tools` array passed to `provider.stream()` must be **stable**. The only
-exception is Anthropic-specific `cache_control` metadata, which is orthogonal.
+The `tools` array passed to `provider.stream()` is stable across turns, but
+**can be emptied by degradation**: at any non-normal degradation level the
+harness passes `activeTools = []` (`harness.ts:896`). Pacing does NOT empty
+it — pacing only clears the execution-side `toolMap` via the `pacingForced`
+flag.
 
 **Tool selection at mission start:**
 
@@ -105,6 +116,9 @@ toolMap = new Map();
 // tools array stays intact → KV cache preserved
 ```
 
+(On degradation the cache is busted by design — the degraded prompt/tool
+set is a different prefix.)
+
 ### 3. Messages always APPEND, never PREPEND or INSERT
 
 New turns are always pushed to the end:
@@ -119,7 +133,7 @@ This ensures the existing prefix (Zones 1-3) stays stable.
 
 ### 4. Compaction preserves prefix, compresses middle
 
-Compaction (triggered at 80% token ratio) runs:
+Compaction (triggered at 90% token ratio — `HARNESS_CONFIG.COMPACTION_RATIO`):
 ```
 [Anchor, summaryMsg, ...droppedLastTurns]
 ```
@@ -136,8 +150,8 @@ Compaction (triggered at 80% token ratio) runs:
 
 | Feature | Implementation | File |
 |---------|---------------|------|
-| System `cache_control` | System content as `[{type:"text", text, cache_control:{type:"ephemeral"}}]` | `providers/anthropic/index.ts:34-40` |
-| Tools `cache_control` | Every tool gets `cache_control:{type:"ephemeral"}` | `providers/anthropic/index.ts:42-48` |
+| System `cache_control` | System content as `[{type:"text", text, cache_control:{type:"ephemeral"}}]` | `providers/anthropic/index.ts:41-47` |
+| Tools `cache_control` | Every tool gets `cache_control:{type:"ephemeral"}` | `providers/anthropic/index.ts:51-56` |
 
 Claude supports `cache_control` on both the `system` parameter and individual
 tools. This ensures the entire fixed prefix (Zones 1 + 2) is cached server-side.
@@ -264,11 +278,12 @@ LLM API Call:
 +----------------------------+------------------------------------------+------------------------------------------+
 | Ref                        | File                                      | Key Lines                                |
 +----------------------------+------------------------------------------+------------------------------------------+
-| System prompt construction | `harness/harness.ts`                 | `buildSystemPrompt()` once before loop   |
-| Tool array passed to LLM   | `harness/harness.ts`                 | `provider.stream(msg, tools, sys)`       |
-| Pacing (preserves tools)   | `harness/harness.ts`                 | `pacingForced` flag instead of tools=[]  |
-| Anthropic cache_control    | `providers/anthropic/index.ts`            | System + all tools get ephemeral cache   |
-| OpenAI prompt caching      | `providers/openai/index.ts`               | Auto — no special handling needed        |
+| System prompt construction | `harness/harness.ts:342-353`    | `buildSystemPrompt()` once before loop   |
+| Tool array passed to LLM   | `harness/harness.ts:896`        | `activeTools` — [] when degraded         |
+| Degradation prompt rebuild | `harness/harness.ts:364-398`    | Restricted/standard system prompt swap   |
+| Pacing (preserves tools)   | `harness/harness.ts:864-869`    | `pacingForced` flag instead of tools=[]  |
+| Anthropic cache_control    | `providers/anthropic/index.ts`  | System + all tools get ephemeral cache   |
+| OpenAI prompt caching      | `providers/openai/index.ts`     | Auto — no special handling needed        |
 | LangChain Anthropic conv   | `node_modules/@langchain/anthropic/...`   | `_convertMessagesToAnthropicPayload()`   |
 +----------------------------+------------------------------------------+------------------------------------------+
 

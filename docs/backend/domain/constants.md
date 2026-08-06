@@ -106,7 +106,8 @@ Package: config - Default Values
 
   // LLM Model defaults
   const (
-      DefaultModel = "opencode-go/deepseek-v4-flash"
+      DefaultModel            = "opencode-go/deepseek-v4-flash"
+      DefaultServiceJWTSecret = "default-service-jwt-secret"
   )
 
 +-------------------+--------------------------------------------------------+-------------------------------+
@@ -145,7 +146,8 @@ Package: db - Database Constants
       ErrGetUserEmail   = "failed to get user by email"
   )
 
-  // SQL Queries
+  // SQL Queries (constants/db/postgres.go — full surface, by domain)
+  // Users:
   const (
       QueryCreateUser = `
           INSERT INTO users (email, password_hash, name, role, created_at, updated_at)
@@ -157,7 +159,24 @@ Package: db - Database Constants
           FROM users
           WHERE email = $1
       `
+      QueryGetUserByID = `... WHERE id = $1 ...`
   )
+
+  // Sessions & messages: QueryCreateSession, QueryListSessions, QueryGetSession,
+  //   QueryPinSessionStrategyVersion, QueryTouchSession, QueryDeleteSession,
+  //   QueryUpdateContextSummary, QueryUpdateSessionTitleAndSummary,
+  //   QueryGetSessionMessages, QueryInsertMessageWithStatus,
+  //   QueryInsertAssistantPlaceholder, QueryUpdateMessageContent,
+  //   QueryUpdateMessageStatus, QueryMarkSessionStreamingInterrupted,
+  //   QueryGetSessionTokenCount, QueryGetMaxTurnNumber,
+  //   QueryDeleteMessagesUpToTurn, QueryInsertMessage, QueryUpdateSessionUpdatedAt
+  // Settings: QueryGetAppSetting, QueryUpsertAppSetting
+  // Preferences: QueryUpsertPreferences, QueryGetPreferences
+  // Features: QueryListActiveFeatures, QueryGetFeatureByID
+  // API keys: QueryCreateApiKey, QueryGetApiKeyByHash, QueryGetApiKeysByUser,
+  //   QueryListApiKeys, QueryRevokeApiKey, QueryGetApiKeyByID
+  // Lifecycle: QueryScanSessionsForConsolidation, QueryScanSessionsForArchive,
+  //   QueryDeleteMessagesForArchivedSessions, QueryScanSessionsForDeprecate
 
 Package: routes - Route Paths
 ------------------------------
@@ -168,12 +187,24 @@ Package: routes - Route Paths
       V1APIPrefix = "/api/v1"
       V1AuthGroup = "/auth"
 
-      V1PathHealth   = "/health"
-      V1PathRegister = "/register"
-      V1PathLogin    = "/login"
-      V1PathChat     = "/chat"
-      V1PathModels   = "/models"
-      V1PathFeatures = "/features"
+      V1PathHealth     = "/health"
+      V1PathRegister   = "/register"
+      V1PathLogin      = "/login"
+      V1PathMe         = "/me"
+      V1PathLogout     = "/logout"
+      V1PathChat       = "/chat"
+      V1PathSkills     = "/skills"
+      V1PathModels     = "/models"
+      V1PathFeatures   = "/features"
+      V1PathStrategies = "/strategies"
+      V1PathSettings   = "/settings"
+
+      V1PathSettingsDefaults = "/settings/defaults"
+
+      V1AdminGroup = "/admin"
+
+      V1InternalGroup = "/internal"
+      V1PathDocs      = "/docs"
   )
 
 Entry Points & Exports

@@ -9,11 +9,23 @@
 
 ## Description
 
-The monitoring stack provides full observability via OpenTelemetry (traces +
-metrics → OTel Collector → Prometheus + Jaeger), with Grafana as the unified
-dashboard layer. The pipeline is vendor-neutral at the instrumentation layer:
-all application services emit OTLP to a single collector, which fans out to
-Prometheus (metrics), Jaeger (traces), and stdout logs.
+The monitoring stack documents the target observability pipeline via
+OpenTelemetry (traces + metrics → OTel Collector → Prometheus + Jaeger), with
+Grafana as the unified dashboard layer.
+
+**IMPORTANT — current implementation status:**
+- The Go backend OTLP export leg is **NOT implemented**. `ENABLE_OTEL` and
+  `OTEL_COLLECTOR_ADDR` are loaded into the backend `Config`
+  (internal/config/config.go:22-23) but never consumed — the backend has no
+  OTel SDK exporter/tracer provider. The backend only uses
+  `go.opentelemetry.io/otel/trace` for `traceparent` propagation across the
+  Go → Agent HTTP calls.
+- The Bun agent's telemetry goes to **Langfuse only** (via
+  `@langfuse/otel` in shared/utils/telemetry.ts) — it does NOT emit to an
+  OTLP collector.
+- The collector/Prometheus/Jaeger/Grafana services exist only as
+  commented-out blocks in Docker Compose and as K8s manifests; nothing is
+  deployed by default.
 
 ## File Structure
 
@@ -119,8 +131,9 @@ equivalent `prometheus-config` ConfigMap targets `echo-otel-collector:8889`.
 ## OTel Collector Pipeline
 
 ### Receivers
-- **OTLP gRPC** (`0.0.0.0:4317`) — primary ingestion protocol used by the Go
-  backend (when `ENABLE_OTEL=true`) and the Bun agent
+- **OTLP gRPC** (`0.0.0.0:4317`) — designed as primary ingestion. NOTE: no
+  application service currently exports OTLP (Go backend OTLP export is not
+  implemented; agent telemetry goes to Langfuse only)
 - **OTLP HTTP** (`0.0.0.0:4318`) — alternative HTTP/protobuf ingestion for
   environments where gRPC is unavailable
 

@@ -3,13 +3,46 @@
 ================================================================================
   Module    : Chat Feature
   Service   : Web
-  Version   : 1.1
-  Updated   : 2026-07-23 (Message.status, DbMessage.status, streaming/interrupted UI)
+  Version   : 1.2
+  Updated   : 2026-08-06 (recovery persistence, step-timeline dedup removal, replay_done)
 ================================================================================
 
 ## Deskripsi
 
 The core conversation feature. Manages real-time chat with AI agents via Server-Sent Events (SSE), displays messages with rich thought-process rendering (tool calls, sub-agent delegations, swarm research), and provides a sidebar for session/model/feature/mode selection.
+
+## Large Message Rendering
+
+Messages longer than `LARGE_MESSAGE_THRESHOLD` (50,000 chars) are NOT rendered
+through the Markdown pipeline by default — that would freeze the browser on
+multi-MB payloads. Instead `MessageItem.tsx` renders:
+
+1. A warning badge with real size (`4.5 MB · ~1,119k tokens`).
+2. A plain-text preview (first 50k chars, `max-h-64` scroll).
+3. Two buttons: **Load full message** (renders the full content as plain
+   `whitespace-pre-wrap` text — safe for 1M-context payloads) and **Render as
+   markdown (heavy)** (opt-in full Markdown render, intentionally slow).
+
+`chat-api.ts` `getMessages` uses a 120s timeout (default axios timeout is 30s)
+because a single 10-message page of the 1M-context stress session is ~43 MB.
+
+### Stress Test Procedure (1M Context)
+
+```bash
+cd backend
+# Safe mode (default): only ensures the admin user exists — never truncates.
+go run ./cmd/db/seed
+
+# Load test (dev only): TRUNCATES sessions, then seeds 1 stress session
+# (20 messages x ~4.5 MB / ~1.1M tokens) + 50 bulk sessions (1,000 realistic
+# multi-paragraph messages, ~2-3 KB each).
+go run ./cmd/db/seed --load-test
+```
+
+Guards: refused when `APP_ENV=production`, requires interactive `yes`
+confirmation before truncation. After seeding, open the room
+`🔥 Stress Test Session (1M Context)` in the sidebar and use the
+"Load full message" button to render the full context.
 
 ## File Structure
 
@@ -153,6 +186,35 @@ src/features/chat/
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
+> Packet dispatch now lives in `services/applyStreamPacket.ts` (shared between
+> the live `POST /chat/stream` handler and the replay path). The live phase
+> pushes EVERY step packet — distinct tool calls to the same tool, repeated
+> todo snapshots and sub-agent delegations are never collapsed. The replay
+> phase skips step packets entirely, since the DB message already carries them.
+
+### Mission Recovery After Refresh (`recoverMission`)
+
+When a session with assistant content loads, `useChatPage` calls
+`recoverMission(activeSessionId)` (the gateway treats `missionId` as the
+session id). It opens `GET /api/v1/missions/{id}/stream` through the
+`/api/missions/[id]/stream` route handler:
+
+- Cursor (`echo:mission-cursor:{missionId}` in localStorage, last Redis
+  stream id) → replay missed packets after the cursor, then live tail.
+- No cursor → live tail only (no full replay, avoiding duplication with
+  content already restored from the database).
+- Replay skips `content`/`reasoning` and step packets (already persisted in
+  the DB message); an unexpired `hitl_approval_required` re-opens the HITL
+  modal; the `replay_done` marker switches the client to live application;
+  terminal packets close the stream and clear the cursor.
+- On completion `recoverMission` invalidates the messages query so the
+  snapshot reflects the persisted completion (the Go SaaS relay finalizes the
+  DB message on a terminal packet). While the snapshot is still stale
+  (`status: interrupted` — local mode, or before the relay persists),
+  `useChatPage` suppresses the snapshot rebuild so the recovered store content
+  is not clobbered; the suppression clears when the snapshot catches up or the
+  active session changes.
+
 ## Entry Points & Exports
 
 ### Barrel (`src/features/chat/index.ts`)
@@ -256,14 +318,15 @@ src/features/chat/
 | Export       | File                      | Purpose                                           |
 +--------------+---------------------------+---------------------------------------------------+
 | useChatStream | hooks/useChatStream.ts   | Core SSE stream hook — signature:                 |
-|              |                           | (selectedModel, mode, selectedFeatures) →         |
-|              |                           | { messages, isLoading, agentProgress,             |
-|              |                           |   sendMessage, clearMessages }                    |
+|              |                           | { isLoading, sendMessage, stopStream,             |
+|              |                           |   recoverMission(missionId), clearMessages }      |
 |              |                           | Manages messages state via Zustand store, SSE     |
-|              |                           | streaming, agent progress tracking,                |
+|              |                           | streaming, agent progress tracking,               |
 |              |                           | AbortController per request, history includes     |
-|              |                           | current message. Handles all 17 packet types      |
-|              |                           | (see PACKET_TYPES in constants.ts).               |
+|              |                           | current message. Dispatches via                   |
+|              |                           | services/applyStreamPacket.ts. recoverMission     |
+|              |                           | re-attaches to the Redis mission log stream       |
+|              |                           | (cursor-based replay + live tail).                |
 +--------------+---------------------------+---------------------------------------------------+
 | useChatPage  | hooks/useChatPage.ts      | Orchestrator hook that composes useChatStore,     |
 |              |                           | useSessions, useModels, useFeatures, useAuth,     |
@@ -354,10 +417,10 @@ src/features/chat/
 +----------------+-------------------------------------------+-----------------------------------+
 | StreamPacket   | type, missionId, step, seq, timestamp,    | Raw SSE packet (19 types)          |
 |                | agentStatus?, content?, toolName?,        | Discriminated union — shape         |
-|                | toolInput?, toolResult?, todos?,          | varies by type (flat, no meta)      |
-|                | subagent?, swarm?, usage?, from?, to?,   |                                    |
-|                | reason?, phase?, completed?,              |                                    |
-|                | totalIterations?, totalCost?             |                                    |
+|                | toolInput?, toolResult?, todos?,          | varies by type (flat, no meta).     |
+|                | subagent?, swarm?, usage?, from?, to?,   | Includes `replay_done`, a synthetic |
+|                | reason?, phase?, completed?,              | marker emitted by the stream (not   |
+|                | totalIterations?, totalCost?             | by the harness)                     |
 +----------------+-------------------------------------------+-----------------------------------+
 | MissionMeta    | missionId?, strategy?, historyDepth?,     | Mission metadata from metadata     |
 |                | toolsAvailable?, objective?,              | packet (flat fields)               |
@@ -384,10 +447,11 @@ src/features/chat/
 +----------------+---------------------------------------------------------------------+
 | CHAT_MODES     | { STANDARD: "standard", AGENT: "agent" }                            |
 +----------------+---------------------------------------------------------------------+
-| PACKET_TYPES   | 18 types: metadata, usage, content, reasoning, tool_call,           |
+| PACKET_TYPES   | 19 types: metadata, usage, content, reasoning, tool_call,           |
 |                | tool_result, todo, subagent_call, subagent_result,                  |
 |                | file_operation, swarm_status, tool_skip, heartbeat,                 |
-|                | state_change, degraded, progress, turn_complete, error              |
+|                | state_change, degraded, progress, turn_complete, error,             |
+|                | replay_done (synthetic stream marker, never emitted by the harness) |
 +----------------+---------------------------------------------------------------------+
 | CHAT_ENDPOINTS | { STREAM: "/chat/stream" }                                          |
 +----------------+---------------------------------------------------------------------+

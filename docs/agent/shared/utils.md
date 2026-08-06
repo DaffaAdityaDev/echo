@@ -24,6 +24,10 @@ src/shared/utils/
   errors.ts             # AppError hierarchy
   messages.ts           # LangChain message reconstruction
   harness.ts            # Cosine similarity, token counting, truncation, validation
+  jwt.ts                # Service JWT signing/verification
+  langfuse.ts           # Langfuse tracing helpers
+  telemetry.ts          # OTel telemetry helpers
+  http.ts               # HTTP helper (request wrapper)
 
 src/infrastructure/providers/utils/
   index.ts              # calculateUsageCost
@@ -35,7 +39,13 @@ src/infrastructure/providers/utils/
 
 ## Logger (shared/utils/logger.ts)
 
-A singleton `Logger` class with five output levels and three output targets:
+A singleton `Logger` class with four standard output levels plus the
+`langfuse()` and `telemetry()` helpers, and three output targets:
+
+> The four standard levels are `INFO` / `WARN` / `ERROR` / `DEBUG`. The
+> `telemetry()` and `agentActivity()` helpers are NOT additional standard
+> levels — they write file-level events (`TELEMETRY`, `AGENT_<EVENT>` rows in
+> the log file; `agentActivity()` also appends to `agent-activity.log`).
 
 +------------------------+----------------+----------------+------------------+---------------------------------------+
 | Method                 | Console Color  | File Output    | Langfuse         | Use Case                              |
@@ -89,8 +99,14 @@ function mapHistoryToMessages(
 ```
 
 Converts raw API message history (from the `POST /api/generate-mission` body)
-into LangChain `HumanMessage` and `AIMessage` objects. Used in
-`createMission()`.
+into LangChain message objects. Role mapping:
+- `user`/`human` → `HumanMessage`
+- `system` → `SystemMessage`
+- `tool_result`/`tool` → a synthetic `AIMessage` (empty tool_call) paired
+  with a `ToolMessage`
+- anything else → `AIMessage`
+
+Used in `createMission()`.
 
 ---
 
@@ -102,7 +118,7 @@ into LangChain `HumanMessage` and `AIMessage` objects. Used in
 | `getCosineSimilarity(text1,text2)`| Bag-of-words cosine similarity for text comparison            |
 | `getHistoryTokens(msgs)`          | Estimates token count from message history (char/4)           |
 | `selectiveTruncateToolResults()`  | Truncates tool result messages exceeding threshold            |
-| `validateContent(filename,content)`| Validates file content: placeholders, JSON, TS syntax        |
+| `validateContent(filename,content)`| Validates file content: placeholders, JSON, JS eval via `new Function()` |
 +----------------------------------+---------------------------------------------------------------+
 
 ---
@@ -201,12 +217,14 @@ function calculateUsageCost(
 | Dependency                       | Usage                                                        |
 +----------------------------------+--------------------------------------------------------------+
 | `@langchain/core/messages`       | BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMsg |
-| `typescript`                     | `ts.createSourceFile` for TS syntax validation              |
 | `zod`                            | Schema input for zodV4ToOpenAISchema                        |
 | `openai`                         | Referenced via the schema converter                         |
 | `node:fs`                        | Log file writing                                             |
 | `node:path`                      | Log file path resolution                                     |
 +----------------------------------+--------------------------------------------------------------+
+
+> `validateContent` is a JS evaluation check (`new Function(content)`), not a
+> TypeScript syntax check — the `typescript` dependency is not used.
 
 ---
 
@@ -215,14 +233,18 @@ function calculateUsageCost(
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+
 | File                                             | Line                        | Description                                       |
 +--------------------------------------------------+-----------------------------+---------------------------------------------------+
-| `shared/utils/logger.ts`                         | 92-165                      | Logger class: info, warn, error, debug, langfuse  |
+| `shared/utils/logger.ts`                         | 102-180                     | Logger class: info, warn, error, debug, langfuse, telemetry, agentActivity |
 | `shared/utils/logger.ts`                         | 72-90                       | File-based logging with date-rotated files        |
-| `shared/utils/errors.ts`                        | 1-43                        | AppError, ValidationError, NotFoundError, Forbidden|
-| `shared/utils/messages.ts`                      | 1-15                        | mapHistoryToMessages                              |
-| `shared/utils/harness.ts`                       | 4-39                        | getCosineSimilarity                               |
-| `shared/utils/harness.ts`                       | 41-43                       | getHistoryTokens                                  |
-| `shared/utils/harness.ts`                       | 45-66                       | selectiveTruncateToolResults                      |
-| `shared/utils/harness.ts`                       | 68-114                      | validateContent                                   |
+| `shared/utils/errors.ts`                        | 6-39                        | AppError, ValidationError, NotFoundError, Forbidden|
+| `shared/utils/messages.ts`                      | 6-41                        | mapHistoryToMessages                              |
+| `shared/utils/harness.ts`                       | 3-38                        | getCosineSimilarity                               |
+| `shared/utils/harness.ts`                       | 40-42                       | getHistoryTokens                                  |
+| `shared/utils/harness.ts`                       | 44-69                       | selectiveTruncateToolResults                      |
+| `shared/utils/harness.ts`                       | 71-104                      | validateContent (new Function JS evaluation)     |
+| `shared/utils/jwt.ts`                           | 14-28                       | signServiceJwt / verifyServiceJwt                 |
+| `shared/utils/langfuse.ts`                      | 1-80                        | Langfuse trace helpers                            |
+| `shared/utils/telemetry.ts`                     | 1-60                        | OTel telemetry helpers                            |
+| `shared/utils/http.ts`                          | 1-40                        | HTTP request wrapper                              |
 | `providers/utils/reasoning-interceptor.ts`      | 5-148                       | Full ReasoningInterceptor implementation          |
 | `providers/utils/reasoning-interceptor.ts`      | 12-25                       | interceptFetch — body tee                         |
 | `providers/utils/reasoning-interceptor.ts`      | 30-88                       | processReasoningStream — SSE parsing              |

@@ -4,7 +4,7 @@
   Module    : Features
   Service   : backend
   Version   : 1.1
-  Updated   : 2026-07-31 (planned: strategy lifecycle integration)
+  Updated   : 2026-08-05 (governance: agent prompt delivery)
 ================================================================================
 
 This directory documents the business feature implementations of the Echo
@@ -27,8 +27,8 @@ Documentation Index
 | model-management.md                      | Provider-agnostic model listing and resolution,    |
 |                                          | caching with double-checked locking, fallback      |
 |                                          | chain across OpenAI, Anthropic, LM Studio, OpenCode|
-| governance.md                            | Roles, RBAC, governance & change management        |
-| playground.md                            | LLMOps playground (multi-model comparison)         |
+| governance.md                            | Roles, RBAC, prompt governance & change management,   |
+|                                          | agent prompt delivery via internal endpoint [Active] |
 | lifecycle worker (in server-lifecycle.md)| Background consolidation, decay/GC, strategy       |
 |                                          | rollout cache — in-process goroutine [Active]      |
 +------------------------------------------+----------------------------------------------------+

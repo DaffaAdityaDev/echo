@@ -65,8 +65,10 @@ src/core/agent/services/
 │  └─ Slice: top N (default 8)                                             │
 │                                                                           │
 │  matched.length > 0 ?                                                     │
-│    ┌─ YES → Return top tools                                             │
-│    └─ NO  → Fallback: return only ['web_search']                         │
+│    ┌─ YES → Return top tools (sliced to limit)                           │
+│    └─ NO  → Fallback: filter allTools to those whose name is in           │
+│             RETRIEVER_FALLBACK_TOOLS (empty — returns []; strict           │
+│             allowlist: no tool is enabled implicitly)                      │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,10 +79,10 @@ src/core/agent/services/
 +----------------------------+--------+---------------------------------------------------+
 | Export                     | Type   | Description                                       |
 +----------------------------+--------+---------------------------------------------------+
-| `ToolRetriever`            | class  | Constructor takes `ToolDefinition[]`              |
+| `ToolRetriever`            | class  | No constructor — stateless; `getRelevantTools()`  |
 | `RETRIEVER_CONFIG`         | const  | `{ DEFAULT_LIMIT: 8, MIN_MATCH_SCORE: 0 }`       |
 | `MATCH_WEIGHTS`            | const  | `{ KEYWORD: 0.6, DESCRIPTION: 0.3, NAME: 0.1 }`  |
-| `RETRIEVER_FALLBACK_TOOLS` | const  | `['web_search']` — fallback when no match         |
+| `RETRIEVER_FALLBACK_TOOLS` | const  | `[]` — empty; no implicit tool fallback (strict allowlist) |
 +----------------------------+--------+---------------------------------------------------+
 
 ---
@@ -101,12 +103,12 @@ src/core/agent/services/
 +-----------------------------+-----------------------------+---------------------------------------------------+
 | File                        | Line                        | Description                                       |
 +-----------------------------+-----------------------------+---------------------------------------------------+
-| `retriever.ts`              | 4-9                         | Class constructor, tool list storage              |
-| `retriever.ts`              | 11-13                       | `updateIndex()` — replaces tool list              |
-| `retriever.ts`              | 18-64                       | `getRelevantTools()` — full scoring and selection |
+| `retriever.ts`              | 4-54                        | `ToolRetriever` — no constructor, no index state  |
+| `retriever.ts`              | 8-54                        | `getRelevantTools()` — full scoring and selection |
+| `retriever.ts`              | 48-51                       | Fallback — filters `allTools` by name; can return [] |
 | `constants.ts`    | 1-4                         | `RETRIEVER_CONFIG` — default limit and min score  |
 | `constants.ts`    | 6-10                        | `MATCH_WEIGHTS` — per-scoring-category weights    |
-| `constants.ts`    | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback when none   |
+| `constants.ts`    | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback name filter |
 +-----------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

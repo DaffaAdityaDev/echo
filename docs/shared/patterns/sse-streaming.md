@@ -4,15 +4,15 @@
   Module    : SSE Streaming
   Service   : Shared / Patterns
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-06
 ================================================================================
 
 ## Description
 
 End-to-end Server-Sent Events flow from the Hono Agent Engine through the Go
 Gateway relay to the Next.js frontend. Supports two runtime modes (local
-reverse-proxy and SaaS Redis Pub/Sub) with reconnection strategy and event type
-taxonomy.
+reverse-proxy and SaaS direct Redis Streams read) with a Redis-backed mission
+event store for replay-after-cursor recovery and event type taxonomy.
 
 ## File Structure
 
@@ -28,8 +28,13 @@ taxonomy.
 |   chat/handler.go                   | HandleChat SSE proxy, StreamMissionLogs     |
 | backend/internal/router/router.go   | Route wiring                                |
 | frontend/web/src/features/chat/     |                                             |
-|   api/useChatStream.ts              | SSE packet dispatch                         |
-| frontend/web/src/lib/api-client.ts  | ReadableStream SSE parser                   |
+|   hooks/useChatStream.ts            | SSE packet dispatch + recovery              |
+|   services/applyStreamPacket.ts     | Shared packet dispatcher (live + replay)    |
+|   services/mission-cursor.ts        | localStorage replay cursor (per mission)    |
+| frontend/web/src/lib/api-client.ts  | ReadableStream SSE parser (stream/streamGet)|
+| frontend/web/src/app/api/missions/  | Next route handlers (stream/approve/deny)   |
+| agent/src/adapter/inbound/api/missions/         |                                             |
+|   mission-stream.ts                 | Redis event store (XADD/XRANGE/XREAD BLOCK) |
 | frontend/web/src/features/chat/     |                                             |
 |   types/index.ts                    | StreamPacket type                           |
 +-------------------------------------+---------------------------------------------+
@@ -105,10 +110,11 @@ taxonomy.
          │                    │                         │◄──────────────────────│
          │                    │  CHANNEL message        │                       │
          │                    │◄────────────────────────│                       │
-         │  SSE: data: {...}  │                         │                       │
-         │◄───────────────────│                         │                       │
-         │                    │  15s heartbeat: \n\n    │                       │
-         │◄───────────────────│                         │                       │
+          │  SSE: data: {...}  │                         │                       │
+          │◄───────────────────│                         │                       │
+          │                    │  15s heartbeat:         │                       │
+          │                    │  ": heartbeat\n\n"      │                       │
+          │◄───────────────────│                         │                       │
 
 ## Event Types
 
@@ -123,19 +129,34 @@ type AgentPacketType =
   | 'tool_result'     // Tool execution result
   | 'tool_skip'       // Tool skipped due to circuit breaker
   | 'error'           // Execution error
-  | 'checkpoint'      // State recovery marker
   | 'usage'           // Token usage stats
   | 'todo'            // Task list update
   | 'subagent_call'   // Delegation to sub-agent started
   | 'subagent_result' // Sub-agent completed
-  | 'swarm_status'    // Web swarm crawl progress
   | 'debug'           // Debug information
-  | 'state_change'    // Agent state transition (starting → running → completed)
+  | 'state_change'    // Agent state transition (starting → running → stalled → completed)
   | 'degraded'        // Strategy degradation signal
-  | 'progress'        // Checkpoint progress update
+  | 'progress'        // Progress update after tool execution
   | 'heartbeat'       // Live connection keepalive with agent status
   | 'turn_complete'   // Final packet signalling the turn is done
+  | 'system_notice'   // System-level notices (budget, loop warnings)
+  | 'token_metrics'   // Token usage metrics payload
+  | 'hitl_approval_required' // Human-in-the-loop approval request
+  | 'mission_completed'     // Mission finished payload
+  | 'replay_done'           // Synthetic marker: replayed history segment is over
 ```
+
+`checkpoint` and `swarm_status` are NOT emitted by the harness — they are
+legacy types retained in some client type unions.
+
+`replay_done` is emitted by the mission-stream endpoints (agent
+`streamMissionLogs` and the Go gateway saas path) only — it is written
+directly to the SSE connection and never recorded to the Redis event store.
+It separates the replayed history segment from the live phase: the recovery
+client (useChatStream) switches from `replay: true` (skip content/reasoning,
+which the DB message already carries) to live application of content deltas
+on it. A completed mission whose terminal marker is already in history does
+not emit `replay_done`.
 
 ## Stream Packet Enrichment
 
@@ -229,21 +250,64 @@ handlePacket(data: StreamPacket) {
 
 ## Reconnection Strategy
 
-Currently basic — no automatic reconnection. Client error handler catches
-failures:
+Two layers, both Redis-backed:
 
-```typescript
-catch (err) {
-  setMessages(prev => [...prev, {
-    content: `Error: ${err.message || "Failed to fetch response from agent."}`
-  }]);
-}
-```
+### 1. Page refresh recovery (`recoverMission` in useChatStream)
 
-**Planned improvements**:
-- Retry with exponential backoff (3 attempts)
-- Resume from last `checkpoint` packet
-- Send `missionId` in reconnect to recover state
+On session load the chat page re-attaches to the mission log stream
+(`GET /api/v1/missions/:missionId/stream`) when the session contains assistant
+content. The last seen Redis stream ID (`sid`) is persisted per mission in
+localStorage (`echo:mission-cursor:{missionId}`):
+
+- Cursor present → server replays only events after the cursor
+  (`XRANGE (after +`), then tails live via `XREAD BLOCK`.
+- No cursor → live tail only (`after=$`), avoiding duplication with content
+  already restored from the database.
+- Replay skips `content`/`reasoning` deltas and step packets — the DB message
+  already carries them (content is persisted incrementally, steps on
+  completion) — and an unexpired `hitl_approval_required` re-opens the HITL
+  approval modal. The `replay_done` marker ends the replay segment and switches
+  the client to live application of content/step deltas.
+- A terminal packet (`mission_completed` / `error`) closes the stream and
+  clears the cursor.
+
+### 2. Live stream failure
+
+If `POST /chat/stream` fails mid-mission, the same cursor-based recovery path
+can be invoked for the active `missionId` (session id) to catch up and resume
+live updates.
+
+The gateway accepts the cursor via query param `?after=<sid>` or the SSE
+`Last-Event-ID` header and passes it through in local mode / applies it to
+`XRANGE` in SaaS mode.
+
+### Idle-close and recovery persistence
+
+A stream whose history has no terminal marker may never produce one (Redis
+stream expired after the 24h TTL, or the agent died mid-run). Both stream
+endpoints (agent `streamMissionLogs`, Go gateway SaaS path) therefore close
+after an idle window instead of blocking forever:
+
+- **Empty history** — a single-shot 5s window covering the expired/TTL case.
+  The first live event proves the mission is genuinely running and cancels the
+  timer; a live mission is never cut off on silence.
+- **Partial history (no terminal)** — a sliding 60s window reset on every live
+  event, so a mission whose agent died mid-run closes instead of hanging.
+
+On a terminal packet the Go gateway's SaaS relay also finalizes the database
+message: it reads the FULL `mission:events:{missionId}` stream (independent of
+the client's cursor), rebuilds content/steps/token count
+(`persistRecoveredMission`, `mission_replay.go`), and calls `CompleteTurn` with
+status `complete` (on `mission_completed`) or `interrupted` (on `error`). This
+closes the gap where a mission that finished after its SSE connection dropped
+stayed `interrupted` forever. Local mode remains store-only — the relay proxies
+the agent's stream without DB writes.
+
+On the frontend, `recoverMission` invalidates the messages query on completion
+so the rebuilt snapshot reflects the persisted completion. While the snapshot
+is still stale (status `interrupted` — local mode, or before the relay
+persists), `useChatPage` suppresses the snapshot rebuild so the recovered
+content in the store is not clobbered.
 
 ## Cancellation
 
@@ -303,12 +367,11 @@ console noise on intentional cancellation.
 | agent/src/adapter/inbound/api/missions/mission.controller.ts      | 152-158| SSE stream creation                   |
 | agent/src/adapter/inbound/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
 | agent/src/core/agent/harness/cancel_manager.ts        | 1-40  | Abort signal per mission              |
-| backend/internal/handler/chat/handler.go              | 92-233| HandleChat SSE proxy                  |
-| backend/internal/handler/chat/handler.go              | 236-  | StreamMissionLogs dual mode           |
-|                                                       | 340   |                                       |
+| backend/internal/handler/chat/handler.go              | 148-540| HandleChat SSE proxy                  |
+| backend/internal/handler/chat/handler.go              | 552-650| StreamMissionLogs dual mode           |
 | frontend/web/src/features/chat/api/useChatStream.ts   | 38-270| SSE packet dispatch, AbortController   |
 | frontend/web/src/lib/api-client.ts                    | 56-121| ReadableStream SSE parser             |
-| frontend/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket type                     |
+| frontend/web/src/features/chat/types/index.ts         | 130-243| StreamPacket type                     |
 +-------------------------------------------------------+-------+---------------------------------------+
 
 ================================================================================

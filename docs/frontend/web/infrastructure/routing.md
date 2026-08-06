@@ -30,7 +30,6 @@ src/app/
 │   ├── page.tsx             ← Chat route — useChatPage() → <ChatPage>
 │   ├── studio/page.tsx      ← Studio dashboard
 │   ├── prompts/page.tsx     ← Prompt library
-│   ├── playground/page.tsx  ← Playground
 │   ├── maturity/page.tsx    ← Maturity assessment
 │
 ├── login/
@@ -75,13 +74,12 @@ src/app/
 │   │       ├── route.ts
 │   │       └── [id]/route.ts
 │   └── studio/
-│       ├── prompts/
-│       │   ├── route.ts
-│       │   ├── active/route.ts
-│       │   └── [id]/
-│       │       ├── versions/route.ts
-│       │       └── versions/[v]/route.ts
-│       └── playground/route.ts
+│       └── prompts/
+│           ├── route.ts
+│           ├── active/route.ts
+│           └── [id]/
+│               ├── versions/route.ts
+│               └── versions/[v]/route.ts
 │
 ├── globals.css
 ├── layout.tsx

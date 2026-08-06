@@ -4,7 +4,7 @@
   Module    : Chat Streaming
   Service   : backend
   Version   : 1.3
-  Updated   : 2026-07-31 (planned: strategy_version resolution in chat flow)
+  Updated   : 2026-08-06
 ================================================================================
 
 Overview
@@ -17,10 +17,13 @@ agent with resolved provider configuration, and returns responses as a
 Server-Sent Events (SSE) stream.
 
 Two streaming modes are available:
-  - Local mode : Reverse-proxy directly to the Hono SSE stream (in-memory Node
-                 stream).
-  - SaaS mode  : Subscribe to the Redis PubSub channel stream:<missionId>
-                 populated by the agent.
+  - Local mode : Reverse-proxy directly to the Hono SSE stream
+                 (`GET {agent}/api/v1/missions/{id}/stream`, with `after`
+                 cursor pass-through). The agent reads the Redis-backed
+                 mission event store.
+  - SaaS mode  : Read the Redis Stream `mission:events:{missionId}`
+                 directly (XRANGE replay from the `after` cursor, then
+                 XREAD BLOCK live tail) — no agent round-trip.
 
 File Structure
 --------------
@@ -106,7 +109,7 @@ Message Flow - HandleChat
    POST /api/v1/chat
      │
      ├─ Parse JSON body -> ChatRequest{Message, Model, Mode, SessionID,
-     │     MissionID, History, Features, Skills, Strategy, StrategyVersion}
+     │     MissionID, History, Features, Skills, StrategyVersion}
      │
      ├─ Parse "traceparent" header for distributed tracing
      │     └─ If valid: inject remote span context
@@ -119,25 +122,15 @@ Message Flow - HandleChat
      │
      ├─ Read X-User-Tier header (default: "pro")
      │
-     ├─ Strategy resolution [Active] — after session ownership check:
-     │      If session.strategy_version != "":
-     │        use pinned version (backward compatibility for active sessions)
-     │      Else:
-     │        resolve via rollout config (settings table) + session pin write
-     │      Deprecated versions excluded from new-session resolution.
-     │      See docs/shared/patterns/strategy-lifecycle.md
-     │
-     ├─ Read X-User-Tier header (default: "pro")
-     │
-     ├─ Feature gating (when len(req.Features) > 0):
+     ├─ Feature gating via FeaturesSvc.ValidateRequest (when features present):
      │      Fetch catalog from Redis cache -> Hono fallback
      │      Build catalog map[ID]Feature
      │      For each requested feature ID:
      │        If user tier is "free" and feature requires "pro":
-     │          403 { "error": "Feature 'X' requires Pro" }
+     │          403 { "error": "Feature 'X' requires a Pro subscription." }
      │
      ├─ Resolve model -> ProviderConfig via ModelService (LOCAL, no network)
-     │     └─ On failure: 400 { "error": "Unknown model '...'" }
+     │     └─ On failure: 400 { "error": "Provider config error: ..." }
      │
      ├─ Validate skills (when len(req.Skills) > 0):
      │      Fetch skill catalog via GetSkills (Redis cache -> Hono fallback)
@@ -162,21 +155,26 @@ Message Flow - HandleChat
      │      Prepend ContextSummary as system message if non-empty
      │      Convert DB messages to HistoryMessage[]:
      │        Strip thought, tool_call, tool_result roles
-     │        Track nextTurn = max(existing turn) + 1
      │
       │
       ├─ Auto-create session (when req.SessionID == ""):
       │     CreateSession(ctx, userID, "New Chat")
       │     Set req.SessionID = session.ID
-      │     nextTurn = 1
       │
-      ├─ MarkSessionStreamingInterrupted(sessionID):
-      │     All previous 'streaming' messages → 'interrupted'
+      ├─ Strategy resolution [Active] — AFTER session load/auto-create:
+      │     ResolveVersion(pinnedVersion, req.StrategyVersion, userID)
+      │     If pinned version set -> use it (backward compatibility)
+      │     Else -> resolve via rollout config (settings table)
+      │     Pin written to session when empty
+      │     Deprecated versions excluded from new-session resolution.
+      │     See docs/shared/patterns/strategy-lifecycle.md
       │
-      ├─ Save user message immediately:
+      ├─ Acquire per-session lock (serializes concurrent turns)
+      │     nextTurn = GetMaxTurnNumber(sessionID) + 1  (inside the lock)
+      │
+      ├─ Save user message + assistant placeholder (one PrepareTurn tx):
+      │     MarkStreamingAsInterrupted(sessionID) — stale streaming -> interrupted
       │     InsertMessage(ctx, sessionID, "user", content, tokenCount, nextTurn, "complete")
-      │
-      ├─ Insert assistant placeholder:
       │     InsertAssistantPlaceholder(ctx, sessionID, nextTurn)
       │     Returns assistantMsgID for later updates
       │
@@ -190,7 +188,8 @@ Message Flow - HandleChat
      │      Headers: Content-Type, X-Internal-Token, traceparent
      │
      │   ┌─ Error: 500 { "error": "Agent service unreachable" }
-     │   └─ Non-200:  { "error": "Agent request failed", "details": ... }
+     │   └─ Non-200: { "error": "Agent request failed", "details": <agent body> }
+     │        — the agent's HTTP status code is passed through
      │
      ├─ Set SSE headers:
      │      Content-Type: text/event-stream
@@ -208,7 +207,7 @@ Message Flow - HandleChat
              toolCalls, toolResults []ToolCallCapture, []ToolCallResult
              isComplete          bool
 
-           Start flush goroutine (2s ticker, context.WithCancel):
+           Start flush goroutine (2s ticker, context.WithCancel + done channel):
              ticker -> RLock content -> UPDATE messages SET content WHERE id = assistantMsgID
 
            Parse incoming SSE "data: {...}" packets, Lock/unlock streamContent:
@@ -218,13 +217,15 @@ Message Flow - HandleChat
              type "tool_result" -> append to sc.toolResults
              type "turn_complete" -> sc.isComplete = true
 
-           On stream end (rErr != nil):
-             1. cancel() -> stop flush goroutine
+           On stream EOF (rErr != nil):
+             1. cancel() flush context; WAIT for flush goroutine to join
+                (channel, 10s timeout guard) — no late UPDATE can race
              2. RLock streamContent -> read final content + thinking + toolCalls + isComplete
              3. Build steps JSON from thinking + toolCalls + toolResults
-             4. UpdateMessageContent(assistantMsgID, finalContent, steps, tokenCount)
-             5. UpdateMessageStatus(assistantMsgID, "complete" | "interrupted")
-             6. UpdateSessionTimestamp(sessionID)
+             4. One CompleteTurn transaction (retry x3, 10s DB timeout):
+                  UPDATE content + steps + token_count
+                  UPDATE status ('complete' when turn_complete seen, else 'interrupted')
+                  UPDATE sessions.updated_at
 
 Consolidation Trigger
 ---------------------
@@ -278,7 +279,7 @@ Skill Catalog — HandleGetSkills
 
   Used by HandleChat to validate req.Skills against known skill names.
 
-  Route registration (router.go:60): api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
+  Route registration (router.go:144): api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 
 Turn Persistence — Incremental PG Flush
 ----------------------------------------
@@ -296,38 +297,63 @@ streaming, ensuring data survival on page refresh or disconnect.
          Role: "assistant", Content: "", status: "streaming"
          Returns assistantMsgID
 
+  Token counts (exact, no chars/4 estimation):
+    - User message: POST agent /api/internal/tokenize (official tiktoken BPE,
+      o200k_base) BEFORE the per-session lock — see handler/chat/tokens.go.
+      The tokenize call is an HTTP round-trip; it runs outside the lock so a
+      slow tokenizer never serializes every message in the session. Only
+      PrepareTurn (maxTurn + insert placeholder) happens inside the lock.
+    - Assistant message: captured from the agent's `usage` packet
+      (completionTokens reported by the LLM provider)
+    - Fallback: chars/4 approximation ONLY if the agent tokenizer is
+      unreachable (logged)
+
+  History capping (handler/chat/history.go — capHistory):
+    - Session history is loaded newest-first and kept only while accumulated
+      token_count <= HISTORY_MAX_TOKENS (default 50,000); older messages are
+      dropped. Single-message content is truncated to HISTORY_MAX_MSG_CHARS
+      (default 100,000 chars) with a "[truncated]" marker.
+    - Prevents multi-MB payloads (e.g. 1M-context stress sessions: 88 MB →
+      1 truncated message) from being forwarded to the agent.
+    - Auto-consolidation is skipped when the session total exceeds
+      CONSOLIDATION_SKIP_TOKENS (default 200,000).
+
   During stream (flush goroutine):
-    - Background goroutine with context.WithCancel
+    - Background goroutine with context.WithCancel + done channel
     - Ticker every 2 seconds
-    - RLock streamContent -> read accumulated content
+    - RLock streamContent -> read accumulated content + latest usage
+      completionTokens
     - UPDATE messages SET content = $2, token_count = $3 WHERE id = assistantMsgID
     - If content empty, skip (no unnecessary writes)
-    - 5s timeout per flush call
+    - 3s timeout per flush call (retried x3 with backoff)
 
-  On stream end (rErr != nil || turn_complete received):
-    1. cancel() -> stop flush goroutine (prevents concurrent writes)
+  On stream EOF (rErr != nil — NOT on turn_complete receipt):
+    1. cancel() -> stop flush goroutine; WAIT for it to join (done channel,
+       timeout guard) so a late flush UPDATE cannot race the finalize
     2. RLock streamContent -> read final state
     3. Build steps JSON (reasoning + tool_calls + tool_results)
     4. Determine status:
-         turn_complete received: status = "complete"
-         error/disconnect:       status = "interrupted"
-    5. UPDATE messages:
-         content = finalContent
-         steps   = stepsJSON
-         status  = "complete" | "interrupted"
-    6. UPDATE sessions SET updated_at = NOW()
+         turn_complete packet seen: status = "complete"
+         otherwise:                 status = "interrupted"
+    5. ONE CompleteTurn transaction (retry x3, 10s DB timeout):
+         UPDATE messages SET content + steps + token_count + status
+         UPDATE sessions SET updated_at = NOW()
 
   Key guarantees:
     - User message is ALWAYS persisted (saved before stream starts)
     - Partial assistant content is flushed every 2s (survives crash/refresh)
-    - Turn_complete or error both finalize with correct status
+    - Finalize runs at stream EOF — the turn_complete packet only flips the
+      status flag; there are no separate UPDATE calls
     - No stale 'streaming' messages (marked 'interrupted' before new turn)
-    - Flush goroutine is cancelled before final write (no race condition)
+    - Flush goroutine is joined before the final write (no race condition)
 
 Mission Log Streaming - StreamMissionLogs
 -----------------------------------------
 
   GET /api/v1/missions/:missionId/stream
+    │
+    ├─ Resolve user from JWT; load session by missionId (session id)
+    │      nil/deleted -> 404, ownership mismatch -> 403
     │
     ├─ Read AGENT_RUNTIME_MODE env var
     │      Default: "local"
@@ -335,14 +361,30 @@ Mission Log Streaming - StreamMissionLogs
     ├─ Set SSE headers (same as HandleChat)
     │
     ├─ if mode == "saas":
-    │      Subscribe Redis PubSub "stream:<missionId>"
-    │      Loop: read channel -> write "data: <payload>\n\n" -> flush
+    │      XRANGE mission:events:<missionId> from "(-after" or "-"
+    │        (terminal packet -> persistRecoveredMission -> return)
+    │      If stream tail is terminal -> persistRecoveredMission -> return
+    │      Write replay_done marker (end of replayed history segment)
+    │      Loop: XREAD BLOCK 5s -> write "data: <payload>\n\n" -> flush
+    │        On terminal -> persistRecoveredMission -> return
     │      Heartbeat every 15s -> ": heartbeat\n\n"
-    │      Stop on ctx.Done()
+    │      Idle close (stream has no terminal marker):
+    │        empty history   -> 5s single-shot, cancelled on first live event
+    │        partial history -> 60s sliding, reset on each live event
     │
     └─ if mode == "local" (default):
-          GET <HonoAPIURL>/api/v1/missions/<missionId>/stream
+          GET <HonoAPIURL>/api/v1/missions/<missionId>/stream?after=<after>
           Reverse-proxy: read line -> write line -> flush
+          (store-only: no DB writes)
+
+Recovery persistence: when the SaaS relay observes a terminal packet it calls
+`persistRecoveredMission` (mission_replay.go). It XRANGEs the FULL stream,
+rebuilds content/steps/token count via `replayAccumulator`, resolves the
+session's latest streaming/interrupted assistant message via
+`SessionRepo.GetLatestAssistantMessageID`, and calls `CompleteTurn` with status
+`complete` (on `mission_completed`) or `interrupted` (on `error`). This
+finalizes missions whose SSE connection dropped before they finished instead of
+leaving the message `interrupted` forever. Local mode stays store-only.
 
 Feature Catalog - GetFeatures / HandleGetFeatures
 --------------------------------------------------
@@ -372,23 +414,34 @@ Entry Points & Exports
 +--------------------------------------------+------------+----------------------------+
 | Symbol                                     | Kind       | Path                       |
 +--------------------------------------------+------------+----------------------------+
-| NewChatHandler(cfg, rdb, modelSvc,         | Constructor| chat/handler.go:36         |
-|   sessionRepo, consolidationSvc)           |            |                            |
-| HandleChat(c)                              | Method     | chat/handler.go:107        |
-| StreamMissionLogs(c)                       | Method     | chat/handler.go:462        |
-| HandleGetFeatures(c)                       | Method     | chat/handler.go:685        |
-| HandleGetSkills(c)                         | Method     | chat/handler.go:675        |
-| GetFeatures(ctx)                           | Method     | chat/handler.go:569        |
-| GetSkills(ctx)                             | Method     | chat/handler.go:622        |
+| NewHandler(cfg, rdb, modelSvc,             | Constructor| chat/handler.go:73         |
+|   sessionRepo, consolidationSvc,           |            |                            |
+|   strategySvc, featuresSvc)                |            |                            |
+| HandleChat(c)                              | Method     | chat/handler.go:148        |
+| StreamMissionLogs(c)                       | Method     | chat/handler.go:558        |
+| HandleGetSkills(c)                         | Method     | chat/handler.go:802        |
+| GetSkills(ctx)                             | Method     | chat/handler.go:743        |
+| HandleApproveTool(c)                       | Method     | chat/handler.go:668        |
+| HandleDenyTool(c)                          | Method     | chat/handler.go:682        |
+| HandleGetFeatures(c)                       | Method     | handler/features/handler.go:27  |
+| GetImplementedSet(ctx)                     | Method     | service/features/service.go:71 |
+| ResolvePublicCatalog(ctx, tier)            | Method     | service/features/service.go:119 |
 | InsertMessage(ctx, sessionID, role,        | Method     | session/repository.go      |
 |   content, tokenCount, turnNumber, status) |            |                            |
 | InsertAssistantPlaceholder(ctx, sessionID, | Method     | session/repository.go      |
 |   turnNumber)                              |            |                            |
+| PrepareTurn(ctx, sessionID, userContent,   | Method     | session/repository.go      |
+|   userTokenCount, turnNumber)              |            |                            |
+| CompleteTurn(ctx, msgID, sessionID,        | Method     | session/repository.go      |
+|   content, steps, tokenCount, status)      |            |                            |
 | UpdateMessageContent(ctx, msgID, content,  | Method     | session/repository.go      |
 |   steps, tokenCount)                       |            |                            |
 | UpdateMessageStatus(ctx, msgID, status)    | Method     | session/repository.go      |
 | MarkStreamingAsInterrupted(ctx, sessionID) | Method     | session/repository.go      |
+| GetLatestAssistantMessageID(ctx, sessionID)| Method     | session/repository.go      |
 | UpdateSessionTimestamp(ctx, sessionID)     | Method     | session/repository.go      |
+| persistRecoveredMission(ctx, missionID)    | Method     | chat/mission_replay.go      |
+| scanMissionStream(entries)                 | Function   | chat/mission_replay.go      |
 +--------------------------------------------+------------+----------------------------+
 
 Dependencies
@@ -413,12 +466,14 @@ Dependencies
 Source References
 -----------------
 
-- internal/handler/chat/handler.go - All chat, stream, feature, and skill handlers
+- internal/handler/chat/handler.go - Chat + stream + skill handlers
+- internal/handler/features/handler.go - HandleGetFeatures
+- internal/service/features/service.go - GetImplementedSet, ResolvePublicCatalog, ValidateRequest
 - internal/service/aimodel/service.go - Model resolution for provider config
 - internal/service/consolidation/service.go - Token threshold & summarization
 - internal/repository/session/repository.go - Session persistence, incremental flush
 - internal/observability/tracer.go - Tracer init, TrackAgentTurn helper
-- internal/router/router.go:59-61 - Route registrations
+- internal/router/router.go:143-150 - Route registrations
 - internal/constants/db/postgres.go - SQL queries (InsertMessageWithStatus, UpdateMessageContent, etc.)
 
 ================================================================================

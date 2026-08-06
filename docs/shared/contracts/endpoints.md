@@ -4,7 +4,7 @@
   Module    : Endpoints
   Service   : Shared / Contracts
    Version   : 1.4
-   Updated   : 2026-07-31 (planned: strategy catalog endpoints + rollout)
+   Updated   : 2026-08-05 (internal active prompt endpoint added)
 ================================================================================
 
 ## Description
@@ -66,13 +66,23 @@ Base path: `/api/v1`
 | GET    | /v1/sessions                     | Go      | JWT    | List sessions (by user)          | Active |
 | GET    | /v1/sessions/:id                 | Go      | JWT    | Load session metadata & history  | Active |
 | GET    | /v1/sessions/:id/messages         | Go      | JWT    | Get session messages             | Active |
+| PATCH  | /v1/sessions/:id                 | Go      | JWT    | Update session metadata          | Active |
 | DELETE | /v1/sessions/:id                 | Go      | JWT    | Soft delete session              | Active |
 | POST   | /v1/sessions/:id/generate-title  | Go      | JWT    | Auto-generate session title via LLM | Active |
 | GET    | /v1/settings                     | Go      | JWT    | Get user preferences             | Active |
 | PUT    | /v1/settings                     | Go      | JWT    | Update user preferences          | Active |
 | GET    | /v1/settings/defaults            | Go      | None   | Get system default preferences   | Active |
 | GET    | /v1/strategies                   | Go      | JWT    | List strategy catalog w/ rollout | Active |
+| POST   | /v1/missions/:id/approve         | Go      | JWT    | Approve HITL tool call           | Active |
+| POST   | /v1/missions/:id/deny            | Go      | JWT    | Deny HITL tool call              | Active |
 +--------+----------------------------------+---------+--------+----------------------------------+--------+
+
+> **HITL proxy**: `POST /api/v1/missions/:id/approve` and
+> `POST /api/v1/missions/:id/deny` accept the HITL decision body
+> (`{approvalId, decision, reason?}`), forward it to the agent
+> (`/api/v1/missions/:id/approve|deny`) with `X-Internal-Token`, and relay the
+> resume-execution SSE stream back to the client. See
+> `docs/shared/contracts/internal-api-contract.md`.
 
 > **Strategy Lifecycle**: `GET /api/v1/strategies` returns the agent's
 > strategy catalog (name, versions, status `active`/`deprecated`, aliases) merged
@@ -104,12 +114,12 @@ V1PathSettings    = "/settings"
 V1PathSettingsDefaults = "/settings/defaults"
 V1PathStrategies  = "/strategies"   // Active — strategy catalog + rollout
 V1AdminGroup      = "/admin"
+V1InternalGroup   = "/internal"
+V1PathDocs        = "/docs"
 ```
 
-V1PathAPIKeys     = "/api-keys"
-V1PathAPIKey      = "/api-keys/:id"
-V1PathStats       = "/stats"
-```
+`/api-keys` and `/stats` are registered as **inline strings** in router.go
+(admin group) — no V1PathAPIKeys/V1PathAPIKey/V1PathStats constants exist.
 
 ## Admin API Routes (Go Gateway)
 
@@ -129,7 +139,7 @@ Auth: User JWT (admin role) or valid admin `X-API-Key`.
 
 Base path: `/api/v1/studio`
 
-Role-gated endpoints for prompt engineering and playground.
+Role-gated endpoints for prompt engineering.
 
 +--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
 | Method | Path                                        | Service | Auth                 | Description                      | Status |
@@ -142,19 +152,16 @@ Role-gated endpoints for prompt engineering and playground.
 | POST   | /v1/studio/prompts/:id/versions             | Go      | User JWT + Role      | Create version (role-gated)      | Active |
 | POST   | /v1/studio/prompts/:id/promote/:version     | Go      | User JWT + Role      | Promote version (role-gated)     | Active |
 | POST   | /v1/studio/prompts/:id/rollback/:version    | Go      | User JWT + Role      | Rollback version (role-gated)    | Active |
-| POST   | /v1/studio/playground                       | Go      | User JWT             | Run playground prompt            | Active |
 +--------+---------------------------------------------+---------+----------------------+----------------------------------+--------+
 
-> **Note**: `POST /api/v1/studio/playground` now requires JWT auth (was
-> optional). The handler reads user ID from JWT locals to call
-> `ResolveProviderConfig(userID, modelID)` instead of the old server-level
-> config fallback.
-
-## Internal Routes (Go Gateway — Memory & Session Authority)
+## Internal Routes (Go Gateway — Memory, Sessions & Prompts)
 
 Base path: `/api/v1/internal`
 
-These routes serve the agent's memory and state persistence needs. The agent must present a valid **Service JWT** (signed with `SERVICE_JWT_SECRET`, `sub: agent`) or internal header token. These are NOT accessible to end users.
+These routes serve the agent's memory, state persistence, and prompt
+retrieval needs. The agent must present a valid **Service JWT** (signed
+with `SERVICE_JWT_SECRET`, `sub: agent`) via `Authorization: Bearer`. These
+are NOT accessible to end users.
 
 +--------+------------------------------------------+---------+--------------------+----------------------------------+--------+
 | Method | Path                                     | Service | Auth               | Description                      | Status |
@@ -166,9 +173,10 @@ These routes serve the agent's memory and state persistence needs. The agent mus
 | POST   | /v1/internal/memory/procedural/store     | Go      | Service JWT        | Store procedural memory          | Active |
 | POST   | /v1/internal/memory/procedural/get        | Go      | Service JWT        | Retrieve procedural instructions | Active |
 | POST   | /v1/internal/sessions/:id/prune          | Go      | Service JWT        | Trigger manual session pruning   | Active |
+| GET    | /v1/internal/prompts/active              | Go      | Service JWT        | Get active prompt for the agent  | Active |
 +--------+------------------------------------------+---------+--------------------+----------------------------------+--------+
 
-**Auth**: All internal routes require `Authorization: Bearer <service JWT>` or matching headers. The JWT must be signed with `SERVICE_JWT_SECRET` (different from `JWT_SECRET` used for user tokens). The `sub` claim must be `"agent"`. See `docs/shared/contracts/internal-api-contract.md` for full request/response contracts.
+**Auth**: All internal routes accept ONLY `Authorization: Bearer <service JWT>`. The JWT must be signed with `SERVICE_JWT_SECRET` (different from `JWT_SECRET` used for user tokens). The `sub` claim must be `"agent"`. `GET /v1/internal/prompts/active` additionally reads the optional `X-Tenant-ID` header (defaults to `local`) for per-tenant prompt resolution. See `docs/shared/contracts/internal-api-contract.md` for full request/response contracts.
 
 ## Internal Agent Routes (Hono)
 
@@ -182,21 +190,13 @@ Base path: `/api`
 | GET    | /api/models                                | Agent   | Internal | List models from LLM provider    | Active |
 | GET    | /api/features                              | Agent   | Internal | Implemented tool registry ([{id,name,description}]) | Active |
 | GET    | /api/strategies                            | Agent   | Internal | Strategy catalog (versions/status)| Active |
-
+| GET    | /api/v1/missions/:id/stream                | Agent   | Internal | Mission log stream (history + live SSE) | Active |
+| POST   | /api/v1/missions/:id/approve               | Agent   | Internal | Approve HITL tool call, resume mission (SSE) | Active |
+| POST   | /api/v1/missions/:id/deny                  | Agent   | Internal | Deny HITL tool call, resume mission (SSE) | Active |
 | POST   | /api/internal/sessions/summarize           | Agent   | Internal | Perform LLM session summary      | Active |
 +--------+--------------------------------------------+---------+----------+----------------------------------+--------+
 
 **Auth**: All agent routes (except `/`) require `X-Internal-Token` or `Authorization: Bearer <token>` matching `INTERNAL_AUTH_TOKEN`.
-
-**Planned:**
-+--------+--------------------------------------------+---------+----------+----------------------------------+
-| Method | Path                                       | Service | Auth     | Description                      |
-+--------+--------------------------------------------+---------+----------+----------------------------------+
-| GET    | /api/v1/missions/:missionId/stream         | Agent   | Internal | Mission log stream (local mode)  |
-+--------+--------------------------------------------+---------+----------+----------------------------------+
-
-**Auth**: All agent routes (except `/`) require `X-Internal-Token` or
-`Authorization: Bearer <token>` matching `INTERNAL_AUTH_TOKEN`.
 
 ## Frontend Endpoint Constants
 
@@ -223,7 +223,6 @@ STUDIO_ENDPOINTS = {
   PROMPT_ROLLBACK: (id, v) => `/studio/prompts/${id}/rollback/${v}`,
   MATURITY: "/studio/maturity",
   MATURITY_CLIENT: "/studio/maturity/client",
-  PLAYGROUND: "/studio/playground",
 }
 ```
 
@@ -272,6 +271,9 @@ From `docs/architecture-plan.md` — not yet implemented:
 | Go Gateway| Agent Hono  | GET    | /api/features                            | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/strategies                          | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/models                              | X-Internal-Token      |
+| Go Gateway| Agent Hono  | GET    | /api/v1/missions/:id/stream              | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/missions/:id/approve             | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/missions/:id/deny                | X-Internal-Token      |
 | Go Gateway| Agent Hono  | POST   | /api/internal/sessions/summarize         | X-Internal-Token      |
 | Go Gateway| Redis       | Pub/Sub| stream:{missionId}                       | Network isolation     |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/episodic/store   | Service JWT (Bearer)  |
@@ -281,15 +283,14 @@ From `docs/architecture-plan.md` — not yet implemented:
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/procedural/store | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/procedural/get    | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/sessions/:id/prune      | Service JWT (Bearer)  |
+| Agent     | Go Gateway  | GET    | /api/v1/internal/prompts/active          | Service JWT (Bearer)  |
 | Frontend  | Go Gateway  | GET    | /api/v1/settings                         | User JWT (Bearer)     |
 | Frontend  | Go Gateway  | PUT    | /api/v1/settings                         | User JWT (Bearer)     |
 | Frontend  | Go Gateway  | GET    | /api/v1/settings/defaults                | None                  |
 +-----------+-------------+--------+------------------------------------------+-----------------------+
 
-**Planned:**
-+-----------+-------------+--------+----------------------------+---------------------+
-| Go Gateway| Agent Hono  | GET    | /api/v1/missions/:id/stream| X-Internal-Token    |
-+-----------+-------------+--------+----------------------------+---------------------+
+> **Planned** (from `docs/architecture-plan.md`, not implemented): goal/topic/
+> card/answer/mission CRUD — see the Planned Endpoints table below.
 
 ## Entry Points & Exports
 
@@ -326,6 +327,8 @@ From `docs/architecture-plan.md` — not yet implemented:
 | backend/internal/handler/llmops/                | 1-450 | Studio handler group             |
 | backend/internal/service/llmops/                | 1-350 | Studio service layer (prompts,   |
 |                                                 |       |   maturity)                      |
+| backend/internal/handler/llmops/                | 1-40  | Internal active prompt endpoint  |
+|                                                 |       |   (agent_prompt_handler.go)      |
 | backend/internal/repository/llmops/module/      | 1-500 | Studio repository layer (props)  |
 +-------------------------------------------------+-------+----------------------------------+
 

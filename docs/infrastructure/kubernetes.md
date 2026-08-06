@@ -21,7 +21,9 @@ configured for the backend service.
 +--------------------+-----------------------------------------------------------------+
 | File               | Resources                                                       |
 +--------------------+-----------------------------------------------------------------+
-| agent.yaml         | Deployment + Service (port 3001)                                |
+| agent.yaml         | Deployment + Service (port 3001). Env: PORT, REDIS_URL,      |
+|                    |   LLM_MODEL_API_URL, INTERNAL_AUTH_TOKEN, STATE_BACKEND=     |
+|                    |   backend, SERVICE_JWT_SECRET, BACKEND_URL, ENABLE_REDIS     |
 | backend.yaml       | Deployment + Service + HPA (port 8080, cpu 70%)                 |
 | frontend.yaml      | Deployment + Service (port 3000)                                |
 | chroma.yaml        | Deployment + Service + PVC (port 8000, 1Gi)                     |
@@ -115,7 +117,9 @@ configured for the backend service.
 | Backend          | Agent                  | HTTP         | Agent orchestration          |
 | Backend          | Postgres               | PostgreSQL   | Application data + NUQ queue |
 | Backend          | Redis                  | Redis        | Caching / sessions           |
-| Agent            | Redis                  | Redis        | Agent state backend          |
+| Agent            | Backend                | HTTP         | Agent state via backend      |
+|                  |                        |              |   (STATE_BACKEND=backend —   |
+|                  |                        |              |   memory endpoints, not Redis)|
 | Agent            | LLM (host)             | HTTP         | Inference (localhost:1234)   |
 | All app pods     | OTel Collector         | OTLP gRPC    | Traces & metrics             |
 | OTel Collector   | Jaeger                 | OTLP gRPC    | Trace forwarding             |
@@ -196,15 +200,20 @@ Next.js frontend.
 +--------------------+-----------------------------------------------------------+
 | File               | Resources                                                 |
 +--------------------+-----------------------------------------------------------+
-| agent.yaml         | Deployment, Service                                       |
-| backend.yaml       | Deployment, Service, HorizontalPodAutoscaler              |
+| agent.yaml         | Deployment, Service (INTERNAL_AUTH_TOKEN, STATE_BACKEND=    |
+|                    |   backend, SERVICE_JWT_SECRET, BACKEND_URL env)              |
+| backend.yaml       | Deployment, Service, HorizontalPodAutoscaler (SERVICE_JWT_   |
+|                    |   SECRET env)                                                |
 | frontend.yaml      | Deployment, Service                                       |
 | chroma.yaml        | PersistentVolumeClaim, Deployment, Service                |
 | redis.yaml         | Deployment, Service                                       |
 | postgres.yaml      | ConfigMap, PersistentVolumeClaim, Deployment, Service     |
 | ingress.yaml       | Ingress (Kong)                                            |
 | monitoring.yaml    | Jaeger (Deployment, Service), Prometheus (ConfigMap,      |
-|                    |   Deployment, Service), Grafana (Deployment, Service)     |
+|                    |   Deployment, Service), Grafana (Deployment, Service —    |
+|                    |   no datasource provisioning: Grafana's auto-provisioned  |
+|                    |   datasources (./infra/grafana/provisioning) are mounted |
+|                    |   only in the Docker Compose setup, not in K8s)           |
 | otel-collector.yaml| ConfigMap, Deployment, Service                            |
 +--------------------+-----------------------------------------------------------+
 

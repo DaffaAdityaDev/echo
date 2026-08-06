@@ -33,11 +33,12 @@ src/
     env.constants.ts          # Default values, valid values, error messages
   core/agent/
     storage/
-      backend.ts              # BackendStateProvider — Go backend HTTP calls
       memory.ts               # InMemoryStateProvider — local cache
       factory.ts              # Singleton stateStorage instance
     credentials/
       manager.ts              # CredentialManager — env var resolution
+  adapter/outbound/backend/
+    memory.adapter.ts         # MemoryAdapter — Go backend HTTP calls
   infrastructure/
     providers/                # LLM provider implementations
       openai/
@@ -75,6 +76,7 @@ BACKEND_URL:           z.string().default("http://localhost:8080")  // Go backen
 MCP_SERVER_URL:        z.string().url().optional()
 ENABLE_MCP:            z.coerce.boolean().default(false)
 ENABLE_REST_TOOLS:     z.coerce.boolean().default(false)
+ENABLE_TELEMETRY:      z.string().default("true")
 ```
 
 ### env.constants.ts — New Entries
@@ -109,6 +111,7 @@ ENV_VALIDATION_MESSAGES = {
 | `MCP_SERVER_URL`       | _(optional)_                  | MCP SSE endpoint for tool discovery         |
 | `ENABLE_MCP`           | `false`                       | Enable MCP client on startup                |
 | `ENABLE_REST_TOOLS`    | `false`                       | Enable REST tool adapters                   |
+| `ENABLE_TELEMETRY`     | `"true"`                      | OTel/metrics emission toggle               |
 +------------------------+-------------------------------+---------------------------------------------+
 
 ---
@@ -145,15 +148,16 @@ ENV_VALIDATION_MESSAGES = {
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  4. State Provider & Credential Manager Initialization                  │
-│                                  → import BackendStateProvider          │
-│                                  → new BackendStateProvider(             │
-│                                      BACKEND_INTERNAL_URL)              │
-│                                  → import CredentialManager             │
+│  4. Memory Client & Credential Manager Initialization                  │
+│                                  → new MemoryAdapter(ENV.BACKEND_URL)  │
 │                                  → new CredentialManager()              │
+│                                  → toolRegistry.setCredentialManager() │
 │                                  → If ENABLE_MCP && MCP_SERVER_URL:     │
-│                                    log MCP server URL (init done at     │
-│                                    mission time via ToolRegistry)       │
+│                                    toolRegistry.connectMCPServer({      │
+│                                      name: "default-mcp",               │
+│                                      url, transport: "sse" })           │
+│                                    (wrapped in try/catch — logs warning│
+│                                     on failure)                         │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │
                                  ▼
@@ -196,6 +200,7 @@ The `EnvConfig` type now includes:
 - `MCP_SERVER_URL: string | undefined`
 - `ENABLE_MCP: boolean`
 - `ENABLE_REST_TOOLS: boolean`
+- `ENABLE_TELEMETRY: string`
 
 ### config/env.schema.ts
 
@@ -283,17 +288,18 @@ The storage provider (`adapter/outbound/backend/memory.adapter.ts`) communicates
 | File                             | Line                        | Description                                       |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 | `src/index.ts`                   | 1-2                         | Side-effect imports for env + telemetry           |
-| `src/index.ts`                   | 20                          | `toolRegistry.autoload()` — built-in tools        |
-| `src/index.ts`                   | 29-30                       | BackendStateProvider init                         |
-| `src/index.ts`                   | 33-34                       | CredentialManager init                            |
-| `src/index.ts`                   | 43-46                       | Hono app construction, middleware, routes, error  |
-| `src/index.ts`                   | 61-65                       | Default export (port, fetch, idleTimeout)         |
-| `src/config/env.ts`              | 1-19                        | Zod safeParse, error output, ENV export           |
-| `src/config/env.schema.ts`       | 8-33                        | Zod schema with SERVICE_JWT_SECRET,               |
-|                                 |                             |   BACKEND_URL                                     |
-| `src/config/env.constants.ts`    | 1-22                        | Defaults, valid values, validation messages       |
-| `src/adapter/outbound/backend/memory.adapter.ts` | 1-60     | MemoryAdapter network API calls                   |
-| `src/core/agent/credentials/manager.ts` | 1-50                 | CredentialManager store implementation             |
+| `src/index.ts`                   | 19                          | `toolRegistry.autoload()` — built-in tools        |
+| `src/index.ts`                   | 28-29                       | MemoryAdapter init (ENV.BACKEND_URL)              |
+| `src/index.ts`                   | 32-34                       | CredentialManager init + toolRegistry wiring      |
+| `src/index.ts`                   | 37-50                       | MCP client connect (connectMCPServer) when enabled|
+| `src/index.ts`                   | 54-67                       | Hono app construction, middleware, routes, error  |
+| `src/index.ts`                   | 75-79                       | Default export (port, fetch, idleTimeout)         |
+| `src/config/env.ts`              | 1-20                        | Zod safeParse, error output, ENV export           |
+| `src/config/env.schema.ts`       | 8-29                        | Zod schema with SERVICE_JWT_SECRET,               |
+|                                 |                             |   BACKEND_URL, ENABLE_TELEMETRY                   |
+| `src/config/env.constants.ts`    | 1-23                        | Defaults, valid values, validation messages       |
+| `src/adapter/outbound/backend/memory.adapter.ts` | 28-131    | MemoryAdapter network API calls                   |
+| `src/core/agent/credentials/manager.ts` | 4-100                 | CredentialManager store implementation             |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

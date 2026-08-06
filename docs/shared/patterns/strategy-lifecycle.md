@@ -23,11 +23,15 @@ so they cannot desynchronize.
 ## Versioning Contract
 
 - Strategy versions follow the format `{name}:v{n}` — e.g. `nlah:v1`,
-  `deep_research:v1`.
+  `standard:v1`.
 - **Never overwrite a version in place.** New behavior ships as `{name}:v2`.
 - `StrategyFactory` remains the only constructor of strategy instances; the
   registry (`agent/src/core/agent/strategies/registry.ts`) only adds versioned
   metadata on top and resolves version strings back to the factory.
+
+> The agent currently registers exactly two versions: `standard:v1` and
+> `nlah:v1` (see `strategies/constants.ts`). There is no `deep-research`
+> version — `deep-research` exists only as an alias of `nlah:v1`.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -40,7 +44,7 @@ so they cannot desynchronize.
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ GATEWAY (settings table JSONB) — "what is active?"           │
-│  strategy_rollout = { "deep_research:v1": { rollout: 0.2 } } │
+│  strategy_rollout = { "nlah:v1": { rollout: 0.2 } }          │
 │  GET /api/v1/strategies (catalog + rollout)                  │
 │  resolveStrategyVersion(session, rollout) -> "nlah:v1"       │
 └──────────────────────────────────────────────────────────────┘
@@ -89,8 +93,19 @@ The resolved version is forwarded to the agent as `strategy_version` in the
 | Phase | Action | Implementation |
 | --- | --- | --- |
 | 1 — Soft deprecation | Version marked `deprecated` in registry; hidden from new-session resolution and UI toggle | `status: 'deprecated'` in registry metadata; gateway excludes from steps 2-3 |
-| 2 — Zero-traffic alarm | Telemetry (Prometheus/Grafana) monitors pinned-session usage of the version; alarm when traffic = 0 | Metric: `echo_strategy_sessions_active{version}` from `sessions.strategy_version` |
-| 3 — Decommission | After all pinned sessions drain (traffic 0 for N days), remove version from registry; sessions with the stale pin fall back to default resolution | Registry entry deleted; fallback rule in `resolveStrategyVersion` |
+| 2 — Zero-traffic alarm | Telemetry (Prometheus/Grafana) monitors pinned-session usage of the version; alarm when traffic = 0 | Metric: `echo_strategy_sessions_active{version}` from `sessions.strategy_version` [Planned] |
+| 3 — Decommission | After all pinned sessions drain (traffic 0 for N days), remove version from registry; sessions with the stale pin fall back to default resolution | Registry entry deleted; fallback rule in `resolveStrategyVersion` [Planned] |
+
+> **Not implemented:** the Phase-3 stale-pin fallback does NOT exist. A
+> session pin is honored **unconditionally** — `ResolveVersion`
+> (`backend/internal/service/strategy/service.go:154-157`) returns the pinned
+> version as-is, with no status check or fallback. A session pinned to a
+> decommissioned version would keep requesting it.
+>
+> **Latent issue:** `POST /api/v1/sessions` accepts deprecated versions.
+> `IsValidVersion` (`service.go:135-152`) matches against version strings and
+> aliases but **ignores `status`**, so `HandleCreateSession`
+> (`session/handler.go:93-97`) lets new sessions pin deprecated versions.
 
 ---
 

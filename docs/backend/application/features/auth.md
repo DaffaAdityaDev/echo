@@ -4,7 +4,7 @@
   Module    : Authentication & Authorization
   Service   : backend
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-06
 ================================================================================
 
 Overview
@@ -171,6 +171,22 @@ JWT Middleware Flow
     │
     └─ (5) Set c.Locals("user_id", claims["sub"])
             └─ c.Next()
+
+Role-based authorization
+------------------------
+
+JWT tokens issued at login carry a `role` claim (e.g. `admin`,
+`prompt_engineer`, `product_manager`). Authorization is enforced from the
+token claim only:
+
+- `RequireRoles("admin", ...)` — gates admin/studio routes (e.g. prompt write
+  routes). The spoofable `X-User-Role` header is NOT trusted.
+- `AuthOrAPIKeyRequired` (admin group) — accepts a valid API key OR a JWT whose
+  `role` claim equals `"admin"`.
+
+Behavior note: JWTs issued before the `role` claim existed get 403 on these
+routes until the user re-logs-in (a token without the claim cannot be
+authorized).
 
 Entry Points & Exports
 ----------------------

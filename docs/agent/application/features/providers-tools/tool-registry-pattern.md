@@ -4,7 +4,7 @@
   Module    : Tool Registry Pattern
   Service   : agent
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-06
 ================================================================================
 
 ## Description
@@ -134,18 +134,29 @@ client.disconnect() → this.mcpClients.delete(name)
 
 ## REST Tool Integration
 
-Adds externally-defined HTTP API tools without a full MCP server:
+Adds externally-defined HTTP API tools without a full MCP server.
 
 ```typescript
-addRestTool(config: RestToolConfig): void
+createRestTool(config: RestToolConfig): ToolDefinition
 ```
 
-- Calls `RestToolAdapter.createTool(config)` to build a `ToolDefinition` wrapping HTTP calls
-- Pushes result into `this.restTools: ToolDefinition[]`
-- Registers `config.headers` and `config.params` with `this.credentialManager.registerToolCredentials()`
-- Registered tools appear in `getAllTools()` alongside MCP and lazy-loaded tools
+- Calls `RestToolAdapter.createTool(config)` to build a self-contained
+  `ToolDefinition` (its `execute` closure captures the config: URL, method,
+  headers, auth) with **no side effects** — it does NOT push into the global
+  `restTools[]` and does NOT touch the shared credential manager.
+- Missions scope their REST tools per-run: `createMission` maps the request's
+  `config.restTools` into definitions with `createRestTool` and appends them to
+  the mission's own `resolvedTools` (passed to the harness as `explicitTools`).
+  The raw configs are also stored on the harness (`restTools`) and in the
+  HITL `HarnessSnapshot` so an approval-resume can rebuild the same tools.
+- This prevents cross-mission contamination: a REST tool (and its headers/
+  secrets) from one mission is never available to later missions on the same
+  agent process.
 
-REST tools do not require a persistent connection — they are stateless adapters that translate tool invocation into HTTP requests.
+`addRestTool(config)` is retained only for manual/legacy use — it registers
+into the global `this.restTools[]` (visible via `getAllTools()`) and registers
+`config.headers`/`config.params` with the shared credential manager. The
+mission flow no longer calls it.
 
 ---
 
@@ -224,6 +235,7 @@ REST tools do not require a persistent connection — they are stateless adapter
 +--------------------+----------------------------------+--------------------------------------------+
 | `toolRegistry`     | `registry.ts`                    | `ToolRegistry` singleton                   |
 | `ToolRegistry`     | `registry.ts`                    | Class with autoload, resolveTools, getAllTools, connectMCPServer, addRestTool |
+| `createRestTool`   | `registry.ts`                    | Builds a REST ToolDefinition with no global side effects |
 | `LAZY_TOOLS`       | `registry.ts`                    | Static lazy-loading map                    |
 | `getImplementedFeatures()` | `registry.ts`            | Implemented registry (id/name/description) |
 +--------------------+----------------------------------+--------------------------------------------+

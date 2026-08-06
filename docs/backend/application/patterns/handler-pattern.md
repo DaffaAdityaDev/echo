@@ -133,10 +133,13 @@ Entry Points & Exports
 | auth.NewHandler(cfg, authSvc)    | handler/auth/handler.go            |
 | chat.NewHandler(cfg, rdb, ...)   | handler/chat/handler.go            |
 | aimodel.NewHandler(aimodelSvc) | handler/aimodel/handler.go        |
+| strategy.NewHandler(strategySvc) | handler/strategy/handler.go        |
+| features.NewHandler(featuresSvc) | handler/features/handler.go        |
 | admin.NewHandler(cfg, apiKeyRepo)| handler/admin/handler.go           |
 | session.NewHandler(cfg, ...)     | handler/session/handler.go         |
 | memory.NewHandler(rdb, pool)     | handler/memory/handler.go          |
 | settings.NewHandler(cfg, svc)    | handler/settings/handler.go        |
+| llmops.NewPromptHandler(promptSvc) | handler/llmops/prompt_handler.go  |
 +----------------------------------+------------------------------------+
 
 Dependencies

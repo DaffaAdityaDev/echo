@@ -1,20 +1,21 @@
 ================================================================================
-  Model Management - Provider-Agnostic Model Resolution
+  Model Management - Per-User Provider-Agnostic Model Resolution
 ================================================================================
   Module    : Model Management
   Service   : backend
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 2.0
+  Updated   : 2026-08-05
 ================================================================================
 
 Overview
 --------
 
-The Model Management feature provides model listing and resolution. The
-backend aggregates models from all configured providers (OpenAI, Anthropic,
-LM Studio, OpenCode Go), consolidates them into a single list, and offers a
-mechanism to resolve a model ID into a full provider configuration (base URL,
-API key, provider type).
+The Model Management feature lists and resolves models for the *authenticated
+user's own provider configuration*. There are no server-level provider API
+keys anymore: each user stores `provider_type`, `api_key`, and `base_url`
+encrypted in their UserPreferences (see docs/backend/domain/models.md). The
+model listing is therefore per-user — two users with different providers see
+different model catalogs.
 
 File Structure
 --------------
@@ -22,10 +23,10 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
-| internal/handler/aimodel/handler.go        | ModelHandler - HTTP handler for GET /models|
-| internal/service/aimodel/service.go        | ModelService - listing, resolution, caching|
-| internal/models/models.go                | ModelInfo, ProviderConfig, ProviderType    |
-| internal/config/config.go                | Config loading - model lists from env vars |
+| internal/handler/aimodel/handler.go       | ModelHandler - HTTP handler for GET /models|
+| internal/service/aimodel/service.go       | ModelService - listing, resolution, caching|
+| internal/models/ai/model.go               | ModelInfo, ProviderType, ProviderConfig    |
+| internal/models/ai/provider.go            | ProviderType enum + constants              |
 +------------------------------------------+--------------------------------------------+
 
 Flow Diagram - Model Listing
@@ -35,60 +36,45 @@ Flow Diagram - Model Listing
   │  Client  │         │  Go Backend      │         │ External Providers   │
   └────┬─────┘         └────────┬─────────┘         └──────────┬───────────┘
        │  GET /api/v1/models    │                              │
+       │  (User JWT)            │                              │
        │───────────────────────►│                              │
-       │                        │  OpenAPIKey set?             │
-       │                        │  yes -> append OpenAIModels  │
+       │                        │  Load UserPreferences(userID)│
+       │                        │  (provider_type/api_key/     │
+       │                        │   base_url)                  │
+       │                        │  no provider configured?     │
+       │                        │  -> empty list               │
+       │                        │  api_key empty & provider != │
+       │                        │  lm-studio? -> empty list    │
        │                        │                              │
-       │                        │  AnthropicAPIKey set?        │
-       │                        │  yes -> append AnthropicModels│
-       │                        │                              │
-       │                        │  LMStudioBaseURL set?        │
-       │                        │  check cache (30s TTL)       │
-       │                        │  if expired: GET /v1/models  │
+       │                        │  check cache (30s TTL, key = │
+       │                        │  provider|base_url)          │
+       │                        │  if expired: GET {modelsURL} │
        │                        │─────────────────────────────►│
-       │                        │  parse Data[].id             │
+       │                        │  parse Data[].id, transform  │
        │                        │◄─────────────────────────────│
+       │  {models: [...]}       │                              │
+       │◄───────────────────────│                              │
        │                        │                              │
-       │                        │  OpenCodeGoAPIKey set?       │
-       │                        │  check cache (5min TTL)      │
-       │                        │  if expired: GET /v1/models  │
-       │                        │─────────────────────────────►│
-       │                        │  prefix with "opencode-go/"  │
-       │                        │◄─────────────────────────────│
-        │  {models: [...]}       │                              │
-        │◄───────────────────────│                              │
+       │                        │  NOTE: opencode-go always     │
+       │                        │  fetches from the hardcoded  │
+       │                        │  https://opencode.ai/zen/go/  │
+       │                        │  v1/models (see Known Limits)│
+       └────────────────────────┴──────────────────────────────┘
 
 Response Schema
 ---------------
 
-Response body for `GET /api/v1/models`:
+Response body for `GET /api/v1/models` (authenticated):
 
 ```json
 {
   "models": [
     {
-      "id": "gpt-4o",
-      "name": "gpt-4o",
-      "provider_type": "openai",
-      "provider_name": "OpenAI"
-    },
-    {
-      "id": "claude-3-5-sonnet-20241022",
-      "name": "claude-3-5-sonnet-20241022",
-      "provider_type": "anthropic",
-      "provider_name": "Anthropic"
-    },
-    {
-      "id": "lmstudio-model-1",
-      "name": "lmstudio-model-1",
-      "provider_type": "lm-studio",
-      "provider_name": "LM Studio"
-    },
-    {
-      "id": "opencode-go/qwen-72b",
-      "name": "qwen-72b",
+      "id": "opencode-go/deepseek-v4-flash",
+      "name": "deepseek-v4-flash",
       "provider_type": "opencode-go",
-      "provider_name": "OpenCode Go"
+      "provider_name": "OpenCode Go",
+      "supports_multimodal": true
     }
   ]
 }
@@ -97,35 +83,62 @@ Response body for `GET /api/v1/models`:
 ModelInfo Fields
 ----------------
 
-| Field          | Type         | JSON Key       | Notes                          |
-|----------------|--------------|----------------|--------------------------------|
-| ID             | string       | `id`           | Unique model identifier        |
-| Name           | string       | `name`         | Display name; omitempty        |
-| ProviderType   | ProviderType | `provider_type`| Provider enum value            |
-| ProviderName   | string       | `provider_name`| Human-readable provider label  |
+| Field             | Type         | JSON Key           | Notes                          |
+|-------------------|--------------|--------------------|--------------------------------|
+| ID                | string       | `id`               | Unique model identifier        |
+| Name              | string       | `name`             | Display name; omitempty        |
+| ProviderType      | ProviderType | `provider_type`    | Provider enum value            |
+| ProviderName      | string       | `provider_name`    | Human-readable provider label  |
+| SupportsMultimodal| bool         | `supports_multimodal` | Heuristic from model id    |
 
 `ProviderType` enum: `openai`, `anthropic`, `lm-studio`, `opencode-go`.
+
+opencode-go model IDs are prefixed with `opencode-go/` in the catalog.
+
+Listing Behavior
+----------------
+
+1. `GetModels(ctx, userID)` loads the user's `UserPreferences` via
+   `GetSettingsInternal`.
+2. Empty list `[]` is returned when:
+   - the user has no provider type configured (`provider_type == ""`), or
+   - the user has no API key AND the provider is not `lm-studio`
+     (LM Studio runs locally and needs no key).
+3. If `base_url` is empty it is normalized via `defaultBaseURL(providerType)`.
+4. Results are cached in-memory for 30 seconds, keyed by
+   `provider_type|base_url` (single shared cache — there is no separate
+   5-minute OpenCode Go cache anymore).
+
+LM Studio base URL normalization: `modelsURL()` appends `/v1/models` unless
+the base already ends with `/v1`. All other providers use the same helper.
 
 Model Resolution Flow
 ---------------------
 
-  ResolveModel("gpt-4o")
+  ResolveProviderConfig(userID, "opencode-go/deepseek-v4-flash")
     │
-    ├─ Check OpenAIModels list -> match "gpt-4o"
-    │     └─ Return ProviderConfig{Type:openai, BaseURL, APIKey, Model:"gpt-4o"}
+    ├─ Load UserPreferences(userID)
+    │     └─ none configured -> error "provider tidak dikonfigurasi"
     │
-    ├─ Check AnthropicModels list -> match?
-    │     └─ Return ProviderConfig{Type:anthropic, BaseURL, APIKey, Model:"..."}
+    ├─ api_key empty & provider != lm-studio -> error (API key required)
     │
-    ├─ Check OpenCodeGo prefix "opencode-go/" -> match?
-    │     └─ Strip prefix -> Model = suffix
-    │     └─ Return ProviderConfig{Type:opencode-go, BaseURL, APIKey, Model}
+    ├─ base_url empty -> defaultBaseURL(providerType)
     │
-    ├─ Check LM Studio cache -> match model ID?
-    │     └─ Or fallback: if starts with "lmstudio"/"local"
-    │     └─ Return ProviderConfig{Type:lm-studio, BaseURL, APIKey, Model}
+    ├─ provider == opencode-go -> strip "opencode-go/" prefix -> Model
     │
-    └─ No match -> return error "unknown model: <modelID>"
+    └─ Return ProviderConfig{Type, BaseURL, APIKey, Model}
+
+This is used by the chat handler before every mission so the agent receives a
+per-user provider config.
+
+Known Limitations
+-----------------
+
+- I-3: For `opencode-go` the model fetch always hits the hardcoded
+  `https://opencode.ai/zen/go/v1/models` URL, regardless of any custom
+  `base_url` the user configured. The user's base_url is still honored at
+  chat/execution time via ResolveProviderConfig, only the *listing* fetch is
+  pinned to the official endpoint.
 
 Caching Strategy
 ----------------
@@ -133,15 +146,13 @@ Caching Strategy
 +--------------+--------------------+-------+------------------------------------+
 | Provider     | Cache Type         | TTL   | Mechanism                          |
 +--------------+--------------------+-------+------------------------------------+
-| LM Studio    | In-memory (RWMutex)| 30s   | Double-checked locking             |
-| OpenCode Go  | In-memory (RWMutex)| 5 min | Double-checked locking             |
+| All (shared) | In-memory (RWMutex)| 30s   | Double-checked locking, keyed by   |
+|              |                    |       | provider_type|base_url; failed     |
+|              |                    |       | fetches cache an empty entry for   |
+|              |                    |       | the same 30s window                |
 +--------------+--------------------+-------+------------------------------------+
 
-  getCachedLMStudioModels(ctx)
-    RLock -> if not expired -> return
-    Lock -> double-check -> if expired -> fetch -> store -> return
-
-  getCachedOpenCodeModels(ctx)
+  getCachedModels(ctx, providerType, apiKey, baseURL)
     RLock -> if not expired -> return
     Lock -> double-check -> if expired -> fetch -> store -> return
 
@@ -151,16 +162,16 @@ Entry Points & Exports
 +-----------------------------------+--------------+-------------------------------+
 | Symbol                            | Kind         | Path                          |
 +-----------------------------------+--------------+-------------------------------+
-| NewModelHandler(modelSvc)         | Constructor  | handler/aimodel/handler.go:12   |
-| HandleGetModels(c)                | Method       | handler/aimodel/handler.go:16   |
-| NewModelService(cfg)              | Constructor  | service/aimodel/service.go:42   |
-| ModelService                      | Interface    | service/aimodel/service.go:30   |
-| GetModels(ctx)                    | Method       | service/aimodel/service.go:46   |
-| ResolveModel(modelID)             | Method       | service/aimodel/service.go:84   |
-| GetDefault()                      | Method       | service/aimodel/service.go:143  |
-| fetchOpenCodeGoModels(ctx)        | Private      | service/aimodel/service.go:207  |
-| fetchLMStudioModels(ctx)          | Private      | service/aimodel/service.go:252  |
+| NewService(cfg, settingsSvc)      | Constructor  | service/aimodel/service.go:42  |
+| GetModels(ctx, userID)            | Method       | service/aimodel/service.go:83  |
+| ResolveProviderConfig(userID,     | Method       | service/aimodel/service.go:232 |
+|   modelID)                        |              |                               |
+| HandleGetModels(c)                | Method       | handler/aimodel/handler.go     |
 +-----------------------------------+--------------+-------------------------------+
+
+Removed in 2.0: `GetDefault()`, `fetchOpenCodeGoModels(ctx)`,
+`fetchLMStudioModels(ctx)` — all deleted with the env-key-based provider
+config model.
 
 Dependencies
 ------------
@@ -169,7 +180,8 @@ Dependencies
 | Dependency                  | Used For                                  |
 +-----------------------------+-------------------------------------------+
 | github.com/gofiber/fiber/v3 | HTTP handler, JSON response               |
-| net/http                    | Fetching models from LM Studio / OpenCode |
+| net/http                    | Fetching models from the configured       |
+|                             | provider's /models endpoint               |
 | sync.RWMutex                | Thread-safe cache                         |
 | encoding/json               | Parsing API responses                     |
 +-----------------------------+-------------------------------------------+
@@ -177,11 +189,11 @@ Dependencies
 Source References
 -----------------
 
-- internal/handler/aimodel/handler.go - Model listing HTTP handler
-- internal/service/aimodel/service.go - ModelService interface + implementation
-- internal/models/models.go:25-30 - ModelInfo struct
-- internal/models/models.go:9-16 - ProviderType constants
-- internal/router/router.go:50 - Route registration
+- internal/service/aimodel/service.go - ModelService (GetModels, ResolveProviderConfig, 30s cache)
+- internal/handler/aimodel/handler.go - GET /api/v1/models handler
+- internal/models/ai/model.go - ModelInfo struct (incl. SupportsMultimodal)
+- internal/models/ai/provider.go - ProviderType constants
+- internal/router/router.go:148 - Route registration (User JWT required)
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

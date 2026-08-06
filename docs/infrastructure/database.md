@@ -9,12 +9,19 @@
 
 ## Description
 
-Echo uses three purpose-built data stores: **PostgreSQL with pgvector** for
-relational data and vector similarity search, **Redis** for caching and agent
-state, and **ChromaDB** for vector embeddings. RabbitMQ is also provisioned for
-async job messaging. All three databases are defined in `docker-compose.yml`
-(Docker) and have equivalent Kubernetes manifests (RabbitMQ is Docker-only;
-no K8s manifest exists yet).
+Echo uses two purpose-built data stores: **PostgreSQL with pgvector** for
+relational data and vector similarity search, and **Redis** for caching and
+ephemeral agent/mission state. Both are defined in `docker-compose.yml`
+(Docker) and have equivalent Kubernetes manifests.
+
+**ChromaDB and RabbitMQ are NOT deployed:**
+- **ChromaDB** — documented in the architecture and present only as a K8s
+  manifest (`infra/k8s/chroma.yaml`); it is NOT in any Docker Compose file
+  and is currently unused by code (the agent's `CHROMA_URL` env is a
+  backward-compat default).
+- **RabbitMQ** — exists nowhere in the repo (no compose service, no K8s
+  manifest). The NUQ system uses PostgreSQL LISTEN/NOTIFY instead of
+  RabbitMQ channels.
 
 ## File Structure
 
@@ -87,12 +94,12 @@ no K8s manifest exists yet).
 | Property         | Value                                                      |
 +------------------+------------------------------------------------------------+
 | Image            | ankane/pgvector:latest                                     |
-| Internal Host    | postgres (Docker) / echo-postgres (K8s)                    |
+| Internal Host    | echo-postgres (Docker + K8s)                               |
 | Port             | 5432                                                       |
 | User             | user                                                       |
 | Password         | password                                                   |
 | Database         | echo_db                                                    |
-| Prod DATABASE_URL| postgresql://user:password@postgres:5432/echo_db?          |
+| Prod DATABASE_URL| postgresql://user:password@echo-postgres:5432/echo_db?     |
 |                  |   sslmode=disable                                          |
 | Dev env vars     | DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME            |
 +------------------+------------------------------------------------------------+
@@ -103,35 +110,36 @@ no K8s manifest exists yet).
 | Property         | Value                                                      |
 +------------------+------------------------------------------------------------+
 | Image            | redis:7-alpine                                             |
-| Internal Host    | redis (Docker) / echo-redis (K8s)                          |
+| Internal Host    | echo-redis (Docker + K8s)                                  |
 | Port             | 6379                                                       |
-| Connection       | redis://redis:6379                                         |
+| Connection       | redis://echo-redis:6379                                    |
 | Usage            | Features/skills cache (10m TTL), episodic memory (24h      |
 |                  |   TTL), Pub/Sub streaming (SaaS mode)                      |
 +------------------+------------------------------------------------------------+
 
-### ChromaDB
+### ChromaDB `[Planned — not deployed]`
 
 +------------------+------------------------------------------------------------+
 | Property         | Value                                                      |
 +------------------+------------------------------------------------------------+
 | Image            | chromadb/chroma:latest                                     |
-| Internal Host    | chroma (Docker) / echo-chroma (K8s)                        |
+| Internal Host    | echo-chroma (K8s only — no Docker Compose service)         |
 | Port             | 8000                                                       |
 | Usage            | Vector embedding storage for tool retrieval, document      |
-|                  |   chunk similarity                                         |
-| Data Volume      | /chroma/chroma (1Gi PVC in K8s, named volume in Docker)    |
+|                  |   chunk similarity (currently unused by code)              |
+| Data Volume      | /chroma/chroma (1Gi PVC in K8s)                            |
 +------------------+------------------------------------------------------------+
 
-### RabbitMQ
+### RabbitMQ `[Planned — not deployed]`
 
 +------------------+------------------------------------------------------------+
 | Property         | Value                                                      |
 +------------------+------------------------------------------------------------+
 | Image            | rabbitmq:3-alpine                                          |
-| Internal Host    | rabbitmq (Docker)                                          |
+| Internal Host    | — (exists nowhere in the repo)                             |
 | Port             | 5672                                                       |
-| Usage            | Async job messaging, listenable NUQ channels               |
+| Usage            | Async job messaging, listenable NUQ channels (not          |
+|                  |   deployed — NUQ uses PostgreSQL LISTEN/NOTIFY)            |
 +------------------+------------------------------------------------------------+
 
 ## Initialization Scripts
@@ -199,7 +207,7 @@ Key cron schedules:
 | nuq_maintenance_watchdog         | Every 1 min      | Cancel stuck REINDEX CONCURRENTLY         |
 |                                  |                  |   (>18 min)                               |
 | cron_job_run_details_prune       | Every 1h         | Prune cron job run history > 24h          |
-| REINDEX series (14 indices)      | 02:00-10:00 UTC  | Spread CONCURRENTLY reindex across 8-hour |
+| REINDEX series (25 indices)      | 02:00-10:00 UTC  | Spread CONCURRENTLY reindex across 8-hour |
 |                                  |                  |   window                                  |
 +----------------------------------+------------------+-------------------------------------------+
 
@@ -227,11 +235,12 @@ Currently no automated backup strategy is configured. Recommended additions:
 |                                             |   HNSW index                              |
 | backend/scripts/init-nuq.sql                | NUQ queue schema, Postgres tuning,        |
 |                                             |   pg_cron maintenance jobs                |
-| docker-compose.yml:2-38                     | Postgres, ChromaDB, Redis, RabbitMQ       |
-|                                             |   service definitions                     |
+| docker-compose.yml                          | Postgres + Redis service definitions      |
+|                                             |   (no ChromaDB / RabbitMQ)                |
 | infra/k8s/postgres.yaml                     | K8s ConfigMap, PVC, Deployment, Service   |
 |                                             |   for Postgres                            |
 | infra/k8s/chroma.yaml                       | K8s PVC, Deployment, Service for ChromaDB |
+|                                             |   (NOT deployed — unused by code)         |
 | infra/k8s/redis.yaml                        | K8s Deployment, Service for Redis         |
 +---------------------------------------------+-------------------------------------------+
 

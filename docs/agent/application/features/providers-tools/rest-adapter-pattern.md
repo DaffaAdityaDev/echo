@@ -4,7 +4,7 @@
   Module    : REST API Adapter
   Service   : agent
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-06
 ===============================================================================
 
 ## Description
@@ -69,12 +69,17 @@ infrastructure/transports/rest/
                     └──────────────────┬────────────────────────┘
                                        │
                                        ▼
-                    ┌───────────────────────────────────────────┐
-                    │           Harness Integration              │
-                    │                                           │
-                    │  Merged into same ToolDefinition[]         │
-                    │  as built-in and MCP tools                 │
-                    └───────────────────────────────────────────┘
+                     ┌───────────────────────────────────────────┐
+                     │           Harness Integration              │
+                     │                                           │
+                     │  Merged into same ToolDefinition[]         │
+                     │  as built-in and MCP tools                 │
+                     │                                           │
+                     │  Scoped per mission: the mission controller│
+                     │  builds each tool via createRestTool() and │
+                     │  appends it to the mission's own tool set —│
+                     │  never registered into the global registry │
+                     └───────────────────────────────────────────┘
 ```
 
 ---

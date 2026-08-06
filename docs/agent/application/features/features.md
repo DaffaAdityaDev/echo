@@ -21,7 +21,7 @@ merges it with the agent's implemented set, enforces tier access, and returns
 > (agent-to-agent only). It is protected by the shared `X-Internal-Token`
 > (see `auth.ts:6-40`, wired at `agent/src/index.ts:48`). End users MUST go
 > through the backend at `GET /api/v1/features` —
-> `backend/internal/handler/chat/handler.go:878-904`.
+> `backend/internal/handler/features/handler.go:27-39`.
 
 ## Responsibility Split
 
@@ -52,7 +52,7 @@ features ∩ agent implemented registry**. Two paths consume `GET /api/features`
   GET /api/features            (agent, internal — X-Internal-Token)
        │
        ▼
-  GetFeatures(ctx)             backend/internal/handler/chat/handler.go:751-799
+  GetImplementedSet(ctx)       backend/internal/service/features/service.go:71-117
        │  1. Redis GET "agent:features"  (TTL 10m)
        │  2. cache hit      -> return []Feature immediately
        │  3. cache miss     -> GET {HonoAPIURL}/api/features
@@ -62,12 +62,12 @@ features ∩ agent implemented registry**. Two paths consume `GET /api/features`
        │     ui_schema, status from 009_create_features)
        │     Redis SET 10m, return
        │
-       ├──► HandleGetFeatures        handler.go:878-904
+       ├──► HandleGetFeatures        handler/features/handler.go:27-39
        │      GET /api/v1/features   (end-user route)
        │      -> []FeatureResponse{ id, name, description, locked }
        │         locked = (userTier=="free" && tier_requirement=="pro")
        │
-       └──► HandleChat (tier gate)   handler.go:180-195
+       └──► HandleChat (tier gate)   chat/handler.go:170-180
               for each requested feature ID:
               free tier + pro requirement -> 403
               "Feature 'X' requires a Pro subscription."
@@ -79,7 +79,7 @@ returns a 500 from `GetFeatures`; the cache softens this window.
 ### FeatureResponse `locked` Contract
 
 ```typescript
-// backend/internal/handler/chat/handler.go:115-120
+// backend/internal/service/features/service.go:27-32
 interface FeatureResponse {
   id: string;
   name: string;
@@ -96,7 +96,8 @@ Semantics:
 | false    | Feature available to this user — may be requested in chat     |
 |          |   payload features[]                                           |
 | true     | Feature exists but requires Pro — request would be rejected   |
-|          |   403 by the tier gate (handler.go:180-195)                    |
+|          |   403 by the tier gate (chat/handler.go:170-180 →             |
+|          |   ValidateRequest at service/features/service.go:155-192)     |
 +----------+---------------------------------------------------------------+
 
 `tier_requirement` lives in the backend `features` table and is intentionally
@@ -163,7 +164,7 @@ compared against `ENV.INTERNAL_AUTH_TOKEN`; failure returns 403.
 | `hono`            | HTTP framework                                            |
 | `getImplementedFeatures()` | Implemented tool registry (core/agent/tools/registry.ts)  |
 | `authMiddleware`  | X-Internal-Token validation (`middleware/auth.ts`)         |
-| Go `GetFeatures`  | Consumer — proxy + Redis cache (`chat/handler.go:751-799`) |
+| Go `GetImplementedSet` | Consumer — proxy + Redis cache (`service/features/service.go:71-117`) |
 +-------------------+-----------------------------------------------------------+
 
 ---
@@ -185,9 +186,9 @@ compared against `ENV.INTERNAL_AUTH_TOKEN`; failure returns 403.
 | App wiring         | `index.ts:48,52`            | auth on /api/*, routes at /api               |
 | Backend catalog    | `backend/migrations/009_    | features table (tier_requirement, ui_schema, |
 |                    |   create_features.up.sql`   |   status)                                    |
-| Backend proxy      | `chat/handler.go:751-799`   | GetFeatures — Redis cache 10m, merge + proxy |
-| Backend response   | `chat/handler.go:878-904`   | HandleGetFeatures — FeatureResponse locked   |
-| Backend tier gate  | `chat/handler.go:180-195`   | 403 when free tier requests pro feature      |
+| Backend proxy      | `service/features/service.go:71-117`  | GetImplementedSet — Redis cache 10m, merge + proxy |
+| Backend response   | `handler/features/handler.go:27-39`   | HandleGetFeatures — FeatureResponse locked   |
+| Backend tier gate  | `chat/handler.go:170-180` → `service/features/service.go:155-192` | ValidateRequest — 403 when free tier requests pro feature |
 +--------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

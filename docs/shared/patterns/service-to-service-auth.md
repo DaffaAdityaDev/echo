@@ -158,7 +158,7 @@ function createServiceJWT(): string {
 
 async function callMemoryEndpoint(path: string, body: unknown): Promise<Response> {
   const token = createServiceJWT();
-  return fetch(`${ENV.BACKEND_INTERNAL_URL}${path}`, {
+  return fetch(`${ENV.BACKEND_URL}${path}`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -248,7 +248,7 @@ internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 | SERVICE_JWT_SECRET  | Backend  | Yes      | HS256 key for service JWT       |
 |                     |          |          | (MUST differ from JWT_SECRET)   |
 | SERVICE_JWT_SECRET  | Agent    | Yes      | Same secret for signing         |
-| BACKEND_INTERNAL_URL| Agent    | Yes      | Base URL for backend internal   |
+| BACKEND_URL         | Agent    | Yes      | Base URL for backend internal   |
 |                     |          |          | endpoints (e.g. localhost:8080) |
 +---------------------+----------+----------+---------------------------------+
 
@@ -274,7 +274,7 @@ internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 - **Route wiring**: `backend/internal/router/router.go`
 - **Secret config**: `backend/internal/models/models.go` (ServiceJWTSecret field)
 - **Agent env**: `agent/src/config/env.schema.ts` (SERVICE_JWT_SECRET,
-  BACKEND_INTERNAL_URL)
+  BACKEND_URL)
 
 ## Source References
 
@@ -285,7 +285,7 @@ internalGroup.Post("/sessions/:id/prune", sessionHandler.HandlePruneSession)
 | backend/internal/router/router.go                             | 40-52 | Internal route wiring        |
 | agent/src/adapter/outbound/backend/memory.adapter.ts                  | 1-35  | Service JWT signing + fetch  |
 | agent/src/config/env.schema.ts                                | 18-20 | SERVICE_JWT_SECRET,          |
-|                                                               |       | BACKEND_INTERNAL_URL         |
+|                                                               |       | BACKEND_URL                  |
 | backend/internal/models/models.go                             | 32-56 | Config struct with           |
 |                                                               |       | ServiceJWTSecret             |
 +---------------------------------------------------------------+-------+------------------------------+

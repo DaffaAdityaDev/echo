@@ -21,7 +21,7 @@ Each domain gets its own sub-package under service/:
   service/aimodel/          Model resolution & caching
   service/consolidation/  Token threshold & memory consolidation
   service/settings/       User preferences management
-  service/llmops/         Prompt & playground business logic
+  service/llmops/         Prompt versioning business logic
 
 File Structure
 --------------

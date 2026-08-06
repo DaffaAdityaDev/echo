@@ -9,7 +9,7 @@
 
 ## Deskripsi
 
-The AI Studio feature — an LLMOps workbench for managing prompts, playground experimentation, and AI-readiness maturity assessment. Provides tools for prompt engineers, domain experts, and product managers to govern AI behavior through structured contracts.
+The AI Studio feature — an LLMOps workbench for managing prompts and AI-readiness maturity assessment. Provides tools for prompt engineers, domain experts, and product managers to govern AI behavior through structured contracts.
 
 ## File Structure
 
@@ -24,7 +24,6 @@ src/features/studio/
 │   └── usePrompts.ts
 ├── hooks/
 │   ├── useMaturityModel.ts
-│   ├── usePlayground.ts
 │   ├── usePromptLibrary.ts
 │   └── useStudioDashboard.ts
 ├── stores/
@@ -41,10 +40,6 @@ src/features/studio/
 │   │   ├── PromptVersionTimeline.tsx
 │   │   ├── VersionDiffViewer.tsx
 │   │   └── VersionStatusBadge.tsx
-│   ├── playground/
-│   │   ├── PlaygroundPage.tsx
-│   │   ├── PromptEditor.tsx
-│   │   └── ModelComparisonGrid.tsx
 │   └── maturity/
 │       ├── MaturityDashboard.tsx
 │       ├── MaturityMatrix.tsx
@@ -64,20 +59,20 @@ src/features/studio/
 │                                                                           │
 │  ┌──────────────────┐   ┌────────────────────────────────────────────┐   │
 │  │   Summary Cards   │   │        Sub-feature Navigation Tabs         │   │
-│  │  prompt/          │   │  Prompts │ Playground │ Maturity            │   │
+│  │  prompt/          │   │  Prompts │ Maturity                        │   │
 │  │  counts + level   │   └────────────────────────────────────────────┘   │
 │  └──────────────────┘                                                    │
 └───────────────────────────────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────────────────────────────┐
-│  PromptsPage                               PlaygroundPage                 │
-│  ┌────────────────────────┐               ┌─────────────────────────┐    │
-│  │  PromptLibrary         │               │  PromptEditor           │    │
-│  │  (list + CRUD)         │               │  (template + variables) │    │
-│  │  ┌──────────────────┐  │               ├─────────────────────────┤    │
-│  │  │ VersionTimeline  │  │               │  ModelComparisonGrid    │    │
-│  │  │ + DiffViewer     │  │               │  (side-by-side results) │    │
-│  │  │ + StatusBadge    │  │               └─────────────────────────┘    │
+│  PromptsPage                                                             │
+│  ┌────────────────────────┐                                             │
+│  │  PromptLibrary         │                                             │
+│  │  (list + CRUD)         │                                             │
+│  │  ┌──────────────────┐  │                                             │
+│  │  │ VersionTimeline  │  │                                             │
+│  │  │ + DiffViewer     │  │                                             │
+│  │  │ + StatusBadge    │  │                                             │
 │  │  └──────────────────┘  │                                             │
 │  └────────────────────────┘                                             │
 └───────────────────────────────────────────────────────────────────────────┘
@@ -116,12 +111,8 @@ src/features/studio/
 | PromptVersionTimeline      | Component   | components/prompts/PromptVersionTimeline.tsx          |
 | VersionDiffViewer          | Component   | components/prompts/VersionDiffViewer.tsx              |
 | VersionStatusBadge         | Component   | components/prompts/VersionStatusBadge.tsx             |
-| PlaygroundPage             | Component   | components/playground/PlaygroundPage.tsx              |
-| PromptEditor               | Component   | components/playground/PromptEditor.tsx                |
-| ModelComparisonGrid        | Component   | components/playground/ModelComparisonGrid.tsx         |
 | useStudioDashboard         | Hook        | hooks/useStudioDashboard.ts                           |
 | useMaturityModel           | Hook        | hooks/useMaturityModel.ts                             |
-| usePlayground              | Hook        | hooks/usePlayground.ts                                |
 | usePromptLibrary           | Hook        | hooks/usePromptLibrary.ts                             |
 | all types                  | Type        | types/index.ts                                        |
 +----------------------------+-------------+------------------------------------------------------+
@@ -148,12 +139,6 @@ src/features/studio/
 | VersionStatusBadge    | Colored badge: draft, in_review, approved,                   |
 |                       | production, rolled_back.                                     |
 +-----------------------+--------------------------------------------------------------+
-| PlaygroundPage        | Interactive prompt editor with multi-model comparison.       |
-+-----------------------+--------------------------------------------------------------+
-| PromptEditor          | Textarea with variable interpolation fields.                 |
-+-----------------------+--------------------------------------------------------------+
-| ModelComparisonGrid   | Grid of model outputs (content, latency, tokens, errors).    |
-+-----------------------+--------------------------------------------------------------+
 | MaturityDashboard     | AI-readiness maturity assessment — matrix, roadmap, scoring, |
 |                       | client assessment.                                           |
 +-----------------------+--------------------------------------------------------------+
@@ -179,9 +164,6 @@ src/features/studio/
 | usePromptLibrary          | hooks/usePromptLibrary    | Prompt CRUD — wraps api/usePrompts hooks.           |
 |                           |                           | Manages selected template, version, draft prompt.   |
 +---------------------------+---------------------------+-----------------------------------------------------+
-| usePlayground             | hooks/usePlayground       | Runs playground prompt against selected models.     |
-|                           |                           | Reads/writes store for results + loading state.     |
-+---------------------------+---------------------------+-----------------------------------------------------+
 | useMaturityModel          | hooks/useMaturityModel    | Maturity assessment logic — computes overall level, |
 |                           |                           | manages client assessments, roadmap, scoring.       |
 +---------------------------+---------------------------+-----------------------------------------------------+
@@ -206,12 +188,7 @@ src/features/studio/
 +-----------------------+---------------------------+-----------------------------------------------------+
 | State                 | Type                      | Description                                         |
 +-----------------------+---------------------------+-----------------------------------------------------+
-| playgroundResults     | PlaygroundResult[] | null  | Results from last playground run                    |
-| isPlaygroundRunning   | boolean                   | Whether playground is executing                      |
 | activePromptId        | string | null            | Currently selected prompt in library                |
-| playgroundPrompt      | string                    | Current playground prompt text                       |
-| playgroundVariables   | Record<string, string>    | Variable substitutions for playground                |
-| selectedModels        | string[]                  | Models selected for comparison                       |
 +-----------------------+---------------------------+-----------------------------------------------------+
 
 ### Types (`types/index.ts`)
@@ -223,7 +200,6 @@ src/features/studio/
 | PromptVersion          | Versioned snapshot with status lifecycle                |
 | VersionStatus          | 'draft' | 'in_review' | 'approved'                |
 |                        | 'production' | 'rolled_back'                              |
-| PlaygroundResult       | Single model output from playground                     |
 | MaturityLevel          | 'L1' | 'L2' | 'L3' | 'L4' | 'L5'                         |
 | MaturityDimensionKey   | 'tools' | 'skills' | 'prompts' | 'security'              |
 |                        | 'data' | 'observability' | 'documentation'              |
@@ -269,7 +245,7 @@ src/features/studio/
 
 ### External
 
-- `zustand` — playground state management
+- `zustand` — studio state management
 - `@tanstack/react-query` — server state (prompts, maturity)
 
 ## API Routes
@@ -281,15 +257,14 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | File                                                      | Lines   | Description                                      |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/types/index.ts                        | 1-175   | All studio types: Prompt*, PlaygroundResult,     |
-|                                                           |         | Maturity*                                        |
+| src/features/studio/types/index.ts                        | 1-175   | All studio types: Prompt*, Maturity*                |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/constants.ts                          | 1-25    | STUDIO_ENDPOINTS, STUDIO_QUERY_KEYS              |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/data/maturity-data.ts                 | 1-315   | MATURITY_LEVELS, MATURITY_DIMENSIONS,            |
 |                                                           |         | ECHO_SELF_ASSESSMENT_ROADMAP, SCORING_QUESTIONS  |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/stores/studioStore.ts                 | 1-34    | Zustand store — playground state + 7 setters     |
+| src/features/studio/stores/studioStore.ts                 | 1-34    | Zustand store — studio state + setters           |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/api/usePrompts.ts                     | 1-100   | TanStack Query hooks for prompt CRUD             |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
@@ -298,8 +273,6 @@ All under `/api/v1/studio/*`. See `docs/shared/contracts/endpoints.md` for full 
 | src/features/studio/hooks/useStudioDashboard.ts           | 1-35    | Orchestrator — counts, maturity, refresh         |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/usePromptLibrary.ts             | 1-70    | Prompt CRUD orchestration + state                |
-+-----------------------------------------------------------+---------+--------------------------------------------------+
-| src/features/studio/hooks/usePlayground.ts                | 1-61    | Playground execution + store integration         |
 +-----------------------------------------------------------+---------+--------------------------------------------------+
 | src/features/studio/hooks/useMaturityModel.ts             | 1-187   | Maturity assessment logic                        |
 +-----------------------------------------------------------+---------+--------------------------------------------------+

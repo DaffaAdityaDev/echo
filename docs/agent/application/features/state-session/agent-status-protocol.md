@@ -50,6 +50,10 @@ interface AgentStatus {
 }
 ```
 
+> Metadata packets emitted before the status tracker is constructed (the
+> first `emitMetadata` calls at the start of `runMission()`) carry no
+> `agentStatus` field.
+
 ### State Machine
 
 ```
@@ -80,30 +84,23 @@ interface AgentStatus {
            └──────────┘
 ```
 
-Transitions:
-  - `starting → running` : first packet received
-  - `running → stalled`  : no packet >10s
-  - `running → looping`  : cosine similarity >= threshold + tool failures
-  - `running → degraded` : strategy degradation triggered
-  - `stalled → running`  : new packet arrives
-  - `looping → running`  : loop resolved
-  - `degraded → running` : degradation resolved (unlikely)
+Transitions (emitted `state_change` reasons in parentheses):
+  - `starting → running` : first packet received (`transition`)
+  - `running → stalled`  : no packet for > STALL_TIMEOUT (10s) (`stalled`)
+  - `running → looping`  : cosine similarity >= threshold (`cosine_similarity_threshold`)
+  - `running → degraded` : consecutive tool failures (`consecutive_tool_failures`)
+  - `stalled/looping/degraded → running` : state resets on next status update (`transition`)
   - `* → completed`      : mission finished
   - `* → aborted`        : cancellation or financial abort
+
+The reasons above are the only ones the harness emits — there is no
+`loop_resolved` and no `llm_stream_paused` reason.
 
 ---
 
 ## Heartbeat Protocol
 
-### Current (15s interval)
-
-```
-SSE: data: {"type":"heartbeat"}
-  → Only confirms connection is alive
-  → Says nothing about agent state
-```
-
-### Proposed (5s interval + state)
+### Implemented (5s interval)
 
 ```
 SSE: data: {
@@ -120,16 +117,25 @@ SSE: data: {
 }
 ```
 
-Emitted every 5 seconds while the LLM stream is active. If the LLM
-stream is between tokens but still connected, heartbeat confirms
-"still processing."
+Emitted by the harness every 5 seconds
+(`HARNESS_CONFIG.AGENT_STATUS.HEARTBEAT_INTERVAL`) while the LLM stream is
+active but chunks have been stale for the interval. Heartbeats are keepalives
+and do NOT reset the harness stall timer.
 
-For stalled detection:
-  - Frontend tracks `timeSinceLastPacket`
-  - If `>10s` with heartbeat only (no content/tool packets):
-    → Display "Agent is still thinking..."
-  - If `>30s` with no heartbeat at all:
-    → Display "Connection seems lost" + retry button
+### Stalled Detection (harness-side, implemented)
+
+- The harness tracks `lastActivityAt`, updated on every non-heartbeat packet
+  emission (`sendBase()`).
+- The heartbeat ticker checks `Date.now() - lastActivityAt > STALL_TIMEOUT`
+  (10s, `HARNESS_CONFIG.AGENT_STATUS.STALL_TIMEOUT`).
+- When crossed, `AgentStatusTracker.markStalled()` transitions the state to
+  `stalled` (unless terminal) and a single `state_change` packet with reason
+  `stalled` is emitted (guarded so it fires once per stall episode).
+- When activity resumes, the next status update resets the state.
+
+Frontend behavior is passive: it renders whatever state the wire sends.
+If the connection itself dies (>30s with no heartbeat at all), the client
+shows "Connection seems lost" + retry button.
 
 ---
 
@@ -140,10 +146,10 @@ For stalled detection:
 ```
 Emitted when agent status state transitions:
 
-{ type: 'state_change', from: 'running', to: 'looping', reason: 'cosine_similarity_0.95' }
-{ type: 'state_change', from: 'running', to: 'degraded', reason: 'consecutive_tool_failures:3' }
-{ type: 'state_change', from: 'looping', to: 'running', reason: 'loop_resolved' }
-{ type: 'state_change', from: 'running', to: 'stalled', reason: 'llm_stream_paused' }
+{ type: 'state_change', from: 'running', to: 'looping', reason: 'cosine_similarity_threshold' }
+{ type: 'state_change', from: 'running', to: 'degraded', reason: 'consecutive_tool_failures' }
+{ type: 'state_change', from: 'running', to: 'stalled', reason: 'stalled' }
+{ type: 'state_change', from: 'starting', to: 'running', reason: 'transition' }
 ```
 
 Frontend uses these for non-intrusive toast notifications.
@@ -151,18 +157,21 @@ Frontend uses these for non-intrusive toast notifications.
 ### `progress` Packet
 
 ```
-Emitted after each checkpoint (compaction, tool step, etc.):
+Emitted ONLY after a tool execution completes (phase is always
+'tool_execution'):
 
 { 
   type: 'progress',
   step: 5,
-  maxSteps: 15,
-  phase: 'reasoning' | 'tool_execution' | 'finalizing',
+  phase: 'tool_execution',
   tokensUsed: 12450,
-  tokensTotal: 128000,
-  estimatedRemaining: '30s'
+  tokensTotal: 128000
 }
 ```
+
+The progress packet carries only `step`/`phase`/`tokensUsed`/`tokensTotal` —
+no `maxSteps`, no `estimatedRemaining`, and no other phases
+(`reasoning`/`finalizing` are never emitted).
 
 ---
 
@@ -250,41 +259,63 @@ Non-blocking toast, auto-dismiss after 8 seconds.
 
 ## Implementation
 
-### Harness Changes (agent)
+### Harness Changes (agent) — implemented
 
 ```
+harness/status-tracker.ts:
+  - AgentStatusTracker holds the AgentStatus state
+  - update() refreshes lastActivity + returns { changed, from, to }
+  - markStalled() transitions to 'stalled' unless terminal
+
 harness.ts:
-  - Compute AgentStatus in sendBase() before every packet
-  - Track state transitions vs previous iteration
-  - Emit state_change packet on transition
-  - Emit progress packet after every checkpoint
+  - AgentStatus computed in sendBase() before every packet
+  - state_change packet emitted on transition (reasons: transition,
+    consecutive_tool_failures, cosine_similarity_threshold, stalled)
+  - progress packet emitted after every tool execution
   - 5-second heartbeat during LLM stream inactivity
+  - lastActivityAt tracked in sendBase(); STALL_TIMEOUT check in the
+    heartbeat ticker → markStalledIfNeeded()
 
 constants.ts:
-  - Add STALL_TIMEOUT: 10000 (ms)
-  - Add HEARTBEAT_INTERVAL: 5000 (ms)
+  - AGENT_STATUS.STALL_TIMEOUT: 10000 (ms)
+  - AGENT_STATUS.HEARTBEAT_INTERVAL: 5000 (ms)
 ```
 
 ### Frontend Changes (web)
 
 ```
-features/chat/hooks/useAgentStatus.ts:
-  - Parse agentStatus from all packets
-  - Track timeSinceLastPacket for stall detection
-  - Maintain state machine locally (handle disconnects)
+features/chat/hooks/useChatStream.ts:
+  - Parses agentStatus from all packets (live via POST /chat/stream)
+  - recoverMission(): re-attaches to GET /api/v1/missions/:id/stream after
+    page refresh using a localStorage cursor (echo:mission-cursor:{missionId})
+
+features/chat/services/applyStreamPacket.ts:
+  - Shared packet dispatcher (live + idempotent replay mode)
 
 features/chat/components/AgentStatusBadge.tsx:
-  - Render badge + progress bar
+  - Renders badge + progress bar
   - Color transitions, animation
 
-features/chat/components/ToolCallTimeline.tsx:
-  - Compact/expanded tool call history
-  - Circuit breaker indication
+features/chat/components/AgentProgress.tsx:
+  - Progress + state display
 
-features/chat/components/DegradationToast.tsx:
-  - Non-blocking notification
-  - Dismiss + reconnect button
+features/studio/components/debug/StatusDashboard.tsx:
+  - Debug dashboard: state, strategy, degradation, circuit breakers
 ```
+
+There is no `useAgentStatus` hook and no `AgentStatusObserver` class — the
+state machine lives entirely in the harness
+(`core/agent/harness/status-tracker.ts`), and the frontend parses
+`agentStatus` from the wire in `useChatStream.ts`.
+
+### Terminal Marker
+
+Every mission run records a final `mission_completed` packet into the
+Redis mission event store (`mission:events:{missionId}`) in the
+`finally` block of `streamHarnessExecution` — so replay consumers know the
+stream is over and can close. On execution errors, the `error` packet is also
+recorded and treated as terminal by the stream endpoint
+(`mission-stream.ts isTerminalPacket`).
 
 ---
 
@@ -305,9 +336,10 @@ features/chat/components/DegradationToast.tsx:
 +-----------------------------+----------------------------------+--------------------------------------------+
 | Export                      | Source                           | Type                                       |
 +-----------------------------+----------------------------------+--------------------------------------------+
-| `AgentStatusObserver`       | `agent-status/observer.ts`       | Class (tracks & emits state changes)       |
-| `useAgentStatus()`          | `frontend/.../useAgentStatus.ts` | React hook (frontend state tracking)       |
-| `AgentStatusBadge`          | `frontend/.../AgentStatusBadge`  | React component                            |
+| `AgentStatusTracker`        | `harness/status-tracker.ts`      | Class (owns AgentStatus state)             |
+| `AgentStatus`               | `shared/types/index.ts:99-110`   | Wire type (wire sends activeCircuitBreakers, currentThought, lastActivity ISO string) |
+| `AgentStatusBadge`          | `frontend/web/src/features/chat/ | React component                            |
+|                             |   components/AgentStatusBadge.tsx`|                                           |
 +-----------------------------+----------------------------------+--------------------------------------------+
 
 ---
@@ -317,13 +349,14 @@ features/chat/components/DegradationToast.tsx:
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                         | Key Lines                                             |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
-| Typed emit methods       | `harness/harness.ts:60-180`             | sendBase() + typed emit*() methods (no generic emit)  |
-| Packet types             | `shared/types/index.ts:17-36`                | AgentPacketType union                               |
-| Packet type shapes       | `shared/types/index.ts:56-80`                | HarnessPacket discriminated union (flat, no meta)   |
-| Heartbeat current        | `adapter/inbound/api/missions/mission.controller.ts:152-158` | SSE stream creation                                  |
-| Frontend types           | `frontend/web/src/features/chat/types/       | StreamPacket discriminated union                     |
-|                          |   index.ts:102-138`                          |                                                      |
-| Cancel manager           | `harness/cancel_manager.ts`                  | Abort controller for disconnect detection             |
+| Typed emit methods       | `harness/harness.ts:87-270`            | sendBase() + typed emit*() methods (no generic emit)  |
+| Status tracker           | `harness/status-tracker.ts:3-52`       | AgentStatusTracker (update, markStalled)              |
+| Packet types             | `shared/types/index.ts:69-92`          | AgentPacketType union                                 |
+| Packet type shapes       | `shared/types/index.ts:112-193`        | HarnessPacket discriminated union (flat, no meta)     |
+| Heartbeat + stall        | `harness/harness.ts:498-513`           | Heartbeat interval + STALL_TIMEOUT check              |
+| Frontend types           | `frontend/web/src/features/chat/types/ | StreamPacket + AgentStatus discriminated union        |
+|                          |   index.ts:114-122`                    | (activeCircuitBreakers, currentThought, lastActivity: string) |
+| Cancel manager           | `harness/cancel_manager.ts`            | Abort controller for disconnect detection              |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

@@ -21,14 +21,13 @@ Depends on interfaces from `providers-tools/` and `state-session/`.
 | harness-pattern.md         | Core agent execution loop with NLAH harness      |
 | strategy-pattern.md        | Agent execution mode factory (Standard, ReAct,   |
 |                            | NLAH) + versioned registry [Active]              |
-
 | anchor-pattern.md          | Context anchor system for LLM grounding          |
-| circuit-breaker-           | Per-tool circuit breaker, bounded retry,         |
-| pattern.md                 | strategy degradation, observation compression    |
-| context-resolver-          | Intent classifier, topic registry, template     |
-| pattern.md                 | injection, hybrid retrieval for >500 topics      |
-| prompt-cache-              | Prefix-caching optimization for LLM KV cache    |
-| optimization.md            | alignment across providers                       |
+| circuit-breaker-pattern.md | Per-tool circuit breaker, bounded retry,         |
+|                            | strategy degradation, observation compression    |
+| context-resolver-pattern.md| Intent classifier, topic registry, template     |
+|                            | injection, hybrid retrieval for >500 topics      |
+| prompt-cache-optimization.md | Prefix-caching optimization for LLM KV cache   |
+|                            | alignment across providers                       |
 
 ===============================================================================
   (c) 2026 Echo — All Rights Reserved

@@ -20,7 +20,7 @@ the streaming protocol (provider events, harness packets).
 
 ```
 src/shared/types/
-  index.ts       # All type definitions (~170 lines)
+  index.ts       # All type definitions (~323 lines)
 ```
 
 ---
@@ -100,7 +100,11 @@ type AgentPacketType =
   | 'degraded'      // Strategy degradation signal
   | 'progress'      // Checkpoint progress updates
   | 'heartbeat'     // Live connection heartbeat with status
-  | 'turn_complete';// Final packet for turn commit
+  | 'turn_complete' // Final packet for turn commit
+  | 'system_notice' // System-level notices (budget, loop warnings)
+  | 'token_metrics' // Token usage metrics packet
+  | 'hitl_approval_required' // Human-in-the-loop approval request
+  | 'mission_completed';     // Mission finished payload
 ```
 
 ### HarnessPacket (Discriminated Union)
@@ -118,13 +122,13 @@ interface HarnessPacketBase {
 }
 
 type HarnessPacket =
-  | (HarnessPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; })
+  | (HarnessPacketBase & { type: 'metadata'; content?: string; strategy?: string; historyDepth?: number; toolsAvailable?: string[]; objective?: string; maxIterations?: number; title?: string; summary?: string; })
   | (HarnessPacketBase & { type: 'reasoning'; content: string; })
   | (HarnessPacketBase & { type: 'content'; content: string; })
   | (HarnessPacketBase & { type: 'tool_call'; toolName: string; toolInput: Record<string, unknown>; })
   | (HarnessPacketBase & { type: 'tool_result'; toolName: string; content: string; toolResult?: unknown; })
   | (HarnessPacketBase & { type: 'tool_skip'; toolName: string; })
-  | (HarnessPacketBase & { type: 'todo'; todos: Task[]; })
+  | (HarnessPacketBase & { type: 'todo'; todos: Array<{ id: string; description: string; status: string }>; })
   | (HarnessPacketBase & { type: 'subagent_call'; subagent: { name, instruction, status: 'calling' }; })
   | (HarnessPacketBase & { type: 'subagent_result'; subagent: { name, instruction, result, status }; })
   | (HarnessPacketBase & { type: 'usage'; usage: TokenUsage; })
@@ -135,7 +139,11 @@ type HarnessPacket =
   | (HarnessPacketBase & { type: 'turn_complete'; completed: boolean; totalIterations: number; totalCost: number; })
   | (HarnessPacketBase & { type: 'debug'; rawSystemPrompt: string; currentHistoryLength: number; rawMessages: Array<{role, content}>; })
   | (HarnessPacketBase & { type: 'error'; content: string; code?: string; })
-  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; });
+  | (HarnessPacketBase & { type: 'swarm_status'; swarm: Record<string, unknown>; })
+  | (HarnessPacketBase & { type: 'system_notice'; payload: { level: 'info' | 'warning' | 'error'; code: string; message: string }; })
+  | (HarnessPacketBase & { type: 'token_metrics'; payload: { promptTokens, completionTokens, totalTokens, cachedTokens?, estimatedCostUsd }; })
+  | (HarnessPacketBase & { type: 'hitl_approval_required'; payload: { approvalId, toolName, args, riskLevel, expiresAt }; })
+  | (HarnessPacketBase & { type: 'mission_completed'; payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number }; });
 ```
 
 ### FailedUrl
@@ -149,22 +157,6 @@ interface FailedUrl {
 
 ---
 
-## Infrastructure Contract Types
-
-### IStateStore
-
-```typescript
-interface IStateStore {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, mode?: string, ttl?: number): Promise<void>;
-  del(key: string): Promise<void>;
-}
-```
-
-<!-- ITaskQueue and ISandboxExecutor removed — not present in actual shared/types/index.ts -->
-
----
-
 ## Provider Types
 
 ### LLMProvider
@@ -174,12 +166,14 @@ interface LLMProvider {
   modelName?: string;
   baseURL?: string;
   maxContextTokens?: number;
+  supportsMultimodal?: boolean;
   stream(
     messages: BaseMessage[],
     tools: ToolDefinition[],
     systemPrompt: string
   ): AsyncIterable<ProviderEvent>;
   cleanupReasoning?(): Promise<void>;
+  validate?(): Promise<void>;   // optional pre-flight connectivity check
 }
 ```
 
@@ -258,8 +252,8 @@ rollout at `GET /api/v1/strategies` (see `docs/shared/patterns/strategy-lifecycl
 interface ToolDefinition {
   name: string;
   description: string;
-  schema: z.ZodObject<any>;
-  execute: (input: any, config?: any) => Promise<Observation>;
+  schema: z.ZodObject<z.ZodRawShape>;
+  execute: (input: unknown, config?: unknown) => Promise<Observation>;
   keywords?: string[];
 }
 ```
@@ -294,20 +288,19 @@ interface Observation<T = unknown> {
 +----------------------------------+-----------------------------+---------------------------------------------------+
 | File                             | Line                        | Description                                       |
 +----------------------------------+-----------------------------+---------------------------------------------------+
-| `shared/types/index.ts`          | 4-8                         | `TenantContext`                                   |
-| `shared/types/index.ts`          | 10-16                       | `MissionPayload`                                  |
-| `shared/types/index.ts`          | 17-30                       | `AgentPacketType` union                            |
-| `shared/types/index.ts`          | 37-56                       | `HarnessPacket`                                   |
-| `shared/types/index.ts`          | 55-65                       | `IStateStore` interface                           |
-| `shared/types/index.ts`          | 70-76                       | `Observation`                                     |
-| `shared/types/index.ts`          | 99-106                      | `AgentState`                                      |
-| `shared/types/index.ts`          | 108-113                     | `Task`                                            |
-| `shared/types/index.ts`          | 119-122                     | `AgentStrategy`                                   |
-| `shared/types/index.ts`          | (Planned)                   | `StrategyRegistryEntry`, `StrategyVersionInfo`,   |
-|                                  |                             | `StrategyStatus`, `StrategyRegistry`              |
-| `shared/types/index.ts`          | 127-133                     | `ToolDefinition`                                  |
-| `shared/types/index.ts`          | 139-156                     | `ProviderEvent`                                   |
-| `shared/types/index.ts`          | 162-172                     | `LLMProvider` interface                           |
+| `shared/types/index.ts`          | 56-60                       | `TenantContext`                                   |
+| `shared/types/index.ts`          | 62-67                       | `MissionPayload`                                  |
+| `shared/types/index.ts`          | 69-92                       | `AgentPacketType` union                            |
+| `shared/types/index.ts`          | 112-193                     | `HarnessPacket`                                   |
+| `shared/types/index.ts`          | 198-204                     | `Observation`                                     |
+| `shared/types/index.ts`          | 209-216                     | `AgentState`                                      |
+| `shared/types/index.ts`          | 237-242                     | `Task`                                            |
+| `shared/types/index.ts`          | 248-251                     | `AgentStrategy`                                   |
+| `shared/types/index.ts`          | 253-270                     | `StrategyStatus`, `StrategyVersionInfo`,          |
+|                                  |                             | `StrategyRegistryEntry`, `StrategyRegistry`       |
+| `shared/types/index.ts`          | 275-281                     | `ToolDefinition`                                  |
+| `shared/types/index.ts`          | 287-304                     | `ProviderEvent`                                   |
+| `shared/types/index.ts`          | 310-323                     | `LLMProvider` interface                           |
 +----------------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

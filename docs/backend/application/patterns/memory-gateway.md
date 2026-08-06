@@ -43,9 +43,9 @@ Why Agent Cannot Hit the Database Directly
 Architecture Flow
 -----------------
 
-  Agent (Hono/Fastify)
+  Agent (TS agent service)
        │
-       │  POST /api/v1/internal/memory/episodic
+       │  POST /api/v1/internal/memory/episodic/store
        │  Authorization: Bearer <Service JWT>
        │  Body: { "session_id": "...", "content": "..." }
        │
@@ -62,18 +62,18 @@ Architecture Flow
   │  ┌──────────────────▼───────────────────────────┐  │
   │  │  2. Route handler                             │  │
   │  │     - Parse body                              │  │
-  │  │     - Call service layer                     │  │
+  │  │     - Read/write store directly               │  │
   │  └──────────────────┬───────────────────────────┘  │
   │                     │                              │
   │  ┌──────────────────▼───────────────────────────┐  │
   │  │  3. Data layer                                │  │
-  │  │     Episodic ──► Redis (temporal)             │  │
-  │  │     Semantic ──► pgvector (embeddings)        │  │
+  │  │     Episodic ──► Redis (list per session)     │  │
+  │  │     Semantic ──► Postgres (text/vector)       │  │
   │  │     Procedural ──► Postgres (structured)      │  │
   │  └──────────────────────────────────────────────┘  │
   └───────────────────────────────────────────────────┘
        │
-       │  200 OK { "id": "mem_xxx", "status": "stored" }
+       │  201 Created { "id": "mem_xxx", "status": "stored" }
        ▼
   Agent confirms write
 
@@ -96,16 +96,21 @@ Three Memory Types
 Endpoint Reference
 ------------------
 
+All memory routes are POST-only, registered under the internal group
+(`/api/v1/internal/memory/...`) with action suffixes (`/store`, `/recall`,
+`/search`, `/get`). Every route requires the Service JWT.
+
 ### Episodic Memory
 
-  POST /api/v1/internal/memory/episodic
+  POST /api/v1/internal/memory/episodic/store
   Authorization: Bearer <Service JWT>
 
   Request:
   {
-      "session_id": "sess_abc123",
-      "content":    { ... },        // any JSON-serializable payload
-      "ttl_seconds": 86400          // optional, default 24h
+      "session_id":  "sess_abc123",
+      "content":     { ... },        // opaque JSON payload
+      "metadata":    { ... },        // optional
+      "ttl_seconds": 86400           // optional, default 24h
   }
 
   Response (201):
@@ -114,27 +119,35 @@ Endpoint Reference
       "status": "stored"
   }
 
-  GET /api/v1/internal/memory/episodic?session_id=sess_abc123
+  POST /api/v1/internal/memory/episodic/recall
   Authorization: Bearer <Service JWT>
+
+  Request:
+  {
+      "session_id": "sess_abc123",
+      "limit":      20               // optional, default 50
+  }
 
   Response (200):
   {
       "session_id": "sess_abc123",
       "entries": [
-          { "id": "mem_ep_9f3a", "content": {...}, "ts": "2026-07-09T12:00:00Z" }
-      ]
+          { "content": {...}, "timestamp": "2026-07-09T12:00:00Z" }
+      ],
+      "total": 42
   }
 
 ### Semantic Memory
 
-  POST /api/v1/internal/memory/semantic
+  POST /api/v1/internal/memory/semantic/store
   Authorization: Bearer <Service JWT>
 
   Request:
   {
-      "text":      "The user prefers dark mode in all applications",
-      "metadata":  { "source": "conversation", "confidence": 0.95 },
-      "embedding": [0.012, -0.034, ...]          // optional, backend computes
+      "id":         "mem_sm_b4c2",
+      "content":    "The user prefers dark mode in all applications",
+      "embedding":  [0.012, -0.034, ...],   // optional
+      "metadata":   { "source": "conversation" }
   }
 
   Response (201):
@@ -148,36 +161,39 @@ Endpoint Reference
 
   Request:
   {
-      "query":       "user preference dark mode",
-      "top_k":       5,
-      "min_score":   0.7
+      "query":      "user preference dark mode",
+      "limit":      5,               // optional, default 10
+      "embedding":  [ ... ],         // accepted but unused
+      "threshold":  0.7              // accepted but unused
   }
 
   Response (200):
   {
       "results": [
           {
-              "id":       "mem_sm_b4c2",
-              "text":     "The user prefers dark mode in all applications",
-              "score":    0.92,
-              "metadata": { "source": "conversation" }
+              "id":         "mem_sm_b4c2",
+              "content":    "The user prefers dark mode in all applications",
+              "metadata":   { "source": "conversation" },
+              "created_at": "2026-07-09T12:00:00Z"
           }
       ]
   }
 
+  Note: search is an ILIKE substring match on `content`. The embedding and
+  threshold fields exist in the schema but are not used by the current
+  implementation.
+
 ### Procedural Memory
 
-  POST /api/v1/internal/memory/procedural
+  POST /api/v1/internal/memory/procedural/store
   Authorization: Bearer <Service JWT>
 
   Request:
   {
-      "step_id":      "step_42",
-      "action":       "execute_sql",
-      "input":        "SELECT * FROM users",
-      "output":       "42 rows returned",
-      "status":       "success",
-      "duration_ms":  123
+      "id":        "mem_pr_d1e6",
+      "name":      "execute_sql",
+      "content":   "SELECT * FROM users",
+      "metadata":  { "step_id": "step_42" }     // optional
   }
 
   Response (201):
@@ -186,39 +202,46 @@ Endpoint Reference
       "status": "recorded"
   }
 
-  GET /api/v1/internal/memory/procedural?task_id=task_xyz
+  POST /api/v1/internal/memory/procedural/get
   Authorization: Bearer <Service JWT>
+
+  Request:
+  {
+      "name": "execute_sql"          // or "id"
+  }
 
   Response (200):
   {
-      "steps": [
-          { "step_id": "step_42", "action": "execute_sql", "status": "success" }
-      ]
+      "id":         "mem_pr_d1e6",
+      "name":       "execute_sql",
+      "content":    "SELECT * FROM users",
+      "metadata":   { "step_id": "step_42" },
+      "created_at": "2026-07-09T12:00:00Z",
+      "updated_at": "2026-07-09T12:00:00Z"
   }
 
 Route Registration
 ------------------
 
-Routes are registered in the internal group inside SetupRoutes():
+Routes are registered in the internal group inside SetupRoutes()
+(`backend/internal/router/router.go:193-204`):
 
   // router.go
   func SetupRoutes(fbApp *fiber.App, cfg *models.Config) {
-      infra := database.NewInfrastructure(cfg)
+      // ...
 
-      // ... public routes ...
-
-      // Internal routes (agent only)
-      internal := api.Group("/internal",
-          middleware.InternalAuthRequired(cfg.InternalAuthToken),
+      // Internal routes (service JWT required)
+      internalGroup := api.Group("/api/v1/internal",
+          middleware.InternalAuthRequired(cfg),
       )
 
-      memory := handler.NewMemoryHandler(infra)
-      internal.Post("/memory/episodic",   memory.HandleStoreEpisodic)
-      internal.Get("/memory/episodic",    memory.HandleGetEpisodic)
-      internal.Post("/memory/semantic",   memory.HandleStoreSemantic)
-      internal.Post("/memory/semantic/search", memory.HandleSearchSemantic)
-      internal.Post("/memory/procedural", memory.HandleStoreProcedural)
-      internal.Get("/memory/procedural",  memory.HandleGetProcedural)
+      memoryGroup := internalGroup.Group("/memory")
+      memoryGroup.Post("/episodic/store",   memoryHandler.HandleStoreEpisodic)
+      memoryGroup.Post("/episodic/recall",  memoryHandler.HandleGetEpisodic)
+      memoryGroup.Post("/semantic/store",   memoryHandler.HandleStoreSemantic)
+      memoryGroup.Post("/semantic/search",  memoryHandler.HandleSemanticSearch)
+      memoryGroup.Post("/procedural/store", memoryHandler.HandleStoreProcedural)
+      memoryGroup.Post("/procedural/get",   memoryHandler.HandleGetProcedural)
   }
 
 Backend Responsibilities
@@ -227,13 +250,13 @@ Backend Responsibilities
 +---------------------------+------------------------------------------------+
 | Responsibility            | Implementation                                 |
 +---------------------------+------------------------------------------------+
-| Redis connection          | database.Infrastructure.Redis                  |
-| pgvector / Postgres       | database.Infrastructure.DB (pgx pool)          |
-| Connection pooling        | pgxpool + Redis pool config                    |
-| Embedding computation     | Optional: internal call to OpenAI / local model|
-| TTL enforcement           | Redis EXPIRE on episodic writes                |
-| Vector search             | pgvector cosine / inner product queries        |
-| Structured query building | repository layer for procedural memory         |
+| Redis connection          | redis.Client passed into memory.NewHandler    |
+| pgvector / Postgres       | pgxpool.Pool passed into memory.NewHandler    |
+| Connection pooling        | pgxpool + Redis client config                 |
+| Embedding computation     | None — the agent supplies optional embeddings |
+| TTL enforcement           | Redis EXPIRE on episodic writes (default 24h) |
+| Text search               | ILIKE substring match on memory_semantic      |
+| Structured query building | SQL in the memory handler                     |
 +---------------------------+------------------------------------------------+
 
 Future Extensibility
@@ -273,15 +296,15 @@ Entry Points & Exports
 +------------------------------+----------+----------------------------------------+
 | Symbol                       | Kind     | Path                                   |
 +------------------------------+----------+----------------------------------------+
-| SetupRoutes(fbApp, cfg)      | Function | router/router.go:15                    |
-| InternalAuthRequired(secret) | MW       | middleware/internal.go:12              |
-| MemoryHandler                | Struct   | handler/memory.go (planned)            |
-| HandleStoreEpisodic          | Handler  | handler/memory.go (planned)            |
-| HandleGetEpisodic            | Handler  | handler/memory.go (planned)            |
-| HandleStoreSemantic          | Handler  | handler/memory.go (planned)            |
-| HandleSearchSemantic         | Handler  | handler/memory.go (planned)            |
-| HandleStoreProcedural        | Handler  | handler/memory.go (planned)            |
-| HandleGetProcedural          | Handler  | handler/memory.go (planned)            |
+| SetupRoutes(fbApp, cfg)      | Function | router/router.go:193-204               |
+| InternalAuthRequired(cfg)    | MW       | middleware/internal_auth.go:12         |
+| NewHandler(rdb, pool)        | Function | handler/memory/handler.go:25           |
+| HandleStoreEpisodic          | Handler  | handler/memory/handler.go:52           |
+| HandleGetEpisodic            | Handler  | handler/memory/handler.go:109          |
+| HandleStoreSemantic          | Handler  | handler/memory/handler.go:174          |
+| HandleSemanticSearch         | Handler  | handler/memory/handler.go:243          |
+| HandleStoreProcedural        | Handler  | handler/memory/handler.go:317          |
+| HandleGetProcedural          | Handler  | handler/memory/handler.go:367          |
 +------------------------------+----------+----------------------------------------+
 
 Dependencies
@@ -304,12 +327,11 @@ Dependencies
 Source References
 -----------------
 
-- internal/router/router.go:40-55 - Internal route group registration
-- internal/middleware/internal.go - InternalAuthRequired middleware
-- internal/handler/memory.go - Memory handler (planned)
-- internal/service/memory.go - Memory service (planned)
+- internal/router/router.go:193-204 - Internal route group registration
+- internal/middleware/internal_auth.go - InternalAuthRequired middleware
+- internal/handler/memory/handler.go - Memory handlers
+- internal/handler/handlerutil/helpers.go - Response/error envelope
 - internal/database/infrastructure.go - Redis + Postgres pools
-- internal/models/models.go:56-62 - DB struct
 
 ================================================================================
   (c) 2026 Echo - All Rights Reserved

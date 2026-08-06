@@ -47,13 +47,13 @@ Tool          → what the agent CAN DO
                     ┌──────────────────▼──────────────────┐
                     │      Mission Controller              │
                     │                                     │
-                    │  1. If features[] explicitly set:    │
-                    │     resolveTools(features) only      │
-                    │     (preferredTools IGNORED)          │
-                    │  2. If features[] NOT set + skills:  │
-                    │     new SkillRegistryImpl()          │
-                    │     getSkill() → preferredTools[]    │
-                    │     resolveTools(preferredTools)     │
+│  1. If features[] explicitly set:    │
+│     resolveTools(features) only      │
+│     (preferredTools IGNORED)          │
+│  2. If features[] NOT set + skills:  │
+│     new SkillRegistry()              │
+│     getSkill() → preferredTools[]    │
+│     resolveTools(preferredTools)     │
                     │  3. Pass resolved tools to harness   │
                     └──────────────────┬──────────────────┘
                                        │
@@ -93,7 +93,7 @@ Tool          → what the agent CAN DO
   │     a) features !== undefined → resolveTools(features)              │
   │        (skill preferredTools ignored entirely)                       │
   │     b) features === undefined + skills present →                    │
-  │        new SkillRegistryImpl() → getSkill("analyst")                │
+  │        new SkillRegistry() → getSkill("analyst")                   │
   │        resolveTools(preferredTools)                                  │
   │     c) Pass resolved tools to AgentHarness                           │
   │                                                                     │
@@ -118,13 +118,13 @@ Tool          → what the agent CAN DO
 +-----------------+------------------------------------------------+------------------------------------------+
 | Skill           | Description                                    | Preferred Tools                          |
 +-----------------+------------------------------------------------+------------------------------------------+
-| **Reasoning**   | Step-by-step logical reasoning, problem        | `web_search`, `write_todos`              |
+| **Reasoning**   | Step-by-step logical reasoning, problem        | `[]` (none)                             |
 |                 | decomposition, chain-of-thought protocol       |                                          |
 +-----------------+------------------------------------------------+------------------------------------------+
 | **Coding**      | Code generation, debugging, code review,       | `web_search`                             |
 |                 | software architecture decisions                |                                          |
 +-----------------+------------------------------------------------+------------------------------------------+
-| **Research**    | Multi-source investigation, deep-dive          | `web_search`, `delegate_task`            |
+| **Research**    | Multi-source investigation, deep-dive          | `web_search`                             |
 |                 | analysis, citation tracking                    |                                          |
 +-----------------+------------------------------------------------+------------------------------------------+
 | **Planning**    | Task decomposition, milestone planning,        | `write_todos`, `delegate_task`           |
@@ -134,8 +134,10 @@ Tool          → what the agent CAN DO
 |                 | statistical reasoning, insight extraction      |                                          |
 +-----------------+------------------------------------------------+------------------------------------------+
 
-Each skill also carries optional `modifiers` (temperature, maxTokens, compression,
-pacing, loopDetection) consumed at runtime by `compileModifiers()`.
+Every standard skill carries `temperature` and `maxTokens` modifiers. Only
+**Research** also sets `compression: true`; none of the standard skills set
+`pacing` or `loopDetection` (those flags exist in the type but are unused by
+the standard library).
 
 ---
 
@@ -148,8 +150,9 @@ interface SkillDefinition {
   name: string;                              // Unique skill identifier
   description: string;                       // For documentation/debugging
   systemPrompt: string;                      // Static string injected into system prompt
+  variables?: string[];                      // {varName} template variables resolved by compiler
   preferredTools?: string[];                 // Tools suggested when features not set
-  allowedTools?: string[];                   // Defined but NOT used at runtime (dead field)
+  allowedTools?: string[];                   // Used by getToolFilter() for tool intersection
   modifiers?: {
     temperature?: number;
     maxTokens?: number;
@@ -182,6 +185,7 @@ interface SkillDefinition {
   name: string;
   description: string;
   systemPrompt: string;              // Static string with optional {varName} template variables
+  variables?: string[];              // Declared template variables (unused by compiler)
   preferredTools?: string[];         // Tools used when features are not explicitly set
   allowedTools?: string[];           // Used by getToolFilter() to compute tool intersections
   modifiers?: {
@@ -257,12 +261,14 @@ if (modifiers.loopDetection === false) this.loopDetectionEnabled = false;
 
 ---
 
-## Dual SkillRegistryImpl Instances
+## SkillRegistry — Plain Class
 
 `SkillRegistry` is a regular class instantiated via
 `new SkillRegistry()`
 used by both the controller and harness for prompt compilation and modifier
-resolution.
+resolution. There is no `SkillRegistryImpl` and it is not a singleton —
+the harness holds one static instance (`NlahHarness.skillRegistry`) while
+the skills API creates its own.
 
 ---
 
@@ -304,8 +310,10 @@ Backend receives skills: ["research"]
 +----------------------+--------------------------------------------------------------+
 | `shared/types`       | `AgentStrategy` (composes with skill prompt)                 |
 | `ToolRegistry`       | Resolve feature/preferred-tool names to ToolDefinition[]     |
-| `zod`                | Skill config validation                                      |
 +----------------------+--------------------------------------------------------------+
+
+> No Zod schema validates skill configs — `SkillDefinition` is a plain
+> TypeScript interface (`core/agent/skills/types.ts`).
 
 ---
 
@@ -314,21 +322,19 @@ Backend receives skills: ["research"]
 +----------------------------+------------------------------------------+------------------------------------------+
 | Ref                        | File                                      | Key Lines                                |
 +----------------------------+------------------------------------------+------------------------------------------+
-| SkillRegistry             | `core/agent/skills/registry.ts`           | Singleton — getSkill(), registerSkill(),  |
+| SkillRegistry             | `core/agent/skills/registry.ts`           | Plain class — getSkill(), registerSkill(),|
 |                            |                                          | getToolFilter(), compileModifiers()       |
 | SkillCompiler             | `core/agent/skills/compiler.ts`           | Template variable substitution            |
 | Standard library           | `core/agent/skills/library.ts`            | 5 predefined skills with systemPrompt,   |
 |                            |                                          | preferredTools, modifiers                |
-| compileSkillPrompts()      | `core/agent/skills/registry.ts:30`        | Delegates to SkillCompiler for templates  |
-| compileModifiers()         | `core/agent/skills/registry.ts:42`        | Merges modifier flags from skills         |
-| Harness integration        | 
-`core/agent/harness/harness.ts`      | `new SkillRegistry()`,                   |
-|                            |                                          | compileSkillPrompts + compileModifiers   |
-| Controller usage           | 
-`adapter/inbound/api/missions/mission.controller.ts`  | `new SkillRegistry()`                    |
-| Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`  | features XOR preferredTools (lines 88-110)|
-| Mission schema             | `adapter/inbound/api/missions/mission.schema.ts`      | `skills` array + `features` array        |
-| Skills API endpoint        | `adapter/inbound/api/skills/skills.routes.ts`         | Filters response to 4 fields (line 8-13) |
+| compileSkillPrompts()      | `core/agent/skills/registry.ts:32`        | Delegates to SkillCompiler for templates  |
+| compileModifiers()         | `core/agent/skills/registry.ts:45`        | Merges modifier flags from skills         |
+| Harness integration        | `core/agent/harness/harness.ts:328-337`   | compileSkillPrompts + compileModifiers in |
+|                            |                                          | buildSystemPrompt(); static registry at 54|
+| Controller usage           | `adapter/inbound/api/missions/mission.controller.ts:113` | `new SkillRegistry()` for HITL/creation |
+| Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`      | features XOR preferredTools              |
+| Mission schema             | `adapter/inbound/api/missions/mission.schema.ts`          | `skills` array + `features` array        |
+| Skills API endpoint        | `adapter/inbound/api/skills/skills.routes.ts:6`           | GET /skills route                        |
 +----------------------------+------------------------------------------+------------------------------------------+
 
 ===============================================================================

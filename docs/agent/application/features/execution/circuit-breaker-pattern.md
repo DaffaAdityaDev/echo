@@ -46,14 +46,13 @@ Mission-level registry (in-memory, Map<toolName, CircuitState>):
 
 CircuitState {
   failures: number                // consecutive failures
-  lastFailureAt: timestamp        // for optional cooldown
+  lastFailureAt: number           // timestamp of last failure
   state: 'closed' | 'open'       // closed = can call, open = blocked
-  totalRetries: number            // lifetime (for telemetry)
 }
 
-Thresholds (HARNESS_CONFIG):
+Thresholds (HARNESS_CONFIG.CIRCUIT_BREAKER):
   OPEN_AFTER: 3 consecutive failures
-  MAX_RETRIES_PER_TOOL: 3        // total per mission
+  MAX_RETRIES_PER_TOOL: 3        // opens the circuit when failures >= this
 ```
 
 ### Flow Diagram
@@ -136,7 +135,8 @@ Compression rules:
 
 When circuit is open for a tool, the harness must:
   1. NOT push the tool call to message history at all
-  2. Inject a single synthetic AIMessage: "Tool X is temporarily unavailable due to repeated errors. Continuing without it."
+  2. Inject a single synthetic AIMessage: "Tool X is currently unavailable
+     due to repeated failures. It has been skipped."
   3. Emit `tool_skip` packet to frontend
 
 This prevents the LLM from "seeing" that it tried and failed — which often
@@ -177,7 +177,8 @@ consecutiveFailedIterations:
          Continuing with knowledge only."
   5    → Level 2: switch strategy to StandardStrategy, clear messages except
          anchor + last user message, inject "System: switching to direct response."
-  7    → Abort with FINANCIAL_ABORT (same as cost cap)
+  7    → Abort: throws a generic Error ("ABORT: Execution failed due to N
+         consecutive tool errors.") — NOT a FINANCIAL_ABORT prompt
 ```
 
 ### Packet Communication
@@ -230,8 +231,11 @@ DEGRADATION = {
 | `CircuitBreaker`            | `circuit_breaker.ts`        | Class (Map-based state per mission)        |
 | `DegradationManager`        | `degradation.ts`            | Class (tracks consecutive failures)        |
 | `compressObservation()`     | `compressor.ts`         | Function (Observation → compressed)        |
-| `CIRCUIT_BREAKER_CONFIG`    | `constants.ts`              | Constants addendum                         |
 +-----------------------------+----------------------------------+--------------------------------------------+
+
+> There is no `CIRCUIT_BREAKER_CONFIG` export — the thresholds live nested
+> in `HARNESS_CONFIG.CIRCUIT_BREAKER` (`constants.ts:13-17`), with degradation
+> thresholds in `HARNESS_CONFIG.DEGRADATION` (`constants.ts:18-21`).
 
 ---
 
@@ -240,11 +244,14 @@ DEGRADATION = {
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Tool execution error     | `harness/harness.ts:366-480`        | Current error → Observation mapping                  |
-| Compaction               | `harness/harness.ts:208-260`        | Existing token-based context compression              |
-| HARNESS_CONFIG           | `harness/constants.ts`              | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
-| Loop detection           | `harness/harness.ts:331-341`        | Cosine similarity thought comparison                  |
-| Stuck check              | `harness/harness.ts:517-539`        | Tier 2 recovery — separate LLM call                   |
+| Tool execution error     | `harness/harness.ts:633-655`        | Error → Observation mapping + circuit.recordFailure   |
+| Circuit open skip        | `harness/harness.ts:580-592`        | isOpen check → emitToolSkip + synthetic AIMessage     |
+| Compaction               | `harness/harness.ts:400-447`        | Token-based context compression                       |
+| HARNESS_CONFIG           | `harness/constants.ts`              | CIRCUIT_BREAKER + DEGRADATION nested config           |
+| Degradation levels       | `harness/degradation.ts:25-40`      | getLevel() / shouldAbort() thresholds                 |
+| Degradation abort        | `harness/harness.ts:835-840`        | shouldAbort → throws generic Error                    |
+| Loop detection           | `harness/harness.ts:921-934`        | Cosine similarity thought comparison                  |
+| Stuck check              | `harness/harness.ts:273-294`        | Tier 2 recovery — separate LLM call                   |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

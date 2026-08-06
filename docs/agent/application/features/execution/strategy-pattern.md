@@ -4,7 +4,7 @@
   Module    : Strategy Pattern
   Service   : agent
   Version   : 1.1
-  Updated   : 2026-07-31 (planned: versioned registry + strategy lifecycle)
+  Updated   : 2026-08-05 (versioned registry active; unknown version falls back to NLAH)
 ================================================================================
 
 ## Description
@@ -48,17 +48,16 @@ strategies/
               │                                         │
               ▼                                         ▼
    ┌──────────────────────────┐            ┌──────────────────────────┐
-   │ STRATEGY_MAPPINGS        │            │ else (default fallback)  │
-   │  .STANDARD.includes      │            │                          │
-   │     mode?                │            │                          │
+   │ factory checks           │            │ else (default fallback)  │
+   │  ["standard","chat"].    │            │                          │
+   │  includes(mode)?         │            │                          │
    └───────┬──────────────────┘            └──────────┬───────────────┘
            │                                         │
            ▼                                         ▼
    ┌──────────────────────────┐            ┌──────────────────────────┐
    │  StandardStrategy        │            │  NLAHStrategy            │
-   │  "standard"/"chat"       │            │  "agent"/"nlah"/        │
-   │                          │            │  "deep-research"/       │
-   │                          │            │  "react"/"sequential"   │
+   │  "standard"/"chat"       │            │  "agent"/"deep-research"/│
+   │                          │            │  "react"/"sequential"    │
    └──────────────────────────┘            └──────────────────────────┘
            │                                         │
            └──────────────────┬──────────────────────┘
@@ -109,7 +108,7 @@ strategies/
 +-------------------+------------------------+------------------------------------------+
 | Aspect            | Standard [LEGACY]      | NLAH ("agent" mode) [ACTIVE]             |
 +-------------------+------------------------+------------------------------------------+
-| Alias             | `chat`                 | `agent`, `nlah`, `deep-research`,        |
+| Alias             | `chat`                 | `agent`, `deep-research`,                |
 |                   |                        | `react`, `sequential`                    |
 | Prompt style      | Minimal assistant      | NLAH coordinator                         |
 | Tool usage        | None                   | Orchestrator + delegation                |
@@ -154,6 +153,12 @@ of strategy instances; the registry maps version strings back to it.
 | `nlah:v1`        | NLAH      | active     | `agent`, `deep-research`, `react`,   |
 |                  |           |            | `sequential`                         |
 
+Note: `"nlah"` itself is NOT an alias — aliases come from
+`STRATEGY_VERSION_ALIASES` (`strategies/constants.ts:11-14`). The mission
+schema's `STRATEGY_MAPPING` (`mission.constants.ts:10-13`) additionally maps
+the raw `strategy` field (`"nlah"`, `"react"`, …) to the `agent` strategy
+before `strategy_version` is resolved.
+
 ### Versioning Contract
 
 - Format: `{name}:v{n}` — never overwrite a version in place; new behavior
@@ -161,6 +166,11 @@ of strategy instances; the registry maps version strings back to it.
 - `status`: `active` | `deprecated`. Deprecated versions remain executable for
   sessions that pinned them (backward compatibility), but are excluded from
   new-session resolution.
+- **Unknown version fallback**: `strategyRegistry.resolve()` performs NO
+  validation — an unrecognized version/alias falls through to
+  `StrategyFactory.create(normalized)`, which returns `NLAHStrategy` for any
+  mode that is not `standard`/`chat`. The Go gateway validates versions
+  before they reach the agent.
 - Session pin: the gateway stores the chosen version on `sessions.strategy_version`
   (immutable per session) — active sessions keep their version until finished.
 - Rollout: gateway maps a deterministic fraction of *new* sessions to a new
@@ -201,8 +211,10 @@ OBJECTIVE: {objective}"
 | `NLAHStrategy`            | `nlah.ts`                                | `AgentStrategy` (active)                 |
 | `StandardStrategy`        | `standard.ts`                            | `AgentStrategy` (legacy)                 |
 | `STRATEGY_NAMES`          | `constants.ts`                           | `{ AGENT, STANDARD }`                   |
-| `STRATEGY_MAPPINGS`       | `constants.ts`                           | Alias maps (AGENT → 5 aliases,          |
-|                           |                                          | STANDARD → 2 aliases)                   |
+| `STRATEGY_VERSION_ALIASES`| `constants.ts`                           | Version alias maps (standard:v1 → chat, |
+|                           |                                          | nlah:v1 → agent/deep-research/react/sequential) |
+| `STRATEGY_MAPPING`        | `adapter/inbound/api/missions/mission.constants.ts:10-13` | Raw strategy field → standard/agent mapping |
+| `STRATEGY_VERSIONS`       | `constants.ts`                           | `{ standard: "standard:v1", nlah: "nlah:v1" }` |
 | `STANDARD_PROMPTS`        | `prompts.ts`                             | Standard prompt template                 |
 | `NLAH_PROMPTS`            | `prompts.ts`                             | NLAH system template                     |
 | `NLAH_INSTRUCTIONS`       | `prompts.ts`                             | Workflow, delegation, researcher instr.  |
@@ -226,13 +238,13 @@ OBJECTIVE: {objective}"
 +--------------------------+------------------------------------------+----------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                          |
 +--------------------------+------------------------------------------+----------------------------------------------------+
-| Factory dispatch logic   | `factory.ts:7-16`                        | STANDARD check → StandardStrategy, else NLAHStrategy|
-| STRATEGY_MAPPINGS        | `constants.ts:6-9`                       | AGENT (5 aliases) and STANDARD (2 aliases)         |
+| Factory dispatch logic   | `factory.ts:5-9`                        | ["standard","chat"] check → StandardStrategy, else NLAHStrategy|
+| STRATEGY_VERSION_ALIASES | `constants.ts:11-14`                    | nlah:v1 → agent/deep-research/react/sequential; standard:v1 → chat |
 | NLAH strategy            | `nlah.ts`                                | `buildSystemPrompt()` with 4 template variables    |
 | NLAH workflow            | `prompts.ts:27-38`                       | Save → Plan → Delegate → Synthesize → Respond      |
 | NLAH delegation          | `prompts.ts:40-48`                       | Max 3 concurrent sub-agents, 3 rounds              |
 | NLAH researcher          | `prompts.ts:50-56`                       | 2-5 searches, keyword focus, reflection            |
-| Strategy registry        | `registry.ts` (Planned)                  | Versioned catalog + resolve → factory              |
+| Strategy registry        | `registry.ts:20-58` [Active]             | Versioned catalog; resolve() falls back to NLAH    |
 | Lifecycle contract       | `docs/shared/patterns/strategy-lifecycle.md` | Versioning, canary, sunset rules            |
 +--------------------------+------------------------------------------+----------------------------------------------------+
 

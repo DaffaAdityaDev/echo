@@ -29,19 +29,19 @@ config provides defaults that sessions can override.
   │       │                                     │  │  SessionConfig        ││ │
   │       │  {                                  │  │                       ││ │
   │       │    prompt: "Find latest...",         │  │  provider OpenAI     ││ │
-  │       │    strategy: "nlah", // agent mode  │  │  strategy nlah        ││ │
-  │       │    skill: "research",               │  │  skill research       ││ │
-  │       │    provider_config: {...},           │  │  tools [web_search,  ││ │
-  │       │    mcp_servers: [...],              │  │    write_todos]       ││ │
-  │       │    rest_tools: [...],               │  │  mcp_servers [...]    ││ │
-  │       │    features: ["web_search",         │  │  rest_tools [...]     ││ │
-  │       │      "write_todos"],                 │  │  credentials $env    ││ │
-  │       │    memory: {...},                    │  │  memory {...}        ││ │
-  │       │    harness: {                        │  │  harness {...}       ││ │
-  │       │      max_iterations: 20,            │  └───────────────────────┘│
-  │       │      cost_threshold: 2.00            │                           │
+  │       │    strategy: "agent",                │  │  strategy agent      ││ │
+  │       │    strategy_version: "nlah:v1",      │  │  skills research     ││ │
+  │       │    skills: ["research"],             │  │  tools [web_search,  ││ │
+  │       │    provider_config: {...},           │  │    write_todos]      ││ │
+  │       │    config: {                         │  │  mcpServers [...]    ││ │
+  │       │      mcpServers: [...],              │  │  restTools [...]     ││ │
+  │       │      restTools: [...],               │  │  credentials $env    ││ │
+  │       │      memory: {...},                  │  │  memory {...}        ││ │
+  │       │      harness: {                      │  │  harness {...}       ││ │
+  │       │        maxIterations: 20,            │  └───────────────────────┘│
+  │       │        costCap: 2.00                 │                           │
+  │       │      }                               │                           │
   │       │    }                                 │                           │
-  │       │  }                                   │                           │
   │       │                                     │  AgentHarness(            │
   │       │                                     │    config.provider,        │
   │       │                                     │    config.strategy,        │
@@ -72,60 +72,101 @@ config provides defaults that sessions can override.
 ## Zod Schema
 
 The mission request schema is defined in `adapter/inbound/api/missions/mission.schema.ts`
-and validated per-request at the controller level.
+and validated per-request at the controller level. The schema wraps a
+`z.preprocess()` that normalizes snake_case aliases (`user_id` → `userId`,
+`strategy_version`/`strategyVersion` → `strategy_version`, `message` →
+`prompt`) and applies the mission defaults (`strategy: "agent"`,
+`tenantId: "local-developer"`, `userId: "local-dev-user"`,
+`orgId: "local-org"`).
 
 ```typescript
 import { z } from 'zod';
 
-export const createMissionSchema = z.object({
-  prompt: z.string().min(1),
-  strategy: z.enum(['standard', 'agent']).default('agent'),
-  model: z.string().optional(),
-  features: z.array(z.string()).optional(),
-  skills: z.array(z.string()).optional(),
+export const createMissionSchema = z.preprocess(/* normalize aliases + defaults */, z.object({
+  prompt: z.string({ message: "Either 'prompt' or 'message' field is required" }),
+  strategy: z.enum(['standard', 'agent']),
+  strategy_version: z.string().optional(),
+  tenantId: z.string(),
+  userId: z.string(),
+  orgId: z.string(),
+  missionId: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
   provider_config: z.object({
     type: z.enum(['openai', 'anthropic', 'lm-studio', 'opencode-go']),
-    base_url: z.string().url(),
-    api_key: z.string().optional(),
+    base_url: z.string(),            // plain string — not .url() validated
+    api_key: z.string().nullable().optional(),
     model: z.string(),
-  }).optional(),
-  mcp_servers: z.array(z.object({
+  }),                                // REQUIRED
+  features: z.array(z.string()).nullable().optional(),
+  skills: z.array(z.string()).nullable().optional(),
+  history: z.array(z.object({
+    role: z.string(),                // plain string, not an enum
+    content: z.string(),
+  })).nullable().optional(),
+  config: AgentConfigSchema,         // nested session config (camelCase)
+}));
+```
+
+The `config` object nests memory, harness, harnessConfig, featureToggles,
+skills, mcpServers and restTools:
+
+```typescript
+const AgentConfigSchema = z.object({
+  provider: ProviderConfigSchema.optional(),
+  memory: z.object({
+    episodic: z.boolean().default(true),
+    semantic: z.boolean().default(false),
+    procedural: z.boolean().default(false),
+    ttl: z.number().default(86400),
+  }).default({ episodic: true, semantic: false, procedural: false, ttl: 86400 }),
+  harness: z.object({
+    compression: z.object({
+      enabled: z.boolean().default(true),
+      ratio: z.number().min(0).max(1).default(0.9),        // 0.9, not 0.8
+      keepLastTurns: z.number().int().default(2),          // 2, not 10
+    }).default({ enabled: true, ratio: 0.9, keepLastTurns: 2 }),
+    pacing: z.object({ enabled: z.boolean().default(true), threshold: z.number().int().default(5) })
+      .default({ enabled: true, threshold: 5 }),
+    loopDetection: z.object({ enabled: z.boolean().default(true), similarityThreshold: z.number().min(0).max(1).default(0.92) })
+      .default({ enabled: true, similarityThreshold: 0.92 }),
+    maxIterations: z.number().int().default(15),
+    costCap: z.number().default(1.0),
+    delegationDepth: z.number().int().min(0).max(10).default(0),
+  }).default({...}),
+  harnessConfig: z.object({   // optional
+    circuitBreaker: z.object({ enabled: z.boolean().default(true), openAfter: z.number().int().default(3), maxRetriesPerTool: z.number().int().default(3) }),
+    degradation: z.object({ enabled: z.boolean().default(true), degradeAfter: z.number().int().default(3), abortAfter: z.number().int().default(7) }),
+    contextResolver: z.object({ enabled: z.boolean().default(true), classifier: z.enum(['tfidf']).default('tfidf'), hybridSearch: z.boolean().default(false) }),
+    agentStatus: z.object({ heartbeatInterval: z.number().int().default(5000), stallTimeout: z.number().int().default(10000) }),
+  }).default({...}),
+  featureToggles: HarnessFeatureTogglesSchema.optional(),
+  skills: z.array(z.string()).optional(),
+  mcpServers: z.array(z.object({
     name: z.string(),
-    transport: z.enum(['sse', 'stdio']),
-    url: z.string().optional(),
+    url: z.string(),
     command: z.string().optional(),
     args: z.array(z.string()).optional(),
-    credentials: z.record(z.string()).optional(),
-    timeout: z.number().positive().optional(),
-  })).optional(),
-  rest_tools: z.array(z.object({
+    transport: z.enum(['sse', 'stdio']).default('sse'),
+    credentials: z.record(z.string(), z.string()).optional(),
+  })).optional(),                  // no timeout field
+  restTools: z.array(z.object({
     name: z.string(),
-    description: z.string(),
-    url: z.string(),
-    method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional(),
-    headers: z.record(z.string()).optional(),
-    auth: z.object({
-      type: z.enum(['bearer', 'basic', 'header']),
-      credentials: z.record(z.string()),
-    }).optional(),
-    schema: z.object({
-      type: z.literal('object'),
-      properties: z.record(z.any()),
-      required: z.array(z.string()).optional(),
-    }).optional(),
+    endpoint: z.string(),          // REQUIRED
+    url: z.string().optional(),
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).default('POST'),
+    description: z.string(),       // REQUIRED
+    headers: z.record(z.string(), z.string()).optional(),
+    global_headers: z.record(z.string(), z.string()).optional(),
+    inputSchema: z.record(z.string(), z.unknown()),   // REQUIRED
+    auth: z.object({ type: z.enum(['bearer', 'basic', 'header']), credentials: z.record(z.string(), z.string()) }).optional(),
+    timeout: z.number().int().default(30000),
+    url_interpolation: z.boolean().default(false),
   })).optional(),
-  history: z.array(z.object({
-    role: z.enum(['user', 'assistant', 'system']),
-    content: z.string(),
-  })).optional(),
-  message: z.string().optional(),
-  missionId: z.string().optional(),
-  mode: z.string().optional(),
-  tenantId: z.string().default('local'),
-  userId: z.string().default('anonymous'),
-  orgId: z.string().default('local'),
-});
+}).default({...});
 ```
+
+There are no `skill` / `skill_variables` fields — skills are passed as the
+`skills: string[]` array at the top level.
 
 ---
 
@@ -135,12 +176,11 @@ export const createMissionSchema = z.object({
 | Parameter                  | Type         | Default                     | Description                              |
 +----------------------------+--------------+-----------------------------+------------------------------------------+
 | **prompt**                 | `string`     | (required)                  | User's mission objective                 |
-| **strategy**               | `enum`       | `"nlah"` (internal default when mode="agent") | Execution mode                           |
-| **skill**                  | `string`     | `"reasoning"`               | Behavioral pattern                       |
-| **skill_variables**        | `object`     | `{}`                        | Template variables for the skill         |
+| **strategy**               | `enum`       | `"agent"`                   | Execution mode ("standard" | "agent")    |
+| **strategy_version**       | `string`     | (optional)                  | Pinned strategy version, e.g. "nlah:v1"  |
 |                            |              |                             |                                          |
 | **provider_config.type**   | `enum`       | (required)                  | LLM provider                             |
-| **provider_config.**      | `string`     | (required)                  | Provider API base URL                    |
+| **provider_config.**      | `string`     | (required)                  | Provider API base URL (plain string)     |
 | **base_url**               |              |                             |                                          |
 | **provider_config.**      | `string`     | (optional)                  | Provider API key (if needed)             |
 | **api_key**                |              |                             |                                          |
@@ -148,42 +188,47 @@ export const createMissionSchema = z.object({
 |                            |              |                             |                                          |
 | **features**               | `string[]`   | `[]`                        | Feature/tool IDs to enable; empty = ToolRetriever selects from full pool |
 |                            |              |                             |                                          |
-| **skills**                 | `string[]`   | `[]`                        | Skill names — preferredTools merged with features |
+| **skills**                 | `string[]`   | (optional)                  | Skill names — filtered at the top level (no `skill`/`skill_variables` fields) |
 |                            |              |                             |                                          |
-| **mcp_servers[].name**     | `string`     | (optional)                  | Logical MCP server name                  |
-| **mcp_servers[].**        | `enum`       | `"sse"`                     | Connection transport                     |
+| **config.mcpServers[].name**| `string`     | (required)                  | Logical MCP server name                  |
+| **config.mcpServers[].url** | `string`     | (required)                  | SSE endpoint URL (or stdio command)      |
+| **config.mcpServers[].**   | `enum`       | `"sse"`                     | Connection transport                     |
 | **transport**              |              |                             |                                          |
-| **mcp_servers[].url**      | `string`     | (optional)                  | SSE endpoint URL                         |
-| **mcp_servers[].command**  | `string`     | (optional)                  | stdio spawn command                      |
-| **mcp_servers[].**        | `string[]`   | `[]`                        | stdio spawn arguments                    |
+| **config.mcpServers[].**   | `string[]`   | (optional)                  | stdio spawn arguments                    |
 | **args**                   |              |                             |                                          |
-| **mcp_servers[].**        | `object`     | `{}`                        | Credentials via $env refs                |
+| **config.mcpServers[].**   | `object`     | (optional)                  | Credentials via $env refs                |
 | **credentials**            |              |                             |                                          |
-| **mcp_servers[].timeout**  | `number`     | `30000`                     | Connection timeout (ms)                  |
+|                            |              |                             | (no timeout field)                       |
+| **config.restTools[].name**| `string`     | (required)                  | Tool name for agent                      |
+| **config.restTools[].**    | `string`     | (required)                  | API endpoint                             |
+| **endpoint**               |              |                             |                                          |
+| **config.restTools[].url** | `string`     | (optional)                  | Override URL                             |
+| **config.restTools[].method**| `enum`     | `"POST"`                    | HTTP method                              |
+| **config.restTools[].**    | `object`     | (required)                  | Input schema (record)                    |
+| **inputSchema**            |              |                             |                                          |
+| **config.restTools[].**    | `object`     | (optional)                  | Static + $env ref headers                |
+| **global_headers**         |              |                             |                                          |
+| **config.restTools[].**    | `boolean`    | `false`                     | Enable URL interpolation                  |
+| **url_interpolation**      |              |                             |                                          |
+| **config.restTools[].timeout**| `number`  | `30000`                     | Request timeout (ms)                     |
+| **config.restTools[].auth**| `object`     | (optional)                  | Bearer/Basic/Header auth                 |
 |                            |              |                             |                                          |
-| **rest_tools[].name**      | `string`     | (optional)                  | Tool name for agent                      |
-| **rest_tools[].url**       | `string`     | (required)                  | API endpoint URL                         |
-| **rest_tools[].method**    | `enum`       | `"POST"`                    | HTTP method                              |
-| **rest_tools[].headers**   | `object`     | `{}`                        | Static + $env ref headers                |
-| **rest_tools[].auth**      | `object`     | (optional)                  | Bearer/Basic/Header auth                 |
-| **rest_tools[].schema**    | `object`     | `{ type: "object" }`       | JSON Schema for tool inputs              |
+| **config.memory**          | `object`     | `{episodic: true, semantic: false, procedural: false, ttl: 86400}` | Memory subsystem flags |
 |                            |              |                             |                                          |
-| **history**                | `array`      | `[]`                        | Previous conversation messages           |
-| **missionId**              | `string`     | (auto UUID)                 | Resume existing mission                  |
+| **config.harness.maxIterations** | `number` | `15`                        | Max execution loop turns                 |
+| **config.harness.costCap** | `number`     | `1.00`                      | Max spend in USD before abort            |
+| **config.harness.**        | `number`     | `0.9`                       | Token ratio triggering compaction        |
+| **compression.ratio**      |              |                             |                                          |
+| **config.harness.**        | `number`     | `2`                         | Turns preserved after compaction         |
+| **compression.keepLastTurns**|           |                             |                                          |
+| **config.harness.pacing.** | `number`     | `5`                         | Iterations before forced synthesis       |
+| **threshold**              |              |                             |                                          |
+| **config.harness.**        | `number`     | `0.92`                      | Cosine similarity loop detection         |
+| **loopDetection.similarityThreshold**| |                             |                                          |
 |                            |              |                             |                                          |
-| **harness.max_iterations** | `number`     | `15`                        | Max execution loop turns                 |
-| **harness.cost_threshold** | `number`     | `1.00`                      | Max spend in USD before abort            |
-| **harness.**              | `number`     | `0.9`                       | Token ratio triggering compaction        |
-| **compaction_ratio**       |              |                             |                                          |
-| **harness.**              | `number`     | `5`                         | Iterations before forced synthesis       |
-| **pacing_threshold**       |              |                             |                                          |
-| **harness.**              | `number`     | `0.92`                      | Cosine similarity loop detection         |
-| **similarity_threshold**   |              |                             |                                          |
-| **harness.keep_last_turns**| `number`     | `10`                        | Turns preserved after compaction         |
-|                            |              |                             |                                          |
-| **tenantId**               | `string`     | `"local"`                  | Enterprise account partition             |
-| **userId**                 | `string`     | `"anonymous"`               | Triggering user identity                 |
-| **orgId**                  | `string`     | `"local"`                  | Billing organization partition           |
+| **tenantId**               | `string`     | `"local-developer"`         | Enterprise account partition             |
+| **userId**                 | `string`     | `"local-dev-user"`          | Triggering user identity                 |
+| **orgId**                  | `string`     | `"local-org"`               | Billing organization partition           |
 +----------------------------+--------------+-----------------------------+------------------------------------------+
 
 ---
@@ -216,11 +261,11 @@ export const createMissionSchema = z.object({
 │  Created per API request                                                  │
 │  Passed in POST /generate-mission body                                    │
 │                                                                           │
-│  prompt, strategy, skill                                                  │
-│  provider_config (model, URL, key)                                        │
-│  mcp_servers, rest_tools                                                  │
-│  features, history                                                        │
-│  harness overrides                                                        │
+  │  prompt, strategy, strategy_version, skills │
+  │  provider_config (model, URL, key)          │
+  │  config.mcpServers, config.restTools        │
+  │  features, history                          │
+  │  config.harness overrides                   │
 │                                                                           │
 │  ── Overrides persistent defaults ──                                      │
 │  ── Ephemeral — discarded after mission ──                                │
@@ -235,12 +280,9 @@ export const createMissionSchema = z.object({
 ```json
 {
   "prompt": "Analyze the latest Q3 earnings reports for tech companies and identify market trends.",
-  "strategy": "nlah",
-  "skill": "analyst",
-  "skill_variables": {
-    "domain": "financial technology",
-    "data_formats": "CSV, JSON, HTML reports"
-  },
+  "strategy": "agent",
+  "strategy_version": "nlah:v1",
+  "skills": ["analyst"],
 
   "provider_config": {
     "type": "openai",
@@ -249,46 +291,56 @@ export const createMissionSchema = z.object({
   },
 
   "features": ["web_search", "write_todos"],
-  "skills": ["analyst"],
 
-  "mcp_servers": [
-    {
-      "name": "financial-data",
-      "transport": "sse",
-      "url": "https://mcp.finance.example.com/sse",
-      "credentials": {
-        "api_key": "$env.FINANCE_MCP_KEY"
-      }
-    }
-  ],
-
-  "rest_tools": [
-    {
-      "name": "get_stock_data",
-      "description": "Fetch current stock price and historical data for a ticker symbol",
-      "url": "https://api.example.com/stocks/{ticker}",
-      "method": "GET",
-      "auth": {
-        "type": "bearer",
-        "credentials": {
-          "token": "$env.STOCK_API_TOKEN"
-        }
+  "config": {
+    "memory": {
+      "episodic": true,
+      "semantic": false,
+      "procedural": false,
+      "ttl": 86400
+    },
+    "harness": {
+      "compression": {
+        "enabled": true,
+        "ratio": 0.9,
+        "keepLastTurns": 2
       },
-      "schema": {
-        "type": "object",
-        "properties": {
+      "pacing": { "enabled": true, "threshold": 5 },
+      "loopDetection": { "enabled": true, "similarityThreshold": 0.92 },
+      "maxIterations": 25,
+      "costCap": 0.50,
+      "delegationDepth": 0
+    },
+    "mcpServers": [
+      {
+        "name": "financial-data",
+        "transport": "sse",
+        "url": "https://mcp.finance.example.com/sse",
+        "credentials": {
+          "api_key": "$env.FINANCE_MCP_KEY"
+        }
+      }
+    ],
+    "restTools": [
+      {
+        "name": "get_stock_data",
+        "endpoint": "https://api.example.com/stocks/{ticker}",
+        "method": "GET",
+        "description": "Fetch current stock price and historical data for a ticker symbol",
+        "inputSchema": {
           "ticker": { "type": "string", "description": "Stock ticker symbol" },
           "period": { "type": "string", "enum": ["1d", "1w", "1m", "1y"] }
         },
-        "required": ["ticker"]
+        "auth": {
+          "type": "bearer",
+          "credentials": {
+            "token": "$env.STOCK_API_TOKEN"
+          }
+        },
+        "timeout": 30000,
+        "url_interpolation": false
       }
-    }
-  ],
-
-  "harness": {
-    "max_iterations": 25,
-    "cost_threshold": 0.50,
-    "similarity_threshold": 0.95
+    ]
   },
 
   "history": [
@@ -308,7 +360,10 @@ export const createMissionSchema = z.object({
 | Export                     | Source                                   | Type                                       |
 +----------------------------+------------------------------------------+--------------------------------------------+
 | `createMissionSchema`      | `adapter/inbound/api/missions/mission.schema.ts` | Zod validation schema                      |
-| `HarnessOverrides`         | `core/agent/harness/types.ts`             | Partial harness parameters                 |
+| `HarnessEvent`             | `core/agent/harness/types.ts`             | Packet event type                          |
+| `HarnessRuntimeConfig`     | `core/agent/harness/types.ts`             | Runtime overrides (circuit breaker, degradation, agent status) |
+| `HarnessConfig`            | `core/agent/harness/types.ts`             | Full harness construction config           |
+| `DEFAULT_HARNESS_TOGGLES`  | `core/agent/harness/types.ts`             | Default feature toggle values              |
 +----------------------------+------------------------------------------+--------------------------------------------+
 
 ---
@@ -333,7 +388,7 @@ export const createMissionSchema = z.object({
 +----------------------------+------------------------------------------+---------------------------------------------+
 | Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*    |
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts` | Full mission request validation            |
-| Provider config dispatch   | `infrastructure/providers/factory.ts:15-27`| `fromConfig()` reads session provider config|
+| Provider config dispatch   | `infrastructure/providers/factory.ts:24-27`| `fromConfig()` reads session provider config|
 | Harness defaults           | `harness/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |
 | Stream transport           | `adapter/inbound/api/missions/stream.transport.ts` | Packet serialization                        |
 +----------------------------+------------------------------------------+---------------------------------------------+

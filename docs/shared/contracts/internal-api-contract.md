@@ -4,7 +4,7 @@
   Module    : Internal API Contract
   Service   : Shared / Contracts
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-05
 ================================================================================
 
 ## Description
@@ -65,8 +65,7 @@ Store episodic memory (conversation turn / event).
   "session_id": "session-abc-123",
   "content": {
     "role": "assistant",
-    "message": "The capital of France is Paris.",
-    "timestamp": "2026-07-09T12:00:00Z"
+    "message": "The capital of France is Paris."
   },
   "metadata": {
     "mission_id": "mission-xyz-456",
@@ -75,21 +74,22 @@ Store episodic memory (conversation turn / event).
 }
 ```
 
-| Field           | Type   | Required | Description                    |
-|-----------------+--------+----------+--------------------------------|
-| session_id      | string | Yes      | Unique session identifier      |
-| content         | object | Yes      | Episodic content payload       |
-| content.role    | string | Yes      | "user" | "assistant" | "system" |
-| content.message | string | Yes      | Message text                   |
-| content.timestamp| string| Yes      | ISO 8601 timestamp             |
-| metadata        | object | No       | Optional metadata              |
+| Field         | Type   | Required | Description                                    |
+|---------------+--------+----------+------------------------------------------------|
+| session_id    | string | Yes      | Unique session identifier                      |
+| content       | object | Yes      | Opaque episodic payload (any JSON, stored as-is)|
+| metadata      | object | No       | Optional metadata                              |
+| ttl_seconds   | number | No       | TTL override in seconds (default 24h)          |
+
+The backend stamps a server-side `timestamp` (UTC) onto the entry — the
+client does not supply it.
 
 #### Response (201)
 
 ```json
 {
-  "success": true,
-  "id": "mem-ep-789"
+  "id": "mem_ep_789",
+  "status": "stored"
 }
 ```
 
@@ -97,9 +97,8 @@ Store episodic memory (conversation turn / event).
 
 ```json
 {
-  "success": false,
-  "error": "validation_error",
-  "message": "session_id is required"
+  "error": "session_id and content are required",
+  "details": ""
 }
 ```
 
@@ -127,10 +126,51 @@ Recall episodic memories for a session.
 
 ```json
 {
-  "success": true,
-  "episodes": [
-    { "role": "assistant", "message": "The capital of France is Paris.", "timestamp": "2026-07-09T12:00:00Z" }
-  ]
+  "session_id": "session-abc-123",
+  "entries": [
+    {
+      "content": { "role": "assistant", "message": "The capital of France is Paris." },
+      "timestamp": "2026-07-09T12:00:00Z",
+      "metadata": { "mission_id": "mission-xyz-456" }
+    }
+  ],
+  "total": 42
+}
+```
+
+Entries are stored in a Redis list per session (newest first); `timestamp`
+and optional `metadata` are server-set at store time.
+
+---
+
+### 3. POST /api/v1/internal/memory/semantic/store
+
+Store a semantic memory entry with an optional embedding.
+
+#### Request
+
+```json
+{
+  "id": "mem-sem-123",
+  "content": "The capital of France is Paris.",
+  "embedding": [0.012, -0.044],
+  "metadata": { "source": "conversation" }
+}
+```
+
+| Field     | Type    | Required | Description                             |
+|-----------+---------+----------+-----------------------------------------|
+| id        | string  | Yes      | Unique memory identifier                |
+| content   | string  | Yes      | Memory text                             |
+| embedding | number[]| No       | Optional vector; when present the row is indexed with it |
+| metadata  | object  | No       | Optional metadata                       |
+
+#### Response (201)
+
+```json
+{
+  "id": "mem_sm_789",
+  "status": "indexed"
 }
 ```
 
@@ -138,31 +178,39 @@ Recall episodic memories for a session.
 
 ### 4. POST /api/v1/internal/memory/semantic/search
 
-Search semantic memories by query.
+Search semantic memories by query text.
 
 #### Request
 
 ```json
 {
-  "session_id": "session-abc-123",
   "query": "capital of France",
   "limit": 10
 }
 ```
 
-| Field      | Type   | Required | Description                    |
-|------------+--------+----------+--------------------------------|
-| session_id | string | Yes      | Unique session identifier      |
-| query      | string | Yes      | Search query text              |
-| limit      | number | No       | Max results (default 10)       |
+| Field     | Type    | Required | Description                              |
+|-----------+---------+----------+------------------------------------------|
+| query     | string  | Yes      | Search query text                        |
+| embedding | number[]| No       | Accepted but unused (reserved)           |
+| limit     | number  | No       | Max results (default 10)                 |
+| threshold | number  | No       | Accepted but unused (reserved)           |
+
+> Note: search is an ILIKE substring match on `content` — the
+> `embedding` and `threshold` fields exist in the request schema but are
+> not used by the current implementation.
 
 #### Response (200)
 
 ```json
 {
-  "success": true,
   "results": [
-    { "fact": "The capital of France is Paris.", "confidence": 0.95, "source": "conversation" }
+    {
+      "id": "mem-sem-123",
+      "content": "The capital of France is Paris.",
+      "metadata": { "source": "conversation" },
+      "created_at": "2026-07-09T12:00:00Z"
+    }
   ]
 }
 ```
@@ -177,34 +225,25 @@ Store procedural memory (learned skills, tool usage patterns).
 
 ```json
 {
-  "session_id": "session-abc-123",
-  "skill": "web_search",
-  "steps": [
-    "construct search query from user intent",
-    "call search API with query",
-    "parse and summarize results"
-  ],
-  "outcome": "success",
-  "metadata": {
-    "mission_id": "mission-xyz-456"
-  }
+  "id": "mem-pr-123",
+  "name": "web_search",
+  "content": "construct search query from user intent, call search API, summarize"
 }
 ```
 
-| Field      | Type     | Required | Description                    |
-|------------+----------+----------+--------------------------------|
-| session_id | string   | Yes      | Unique session identifier      |
-| skill      | string   | Yes      | Skill identifier               |
-| steps      | string[] | Yes      | Ordered steps taken            |
-| outcome    | string   | Yes      | "success" | "failure"          |
-| metadata   | object   | No       | Optional metadata              |
+| Field   | Type   | Required | Description                      |
+|---------+--------+----------+----------------------------------|
+| id      | string | Yes      | Unique procedural memory id      |
+| name    | string | Yes      | Procedural skill name            |
+| content | string | Yes      | Instructions / procedure text    |
+| metadata| object | No       | Optional metadata                |
 
 #### Response (201)
 
 ```json
 {
-  "success": true,
-  "id": "mem-pr-789"
+  "id": "mem_pr_789",
+  "status": "recorded"
 }
 ```
 
@@ -212,7 +251,7 @@ Store procedural memory (learned skills, tool usage patterns).
 
 ### 6. POST /api/v1/internal/memory/procedural/get
 
-Retrieve procedural instructions by name.
+Retrieve procedural instructions by ID or name.
 
 #### Request
 
@@ -224,22 +263,28 @@ Retrieve procedural instructions by name.
 
 | Field | Type   | Required | Description                    |
 |-------+--------+----------+--------------------------------|
-| name  | string | Yes      | Procedural skill name          |
+| id    | string | No       | Procedural memory id           |
+| name  | string | No       | Procedural skill name          |
+
+At least one of `id` / `name` must be provided.
 
 #### Response (200)
 
 ```json
 {
-  "success": true,
-  "procedure": {
-    "name": "web_search",
-    "content": "...",
-    "metadata": {}
-  }
+  "id": "mem-pr-123",
+  "name": "web_search",
+  "content": "...",
+  "metadata": {},
+  "created_at": "2026-07-09T12:00:00Z",
+  "updated_at": "2026-07-09T12:00:00Z"
 }
 ```
 
-### 7. POST /api/v1/internal/sessions/:id/prune
+Returns 404 (`{"error": "Procedural memory not found", "details": ""}`)
+when no row matches.
+
+### 7. POST /api/v1/internal/sessions/{id}/prune
 
 Trigger manual session pruning — removes old messages beyond the threshold.
 
@@ -247,49 +292,146 @@ Trigger manual session pruning — removes old messages beyond the threshold.
 
 ```json
 {
-  "threshold": 100000,
-  "keep_latest_turns": 10
+  "provider_config": {
+    "type": "openai",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-4o"
+  }
 }
 ```
 
-| Field             | Type   | Required | Description                         |
-|-------------------+--------+----------+-------------------------------------|
-| threshold         | number | No       | Token threshold (default from config)|
-| keep_latest_turns | number | No       | Turns to retain (default from config)|
+| Field           | Type   | Required | Description                              |
+|-----------------+--------+----------+------------------------------------------|
+| provider_config | object | Yes      | Provider configuration for summarization |
 
 #### Response (200)
 
 ```json
 {
-  "success": true,
-  "session_id": "session-abc-123",
-  "pruned_count": 25
+  "status": "success",
+  "message": "Session pruned and consolidated successfully"
 }
 ```
+
+> Note: the agent never calls this endpoint — session pruning is done
+> in-process by the backend consolidation worker
+> (`backend/internal/worker`). The route exists for operational/manual
+> use.
+
+---
+
+### 8. GET /api/v1/internal/prompts/active
+
+Fetch the active production prompt version for the agent's behavior
+layer.
+
+**Consumer**: the agent service. Called at system-prompt assembly time to
+retrieve the current production prompt for a named template.
+
+#### Request
+
+Query parameters:
+
+| Param    | Type   | Required | Description                                    |
+|----------+--------+----------+------------------------------------------------|
+| template | string | Yes      | Prompt template name (e.g. "customer_support_agent") |
+
+Headers:
+
+| Header        | Required | Description                                    |
+|---------------+----------+------------------------------------------------|
+| Authorization | Yes      | Bearer <service JWT> (HS256, `sub: "agent"`)   |
+| X-Tenant-ID   | No       | Tenant scope; defaults to `"local"` when absent |
+
+Example:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/internal/prompts/active?template=customer_support_agent" \
+  -H "Authorization: Bearer <service-jwt>" \
+  -H "X-Tenant-ID: local"
+```
+
+#### Response (200)
+
+Returns the active version of the named template (`llmopsmodel.PromptVersion`):
+
+```json
+{
+  "id": "pv-abc-123",
+  "template_id": "tmpl-xyz-456",
+  "version": 2,
+  "system_prompt": "You are the customer support agent...",
+  "bound_tools": ["web_search", "write_todos"],
+  "variables": ["user_name"],
+  "status": "production",
+  "created_by": "sarah@echo.dev",
+  "created_at": "2026-08-05T10:00:00Z"
+}
+```
+
+| Field         | Type     | Description                                     |
+|---------------+----------+-------------------------------------------------|
+| id            | string   | Prompt version id                               |
+| template_id   | string   | Owning prompt template id                       |
+| version       | number   | Version number (1-based, monotonically increasing) |
+| system_prompt | string   | Production system prompt text                   |
+| bound_tools   | string[] | Tools the agent may invoke                      |
+| variables     | string[] | Prompt variables to substitute                  |
+| status        | string   | Version status ("production" once promoted)     |
+| created_by    | string   | Actor who created the version                   |
+| created_at    | string   | RFC 3339 UTC creation timestamp                 |
+
+The backend resolves the version via `prompt_templates.active_version`
+joined to `prompt_versions` for the given tenant + template name
+(`backend/internal/repository/llmops/module/props/repository.go`).
+
+#### Error Responses
+
+| HTTP Status | Condition                                                      |
++-------------+----------------------------------------------------------------+
+| 400         | Missing `template` query parameter                             |
+| 401         | Missing/invalid/expired service JWT                            |
+| 403         | Valid JWT but `sub` is not "agent"                             |
+| 404         | No active production version for tenant + template name        |
+| 500         | Unexpected server error                                        |
++-------------+----------------------------------------------------------------+
+
+```json
+// 400
+{"error":"Query parameter 'template' is required","details":""}
+// 404
+{"error":"active prompt version not found: ...","details":""}
+```
+
+#### Caching & Invalidation
+
+The agent caches the response in Redis under
+`agent:prompts:<tenant>:<name>` (60s TTL, agent side). On promote or
+rollback the backend best-effort deletes that key
+(`backend/internal/service/llmops/prompt_service.go`), so the next
+agent fetch observes the new production version immediately.
 
 ---
 
 ## Error Response Format (All Internal Endpoints)
 
-All errors follow a consistent format:
+All errors follow a consistent format (`backend/internal/handler/handlerutil/helpers.go`):
 
 ```json
 {
-  "success": false,
-  "error": "error_code",
-  "message": "Human-readable description"
+  "error": "Human-readable description",
+  "details": ""
 }
 ```
 
-| HTTP Status | error_code              | Meaning                                  |
-+-------------+-------------------------+------------------------------------------+
-| 400         | validation_error        | Missing or invalid request body fields   |
-| 401         | missing_token           | No Authorization header provided         |
-| 401         | invalid_token           | JWT parse failure or wrong secret        |
-| 401         | token_expired           | JWT exp claim is in the past             |
-| 403         | invalid_subject         | sub claim is not "agent"                 |
-| 500         | internal_error          | Unexpected server error                  |
-+-------------+-------------------------+------------------------------------------+
+| HTTP Status | Meaning                                  |
++-------------+------------------------------------------+
+| 400         | Missing or invalid request body fields   |
+| 401         | No/invalid/expired Authorization header or JWT |
+| 403         | Valid JWT but `sub` is not "agent"       |
+| 404         | Requested resource not found             |
+| 500         | Unexpected server error                  |
++-------------+------------------------------------------+
 
 ## Example cURL
 
@@ -310,8 +452,7 @@ curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
     "session_id": "session-abc-123",
     "content": {
       "role": "assistant",
-      "message": "The capital of France is Paris.",
-      "timestamp": "2026-07-09T12:00:00Z"
+      "message": "The capital of France is Paris."
     },
     "metadata": {
       "mission_id": "mission-xyz-456"
@@ -325,27 +466,25 @@ curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
 curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
   -H "Authorization: Bearer invalid-token" \
   -H "Content-Type: application/json" \
-  -d '{"session_id":"test","content":{"role":"user","message":"hello","timestamp":"2026-01-01T00:00:00Z"}}'
+  -d '{"session_id":"test","content":{"role":"user","message":"hello"}}'
 
 # Response: 401
-# {"success":false,"error":"invalid_token","message":"Invalid service token"}
+# {"error":"Unauthorized: Invalid internal token","details":""}
 ```
+
+A valid JWT whose `sub` is not `agent` is rejected with 403
+(`{"error":"Forbidden: Invalid token subject","details":""}`).
 
 ## Rate Limits
 
-Internal endpoints share a pool:
-
-+---------------------------+-----------+--------+-----------+
-| Endpoint Group            | Limit     | Window | Scope     |
-+---------------------------+-----------+--------+-----------+
-| All /api/v1/internal/*    | 200 req/  | 1 min  | Per agent |
-|                           | min       |        | instance  |
-+---------------------------+-----------+--------+-----------+
-
+Planned, not implemented — internal endpoints currently have no rate
+limiting; all requests pass straight through to the handlers.
 ## Entry Points & Exports
 
 - **Handler**: `backend/internal/handler/memory/handler.go`
 - **Service**: `backend/internal/service/memory/service.go`
+- **Handler (active prompt)**: `backend/internal/handler/llmops/agent_prompt_handler.go`
+- **Service (active prompt)**: `backend/internal/service/llmops/prompt_service.go`
 - **Middleware**: `backend/internal/middleware/internal_auth.go`
 
 ================================================================================

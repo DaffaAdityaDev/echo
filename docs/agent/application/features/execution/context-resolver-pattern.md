@@ -11,7 +11,7 @@
 
 > [!WARNING]
 > **Status: PLANNED (Not Yet Implemented)**  
-> The Context Resolver architecture and components described here (`agent/src/core/agent/classifier/`, `agent/src/core/agent/topics/`, and `resolver.ts`) are planned for a future implementation phase. The current codebase still uses the naive keyword-based `ToolRetriever` (`src/core/agent/tools/retriever.ts`).
+> The Context Resolver architecture and components described here (`agent/src/core/agent/classifier/`, `agent/src/core/agent/topics/`, and `resolver.ts`) are planned for a future implementation phase. The current codebase still uses the naive keyword-based `ToolRetriever` (`src/core/agent/services/retriever.ts`).
 
 Three-layer context resolution system that takes a user query and injects
 only the relevant system instructions, tools, and knowledge fragments into
@@ -282,7 +282,7 @@ The Agent's responsibility is:
 ### Modified Tool Resolution (in NlahHarness)
 
 ```
-Current (harness.ts:122-131):
+Current (harness.ts:308-340):
   if (this.explicitTools !== undefined) → use as-is
   else → toolRetriever.getRelevantTools(state.objective)
 
@@ -558,7 +558,7 @@ CONTEXT_RESOLVER = {
 +---------------------------+------------------------------------------+-------------------------------------------------------+
 | ToolRetriever (current)   | `services/retriever.ts`                  | Naive keyword scoring — to be replaced                |
 | RETRIEVER_CONFIG          | `services/constants.ts`        | Current weights: 0.6/0.3/0.1                          |
-| Tool resolution in harness| `harness/harness.ts:122-131`        | Where retriever is called                             |
+| Tool resolution in harness| `harness/harness.ts:308-340`        | Where retriever is called                             |
 | Prefix-caching layout     | `docs/shared/architecture/headless-      | KV cache optimization strategy                       |
 |                           |   haas.md`                              |                                                       |
 | Session management        | `docs/agent/application/features/        | Go as session authority, BLOCK 4 loading, pruning     |

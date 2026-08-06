@@ -64,7 +64,6 @@ anchors/
 | Export                   | Source                      | Type                                        |
 +--------------------------+-----------------------------+---------------------------------------------+
 | `StandardContextAnchor`  | `standard.ts`                | Default implementation with `build(options?)`|
-| `StandardContextAnchor`  | `standard.ts`               | Default implementation                      |
 | `ANCHOR_VERSIONS`        | `constants.ts`              | Version constants                           |
 +--------------------------+-----------------------------+---------------------------------------------+
 
@@ -89,7 +88,7 @@ anchors/
 | Standard anchor            | `standard.ts:4-8`                     | Builds with year                               |
 | Template                   | `constants.ts:5-7`                   | `<context_anchor>Current_Year...` format        |
 | Usage in controller        | `mission.controller.ts`                | `new StandardContextAnchor().build()` prepended |
-| Usage in delegation        | `delegation/index.ts:74`               | Same pattern for sub-agent state initialization    |
+| Usage in delegation        | `delegation/index.ts:81`               | Same pattern for sub-agent state initialization    |
 +----------------------------+----------------------------------------+----------------------------------------------------+
 
 ================================================================================

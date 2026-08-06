@@ -27,7 +27,7 @@ BACKEND (Manager)                    AGENT (Stateless Worker)
 +----------------------------+---------------------------------------------------+
 | Module                     | Description                                       |
 +----------------------------+---------------------------------------------------+
-| llmops-user-studio.md      | User-facing LLMOps: Playground,                    |
+| llmops-user-studio.md      | User-facing LLMOps: Prompt versioning,             |
 |                            |   Governance (new module)                         |
 +----------------------------+---------------------------------------------------+
 
