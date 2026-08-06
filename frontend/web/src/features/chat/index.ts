@@ -1,7 +1,7 @@
 export { AgentProgress } from "./components/AgentProgress";
 export * from "./components/ChatInput";
 export * from "./components/ChatPage";
-export * from "./components/DebugDrawer";
+export * from "./components/debug";
 export * from "./components/MessageItem";
 export * from "./components/MessageList";
 export * from "./components/ModelSelectorModal";

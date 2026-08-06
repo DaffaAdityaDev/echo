@@ -1,23 +1,33 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
-import { STUDIO_ENDPOINTS, STUDIO_QUERY_KEYS } from "../constants";
-import type { ClientCompanyAssessment, SystemMaturityAssessment } from "../types";
+import { useEffect } from "react";
+import { STUDIO_QUERY_KEYS } from "../constants";
+import { studioApi } from "../services/studio-api";
+import { useStudioStore } from "../stores/studioStore";
+import type { SystemMaturityAssessment } from "../types";
 
 export function useMaturityAssessment() {
-  return useQuery({
+  const setMaturity = useStudioStore((s) => s.setMaturity);
+  const query = useQuery<SystemMaturityAssessment>({
     queryKey: STUDIO_QUERY_KEYS.MATURITY,
-    queryFn: () => api.get<SystemMaturityAssessment>(STUDIO_ENDPOINTS.MATURITY),
+    queryFn: studioApi.getMaturity,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (query.data) {
+      setMaturity(query.data);
+    }
+  }, [query.data, setMaturity]);
+
+  return query;
 }
 
 export function useSaveClientAssessment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (assessment: ClientCompanyAssessment) =>
-      api.post<ClientCompanyAssessment>(STUDIO_ENDPOINTS.MATURITY_CLIENT, assessment),
+    mutationFn: studioApi.saveClientAssessment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: STUDIO_QUERY_KEYS.MATURITY });
     },

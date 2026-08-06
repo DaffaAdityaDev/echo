@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import type { Message } from "../types";
 import { MessageItem } from "./MessageItem";
 
@@ -21,14 +21,7 @@ export interface MessageListHandle {
 import { UI_CONFIG } from "@/constants";
 
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(function MessageList(
-  {
-    messages,
-    isLoading,
-    onScrollBtnChange,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  },
+  { messages, isLoading, onScrollBtnChange, fetchNextPage, hasNextPage, isFetchingNextPage },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -43,9 +36,9 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: UI_CONFIG.SCROLL_BEHAVIOR });
+      scrollRef.current.scrollIntoView({ behavior: isLoading ? "auto" : UI_CONFIG.SCROLL_BEHAVIOR });
     }
-  }, []);
+  }, [isLoading]);
 
   useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom]);
 

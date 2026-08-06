@@ -1,11 +1,11 @@
 "use client";
 import { AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import { useEffect } from "react";
-import { useChatStore } from "../stores/chatStore";
+import { useDismissSystemNotice, useSystemNotices } from "../hooks/useChatSelectors";
 
 export function SystemNoticeToast() {
-  const notices = useChatStore((s) => s.systemNotices);
-  const dismiss = useChatStore((s) => s.dismissSystemNotice);
+  const notices = useSystemNotices();
+  const dismiss = useDismissSystemNotice();
 
   useEffect(() => {
     if (notices.length === 0) return;
@@ -45,6 +45,7 @@ export function SystemNoticeToast() {
               <p className="text-xs opacity-80 mt-0.5">{notice.message}</p>
             </div>
             <button
+              type="button"
               onClick={() => dismiss(notice.id)}
               className="p-0.5 rounded-lg opacity-50 hover:opacity-100 transition-opacity shrink-0 cursor-pointer"
             >

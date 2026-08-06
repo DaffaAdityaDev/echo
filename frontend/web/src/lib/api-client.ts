@@ -1,5 +1,4 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
-import { STORAGE_KEYS } from "@/constants";
 import { generateTraceContext } from "./telemetry-fetch";
 
 const BASE_URL = "/api";
@@ -7,13 +6,6 @@ const BASE_URL = "/api";
 function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?: unknown): void {
   const { traceparent } = generateTraceContext();
   headers.set("traceparent", traceparent);
-
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-  }
 
   if (body && typeof body === "object") {
     const rec = body as Record<string, unknown>;
@@ -42,8 +34,8 @@ client.interceptors.response.use(
   (error) => {
     const url = error.config?.url || "";
     const isAuthPage = url.includes("/auth/login") || url.includes("/auth/register");
-    if (error.response?.status === 401 && typeof window !== "undefined" && !isAuthPage) {
-      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    const alreadyOnLogin = typeof window !== "undefined" && window.location.pathname === "/login";
+    if (error.response?.status === 401 && typeof window !== "undefined" && !isAuthPage && !alreadyOnLogin) {
       window.location.href = "/login";
     }
     if (error.response) {

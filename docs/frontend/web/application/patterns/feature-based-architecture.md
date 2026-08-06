@@ -38,21 +38,25 @@ src/features/
     │   ├── useSessions.ts
     │   └── useSkills.ts
     ├── components/        # UI components
-    │   ├── ChatPage.tsx
+    │   ├── ChatPage.tsx   # Thin orchestrator
     │   ├── ChatInput.tsx
     │   ├── MessageList.tsx
     │   ├── MessageItem.tsx
-    │   ├── SessionSidebar.tsx
+    │   ├── SessionSidebar.tsx   # Shell
     │   ├── ToolCallTimeline.tsx
     │   ├── AgentProgress.tsx
     │   ├── AgentStatusBadge.tsx
     │   ├── DegradationToast.tsx
     │   ├── ModelSelectorModal.tsx
-    │   └── DebugDrawer.tsx
+    │   ├── chat-page/     # ChatPage sub-parts (ChatHeader, WelcomeHero, MissionInfoBar)
+    │   ├── debug/         # DebugDrawer + 4 telemetry panels
+    │   ├── sidebar/       # SessionList + SessionListItem
+    │   └── steps/         # ThoughtStepView + step renders
     ├── stores/
     │   └── chatStore.ts   # Zustand store for conversation state
     └── services/
-        └── chat-api.ts    # chatApi HTTP methods
+        ├── chat-api.ts    # chatApi HTTP methods
+        └── stream/        # applyStreamPacket dispatcher + per-group handlers
 ```
 
 ## Feature Module Structure

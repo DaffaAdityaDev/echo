@@ -14,9 +14,29 @@ import "katex/dist/katex.min.css";
 interface MarkdownProps {
   content: string;
   className?: string;
+  isStreaming?: boolean;
 }
 
-const Markdown = React.memo(({ content, className }: MarkdownProps) => {
+export const TokenizedText = React.memo(({ text }: { text: string }) => {
+  const tokens = React.useMemo(() => {
+    if (!text) return [];
+    return text.split(/(\s+)/);
+  }, [text]);
+
+  return (
+    <>
+      {tokens.map((token, index) => (
+        <span key={index} className="stream-token">
+          {token}
+        </span>
+      ))}
+    </>
+  );
+});
+
+TokenizedText.displayName = "TokenizedText";
+
+const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps) => {
   const processedContent = React.useMemo(() => {
     if (!content) return "";
     return content
@@ -45,6 +65,16 @@ const Markdown = React.memo(({ content, className }: MarkdownProps) => {
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
+          p({ children }) {
+            if (isStreaming && typeof children === "string") {
+              return (
+                <p className="my-2 leading-relaxed">
+                  <TokenizedText text={children} />
+                </p>
+              );
+            }
+            return <p className="my-2 leading-relaxed">{children}</p>;
+          },
           code({ className, children, ...props }: React.ComponentPropsWithoutRef<"code">) {
             const match = /language-(\w+)/.exec(className || "");
             const language = match ? match[1] : "";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
@@ -20,16 +20,26 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
     turnMap.set(msg.turn_number, group);
   }
   const result: Message[] = [];
-  for (const [, group] of turnMap) {
+  for (const [turnNumber, group] of turnMap) {
     const userMsg = group.find((m) => m.role === "user");
     const assistantMsg = group.find((m) => m.role === "assistant");
     const systemMsg = group.find((m) => m.role === "system");
     if (systemMsg) {
-      result.push({ id: crypto.randomUUID(), role: "assistant", content: `[System]: ${systemMsg.content}`, steps: [] });
+      result.push({
+        id: `sys-${turnNumber}-${systemMsg.id}`,
+        role: "assistant",
+        content: `[System]: ${systemMsg.content}`,
+        steps: [],
+      });
       continue;
     }
     if (userMsg) {
-      result.push({ id: crypto.randomUUID(), role: "user", content: userMsg.content, steps: [] });
+      result.push({
+        id: `user-${turnNumber}-${userMsg.id}`,
+        role: "user",
+        content: userMsg.content,
+        steps: [],
+      });
     }
     let steps: ThoughtStep[] = [];
     if (assistantMsg?.steps && assistantMsg.steps.length > 0) {
@@ -61,7 +71,7 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
     );
     if (hasContent) {
       result.push({
-        id: crypto.randomUUID(),
+        id: `asst-${turnNumber}-${assistantMsg?.id || "stream"}`,
         role: "assistant",
         content: assistantMsg?.content || "",
         steps,
@@ -141,7 +151,28 @@ export function useChatPage() {
       return a.id - b.id;
     });
 
-    setMessages(groupMessagesByTurn(sorted));
+    const rebuilt = groupMessagesByTurn(sorted);
+
+    // Keep the store's last-message identity when the DB snapshot matches it,
+    // so the streaming -> complete transition does not remount MessageItem and
+    // replay the token blur-in. Only applies when content, steps, and status
+    // are identical, so stale snapshots still rebuild normally.
+    const storeMessages = useChatStore.getState().messages;
+    if (rebuilt.length > 0 && storeMessages.length > 0) {
+      const lastStore = storeMessages[storeMessages.length - 1];
+      const lastRebuilt = rebuilt[rebuilt.length - 1];
+      if (
+        lastStore.role === "assistant" &&
+        lastRebuilt.role === "assistant" &&
+        lastStore.status === lastRebuilt.status &&
+        lastStore.content === lastRebuilt.content &&
+        JSON.stringify(lastStore.steps) === JSON.stringify(lastRebuilt.steps)
+      ) {
+        rebuilt[rebuilt.length - 1] = { ...lastRebuilt, id: lastStore.id };
+      }
+    }
+
+    setMessages(rebuilt);
   }, [flattenedMessages, isLoading, setMessages]);
 
   // Re-attach to an in-flight mission after page refresh: the gateway treats

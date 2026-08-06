@@ -2,63 +2,41 @@
 import { Check, Clock, Shield, ShieldAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { api } from "@/lib/api-client";
-import { useChatStore } from "../stores/chatStore";
+import { useHitlApproval } from "../hooks/useHitlApproval";
 
 export function HitlApprovalModal() {
-  const hitlPending = useChatStore((s) => s.hitlPendingApproval);
-  const clearHitl = useChatStore((s) => s.clearHitlPendingApproval);
+  const { pending, clearPending, approve, deny } = useHitlApproval();
   const [decision, setDecision] = useState<"approve" | "deny" | null>(null);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
-    if (!hitlPending) return;
+    if (!pending) return;
     const update = () => {
-      const left = Math.max(0, Math.floor((hitlPending.expiresAt - Date.now()) / 1000));
+      const left = Math.max(0, Math.floor((pending.expiresAt - Date.now()) / 1000));
       setCountdown(`${left}s`);
-      if (left <= 0) clearHitl();
+      if (left <= 0) clearPending();
     };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [hitlPending, clearHitl]);
+  }, [pending, clearPending]);
 
   const handleApprove = useCallback(async () => {
-    if (!hitlPending || decision) return;
+    if (!pending || decision) return;
     setDecision("approve");
     setLoading(true);
-    try {
-      await api.stream(
-        `/v1/missions/${hitlPending.missionId}/approve`,
-        { approvalId: hitlPending.approvalId, decision: "approve" },
-        () => {},
-      );
-    } catch (e) {
-      console.error("HITL approve stream error:", e);
-    } finally {
-      setLoading(false);
-      clearHitl();
-    }
-  }, [hitlPending, decision, clearHitl]);
+    await approve();
+    setLoading(false);
+  }, [pending, decision, approve]);
 
   const handleDeny = useCallback(async () => {
-    if (!hitlPending) return;
+    if (!pending) return;
     setLoading(true);
-    try {
-      await api.stream(
-        `/v1/missions/${hitlPending.missionId}/deny`,
-        { approvalId: hitlPending.approvalId, decision: "deny", reason },
-        () => {},
-      );
-    } catch (e) {
-      console.error("HITL deny stream error:", e);
-    } finally {
-      setLoading(false);
-      clearHitl();
-    }
-  }, [hitlPending, reason, clearHitl]);
+    await deny(reason);
+    setLoading(false);
+  }, [pending, reason, deny]);
 
   const riskColors: Record<string, string> = {
     medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
@@ -72,15 +50,15 @@ export function HitlApprovalModal() {
     critical: ShieldAlert,
   };
 
-  if (!hitlPending) return null;
+  if (!pending) return null;
 
-  const RiskIcon = riskIcons[hitlPending.riskLevel] || Shield;
+  const RiskIcon = riskIcons[pending.riskLevel] || Shield;
 
   return (
     <Modal
-      isOpen={!!hitlPending && !decision}
+      isOpen={!!pending && !decision}
       onClose={() => {
-        if (!loading) clearHitl();
+        if (!loading) clearPending();
       }}
       title="Tool Approval Required"
       description="Agent requires approval for protected tool"
@@ -94,20 +72,20 @@ export function HitlApprovalModal() {
               {countdown}
             </span>
           </div>
-          <code className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">{hitlPending.toolName}</code>
+          <code className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">{pending.toolName}</code>
         </div>
 
-        <div className={`p-3 rounded-lg border ${riskColors[hitlPending.riskLevel] || riskColors.medium}`}>
+        <div className={`p-3 rounded-lg border ${riskColors[pending.riskLevel] || riskColors.medium}`}>
           <div className="flex items-center gap-2">
             <RiskIcon className="h-4 w-4" />
-            <span className="text-xs font-bold uppercase tracking-wider">{hitlPending.riskLevel} Risk</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{pending.riskLevel} Risk</span>
           </div>
         </div>
 
         <div>
           <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1 block">Arguments</span>
           <pre className="text-xs font-mono bg-zinc-900 text-zinc-100 dark:bg-black dark:text-zinc-300 p-3 rounded-lg overflow-x-auto max-h-32">
-            {JSON.stringify(hitlPending.args, null, 2)}
+            {JSON.stringify(pending.args, null, 2)}
           </pre>
         </div>
 
@@ -128,6 +106,7 @@ export function HitlApprovalModal() {
         <div className="flex gap-2 pt-2">
           {decision !== "deny" && (
             <button
+              type="button"
               onClick={() => setDecision("deny")}
               disabled={loading}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold hover:bg-red-500/20 transition-colors disabled:opacity-50 cursor-pointer"
@@ -138,6 +117,7 @@ export function HitlApprovalModal() {
           )}
           {decision === "deny" && (
             <button
+              type="button"
               onClick={handleDeny}
               disabled={loading}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/20 text-red-500 border border-red-500/50 text-xs font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50 cursor-pointer"
@@ -151,6 +131,7 @@ export function HitlApprovalModal() {
             </button>
           )}
           <button
+            type="button"
             onClick={handleApprove}
             disabled={loading}
             className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-50 cursor-pointer"

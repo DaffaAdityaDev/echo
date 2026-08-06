@@ -6,7 +6,7 @@ import type React from "react";
 import { useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 import { CHAT_MODES } from "../constants";
-import { useChatStore } from "../stores/chatStore";
+import { useChatMode, useSelectedFeatures, useSetChatMode, useSetSelectedFeatures } from "../hooks/useChatSelectors";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -20,7 +20,10 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { mode, setMode, selectedFeatures, setSelectedFeatures } = useChatStore();
+  const mode = useChatMode();
+  const setMode = useSetChatMode();
+  const selectedFeatures = useSelectedFeatures();
+  const setSelectedFeatures = useSetSelectedFeatures();
 
   const isWebSearchActive = selectedFeatures.includes("web_search");
 

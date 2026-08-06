@@ -1,30 +1,17 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  Copy,
-  Lightbulb,
-  ListTodo,
-  Loader2,
-  Search,
-  Sparkles,
-  Terminal,
-  User,
-} from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Copy, Lightbulb, Loader2, Sparkles, Terminal, User } from "lucide-react";
 import dynamic from "next/dynamic";
-import { memo, useState } from "react";
+import { memo, useDeferredValue, useState } from "react";
 import { cn } from "@/utils/cn";
-import type { Message, ThoughtStep } from "../types";
+import { CHAT_ROLES } from "../constants";
+import type { Message } from "../types";
+import { ThoughtStepView } from "./steps";
 
 const Markdown = dynamic(() => import("@/components/Markdown"), {
   ssr: false,
   loading: () => <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />,
 });
-
-import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 
 const LARGE_MESSAGE_THRESHOLD = 50_000;
 
@@ -49,11 +36,15 @@ interface MessageItemProps {
 
 export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }: MessageItemProps) {
   const isAssistant = msg.role === CHAT_ROLES.ASSISTANT;
+  const isStreaming = isAssistant && (msg.status === "streaming" || (isLast && isLoading));
+  const deferredContent = useDeferredValue(msg.content);
+  const activeContent = isStreaming ? deferredContent : msg.content;
+
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [renderAsMarkdown, setRenderAsMarkdown] = useState(false);
 
-  const isLarge = msg.content.length > LARGE_MESSAGE_THRESHOLD;
+  const isLarge = activeContent.length > LARGE_MESSAGE_THRESHOLD;
   const showPreview = isLarge && !expanded;
 
   const handleCopy = () => {
@@ -64,7 +55,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
   };
 
   const renderContent = () => {
-    if (!msg.content) {
+    if (!activeContent) {
       if (isLoading && isLast && msg.steps.length === 0) {
         return (
           <div className="flex items-center gap-2 py-2 text-muted text-xs italic font-mono">
@@ -82,12 +73,12 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 border border-amber-500/30 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-xs">
             <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span>
-              Large message: {formatContentSize(msg.content.length)} (~{Math.round(msg.content.length / 4 / 1000)}k
+              Large message: {formatContentSize(activeContent.length)} (~{Math.round(activeContent.length / 4 / 1000)}k
               tokens) — preview shown
             </span>
           </div>
           <pre className="whitespace-pre-wrap break-words font-mono text-xs max-h-64 overflow-y-auto bg-zinc-50 dark:bg-zinc-950/40 border border-border rounded-xs p-2">
-            {stripProtocolMarkup(msg.content.slice(0, LARGE_MESSAGE_THRESHOLD))}
+            {stripProtocolMarkup(activeContent.slice(0, LARGE_MESSAGE_THRESHOLD))}
           </pre>
           <div className="flex flex-wrap gap-2">
             <button
@@ -113,7 +104,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
     }
 
     if (renderAsMarkdown) {
-      return <Markdown content={stripProtocolMarkup(msg.content)} />;
+      return <Markdown content={stripProtocolMarkup(activeContent)} isStreaming={isStreaming} />;
     }
 
     if (isLarge) {
@@ -121,15 +112,13 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
       // Markdown parse cost (opt-in markdown available via the button above).
       return (
         <pre className="whitespace-pre-wrap break-words font-mono text-xs w-full">
-          {stripProtocolMarkup(msg.content)}
+          {stripProtocolMarkup(activeContent)}
         </pre>
       );
     }
 
-    return <Markdown content={stripProtocolMarkup(msg.content)} />;
+    return <Markdown content={stripProtocolMarkup(activeContent)} isStreaming={isStreaming} />;
   };
-
-  const isStreaming = isAssistant && (msg.status === "streaming" || (isLast && isLoading));
 
   return (
     <div
@@ -177,7 +166,9 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
             )}
 
             {msg.usage && (
-              <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 ml-auto">{msg.usage.totalTokens} tokens</span>
+              <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 ml-auto">
+                {msg.usage.totalTokens} tokens
+              </span>
             )}
           </div>
         )}
@@ -193,7 +184,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
             <div className="mt-2.5 flex flex-col gap-2">
               {msg.steps.map((step, idx) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: thought steps have no stable id
-                <ThoughtStepView key={idx} step={step} />
+                <ThoughtStepView key={idx} step={step} isStreaming={isStreaming && idx === msg.steps.length - 1} />
               ))}
             </div>
           </details>
@@ -243,135 +234,3 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
     </div>
   );
 });
-
-function ThoughtStepView({ step }: { step: ThoughtStep }) {
-  if (step.type === PACKET_TYPES.REASONING) {
-    return (
-      <div className="text-xs text-zinc-600 dark:text-zinc-400 border-l-2 border-purple-500/30 pl-3 py-1 bg-zinc-50 dark:bg-zinc-950/40 rounded-r-lg">
-        <Markdown content={step.content || ""} className="prose-xs" />
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.TOOL_CALL) {
-    return (
-      <div className="flex flex-col gap-1 rounded-xl bg-purple-500/5 border border-purple-500/10 px-3 py-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-          <Search className="h-3 w-3" />
-          <span>Tool Action: {step.toolName}</span>
-        </div>
-        {step.toolInput && (
-          <pre className="text-[10px] text-zinc-500 font-mono whitespace-pre-wrap break-all bg-zinc-900/80 text-zinc-200 p-2 rounded-lg">
-            {JSON.stringify(step.toolInput, null, 2)}
-          </pre>
-        )}
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.TOOL_RESULT) {
-    return (
-      <div className="flex flex-col gap-1 rounded-xl bg-emerald-500/5 border border-emerald-500/10 px-3 py-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-          <CheckCircle2 className="h-3 w-3" />
-          <span>Observation: {step.toolName}</span>
-        </div>
-        <p className="text-[11px] text-zinc-600 dark:text-zinc-300 leading-relaxed max-h-32 overflow-y-auto">
-          {step.content}
-        </p>
-      </div>
-    );
-  }
-
-  if (step.type === PACKET_TYPES.TODO && step.todos) {
-    const todosList = Array.isArray(step.todos)
-      ? step.todos
-      : typeof step.todos === "object" && step.todos !== null
-        ? [step.todos]
-        : [];
-
-    if (todosList.length === 0) return null;
-
-    return (
-      <div className="flex flex-col gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 px-3.5 py-3">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest border-b border-zinc-200 dark:border-zinc-800 pb-2">
-          <ListTodo className="h-3.5 w-3.5" />
-          <span>Active Mission Plan</span>
-        </div>
-        <div className="flex flex-col gap-2 mt-1">
-          {todosList.map((todo) => {
-            const isDone = todo.status === "done";
-            const isProgress = todo.status === "in_progress";
-            const isFailed = todo.status === "failed";
-
-            return (
-              <div
-                key={todo.id || todo.description}
-                className="flex items-start gap-2.5 text-xs text-zinc-800 dark:text-zinc-200"
-              >
-                <div
-                  className={cn(
-                    "w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                    isDone
-                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500"
-                      : isProgress
-                        ? "bg-purple-500/20 border-purple-500/50 text-purple-500 animate-pulse"
-                        : isFailed
-                          ? "bg-red-500/20 border-red-500/50 text-red-500"
-                          : "border-zinc-400 text-transparent",
-                  )}
-                >
-                  {isDone && <span className="text-[10px]">âœ“</span>}
-                  {isProgress && <span className="text-[10px] animate-spin">âš¡</span>}
-                  {isFailed && <span className="text-[10px]">!</span>}
-                </div>
-                <span className={cn("font-semibold truncate", isDone && "line-through text-zinc-400")}>
-                  {todo.description}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if ((step.type === PACKET_TYPES.SUBAGENT_CALL || step.type === PACKET_TYPES.SUBAGENT_RESULT) && step.subagent) {
-    const s = step.subagent;
-    const isCalling = s.status === "calling";
-    const isFailed = s.status === "failed";
-
-    return (
-      <div
-        className={cn(
-          "flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all",
-          isCalling
-            ? "bg-purple-500/5 border-purple-500/20"
-            : isFailed
-              ? "bg-red-500/5 border-red-500/20"
-              : "bg-emerald-500/5 border-emerald-500/20",
-        )}
-      >
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest border-b border-zinc-200 dark:border-zinc-800 pb-2">
-          <Terminal className="h-3.5 w-3.5 text-purple-500" />
-          <span>Sub-Agent Delegation: {s.name}</span>
-          <span className="ml-auto text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase bg-purple-500/10 text-purple-500">
-            {s.status}
-          </span>
-        </div>
-        <p className="text-xs text-zinc-700 dark:text-zinc-300 italic bg-zinc-100 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-200 dark:border-zinc-800">
-          {s.instruction}
-        </p>
-        {s.result && (
-          <div className="bg-zinc-950 text-zinc-200 p-2.5 rounded-lg text-xs font-mono max-h-36 overflow-y-auto">
-            <Markdown content={s.result} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return null;
-}
-
-

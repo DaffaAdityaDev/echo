@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { AUTH_QUERY_KEYS } from "../constants";
 import { authApi } from "../services/auth-api";
 import { useAuthStore } from "../stores/authStore";
@@ -8,19 +9,23 @@ import type { LoginCredentials, LoginResponse, User } from "../types";
 export function useAuth() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { token, setToken, clearAuth } = useAuthStore();
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const { data: user, isLoading } = useQuery<User, Error>({
     queryKey: AUTH_QUERY_KEYS.ME,
     queryFn: authApi.me,
     retry: false,
-    enabled: !!token,
+    enabled: true,
   });
+
+  useEffect(() => {
+    setUser(user ?? null);
+  }, [user, setUser]);
 
   const loginMutation = useMutation<LoginResponse, Error, LoginCredentials>({
     mutationFn: authApi.login,
-    onSuccess: (data) => {
-      setToken(data.token);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME });
     },
     onError: () => {
@@ -40,7 +45,7 @@ export function useAuth() {
   return {
     user: user ?? null,
     isLoading,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated: !!user,
     loginMutation,
     login: loginMutation.mutate,
     loginAsync: loginMutation.mutateAsync,

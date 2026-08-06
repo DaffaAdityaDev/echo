@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client";
-import { SESSION_ENDPOINTS } from "../constants";
+import { CHAT_ENDPOINTS, SESSION_ENDPOINTS } from "../constants";
 import type { DbMessage, Session, StreamPacket } from "../types";
 
 function mapSession(s: Record<string, unknown>): Session {
@@ -81,9 +81,26 @@ export const sessionApi = {
   },
 };
 
+export const chatApi = {
+  sendMessage: (payload: Record<string, unknown>, onChunk: (data: StreamPacket) => void, signal: AbortSignal) =>
+    api.stream<StreamPacket>(CHAT_ENDPOINTS.STREAM, payload, onChunk, { signal }),
+};
+
 export const missionApi = {
   getStream: (missionId: string, after: string | null, onChunk: (data: StreamPacket) => void, signal: AbortSignal) => {
     const query = after ? `?after=${encodeURIComponent(after)}` : "";
-    return api.streamGet<StreamPacket>(`/v1/missions/${missionId}/stream${query}`, onChunk, { signal });
+    return api.streamGet<StreamPacket>(`/missions/${missionId}/stream${query}`, onChunk, { signal });
   },
+  approve: (
+    missionId: string,
+    body: Record<string, unknown>,
+    onChunk: (data: StreamPacket) => void,
+    signal: AbortSignal,
+  ) => api.stream<StreamPacket>(`/missions/${missionId}/approve`, body, onChunk, { signal }),
+  deny: (
+    missionId: string,
+    body: Record<string, unknown>,
+    onChunk: (data: StreamPacket) => void,
+    signal: AbortSignal,
+  ) => api.stream<StreamPacket>(`/missions/${missionId}/deny`, body, onChunk, { signal }),
 };

@@ -286,6 +286,23 @@
   }
 }
 
+/* FlowToken Blur-in Animation */
+@keyframes streamBlurIn {
+  0% {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(3px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
 
-
+.stream-token {
+  display: inline-block;
+  white-space: pre-wrap;
+  animation: streamBlurIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 

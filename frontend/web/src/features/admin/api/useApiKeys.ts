@@ -1,29 +1,35 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { useEffect } from "react";
+import { adminApi } from "../services/admin-api";
+import { useAdminStore } from "../stores/adminStore";
 import type { ApiKey } from "../types";
 
 export function useApiKeys() {
   const queryClient = useQueryClient();
+  const setApiKeys = useAdminStore((s) => s.setApiKeys);
 
   const keysQuery = useQuery<ApiKey[]>({
     queryKey: ["admin", "api-keys"],
-    queryFn: () => api.get<ApiKey[]>("/admin/api-keys"),
+    queryFn: adminApi.listApiKeys,
   });
 
+  useEffect(() => {
+    if (keysQuery.data) {
+      setApiKeys(keysQuery.data);
+    }
+  }, [keysQuery.data, setApiKeys]);
+
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; scopes: string[] }) => {
-      const res = await api.post<{ key: string; api_key: ApiKey }>("/admin/api-keys", data);
-      return { ...res.api_key, key: res.key };
-    },
+    mutationFn: adminApi.createApiKey,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] });
     },
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/admin/api-keys/${id}`),
+    mutationFn: adminApi.revokeApiKey,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] });
     },

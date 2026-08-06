@@ -1,5 +1,5 @@
-import { ENDPOINTS, QUERY_KEYS } from "@/constants";
-import { api } from "@/lib/api-client";
+import { QUERY_KEYS } from "@/constants";
+import { modelsApi } from "@/features/chat/services/models-api";
 
 export interface Model {
   id: string;
@@ -13,9 +13,6 @@ export const modelQueries = {
   all: QUERY_KEYS.MODELS.ALL,
   list: () => ({
     queryKey: modelQueries.all,
-    queryFn: async () => {
-      // The new api-client returns the body directly, no need for { data } destructuring
-      return api.get<{ models: Model[] }>(ENDPOINTS.MODELS.LIST);
-    },
+    queryFn: () => modelsApi.list(),
   }),
 };

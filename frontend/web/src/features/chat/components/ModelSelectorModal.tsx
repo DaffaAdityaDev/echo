@@ -3,12 +3,10 @@
 import { Bot, Check, Cloud, Cpu, Image, Search, Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/Badge";
-import { Modal } from "@/components/ui/Modal";
 import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
+import { useSelectedModel, useSetSelectedModel } from "../hooks/useChatSelectors";
 import { useModels } from "../hooks/useModels";
-import { useChatStore } from "../stores/chatStore";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -27,8 +25,8 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const [selectedProvider, setSelectedProvider] = useState<string>("All");
 
   const { models } = useModels();
-  const selectedModel = useChatStore((s) => s.selectedModel);
-  const setSelectedModel = useChatStore((s) => s.setSelectedModel);
+  const selectedModel = useSelectedModel();
+  const setSelectedModel = useSetSelectedModel();
 
   if (!isOpen) return null;
 
@@ -84,6 +82,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
@@ -113,6 +112,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
             return (
               <button
                 key={p}
+                type="button"
                 onClick={() => setSelectedProvider(p)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border",
@@ -191,11 +191,11 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-1">
                       {m.provider_name}
                     </span>
-                    {tags.map((tag, idx) => {
+                    {tags.map((tag) => {
                       const TagIcon = tag.icon;
                       return (
                         <span
-                          key={idx}
+                          key={tag.label}
                           className={cn(
                             "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border",
                             tag.color,

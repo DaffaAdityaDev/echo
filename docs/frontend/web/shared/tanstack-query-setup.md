@@ -160,15 +160,15 @@ export const modelQueries = {
   all: QUERY_KEYS.MODELS.ALL,
   list: () => ({
     queryKey: modelQueries.all,
-    queryFn: async () => {
-      return api.get<{ models: Model[] }>(ENDPOINTS.MODELS.LIST);
-    },
+    queryFn: modelsApi.list,   // ← fetcher dari features/chat/services/models-api.ts
   }),
 };
 ```
 
+> `queryFn` WAJIB memanggil fetcher `services/<feature>-api.ts` — bukan `api.*`
+> inline di hook. `useModels` menggunakan `modelQueries.list()`.
+
 Used by:
-- `page.tsx` — server-side prefetch (Next.js App Router)
 - `useModels` hook — client-side query (via Custom Hook layer)
 
 > Note: Page tidak boleh langsung akses RQ query. Semua interaksi data

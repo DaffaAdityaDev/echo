@@ -18,9 +18,13 @@ src/components/ui/
 ├── Badge.tsx
 ├── Button.tsx
 ├── Card.tsx
+├── CopyButton.tsx
 ├── Input.tsx
+├── Kbd.tsx
 ├── Modal.tsx
+├── ProgressBar.tsx
 ├── Skeleton.tsx
+├── StatCard.tsx
 └── Toast.tsx
 ```
 
@@ -189,6 +193,56 @@ Position: `fixed bottom-5 right-5 z-50`
 +-----------+--------+------------------------------------------------------+
 
 Styling: `animate-pulse rounded-md bg-zinc-800/50`
+
+### CopyButton
+
+A button that copies a string to the clipboard and shows a "Copied" state for
+2 seconds. Dedupes the repeated copy-with-feedback blocks across debug panels.
+
++-------------+--------+-------------------------------------------------------+
+| Prop        | Type   | Default   | Description                                 |
++-------------+--------+-------------------------------------------------------+
+| text        | string | —         | String to copy to clipboard                 |
+| label       | string | —         | Resting label                              |
+| copiedLabel | string | 'Copied'  | Label while copied                         |
+| className   | string | —         | Merged onto the button (styling)           |
+| iconClassName | string | —       | Extra classes for the icon                 |
+| title       | string | —         | Native tooltip                             |
++-------------+--------+-------------------------------------------------------+
+
+### StatCard
+
+Small stat tile: muted uppercase label, bold mono value, optional hint.
+
++-------------+--------+-------------------------------------------------------+
+| Prop        | Type   | Description                                           |
++-------------+--------+-------------------------------------------------------+
+| label       | string | Muted uppercase label                                 |
+| value       | string | Bold mono value                                       |
+| hint        | string | Optional 9px muted hint line                          |
+| className   | string | Merged onto the tile container                        |
++-------------+--------+-------------------------------------------------------+
+
+### ProgressBar
+
+Track + fill bar; width clamps to 100%.
+
++-------------+--------+-------------------------------------------------------+
+| Prop        | Type   | Description                                           |
++-------------+--------+-------------------------------------------------------+
+| value       | number | Percent (0-100) — clamped to 100                      |
+| barClassName| string | Fill color classes (e.g., `bg-blue-500`)              |
++-------------+--------+-------------------------------------------------------+
+
+### Kbd
+
+Styled `<kbd>` keycap for shortcut hints.
+
++-------------+--------+-------------------------------------------------------+
+| Prop        | Type   | Description                                           |
++-------------+--------+-------------------------------------------------------+
+| children    | ReactNode | Key label                                          |
++-------------+--------+-------------------------------------------------------+
 
 ## Dependencies
 

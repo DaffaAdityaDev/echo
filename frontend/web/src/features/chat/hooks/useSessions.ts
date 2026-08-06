@@ -1,20 +1,22 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 
 export function useSessions() {
-  const { sessions, activeSessionId, setSessions, setActiveSession, clearMessages, setMessages } = useChatStore();
+  const { sessions, activeSessionId, setSessions, setActiveSession, clearMessages } = useChatStore();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const createSession = useCallback(async () => {
-    const session = await sessionApi.create();
-    setSessions([session, ...sessions]);
-    setActiveSession(session.id);
+  const createSession = useCallback(() => {
+    setActiveSession(null);
     clearMessages();
-    queryClient.invalidateQueries({ queryKey: ["sessions"] });
-    return session;
-  }, [sessions, setSessions, setActiveSession, clearMessages, queryClient]);
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  }, [setActiveSession, clearMessages, router, pathname]);
 
   const deleteSession = useCallback(
     async (id: string) => {
@@ -22,6 +24,9 @@ export function useSessions() {
       if (activeSessionId === id) {
         setActiveSession(null);
         clearMessages();
+        if (pathname !== "/") {
+          router.push("/");
+        }
       }
       try {
         await sessionApi.delete(id);
@@ -31,7 +36,7 @@ export function useSessions() {
         queryClient.invalidateQueries({ queryKey: ["sessions"] });
       }
     },
-    [sessions, activeSessionId, setSessions, setActiveSession, clearMessages, queryClient],
+    [sessions, activeSessionId, setSessions, setActiveSession, clearMessages, queryClient, router, pathname],
   );
 
   const selectSession = useCallback(

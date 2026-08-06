@@ -1,27 +1,14 @@
 "use client";
 
-import {
-  BookOpen,
-  FlaskConical,
-  Layers,
-  LogOut,
-  MessageSquare,
-  Plus,
-  ScrollText,
-  Search,
-  Settings,
-  Trash2,
-  X,
-} from "lucide-react";
+import { BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useState, useEffect, useRef } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/utils/cn";
-import { sessionApi } from "../services/chat-api";
 import { useSessions } from "../hooks/useSessions";
-import { useChatStore } from "../stores/chatStore";
+import { useSessionsInfinite } from "../hooks/useSessionsInfinite";
+import { SessionList } from "./sidebar/SessionList";
 
 interface SessionSidebarProps {
   createSession?: () => void;
@@ -43,67 +30,15 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const { sessions, activeSessionId, setSessions, setActiveSession } = useChatStore();
+  const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage } = useSessionsInfinite();
   const {
+    activeSessionId,
     createSession: storeCreateSession,
     deleteSession: storeDeleteSession,
     selectSession: storeSelectSession,
   } = useSessions();
-  const { user, logout, isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, logout } = useAuth();
   const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  const {
-    data: sessionsData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["sessions"],
-    queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
-      const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
-      return nextOffset < lastPage.pagination.total ? nextOffset : undefined;
-    },
-    enabled: isAuthenticated,
-    staleTime: 30_000,
-  });
-
-  const flattenedSessions = sessionsData
-    ? sessionsData.pages.flatMap((page) => page.sessions)
-    : [];
-
-  useEffect(() => {
-    if (flattenedSessions.length === 0) return;
-    setSessions(flattenedSessions);
-    const currentId = useChatStore.getState().activeSessionId;
-    const urlSessionMatch = pathname.match(/^\/(?:session|c)\/([^/]+)/);
-    if (urlSessionMatch) return;
-    if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
-      setActiveSession(flattenedSessions[0].id);
-    }
-  }, [flattenedSessions, pathname, setSessions, setActiveSession]);
-
-  const initialised = useRef(false);
-
-  useEffect(() => {
-    if (initialised.current) return;
-    if (sessionsData && sessionsData.pages[0]?.sessions.length === 0) {
-      initialised.current = true;
-      sessionApi
-        .create()
-        .then((session) => {
-          setSessions([session]);
-          setActiveSession(session.id);
-          queryClient.invalidateQueries({ queryKey: ["sessions"] });
-        })
-        .catch((err) => {
-          console.error("[Chat] Failed to create initial session:", err);
-          initialised.current = false;
-        });
-    }
-  }, [sessionsData, setSessions, setActiveSession, queryClient]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -112,7 +47,7 @@ export function SessionSidebar({
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -125,18 +60,10 @@ export function SessionSidebar({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleCreateSession = async () => {
-    let createdId: string | null = null;
     if (createSessionProp) {
       await createSessionProp();
-      createdId = useChatStore.getState().activeSessionId;
     } else {
-      const sess = await storeCreateSession();
-      if (sess) createdId = sess.id;
-    }
-    if (createdId) {
-      router.push(`/session/${createdId}`);
-    } else {
-      router.push("/");
+      storeCreateSession();
     }
   };
 
@@ -153,17 +80,6 @@ export function SessionSidebar({
 
   // Filter sessions by search term
   const filteredSessions = sessions.filter((s) => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  // Group sessions by recency
-  const now = new Date();
-  const todaySessions = filteredSessions.filter((s) => {
-    const d = new Date(s.createdAt);
-    return d.toDateString() === now.toDateString();
-  });
-  const olderSessions = filteredSessions.filter((s) => {
-    const d = new Date(s.createdAt);
-    return d.toDateString() !== now.toDateString();
-  });
 
   const navItems = [
     { label: "Chat", icon: MessageSquare, href: "/" },
@@ -202,6 +118,7 @@ export function SessionSidebar({
           </Link>
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white p-1 rounded-lg transition-colors"
             >
@@ -213,6 +130,7 @@ export function SessionSidebar({
         {/* Primary Action Button: + New chat */}
         <div className="px-4 mb-3">
           <button
+            type="button"
             onClick={handleCreateSession}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white transition-all text-xs font-semibold shadow-md active:scale-98 cursor-pointer"
           >
@@ -240,12 +158,12 @@ export function SessionSidebar({
 
         {/* Core Nav Links */}
         <div className="px-3 mb-4 space-y-0.5">
-          {navItems.map((item, idx) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
               <Link
-                key={idx}
+                key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150",
@@ -262,81 +180,14 @@ export function SessionSidebar({
         </div>
 
         {/* Grouped Session History */}
-        <div className="flex-1 overflow-y-auto px-3 space-y-4">
-          {sessions.length === 0 ? (
-            <p className="text-[11px] text-zinc-400 px-3 py-2">No recent chats</p>
-          ) : (
-            <>
-              {todaySessions.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">Today</h4>
-                  <div className="space-y-0.5">
-                    {todaySessions.map((session) => (
-                      <div
-                        key={session.id}
-                        onClick={() => handleSelectSession(session.id)}
-                        className={cn(
-                          "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
-                          session.id === activeSessionId
-                            ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold"
-                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40",
-                        )}
-                      >
-                        <span className="truncate pr-2">{session.title}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(session.id);
-                          }}
-                          className="p-1 rounded-md text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {olderSessions.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-1.5">Recent</h4>
-                  <div className="space-y-0.5">
-                    {olderSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        onClick={() => handleSelectSession(session.id)}
-                        className={cn(
-                          "group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer relative",
-                          session.id === activeSessionId
-                            ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold"
-                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40",
-                        )}
-                      >
-                        <span className="truncate pr-2">{session.title}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(session.id);
-                          }}
-                          className="p-1 rounded-md text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          <div ref={loadMoreRef} className="h-1 w-full" />
-          {isFetchingNextPage && (
-            <div className="py-2 text-center animate-pulse">
-              <span className="text-[10px] text-zinc-400">Loading older chats...</span>
-            </div>
-          )}
-        </div>
+        <SessionList
+          sessions={filteredSessions}
+          activeSessionId={activeSessionId}
+          onSelect={handleSelectSession}
+          onDelete={handleDeleteSession}
+          loadMoreRef={loadMoreRef}
+          isFetchingNextPage={isFetchingNextPage}
+        />
 
         {/* User Profile Footer */}
         <div className="p-3 border-t border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
@@ -352,6 +203,7 @@ export function SessionSidebar({
             </div>
             {onOpenSettings ? (
               <button
+                type="button"
                 onClick={onOpenSettings}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors shrink-0"
                 title="Agent Settings"
@@ -368,6 +220,7 @@ export function SessionSidebar({
               </Link>
             )}
             <button
+              type="button"
               onClick={() => logout()}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 transition-colors shrink-0"
               title="Logout"

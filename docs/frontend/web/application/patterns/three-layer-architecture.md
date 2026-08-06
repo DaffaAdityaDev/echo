@@ -13,17 +13,29 @@ Arsitektur frontend dibagi menjadi 3 layer ketat dengan tanggung jawab terpisah.
 NLAH is an internal execution harness, not a user-facing mode — the frontend
 sends `mode: "agent"` which internally maps to NLAH strategy.
 
-1. **Custom Hooks Layer** — logic, state, data fetching
+1. **Custom Hooks Layer** — logic, state, data fetching (zustand + react-query)
 2. **Page Layer** — orchestrator: route + wiring hooks → components
-3. **Component Layer** — pure UI, stateless
+3. **Component Layer** — pure UI, data hanya via custom hooks
+
+**Alur data WAJIB:**
+```
+Component → custom hook → zustand (client state + mirror server state)
+                        → react-query (server state) → queryFn → services/ fetcher
+                        → app/api route (Next API = auth/token middleware) → Go backend
+```
 
 Setiap layer punya batasan akses yang tegas:
 
-| Layer | Akses Zustand? | Akses RQ? | useState/useEffect? | Panggil hooks? |
-|-------|:----:|:----:|:----:|:----:|
-| **Custom Hook** | ✅ | ✅ | ✅ | ✅ |
-| **Page** | ❌ | ❌ | ❌ | ✅ |
-| **Component** | ❌ | ❌ | ❌ | ❌ |
+| Layer | Akses Zustand? | Akses RQ? | Akses services/api-client? | useState/useEffect? | Panggil hooks? |
+|-------|:----:|:----:|:----:|:----:|:----:|
+| **Custom Hook** | ✅ | ✅ | ✅ (services only) | ✅ | ✅ |
+| **Page** | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Component** | ❌ | ❌ | ❌ | ✅ (event/UI state) | ✅ (data hooks) |
+
+> **Aturan emas:** komponen TIDAK boleh import `**/stores/*`, `@tanstack/react-query`,
+> `@/lib/api-client`, `axios`, atau `**/services/*` secara langsung. Semua data —
+> termasuk baca store — harus lewat custom hook. Satu-satunya pengecualian: hooks
+> memanggil `services/` fetcher; fetcher memanggil `app/api` route.
 
 ## Layer Detail
 
@@ -38,6 +50,7 @@ Lapisan paling bawah (dalam konteks dependency). Satu-satunya layer yang boleh:
 
 **TIDAK boleh:**
 - Merender JSX
+- Memanggil `services/*` / `@/lib/api-client` langsung di luar react-query queryFn
 
 Setiap feature punya minimal satu "Page hook" yang menggabungkan semua hook terkait:
 
@@ -100,15 +113,18 @@ export function ChatPage({ messages, isLoading, models, onSend, ...rest }: ChatP
 ```
 
 **TIDAK boleh:**
-- Panggil custom hooks (useAuth, useSettings, useChatPage, dll)
+- Panggil custom hooks lain selain data/selector hooks (mis. `useAuth()`, `useSettings()`, `useAgentState()`)
 - Akses Zustand store langsung
-- useState / useEffect (kecuali event handlers seperti onClick)
+- Akses React Query / react-query hooks
+- Akses services / api-client / axios
 - Data fetching
 
 **Yang BOLEH ada di component:**
 - Props destructuring + typing
 - JSX rendering
 - Event handlers (onClick, onSubmit, onChange) yang dipanggil dari props
+- Memanggil **custom hook data** untuk membaca data (selector hooks seperti
+  `useAgentState()`, `useMessages()`) — ini JALUR WAJIB untuk akses data
 - Conditional rendering (loading/error/empty states via props)
 
 ## Data Flow
@@ -126,27 +142,47 @@ export function ChatPage({ messages, isLoading, models, onSend, ...rest }: ChatP
                                │
                                v
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       PAGE LAYER                                   │
-│  const chat = useChatPage();                                       │
-│  <ChatPage messages={chat.messages} ... />                         │
+│                       PAGE / COMPONENT LAYER                        │
+│  page.tsx → <ChatPage/> → komponen panggil data hook               │
+│  (data TIDAK pernah di-import langsung dari store/RQ/service)       │
 └──────────────────────────────┼─────────────────────────────────────┘
-                               │ props
+                               │ props / data hooks
                                v
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    COMPONENT LAYER                                 │
-│  function ChatPage({ messages, models, onSend }: Props) {          │
-│    return <MessageList messages={messages} />                      │
-│  }                                                                 │
+│                    SERVICES / FETCHER LAYER                         │
+│  features/<feature>/services/<feature>-api.ts                       │
+│    authApi.me() → api.get("/auth/me")                               │
+│    sessionApi.list() → api.get("/sessions?limit=10")               │
+└──────────────────────────────┼─────────────────────────────────────┘
+                               │ axios/fetch (baseURL = "/api")
+                               v
+┌─────────────────────────────────────────────────────────────────────┐
+│                 NEXT.JS API ROUTE (MIDDLEWARE) LAYER                │
+│  src/app/api/**/route.ts                                            │
+│    getRequestToken()  ← auth dari httpOnly cookie (server-side)     │
+│    proxyFetch(gatewayUrl, { Authorization: Bearer <token> })        │
+│    → return NextResponse.json (JSON saja; SSE pakai relay khusus)   │
+└──────────────────────────────┼─────────────────────────────────────┘
+                               │ fetch (X-Internal)
+                               v
+┌─────────────────────────────────────────────────────────────────────┐
+│                        GO BACKEND (gateway)                         │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Service Layer
+## Service Layer (fetcher) & Next.js API Middleware
 
-Service layer (`features/*/services/`) berisi fungsi-fungsi yang manggil Axios.
-Hanya custom hooks yang menggunakannya.
+`services/*` (`features/<feature>/services/<feature>-api.ts`) adalah **lapisan
+fetcher** — satu-satunya yang memanggil `@/lib/api-client`. Hanya custom hooks
+yang menggunakannya.
+
+`app/api/**` adalah **lapisan middleware**: membaca token dari httpOnly cookie
+(`getRequestToken()`), meneruskan ke Go gateway (`proxyFetch()`), dan mengembalikan
+JSON. Semua panggilan backend WAJIB lewat route ini — **TIDAK ada akses langsung
+ke gateway** (no `/api/v1` rewrite bypass).
 
 ```
-Component → Page → Custom Hook → Service (Axios) → Next.js API Route → Go Backend
+Component → Custom Hook → Service/Fetcher (axios) → Next.js API Route (auth middleware) → Go Backend
 ```
 
 ## Conventions
@@ -188,13 +224,20 @@ return <ChatPage messages={messages} isLoading={isLoading} />;
 
 ## Enforcement Rules
 
-1. **Import check** — jangan import `api-client`, `axios`, `useQuery`, atau Zustand store
-   di dalam file component atau page (selain hooks).
-2. **No useState in page.tsx** — page cuma panggil hooks, gak boleh manage state sendiri.
-3. **No hooks in component** — component gak boleh panggil `useAuth()`, `useSettings()`, dll.
-   Semua data harus datang dari props.
+1. **Import check** — komponen/page TIDAK boleh import `@/lib/api-client`, `axios`,
+   `@tanstack/react-query`, `**/stores/*`, atau `**/services/*` secara langsung.
+   Semua akses data lewat custom hook.
+2. **No useState/useEffect in page.tsx** — page cuma panggil Page hook, gak boleh
+   manage state sendiri.
+3. **Data hooks in component** — komponen memanggil data/selector hooks
+   (`useAgentState()`, `useMessages()`, `useAuth()`, dst) untuk semua data.
+   TIDAK ada akses store/RQ/service langsung.
 4. **One bridge hook per feature** — setiap feature punya satu `use<Nama>Page` yang
    jadi entry point buat page.
+5. **Fetcher only from hooks** — `services/*` dipanggil HANYA dari custom hooks
+   (di dalam react-query queryFn atau mutasi).
+6. **Next API middleware** — semua request backend lewat `app/api/**`. Tidak ada
+   fetch langsung ke gateway.
 
 ## Source References
 

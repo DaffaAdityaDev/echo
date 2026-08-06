@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { useEffect } from "react";
+import { featuresApi } from "../services/features-api";
+import { useCatalogStore } from "../stores/catalogStore";
 
 export interface AgentFeature {
   id: string;
@@ -11,14 +13,17 @@ export interface AgentFeature {
 }
 
 export function useFeatures() {
+  const setFeatures = useCatalogStore((s) => s.setFeatures);
   const query = useQuery<AgentFeature[]>({
     queryKey: ["features"],
-    queryFn: async () => {
-      const data = await api.get<AgentFeature[] | { features: AgentFeature[] }>("/features");
-      if (Array.isArray(data)) return data;
-      return data.features ?? [];
-    },
+    queryFn: featuresApi.list,
   });
+
+  useEffect(() => {
+    if (query.data) {
+      setFeatures(query.data);
+    }
+  }, [query.data, setFeatures]);
 
   return {
     features: query.data || [],

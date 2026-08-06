@@ -15,6 +15,27 @@ instance (`api-client.ts`), while Server-Sent Events (SSE) streaming uses native
 for better ReadableStream support. All requests automatically inject W3C `traceparent`
 headers for distributed tracing via `telemetry-fetch.ts`.
 
+## Authentication (cookie-only)
+
+Auth TIDAK dikelola di client. `api-client.ts` TIDAK membaca/menulis token dari
+`localStorage` — token disimpan sebagai **httpOnly cookie** (`auth_token`/`token`)
+yang di-set oleh route `app/api/auth/login`. Setiap request mengirim cookie via
+`withCredentials: true`; **Next.js API route** (`app/api/**`) yang membaca cookie
+via `getRequestToken()` dan meneruskan `Authorization: Bearer` ke Go gateway.
+
+```
+client → axios (cookie, no localStorage token) → app/api route → getRequestToken() → gateway
+```
+
+Response 401 → redirect ke `/login` (tanpa membersihkan localStorage).
+
+## Fetcher Layer Convention
+
+`features/<feature>/services/<feature>-api.ts` adalah **satu-satunya** pemanggil
+`@/lib/api-client` (`api.get/post/put/patch/delete/stream/streamGet`). React-query
+`queryFn` dan mutations memanggil method fetcher ini — hooks TIDAK memanggil
+`api.*` langsung.
+
 ## File Structure
 
 ```

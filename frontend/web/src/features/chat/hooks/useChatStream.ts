@@ -1,13 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
-import { api } from "@/lib/api-client";
-import { CHAT_ENDPOINTS, CHAT_ROLES, PACKET_TYPES } from "../constants";
-import { applyStreamPacket } from "../services/applyStreamPacket";
-import { missionApi, sessionApi } from "../services/chat-api";
+import { CHAT_ROLES, PACKET_TYPES } from "../constants";
+import { chatApi, missionApi, sessionApi } from "../services/chat-api";
 import { clearMissionCursor, getMissionCursor, setMissionCursor } from "../services/mission-cursor";
+import { applyStreamPacket } from "../services/stream";
 import { useChatStore } from "../stores/chatStore";
 import type { HistoryMessage, Message, StreamPacket } from "../types";
 
@@ -40,6 +40,7 @@ async function generateSessionTitle(sid: string): Promise<void> {
 export function useChatStream() {
   const { isLoading, setMessages, setIsLoading, setAgentProgress, setAgentState, clearMessages } = useChatStore();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -88,13 +89,28 @@ export function useChatStream() {
 
       abortRef.current = new AbortController();
 
+      let currentSessionId = useChatStore.getState().activeSessionId;
+      if (!currentSessionId) {
+        try {
+          const newSession = await sessionApi.create();
+          currentSessionId = newSession.id;
+          const store = useChatStore.getState();
+          store.setSessions([newSession, ...store.sessions]);
+          store.setActiveSession(newSession.id);
+          router.push(`/session/${newSession.id}`);
+          queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        } catch (err) {
+          throw new Error(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
       const storeState = useChatStore.getState();
       const settingsState = useSettingsStore.getState();
       const payload: Record<string, unknown> = {
         message: input,
         mode: storeState.mode,
         missionId: activeMissionId,
-        sessionId: storeState.activeSessionId || undefined,
+        sessionId: currentSessionId || undefined,
         history,
         features: storeState.selectedFeatures,
       };
@@ -107,8 +123,7 @@ export function useChatStream() {
         payload.config = { featureToggles: settingsState.config.harnessToggles };
       }
 
-      await api.stream(
-        CHAT_ENDPOINTS.STREAM,
+      await chatApi.sendMessage(
         payload,
         (data: StreamPacket) => {
           if (data.type === PACKET_TYPES.REPLAY_DONE) return;
@@ -120,7 +135,7 @@ export function useChatStream() {
           }
           applyStreamPacket(data);
         },
-        { signal: abortRef.current.signal },
+        abortRef.current.signal,
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;

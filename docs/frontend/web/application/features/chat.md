@@ -50,7 +50,6 @@ confirmation before truncation. After seeding, open the room
 src/features/chat/
 ├── constants.ts
 ├── index.ts
-├── constants.ts
 ├── hooks/
 │   ├── useChatPage.ts
 │   ├── useChatStream.ts
@@ -62,15 +61,43 @@ src/features/chat/
 │   ├── AgentProgress.tsx
 │   ├── AgentStatusBadge.tsx
 │   ├── ChatInput.tsx
-│   ├── ChatPage.tsx
+│   ├── ChatPage.tsx            (thin orchestrator)
 │   ├── DegradationToast.tsx
 │   ├── MessageItem.tsx
 │   ├── MessageList.tsx
-│   ├── SessionSidebar.tsx
-│   ├── Sidebar.tsx            (re-export: SessionSidebar as default)
-│   └── ToolCallTimeline.tsx
+│   ├── SessionSidebar.tsx      (shell)
+│   ├── ToolCallTimeline.tsx
+│   ├── chat-page/              (ChatPage sub-parts)
+│   │   ├── ChatHeader.tsx
+│   │   ├── MissionInfoBar.tsx
+│   │   └── WelcomeHero.tsx
+│   ├── debug/                  (DebugDrawer 4-tab drawer)
+│   │   ├── DebugDrawer.tsx     (shell + tab nav)
+│   │   ├── PacketLogsPanel.tsx
+│   │   ├── PromptInspectorPanel.tsx
+│   │   ├── UsageMetricsPanel.tsx
+│   │   ├── StoreStatePanel.tsx
+│   │   └── index.ts
+│   ├── sidebar/                (SessionSidebar sub-parts)
+│   │   ├── SessionList.tsx
+│   │   └── SessionListItem.tsx
+│   └── steps/                  (MessageItem thought-step renders)
+│       ├── ThoughtStepView.tsx (dispatcher)
+│       ├── ReasoningStep.tsx
+│       ├── ToolCallStep.tsx
+│       ├── ToolResultStep.tsx
+│       ├── TodosStep.tsx
+│       ├── SubagentStep.tsx
+│       └── index.ts
 ├── services/
-│   └── chat-api.ts
+│   ├── chat-api.ts
+│   └── stream/                 (SSE packet dispatcher)
+│       ├── index.ts            (applyStreamPacket entry)
+│       └── handlers/
+│           ├── steps.ts        (reasoning, tool_call, tool_result, todo, subagent, ...)
+│           ├── status.ts       (turn_complete, error, mission_completed, heartbeat, progress)
+│           ├── metrics.ts      (usage, token_metrics)
+│           └── misc.ts         (metadata, debug, system_notice, hitl, content delta)
 ├── stores/
 │   └── chatStore.ts
 └── types/
@@ -230,7 +257,7 @@ session id). It opens `GET /api/v1/missions/{id}/stream` through the
 | AgentProgress | Component   | components/AgentProgress.tsx             |
 | ToolCallTimeline| Component | components/ToolCallTimeline.tsx          |
 | ModelSelectorModal| Component| components/ModelSelectorModal.tsx        |
-| DebugDrawer   | Component   | components/DebugDrawer.tsx               |
+| DebugDrawer   | Component   | components/debug/DebugDrawer.tsx         |
 +---------------+-------------+------------------------------------------+
 | useChatPage   | Hook        | hooks/useChatPage.ts                     |
 | useChatStream | Hook        | hooks/useChatStream.ts                   |
@@ -281,10 +308,11 @@ session id). It opens `GET /api/v1/missions/{id}/stream` through the
 | MessageItem       | components/MessageItem.tsx        | msg: Message, isLast: boolean, isLoading: boolean  |
 |                   |                                  | Collapses thought steps by default for completed   |
 |                   |                                  | messages, while keeping them open for the active   |
-|                   |                                  | streaming response. Renders step variants:         |
-|                   |                                  | reasoning, tool_call, tool_result, todo,           |
-|                   |                                  | subagent_call/result, file_operation, swarm_status,|
-|                   |                                  | tool_skip, state_change. Shows streaming indicator |
+|                   |                                  | streaming response. Step variants render via       |
+|                   |                                  | components/steps/ThoughtStepView.tsx (reasoning,   |
+|                   |                                  | tool_call, tool_result, todo, subagent_call/       |
+|                   |                                  | result, file_operation, swarm_status, tool_skip,   |
+|                   |                                  | state_change). Shows streaming indicator           |
 |                   |                                  | (spinner + "Receiving...") when msg.status='streaming'|
 |                   |                                  | and interrupted warning (AlertTriangle) when       |
 |                   |                                  | msg.status='interrupted'.                          |
@@ -324,7 +352,7 @@ session id). It opens `GET /api/v1/missions/{id}/stream` through the
 |              |                           | streaming, agent progress tracking,               |
 |              |                           | AbortController per request, history includes     |
 |              |                           | current message. Dispatches via                   |
-|              |                           | services/applyStreamPacket.ts. recoverMission     |
+|              |                           | services/stream/index.ts. recoverMission |
 |              |                           | re-attaches to the Redis mission log stream       |
 |              |                           | (cursor-based replay + live tail).                |
 +--------------+---------------------------+---------------------------------------------------+
@@ -516,18 +544,53 @@ session id). It opens `GET /api/v1/missions/{id}/stream` through the
 | src/features/chat/services/chat-api.ts            | 1–23  | sessionApi service: list, create, get, getMessages,|
 |                                                   |       | delete                                             |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/components/ChatPage.tsx         | 1–146 | Orchestrator with header, sidebar, message list,   |
-|                                                   |       | tool call timeline, progress, input, toast         |
+| src/features/chat/components/ChatPage.tsx         | 1–463 | Thin orchestrator — composes chat-page/ChatHeader, |
+|                                                   |       | MissionInfoBar, WelcomeHero (or MessageList),      |
+|                                                   |       | ToolCallTimeline, AgentProgress, ChatInput, debug  |
+|                                                   |       | drawer, modals, toast. Holds modal/drawer state.   |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/components/SessionSidebar.tsx   | 1–334 | Session list (CRUD), mode toggle, capabilities,    |
-|                                                   |       | model picker grouped by provider, user+logout      |
+| src/features/chat/components/chat-page/ChatHeader.tsx | 1–80 | Header bar: sidebar toggle, model selector, debug, |
+|                                                   |       | settings, new chat, share, export, admin link      |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/chat-page/WelcomeHero.tsx | 1–95 | Empty-state hero: orb, greeting, ChatInput, prompt |
+|                                                   |       | suggestion cards, footer                           |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/SessionSidebar.tsx   | 1–376 | Sidebar shell — nav, search, create button, user   |
+|                                                   |       | footer, infinite-query sessions + SessionList      |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/sidebar/SessionList.tsx | 1–80 | Grouped Today/Recent session list + load-more      |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/sidebar/SessionListItem.tsx | 1–40 | Session row with delete button                     |
 +---------------------------------------------------+-------+----------------------------------------------------+
 | src/features/chat/components/ChatInput.tsx        | 12–88 | Input form with send button and loading state      |
 +---------------------------------------------------+-------+----------------------------------------------------+
 | src/features/chat/components/MessageList.tsx      | 1–108 | Scrollable message list with near-bottom detection,|
 |                                                   |       | floating "New messages below" button               |
 +---------------------------------------------------+-------+----------------------------------------------------+
-| src/features/chat/components/MessageItem.tsx      | 1–359 | Renders message content + 10 thought step variants |
+| src/features/chat/components/MessageItem.tsx      | 1–250 | Renders message card; step variants delegate to    |
+|                                                   |       | components/steps/ThoughtStepView.tsx               |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/steps/ThoughtStepView.tsx | 1–40 | Step dispatcher (reasoning/tool_call/tool_result/  |
+|                                                   |       | todo/subagent)                                    |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/debug/DebugDrawer.tsx | 1–180 | 4-tab telemetry drawer shell (header + tab nav)    |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/debug/PacketLogsPanel.tsx | 1–180 | Packet feed with filters, expand, copy, export     |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/debug/PromptInspectorPanel.tsx | 1–164 | System prompt + message history inspector         |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/debug/UsageMetricsPanel.tsx | 1–160 | Token/cache/cost metrics + progress bars           |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/components/debug/StoreStatePanel.tsx | 1–90 | Zustand snapshot + packet buffer limit            |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/services/stream/index.ts        | 1–90 | applyStreamPacket entry — builds lastMessage,      |
+|                                                   |       | routes by type to handlers/, writes back to store  |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/features/chat/services/stream/handlers/*.ts    | 1–120 | Per-packet-group handlers (steps/status/metrics/   |
+|                                                   |       | misc)                                             |
++---------------------------------------------------+-------+----------------------------------------------------+
+| src/components/ui/CopyButton.tsx                  | 1–45 | Shared copy-with-feedback button (used by debug    |
+|                                                   |       | panels)                                           |
 +---------------------------------------------------+-------+----------------------------------------------------+
 | src/features/chat/components/AgentProgress.tsx    | 1–199 | Animated progress bar with swarm URL details       |
 +---------------------------------------------------+-------+----------------------------------------------------+
