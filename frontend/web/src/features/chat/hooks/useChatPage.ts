@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
@@ -78,66 +78,92 @@ export function useChatPage() {
   const { isAuthenticated } = useAuth();
   const settingsConfig = useSettingsStore((s) => s.config);
   const isLoading = useChatStore((s) => s.isLoading);
-  const setSessions = useChatStore((s) => s.setSessions);
-  const setActiveSession = useChatStore((s) => s.setActiveSession);
   const setMessages = useChatStore((s) => s.setMessages);
   const setSelectedModel = useChatStore((s) => s.setSelectedModel);
   const setMode = useChatStore((s) => s.setMode);
   const setSelectedFeatures = useChatStore((s) => s.setSelectedFeatures);
 
-  const { sendMessage, stopStream, clearMessages } = useChatStream();
-  const queryClient = useQueryClient();
-
-  const { data: sessionsList } = useQuery({
-    queryKey: ["sessions"],
-    queryFn: sessionApi.list,
-    enabled: isAuthenticated,
-    staleTime: 30_000,
-  });
+  const { sendMessage, stopStream, clearMessages, recoverMission } = useChatStream();
 
   const activeSessionId = useChatStore((s) => s.activeSessionId);
 
-  const { data: messagesData } = useQuery({
+  const {
+    data: messagesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["sessions", activeSessionId, "messages"],
-    queryFn: () => sessionApi.getMessages(activeSessionId!),
+    queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId!, 10, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
+      return nextOffset < lastPage.pagination.total ? nextOffset : undefined;
+    },
     enabled: !!activeSessionId && isAuthenticated,
     staleTime: 30_000,
   });
 
+  const flattenedMessages = messagesData ? messagesData.pages.flatMap((page) => page.messages) : [];
+
+  // While a recovered session's DB snapshot is still stale (status interrupted
+  // — local mode, or saas before the relay persists), the store holds the
+  // recovered content and must not be clobbered by the snapshot rebuild.
+  // Cleared once the snapshot catches up or the session changes.
+  const recoveredSessionId = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!sessionsList || sessionsList.length === 0) return;
-    setSessions(sessionsList);
-    const currentId = useChatStore.getState().activeSessionId;
-    if (!currentId || !sessionsList.some((s) => s.id === currentId)) {
-      setActiveSession(sessionsList[0].id);
+    if (isLoading) return;
+
+    const sid = useChatStore.getState().activeSessionId;
+
+    // Switching sessions clears the store; the suppression only applies to the
+    // session that actually recovered. A new active session always rebuilds.
+    if (recoveredSessionId.current !== sid) {
+      recoveredSessionId.current = null;
     }
-  }, [sessionsList, setSessions, setActiveSession]);
 
-  const initialised = useRef(false);
+    const snapshotHasIncompleteAssistant = flattenedMessages.some(
+      (m) => m.role === "assistant" && (m.status === "streaming" || m.status === "interrupted"),
+    );
 
-  useEffect(() => {
-    if (initialised.current) return;
-    if (sessionsList && sessionsList.length === 0) {
-      initialised.current = true;
-      sessionApi
-        .create()
-        .then((session) => {
-          setSessions([session]);
-          setActiveSession(session.id);
-          clearMessages();
-          queryClient.invalidateQueries({ queryKey: ["sessions"] });
-        })
-        .catch((err) => {
-          console.error("[Chat] Failed to create initial session:", err);
-          initialised.current = false;
-        });
+    if (recoveredSessionId.current === sid && snapshotHasIncompleteAssistant) {
+      return;
     }
-  }, [sessionsList, setSessions, setActiveSession, clearMessages]);
+    if (recoveredSessionId.current === sid) {
+      recoveredSessionId.current = null;
+    }
+
+    const sorted = [...flattenedMessages].sort((a, b) => {
+      if (a.turn_number !== b.turn_number) {
+        return a.turn_number - b.turn_number;
+      }
+      return a.id - b.id;
+    });
+
+    setMessages(groupMessagesByTurn(sorted));
+  }, [flattenedMessages, isLoading, setMessages]);
+
+  // Re-attach to an in-flight mission after page refresh: the gateway treats
+  // missionId as the session id, so recovery replays missed packets from the
+  // Redis-backed mission stream (cursor = last seen stream id in localStorage).
+  const recoveryTriggered = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!messagesData || isLoading) return;
-    setMessages(groupMessagesByTurn(messagesData));
-  }, [messagesData, isLoading, setMessages]);
+    if (flattenedMessages.length === 0 || isLoading) return;
+    const sid = useChatStore.getState().activeSessionId;
+    if (!sid) return;
+
+    const hasIncompleteAssistant = flattenedMessages.some(
+      (m) => m.role === "assistant" && (m.status === "streaming" || m.status === "interrupted"),
+    );
+    if (!hasIncompleteAssistant) return;
+    if (recoveryTriggered.current === sid) return;
+
+    recoveryTriggered.current = sid;
+    recoveredSessionId.current = sid;
+    recoverMission(sid);
+  }, [flattenedMessages, isLoading, recoverMission]);
 
   useEffect(() => {
     const defaultModel = settingsConfig.defaultModel;
@@ -155,9 +181,7 @@ export function useChatPage() {
       setSelectedModel(initialModel);
     }
     setMode(settingsConfig.defaultMode || CHAT_MODES.STANDARD);
-    const defaultFeatures =
-      settingsConfig.defaultFeatures.length > 0 ? settingsConfig.defaultFeatures : ["web_search", "write_todos"];
-    setSelectedFeatures(defaultFeatures);
+    setSelectedFeatures(settingsConfig.defaultFeatures);
   }, [settingsConfig, models, setSelectedModel, setMode, setSelectedFeatures]);
 
   const handleSelectSession = async (id: string) => {
@@ -177,5 +201,8 @@ export function useChatPage() {
     createSession: handleCreateSession,
     deleteSession,
     selectSession: handleSelectSession,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
   };
 }

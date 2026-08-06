@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/utils/cn";
+import { sessionApi } from "../services/chat-api";
 import { useSessions } from "../hooks/useSessions";
 import { useChatStore } from "../stores/chatStore";
 
@@ -41,13 +43,84 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const { sessions, activeSessionId } = useChatStore();
+  const { sessions, activeSessionId, setSessions, setActiveSession } = useChatStore();
   const {
     createSession: storeCreateSession,
     deleteSession: storeDeleteSession,
     selectSession: storeSelectSession,
   } = useSessions();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  const {
+    data: sessionsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["sessions"],
+    queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
+      return nextOffset < lastPage.pagination.total ? nextOffset : undefined;
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+
+  const flattenedSessions = sessionsData
+    ? sessionsData.pages.flatMap((page) => page.sessions)
+    : [];
+
+  useEffect(() => {
+    if (flattenedSessions.length === 0) return;
+    setSessions(flattenedSessions);
+    const currentId = useChatStore.getState().activeSessionId;
+    if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
+      setActiveSession(flattenedSessions[0].id);
+    }
+  }, [flattenedSessions, setSessions, setActiveSession]);
+
+  const initialised = useRef(false);
+
+  useEffect(() => {
+    if (initialised.current) return;
+    if (sessionsData && sessionsData.pages[0]?.sessions.length === 0) {
+      initialised.current = true;
+      sessionApi
+        .create()
+        .then((session) => {
+          setSessions([session]);
+          setActiveSession(session.id);
+          queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        })
+        .catch((err) => {
+          console.error("[Chat] Failed to create initial session:", err);
+          initialised.current = false;
+        });
+    }
+  }, [sessionsData, setSessions, setActiveSession, queryClient]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleCreateSession = async () => {
     if (createSessionProp) {
@@ -90,7 +163,6 @@ export function SessionSidebar({
   const navItems = [
     { label: "Chat", icon: MessageSquare, href: "/" },
     { label: "AI Maturity", icon: Layers, href: "/maturity" },
-    { label: "Playground", icon: FlaskConical, href: "/playground" },
     { label: "Prompts", icon: ScrollText, href: "/prompts" },
     { label: "Docs", icon: BookOpen, href: "/docs" },
   ];
@@ -252,6 +324,12 @@ export function SessionSidebar({
                 </div>
               )}
             </>
+          )}
+          <div ref={loadMoreRef} className="h-1 w-full" />
+          {isFetchingNextPage && (
+            <div className="py-2 text-center animate-pulse">
+              <span className="text-[10px] text-zinc-400">Loading older chats...</span>
+            </div>
           )}
         </div>
 

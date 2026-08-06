@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, ChevronDown, ChevronUp, Loader, RefreshCw, XCircle } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { cn } from "@/utils/cn";
 import type { AgentProgress as AgentProgressType, AgentState } from "../types";
 import { AgentStatusBadge } from "./AgentStatusBadge";
@@ -16,7 +16,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 
   if (!progress) return null;
 
-  const { iteration, totalIterations, currentTool, swarm } = progress;
+  const { currentTool, swarm } = progress;
 
   // Swarm calculations
   const scrapedCount = swarm?.scrapedCount ?? 0;
@@ -25,14 +25,6 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
   const discoveredCount = swarm?.discoveredCount ?? 0;
   const activeUrls = swarm?.activeUrls ? Object.values(swarm.activeUrls) : [];
 
-  // Determine progress bar percentage
-  let percentage = totalIterations > 0 ? Math.min((iteration / totalIterations) * 100, 100) : 0;
-  if (totalIterations > 0 && swarm && discoveredCount > 0) {
-    const totalProcessed = scrapedCount + failedCount;
-    const swarmPercentage = Math.min((totalProcessed / Math.max(discoveredCount, 1)) * 100, 100);
-    percentage = ((iteration - 0.5) / totalIterations) * 100 + (swarmPercentage * 0.5) / totalIterations;
-  }
-
   // Get status message
   let statusMessage = progress.statusMessage || "Orchestrating mission...";
   if (currentTool) {
@@ -40,21 +32,21 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
   }
   if (swarm?.status && swarm?.url) {
     const formattedUrl = swarm.url.replace(/^https?:\/\/(www\.)?/, "");
-    const shortUrl = formattedUrl.length > 30 ? formattedUrl.substring(0, 30) + "..." : formattedUrl;
+    const shortUrl = formattedUrl.length > 30 ? `${formattedUrl.substring(0, 30)}...` : formattedUrl;
     if (swarm.status === "crawling") {
-      statusMessage = `ðŸŒ Crawling ${shortUrl}...`;
+      statusMessage = `🌐 Crawling ${shortUrl}...`;
     } else if (swarm.status === "scraped") {
-      statusMessage = `ðŸ“„ Scraped ${shortUrl}`;
+      statusMessage = `📄 Scraped ${shortUrl}`;
     } else if (swarm.status === "critic_validating") {
-      statusMessage = `ðŸ§  Validating facts from ${shortUrl}`;
+      statusMessage = `🧠 Validating facts from ${shortUrl}`;
     } else if (swarm.status === "critic_passed") {
-      statusMessage = `âœ… Critic approved facts from ${shortUrl}`;
+      statusMessage = `✅ Critic approved facts from ${shortUrl}`;
     } else if (swarm.status === "critic_failed") {
-      statusMessage = `ðŸ”„ Critic retrying extraction for ${shortUrl}`;
+      statusMessage = `🔄 Critic retrying extraction for ${shortUrl}`;
     } else if (swarm.status === "scrape_failed") {
-      statusMessage = `âŒ Failed to scrape ${shortUrl}`;
+      statusMessage = `❌ Failed to scrape ${shortUrl}`;
     } else if (swarm.status === "synthesis") {
-      statusMessage = `ðŸ“š Synthesizing research findings...`;
+      statusMessage = `📚 Synthesizing research findings...`;
     }
   }
 
@@ -72,6 +64,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
           </div>
           {swarm && (
             <button
+              type="button"
               onClick={() => setIsOpen(!isOpen)}
               className="text-muted hover:text-foreground transition-colors p-1 rounded-xs hover:bg-blue-50 shrink-0"
               aria-label={isOpen ? "Collapse details" : "Expand details"}
@@ -81,46 +74,29 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
           )}
         </div>
 
-        {/* Progress Bar Container */}
-        <div className="space-y-1.5">
-          <div className="w-full bg-white rounded-xs h-2 overflow-hidden border border-border">
-            <div
-              className="bg-gb-blue h-full rounded-[1px] transition-[width] duration-500 ease-out"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-
-          {/* Sub-status Stats */}
+        {/* Sub-status Stats */}
+        {swarm && (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11px] text-slate-600">
             <div>
-              Iteration <span className="font-bold text-foreground">{iteration}</span>
-              {totalIterations > 0 ? `/${totalIterations}` : ""}
-              {swarm && (
-                <>
-                  <span className="mx-2 text-slate-300">|</span>
-                  ðŸ•¸ï¸ <span className="font-bold text-foreground">{discoveredCount}</span> URLs found
-                </>
-              )}
+              🕸️ <span className="font-bold text-foreground">{discoveredCount}</span> URLs found
             </div>
 
-            {swarm && (
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1">
-                  <span className="text-success">âœ…</span>
-                  <span className="font-bold text-foreground">{scrapedCount}</span> scraped
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="text-status-blocked">âŒ</span>
-                  <span className="font-bold text-foreground">{failedCount}</span> failed
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="text-amber-600">ðŸ“„</span>
-                  <span className="font-bold text-foreground">{factsCount}</span> facts
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <span className="text-success">✅</span>
+                <span className="font-bold text-foreground">{scrapedCount}</span> scraped
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="text-status-blocked">❌</span>
+                <span className="font-bold text-foreground">{failedCount}</span> failed
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="text-amber-600">📄</span>
+                <span className="font-bold text-foreground">{factsCount}</span> facts
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* URL Detail Collapse Section */}
         {swarm && activeUrls.length > 0 && (
@@ -140,7 +116,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 
                   if (item.status === "critic_passed") {
                     statusIcon = <CheckCircle2 size={12} className="text-success shrink-0 mt-0.5" />;
-                    statusLabel = `${item.dataSize ? Math.ceil(item.dataSize / 1000) + "k" : ""} chars, ${item.factsCount || 0} facts`;
+                    statusLabel = `${item.dataSize ? `${Math.ceil(item.dataSize / 1000)}k` : ""} chars, ${item.factsCount || 0} facts`;
                     colorClass = "text-emerald-700";
                   } else if (item.status === "scrape_failed") {
                     statusIcon = <XCircle size={12} className="text-status-blocked shrink-0 mt-0.5" />;

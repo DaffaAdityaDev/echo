@@ -32,6 +32,7 @@ export const PACKET_TYPES = {
   TOKEN_METRICS: "token_metrics",
   HITL_APPROVAL_REQUIRED: "hitl_approval_required",
   MISSION_COMPLETED: "mission_completed",
+  REPLAY_DONE: "replay_done",
 } as const;
 
 export const CHAT_ENDPOINTS = {

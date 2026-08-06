@@ -67,7 +67,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// 4. Initialize Handlers
 	authHandler := authhdl.NewHandler(cfg, authSvc)
-	chatHandler := chathdl.NewHandler(cfg, rdb, aimodelSvcInstance, sessionRepo, consolidationSvc, strategySvc, featuresSvc)
+	chatHandler := chathdl.NewHandler(cfg, rdb, aimodelSvcInstance, sessionRepo, consolidationSvc, strategySvc, featuresSvc, settingsSvc)
 	sessionHandler := sessionhdl.NewHandler(cfg, sessionRepo, consolidationSvc, aimodelSvcInstance, strategySvc)
 	aimodelHandler := aimodelhdl.NewHandler(aimodelSvcInstance)
 	strategyHandler := strathdl.NewHandler(strategySvc)
@@ -85,12 +85,11 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	// 5. Initialize LLMOps Module
 	llmopsPromptRepo := propsrepo.NewRepository(pool)
 
-	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo)
+	llmopsPromptSvc := llmopsSvc.NewPromptService(llmopsPromptRepo, rdb)
 
-	llmopsPlaygroundSvc := llmopsSvc.NewPlaygroundService(aimodelSvcInstance, cfg.AgentHTTPURL, cfg.InternalAuthToken)
 
 	llmopsPromptHandler := llmops.NewPromptHandler(llmopsPromptSvc)
-	llmopsStudioHandler := llmops.NewStudioHandler(llmopsPlaygroundSvc)
+	llmopsAgentPromptHandler := llmops.NewAgentPromptHandler(llmopsPromptSvc)
 
 	// Global Health Check
 	fbApp.Get(routes.V1PathHealth, func(c fiber.Ctx) error {
@@ -142,7 +141,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	// Feature routes
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
-	api.Get("/missions/:missionId/stream", chatHandler.StreamMissionLogs)
+	api.Get("/missions/:missionId/stream", middleware.AuthRequired(cfg.JWTSecret), chatHandler.StreamMissionLogs)
 	api.Post("/missions/:id/approve", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleApproveTool)
 	api.Post("/missions/:id/deny", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleDenyTool)
 	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
@@ -176,22 +175,22 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	studio := api.Group("/studio")
 
 	prompts := studio.Group("/prompts")
-	prompts.Get("", llmopsPromptHandler.HandleListTemplates)
-	prompts.Get("/", llmopsPromptHandler.HandleListTemplates)
-	prompts.Post("", middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
-	prompts.Post("/", middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
-	prompts.Get("/active", llmopsPromptHandler.HandleGetActivePrompt)
-	prompts.Get("/:id/versions", llmopsPromptHandler.HandleListVersions)
-	prompts.Get("/:id/versions/:v", llmopsPromptHandler.HandleGetVersion)
-	prompts.Post("/:id/versions", middleware.RequireRoles("admin", "prompt_engineer"), llmopsPromptHandler.HandleCreateVersion)
-	prompts.Post("/:id/promote/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandlePromote)
-	prompts.Post("/:id/rollback/:version", middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandleRollback)
-
-	studio.Post("/playground", middleware.AuthRequired(cfg.JWTSecret), llmopsStudioHandler.HandleRunPlayground)
+	prompts.Get("", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
+	prompts.Get("/", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
+	prompts.Post("", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Post("/", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Get("/active", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetActivePrompt)
+	prompts.Get("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListVersions)
+	prompts.Get("/:id/versions/:v", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetVersion)
+	prompts.Post("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer"), llmopsPromptHandler.HandleCreateVersion)
+	prompts.Post("/:id/promote/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandlePromote)
+	prompts.Post("/:id/rollback/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandleRollback)
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))
 	
+	internalGroup.Get("/prompts/active", llmopsAgentPromptHandler.HandleGetAgentActivePrompt)
+
 	internalSessionsGroup := internalGroup.Group("/sessions")
 	internalSessionsGroup.Post("/:id/prune", sessionHandler.HandlePruneSession)
 

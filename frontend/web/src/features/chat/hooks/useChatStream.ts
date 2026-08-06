@@ -1,26 +1,45 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { api } from "@/lib/api-client";
 import { CHAT_ENDPOINTS, CHAT_ROLES, PACKET_TYPES } from "../constants";
-import { sessionApi } from "../services/chat-api";
+import { applyStreamPacket } from "../services/applyStreamPacket";
+import { missionApi, sessionApi } from "../services/chat-api";
+import { clearMissionCursor, getMissionCursor, setMissionCursor } from "../services/mission-cursor";
 import { useChatStore } from "../stores/chatStore";
-import type { HistoryMessage, Message, MissionMeta, StreamPacket, SystemNotice } from "../types";
+import type { HistoryMessage, Message, StreamPacket } from "../types";
+
+const TERMINAL_PACKETS = new Set<string>([
+  PACKET_TYPES.TURN_COMPLETE,
+  PACKET_TYPES.MISSION_COMPLETED,
+  PACKET_TYPES.ERROR,
+]);
+
+async function generateSessionTitle(sid: string): Promise<void> {
+  const state = useChatStore.getState();
+  const model = state.selectedModel;
+  if (!sid || !model) return;
+
+  const activeSess = state.sessions.find((s) => s.id === sid);
+  if (activeSess?.title && activeSess.title !== "New Chat") return;
+
+  try {
+    const { title, summary } = await sessionApi.generateTitle(sid, model);
+    if (!title) return;
+    const store = useChatStore.getState();
+    store.setSessions(
+      store.sessions.map((s) => (s.id === sid ? { ...s, title, contextSummary: summary || s.contextSummary } : s)),
+    );
+  } catch (err) {
+    console.warn("[Chat] Failed to auto-generate title:", err);
+  }
+}
 
 export function useChatStream() {
-  const {
-    isLoading,
-    setMessages,
-    setIsLoading,
-    setAgentProgress,
-    setAgentState,
-    clearMessages,
-    appendPacketLog,
-    appendDebugInfo,
-    setCumulativeUsage,
-    setMissionMeta,
-  } = useChatStore();
+  const { isLoading, setMessages, setIsLoading, setAgentProgress, setAgentState, clearMessages } = useChatStore();
+  const queryClient = useQueryClient();
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -91,259 +110,14 @@ export function useChatStream() {
         CHAT_ENDPOINTS.STREAM,
         payload,
         (data: StreamPacket) => {
-          const store = useChatStore.getState();
-
-          // 1. Universal Packet Capture to Ring Buffer Log
-          store.appendPacketLog(data);
-
-          const currentMsgs = store.messages;
-          if (currentMsgs.length === 0) return;
-
-          const lastIdx = currentMsgs.length - 1;
-          const lastMessage = {
-            ...currentMsgs[lastIdx],
-            steps: [...(currentMsgs[lastIdx].steps || [])],
-          };
-
-          // 2. Telemetry Packet Dispatching
-          if (data.type === PACKET_TYPES.METADATA) {
-            const meta: MissionMeta = data.meta || {
-              strategy: data.strategy,
-              historyDepth: data.historyDepth,
-              toolsAvailable: data.toolsAvailable,
-              objective: data.objective,
-              maxIterations: data.maxIterations,
-            };
-            lastMessage.meta = meta;
-            store.setMissionMeta(meta);
-          } else if (data.type === PACKET_TYPES.DEBUG) {
-            store.appendDebugInfo({
-              systemPrompt: data.rawSystemPrompt,
-              historyLength: data.currentHistoryLength,
-              rawMessages: data.rawMessages,
-              missionId: data.missionId,
-              timestamp: data.timestamp,
-            });
-          } else if (data.type === PACKET_TYPES.USAGE) {
-            if (data.usage) {
-              lastMessage.usage = data.usage;
-              store.setCumulativeUsage(data.usage);
-            }
-          } else if (data.type === PACKET_TYPES.REASONING) {
-            const reasoningText = data.content || "";
-            if (reasoningText) {
-              const lastStep = lastMessage.steps[lastMessage.steps.length - 1];
-              if (lastStep?.type === PACKET_TYPES.REASONING) {
-                lastMessage.steps[lastMessage.steps.length - 1] = {
-                  ...lastStep,
-                  content: (lastStep.content || "") + reasoningText,
-                };
-              } else {
-                lastMessage.steps.push({ type: PACKET_TYPES.REASONING, content: reasoningText });
-              }
-            }
-          } else if (data.type === PACKET_TYPES.TOOL_CALL) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.TOOL_CALL,
-              toolName: data.toolName,
-              toolInput: data.toolInput,
-            });
-          } else if (data.type === PACKET_TYPES.TOOL_RESULT) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.TOOL_RESULT,
-              toolName: data.toolName,
-              content: data.content,
-            });
-          } else if (data.type === PACKET_TYPES.TODO) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.TODO,
-              todos: data.todos,
-            });
-          } else if (data.type === PACKET_TYPES.SUBAGENT_CALL) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.SUBAGENT_CALL,
-              subagent: data.subagent,
-            });
-          } else if (data.type === PACKET_TYPES.SUBAGENT_RESULT) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.SUBAGENT_RESULT,
-              subagent: data.subagent,
-            });
-          } else if (data.type === PACKET_TYPES.FILE_OPERATION) {
-            lastMessage.steps.push({
-              type: PACKET_TYPES.FILE_OPERATION,
-              fileOp: data.fileOp,
-            });
-          } else if (data.type === PACKET_TYPES.SWARM_STATUS) {
-            if (data.swarm) {
-              store.setAgentProgress((prev) => {
-                const currentSwarm = prev?.swarm || {
-                  activeUrls: {} as NonNullable<NonNullable<typeof prev>["swarm"]>["activeUrls"],
-                  scrapedCount: 0,
-                  failedCount: 0,
-                  factsCount: 0,
-                  discoveredCount: 0,
-                  discoveredUrls: [],
-                };
-
-                const updatedActiveUrls = { ...currentSwarm.activeUrls };
-                if (data.swarm?.url) {
-                  const existing = updatedActiveUrls[data.swarm.url];
-                  updatedActiveUrls[data.swarm.url] = {
-                    url: data.swarm.url,
-                    status: data.swarm.status,
-                    attempt: data.swarm.attempt || existing?.attempt || 1,
-                    feedback: data.swarm.feedback || existing?.feedback,
-                    dataSize: data.swarm.dataSize || existing?.dataSize,
-                    factsCount: data.swarm.factsCount || existing?.factsCount,
-                  };
-                }
-
-                let newScraped = currentSwarm.scrapedCount;
-                let newFailed = currentSwarm.failedCount;
-                let newFacts = currentSwarm.factsCount;
-
-                if (data.swarm?.status === "critic_passed" && data.swarm?.url) {
-                  if (currentSwarm.activeUrls[data.swarm.url]?.status !== "critic_passed") {
-                    newScraped += 1;
-                  }
-                  if (data.swarm.factsCount) {
-                    newFacts += data.swarm.factsCount;
-                  }
-                } else if (data.swarm?.status === "scrape_failed" && data.swarm?.url) {
-                  if (currentSwarm.activeUrls[data.swarm.url]?.status !== "scrape_failed") {
-                    newFailed += 1;
-                  }
-                }
-
-                const newDiscoveredUrls = [...(currentSwarm.discoveredUrls || [])];
-                if (data.swarm?.url && !newDiscoveredUrls.includes(data.swarm.url)) {
-                  newDiscoveredUrls.push(data.swarm.url);
-                }
-
-                return {
-                  iteration: prev?.iteration || 0,
-                  totalIterations: prev?.totalIterations || 0,
-                  currentTool: data.swarm?.status === "crawling" ? `crawling ${data.swarm?.url}` : undefined,
-                  statusMessage: data.swarm?.message,
-                  swarm: {
-                    status: data.swarm?.status,
-                    url: data.swarm?.url,
-                    activeUrls: updatedActiveUrls,
-                    scrapedCount: newScraped,
-                    failedCount: newFailed,
-                    factsCount: newFacts,
-                    discoveredCount: Math.max(currentSwarm.discoveredCount, newDiscoveredUrls.length),
-                    discoveredUrls: newDiscoveredUrls,
-                  },
-                };
-              });
-            }
-            lastMessage.steps.push({
-              type: PACKET_TYPES.SWARM_STATUS,
-              swarm: data.swarm,
-            });
-          } else if (data.type === PACKET_TYPES.HEARTBEAT) {
-            if (data.agentStatus) {
-              store.setAgentProgress((prev) =>
-                prev
-                  ? { ...prev, agentStatus: data.agentStatus }
-                  : { iteration: 0, totalIterations: 0, agentStatus: data.agentStatus },
-              );
-            }
-          } else if (data.type === PACKET_TYPES.STATE_CHANGE) {
-            const nextState = (data.to || data.agentStatus?.state) as any;
-            if (nextState) {
-              store.setAgentState(nextState);
-              lastMessage.steps.push({
-                type: "state_change",
-                content: `State changed to ${nextState}`,
-              });
-            }
-          } else if (data.type === PACKET_TYPES.DEGRADED) {
-            store.setAgentState("degraded");
-            lastMessage.steps.push({
-              type: "state_change",
-              content: data.reason || "Agent is in degraded state",
-            });
-          } else if (data.type === PACKET_TYPES.TOOL_SKIP) {
-            lastMessage.steps.push({ type: "tool_skip", toolName: data.toolName, content: "Skipped (circuit open)" });
-          } else if (data.type === PACKET_TYPES.PROGRESS) {
-            if (typeof data.step === "number") {
-              const step = data.step;
-              store.setAgentProgress((prev) =>
-                prev ? { ...prev, iteration: step } : { iteration: step, totalIterations: 0 },
-              );
-            }
-          } else if (data.type === PACKET_TYPES.TURN_COMPLETE) {
-            if (data.usage) {
-              lastMessage.usage = data.usage;
-              store.setCumulativeUsage(data.usage);
-            }
-            store.setAgentState("completed");
-          } else if (data.type === PACKET_TYPES.ERROR) {
-            const errDetail = data.content || "Stream execution failed";
-            const currentContent = lastMessage.content || "";
-            lastMessage.content = currentContent ? `${currentContent}\n\n[Error: ${errDetail}]` : `Error: ${errDetail}`;
-            store.setAgentState("error");
-          } else if (data.type === PACKET_TYPES.SYSTEM_NOTICE) {
-            const notice: SystemNotice = {
-              id: crypto.randomUUID(),
-              level: data.payload.level,
-              code: data.payload.code,
-              message: data.payload.message,
-              timestamp: Date.now(),
-            };
-            store.appendSystemNotice(notice);
-          } else if (data.type === PACKET_TYPES.HITL_APPROVAL_REQUIRED) {
-            store.setHitlPendingApproval({
-              approvalId: data.payload.approvalId,
-              toolName: data.payload.toolName,
-              args: data.payload.args,
-              riskLevel: data.payload.riskLevel,
-              expiresAt: data.payload.expiresAt,
-              missionId: data.missionId,
-            });
-          } else if (data.type === PACKET_TYPES.TOKEN_METRICS) {
-            if (data.payload) {
-              store.setCumulativeUsage({
-                promptTokens: data.payload.promptTokens,
-                completionTokens: data.payload.completionTokens,
-                totalTokens: data.payload.totalTokens,
-                cachedTokens: data.payload.cachedTokens,
-              });
-            }
-          } else if (data.type === PACKET_TYPES.MISSION_COMPLETED) {
-            store.setAgentState("completed");
-          } else {
-            const streamRecord = data as unknown as {
-              choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
-              content?: string;
-              reasoning_content?: string;
-            };
-            const delta = streamRecord.choices?.[0]?.delta || streamRecord;
-            const content = delta.content || "";
-            const reasoning = delta.reasoning_content || "";
-
-            if (reasoning) {
-              const lastStep = lastMessage.steps[lastMessage.steps.length - 1];
-              if (lastStep?.type === PACKET_TYPES.REASONING) {
-                lastMessage.steps[lastMessage.steps.length - 1] = {
-                  ...lastStep,
-                  content: (lastStep.content || "") + reasoning,
-                };
-              } else {
-                lastMessage.steps.push({ type: PACKET_TYPES.REASONING, content: reasoning });
-              }
-            }
-            if (content) {
-              lastMessage.content = (lastMessage.content || "") + content;
+          if (data.type === PACKET_TYPES.REPLAY_DONE) return;
+          if (data.missionId && typeof data.sid === "string") {
+            setMissionCursor(data.missionId, data.sid);
+            if (TERMINAL_PACKETS.has(data.type)) {
+              clearMissionCursor(data.missionId);
             }
           }
-
-          const nextMsgs = [...currentMsgs];
-          nextMsgs[nextMsgs.length - 1] = lastMessage;
-          store.setMessages(nextMsgs);
+          applyStreamPacket(data);
         },
         { signal: abortRef.current.signal },
       );
@@ -364,28 +138,21 @@ export function useChatStream() {
       };
       store.setMessages([...currentMsgs.slice(0, -1), lastMessage]);
     } finally {
+      const sid = useChatStore.getState().activeSessionId;
+      if (sid) {
+        try {
+          await queryClient.invalidateQueries({ queryKey: ["sessions", sid, "messages"] });
+        } catch (err) {
+          console.warn("[Chat] Failed to invalidate messages query:", err);
+        }
+      }
+
       setIsLoading(false);
       setAgentProgress(null);
 
-      const state = useChatStore.getState();
-      const sid = state.activeSessionId;
-
-      // Auto-generate title if still default, then refresh session list
-      const titlePromise =
-        sid && state.selectedModel
-          ? (() => {
-              const activeSess = state.sessions.find((s) => s.id === sid);
-              if (!activeSess?.title || activeSess.title === "New Chat") {
-                return sessionApi.generateTitle(sid, state.selectedModel).catch((err) => {
-                  console.warn("[Chat] Failed to auto-generate title:", err);
-                });
-              }
-              return Promise.resolve();
-            })()
-          : Promise.resolve();
-
-      titlePromise
-        .then(() => sessionApi.list().then((sessions) => useChatStore.getState().setSessions(sessions)))
+      // Auto-generate title if still default, then refresh the session list.
+      generateSessionTitle(sid || "")
+        .then(() => sessionApi.list().then((res) => useChatStore.getState().setSessions(res.sessions)))
         .catch((err) => {
           console.warn("[Chat] Failed to refresh sessions:", err);
         });
@@ -395,9 +162,70 @@ export function useChatStream() {
   const stopStream = () => {
     if (abortRef.current) {
       abortRef.current.abort();
+      abortRef.current = null;
       setIsLoading(false);
       setAgentProgress(null);
       useChatStore.getState().setAgentState("aborted");
+    }
+  };
+
+  const recoverMission = async (missionId: string) => {
+    const store = useChatStore.getState();
+    if (store.isLoading) return;
+    if (!missionId) return;
+
+    const cursor = getMissionCursor(missionId);
+    setIsLoading(true);
+    setAgentState("running");
+    abortRef.current = new AbortController();
+
+    // Replayed history is already represented in the message rebuilt from the
+    // DB, so content/reasoning deltas are skipped while replaying. The stream
+    // emits a replay_done marker once the live phase begins; after it, content
+    // and reasoning are applied normally so a recovered mission keeps streaming.
+    let replay = true;
+
+    try {
+      await missionApi.getStream(
+        missionId,
+        cursor,
+        (data: StreamPacket) => {
+          if (data.type === PACKET_TYPES.REPLAY_DONE) {
+            replay = false;
+            return;
+          }
+          if (typeof data.sid === "string") {
+            setMissionCursor(missionId, data.sid);
+            if (TERMINAL_PACKETS.has(data.type)) {
+              clearMissionCursor(missionId);
+            }
+          }
+          applyStreamPacket(data, { replay });
+        },
+        abortRef.current.signal,
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      console.warn("[Chat] Mission stream recovery failed:", err);
+      useChatStore.getState().setAgentState("error");
+    } finally {
+      // Refresh the message snapshot so the recovery result lands in the DB
+      // query (in saas mode the gateway persists the recovered completion).
+      // The await keeps isLoading true until the refetch settles, so the
+      // snapshot-rebuild effect in useChatPage runs against fresh data.
+      const recoveredSid = useChatStore.getState().activeSessionId || missionId;
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["sessions", recoveredSid, "messages"] });
+      } catch (err) {
+        console.warn("[Chat] Failed to invalidate messages query after recovery:", err);
+      }
+
+      setIsLoading(false);
+      setAgentProgress(null);
+      abortRef.current = null;
+      // The gateway treats missionId as the session id — generate the title
+      // for a session recovered after refresh so it never stays "New Chat".
+      void generateSessionTitle(missionId);
     }
   };
 
@@ -409,6 +237,7 @@ export function useChatStream() {
   return {
     sendMessage,
     stopStream,
+    recoverMission,
     isLoading,
     clearMessages: handleClearMessages,
   };

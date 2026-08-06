@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	authconst "echo-backend/internal/constants/auth"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
@@ -145,7 +146,7 @@ func (h *Handler) HandleMe(c fiber.Ctx) error {
 // @Router /api/v1/auth/logout [post]
 func (h *Handler) HandleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
+		Name:     authconst.TokenCookie,
 		Value:    "",
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HTTPOnly: true,
@@ -159,7 +160,7 @@ func (h *Handler) HandleLogout(c fiber.Ctx) error {
 
 func setAuthCookie(c fiber.Ctx, environment, token string) {
 	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
+		Name:     authconst.TokenCookie,
 		Value:    token,
 		Expires:  time.Now().Add(72 * time.Hour),
 		HTTPOnly: true,

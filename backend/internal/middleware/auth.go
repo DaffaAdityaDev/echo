@@ -24,6 +24,7 @@ func AuthRequired(secret string) fiber.Handler {
 			}
 			claims := token.Claims.(jwt.MapClaims)
 			c.Locals("user_id", claims["sub"])
+			c.Locals("user_role", claims["role"])
 			return true
 		}
 

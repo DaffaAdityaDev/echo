@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -15,36 +14,26 @@ func TestRequireRoles(t *testing.T) {
 	tests := []struct {
 		name         string
 		allowedRoles []string
-		setupReq     func() *http.Request
+		userRole     string
 		wantStatus   int
 	}{
 		{
-			name:         "X-User-Role matches allowedRoles passes",
+			name:         "role in allowed list passes",
 			allowedRoles: []string{"admin", "super-admin"},
-			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/admin", nil)
-				req.Header.Set("X-User-Role", "admin")
-				return req
-			},
-			wantStatus: fiber.StatusOK,
+			userRole:     "admin",
+			wantStatus:   fiber.StatusOK,
 		},
 		{
-			name:         "X-User-Role does not match returns 403",
+			name:         "role not in allowed list returns 403",
 			allowedRoles: []string{"super-admin"},
-			setupReq: func() *http.Request {
-				req := httptest.NewRequest("GET", "/admin", nil)
-				req.Header.Set("X-User-Role", "admin")
-				return req
-			},
-			wantStatus: fiber.StatusForbidden,
+			userRole:     "admin",
+			wantStatus:   fiber.StatusForbidden,
 		},
 		{
-			name:         "missing X-User-Role defaults to admin and fails if admin not allowed",
-			allowedRoles: []string{"super-admin"},
-			setupReq: func() *http.Request {
-				return httptest.NewRequest("GET", "/admin", nil)
-			},
-			wantStatus: fiber.StatusForbidden,
+			name:         "missing role returns 403",
+			allowedRoles: []string{"admin"},
+			userRole:     "",
+			wantStatus:   fiber.StatusForbidden,
 		},
 	}
 
@@ -54,11 +43,20 @@ func TestRequireRoles(t *testing.T) {
 			t.Parallel()
 
 			app := fiber.New()
-			app.Get("/admin", RequireRoles(tt.allowedRoles...), func(c fiber.Ctx) error {
-				return c.SendStatus(fiber.StatusOK)
-			})
+			app.Get("/admin",
+				func(c fiber.Ctx) error {
+					if tt.userRole != "" {
+						c.Locals("user_role", tt.userRole)
+					}
+					return c.Next()
+				},
+				RequireRoles(tt.allowedRoles...),
+				func(c fiber.Ctx) error {
+					return c.SendStatus(fiber.StatusOK)
+				},
+			)
 
-			resp, err := app.Test(tt.setupReq())
+			resp, err := app.Test(httptest.NewRequest("GET", "/admin", nil))
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})

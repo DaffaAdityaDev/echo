@@ -38,7 +38,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*authmodel
 		return nil, "", fmt.Errorf("invalid email or password")
 	}
 
-	token, err := generateToken(s.cfg, user.ID)
+	token, err := generateToken(s.cfg, user)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate token: %w", err)
 	}
@@ -63,7 +63,7 @@ func (s *Service) Register(ctx context.Context, email, password, name string) (*
 		return nil, "", fmt.Errorf("failed to create user: %w", err)
 	}
 
-	token, err := generateToken(s.cfg, user.ID)
+	token, err := generateToken(s.cfg, user)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate token: %w", err)
 	}
@@ -75,11 +75,12 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*authmodel.User, err
 	return s.userRepo.GetUserByID(ctx, id)
 }
 
-func generateToken(cfg *cfgmodel.Config, userID int) (string, error) {
+func generateToken(cfg *cfgmodel.Config, user *authmodel.User) (string, error) {
 	claims := jwt.MapClaims{
-		"sub": strconv.Itoa(userID),
-		"exp": time.Now().Add(72 * time.Hour).Unix(),
-		"iat": time.Now().Unix(),
+		"sub":  strconv.Itoa(user.ID),
+		"role": user.Role,
+		"exp":  time.Now().Add(72 * time.Hour).Unix(),
+		"iat":  time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(cfg.JWTSecret))

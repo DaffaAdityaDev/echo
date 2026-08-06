@@ -40,16 +40,16 @@ func (m *mockSessionRepo) DeleteSession(ctx context.Context, sessionID string) e
 	return args.Error(0)
 }
 
-func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error) {
-	args := m.Called(ctx, userID)
+func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int, limit int, offset int) ([]*chatmodel.Session, error) {
+	args := m.Called(ctx, userID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*chatmodel.Session), args.Error(1)
 }
 
-func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error) {
-	args := m.Called(ctx, sessionID)
+func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID string, limit int, offset int) ([]*chatmodel.Message, error) {
+	args := m.Called(ctx, sessionID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -62,6 +62,16 @@ func (m *mockSessionRepo) UpdateTitleAndSummary(ctx context.Context, sessionID s
 }
 
 func (m *mockSessionRepo) GetSessionTokenCount(ctx context.Context, sessionID string) (int, error) {
+	args := m.Called(ctx, sessionID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mockSessionRepo) CountByUser(ctx context.Context, userID int) (int, error) {
+	args := m.Called(ctx, userID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mockSessionRepo) CountMessagesBySession(ctx context.Context, sessionID string) (int, error) {
 	args := m.Called(ctx, sessionID)
 	return args.Int(0), args.Error(1)
 }
@@ -225,4 +235,39 @@ func TestHandleDeleteSession(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
+	t.Parallel()
+
+	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: "active"}
+
+	mockRepo := new(mockSessionRepo)
+	mockCons := new(mockConsolidationSvc)
+	mockMod := new(mockModelSvc)
+	mockRepo.On("GetByID", mock.Anything, "sess_shared").Return(sharedSession, nil)
+	// Negative limit/offset must be clamped to 0 rather than passed to SQL
+	// (LIMIT NULLIF(-5,0) is rejected by Postgres and returns a 500).
+	mockRepo.On("GetSessionMessages", mock.Anything, "sess_shared", 0, 0).Return([]*chatmodel.Message{}, nil)
+	mockRepo.On("CountMessagesBySession", mock.Anything, "sess_shared").Return(0, nil)
+
+	h := &Handler{
+		Cfg:              &cfgmodel.Config{},
+		SessionRepo:      mockRepo,
+		ConsolidationSvc: mockCons,
+		ModelSvc:         mockMod,
+	}
+
+	app := fiber.New()
+	app.Get("/sessions/:id/messages", func(c fiber.Ctx) error {
+		c.Locals("user_id", "1")
+		return h.HandleGetSessionMessages(c)
+	})
+
+	req := httptest.NewRequest("GET", "/sessions/sess_shared/messages?limit=-5&offset=-3", nil)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	mockRepo.AssertExpectations(t)
 }

@@ -8,9 +8,9 @@ import (
 
 func RequireRoles(allowedRoles ...string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		userRole := c.Get("X-User-Role")
-		if userRole == "" {
-			userRole = "admin"
+		userRole, ok := c.Locals("user_role").(string)
+		if !ok || userRole == "" {
+			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
 		}
 
 		for _, role := range allowedRoles {
@@ -19,6 +19,10 @@ func RequireRoles(allowedRoles ...string) fiber.Handler {
 			}
 		}
 
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient permissions for this operation")
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
 	}
+}
+
+func RequireAdmin() fiber.Handler {
+	return RequireRoles("admin")
 }

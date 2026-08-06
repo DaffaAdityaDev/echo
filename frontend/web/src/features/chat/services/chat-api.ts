@@ -1,6 +1,6 @@
 import { api } from "@/lib/api-client";
 import { SESSION_ENDPOINTS } from "../constants";
-import type { DbMessage, Session } from "../types";
+import type { DbMessage, Session, StreamPacket } from "../types";
 
 function mapSession(s: Record<string, unknown>): Session {
   return {
@@ -12,11 +12,38 @@ function mapSession(s: Record<string, unknown>): Session {
     contextSummary: (s.context_summary || s.contextSummary) as string | undefined,
   };
 }
+export interface PaginationMeta {
+  limit: number;
+  offset: number;
+  total: number;
+}
+
+export interface PaginatedSessions {
+  sessions: Session[];
+  pagination: PaginationMeta;
+}
+
+export interface PaginatedMessages {
+  messages: DbMessage[];
+  pagination: PaginationMeta;
+}
 
 export const sessionApi = {
-  list: async (): Promise<Session[]> => {
-    const data = await api.get<{ sessions: Record<string, unknown>[] }>(SESSION_ENDPOINTS.LIST);
-    return (data.sessions || []).map(mapSession);
+  list: async (limit?: number, offset?: number): Promise<PaginatedSessions> => {
+    let query = "";
+    if (limit !== undefined || offset !== undefined) {
+      const params = new URLSearchParams();
+      if (limit !== undefined) params.append("limit", String(limit));
+      if (offset !== undefined) params.append("offset", String(offset));
+      query = `?${params.toString()}`;
+    }
+    const data = await api.get<{ sessions: Record<string, unknown>[]; pagination: PaginationMeta }>(
+      `${SESSION_ENDPOINTS.LIST}${query}`,
+    );
+    return {
+      sessions: (data.sessions || []).map(mapSession),
+      pagination: data.pagination,
+    };
   },
   create: async (title?: string): Promise<Session> => {
     const raw = await api.post<Record<string, unknown>>(SESSION_ENDPOINTS.CREATE, { title: title || "New Chat" });
@@ -26,9 +53,22 @@ export const sessionApi = {
     const raw = await api.get<Record<string, unknown>>(SESSION_ENDPOINTS.GET(id));
     return mapSession(raw);
   },
-  getMessages: async (id: string): Promise<DbMessage[]> => {
-    const data = await api.get<{ messages: DbMessage[] }>(SESSION_ENDPOINTS.MESSAGES(id));
-    return data.messages;
+  getMessages: async (id: string, limit?: number, offset?: number): Promise<PaginatedMessages> => {
+    let query = "";
+    if (limit !== undefined || offset !== undefined) {
+      const params = new URLSearchParams();
+      if (limit !== undefined) params.append("limit", String(limit));
+      if (offset !== undefined) params.append("offset", String(offset));
+      query = `?${params.toString()}`;
+    }
+    const data = await api.get<{ messages: DbMessage[]; pagination: PaginationMeta }>(
+      `${SESSION_ENDPOINTS.MESSAGES(id)}${query}`,
+      { timeout: 120_000 },
+    );
+    return {
+      messages: data.messages || [],
+      pagination: data.pagination,
+    };
   },
   updateTitle: async (id: string, title: string, summary?: string): Promise<void> => {
     return api.patch(SESSION_ENDPOINTS.UPDATE(id), { title, summary });
@@ -38,5 +78,12 @@ export const sessionApi = {
   },
   delete: async (id: string): Promise<void> => {
     return api.delete(SESSION_ENDPOINTS.DELETE(id));
+  },
+};
+
+export const missionApi = {
+  getStream: (missionId: string, after: string | null, onChunk: (data: StreamPacket) => void, signal: AbortSignal) => {
+    const query = after ? `?after=${encodeURIComponent(after)}` : "";
+    return api.streamGet<StreamPacket>(`/v1/missions/${missionId}/stream${query}`, onChunk, { signal });
   },
 };

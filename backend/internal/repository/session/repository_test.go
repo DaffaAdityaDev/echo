@@ -18,7 +18,7 @@ func TestSessionRepository(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	if f, err := os.Open("../../.env"); err == nil {
+	if f, err := os.Open("../../../.env"); err == nil {
 		defer f.Close()
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
@@ -107,7 +107,7 @@ func TestSessionRepository(t *testing.T) {
 		t.Fatalf("Failed to save turn messages: %v", err)
 	}
 
-	messages, err := repo.GetSessionMessages(ctx, session.ID)
+	messages, err := repo.GetSessionMessages(ctx, session.ID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get session messages: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestSessionRepository(t *testing.T) {
 		t.Errorf("Expected token count 17, got %d", tokenCount)
 	}
 
-	sessions, err := repo.ListByUser(ctx, testUserID)
+	sessions, err := repo.ListByUser(ctx, testUserID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to list sessions: %v", err)
 	}
@@ -149,6 +149,73 @@ func TestSessionRepository(t *testing.T) {
 	}
 	if !found {
 		t.Error("Expected to find created session in list")
+	}
+
+	// Test Pagination for Sessions
+	session2, err := repo.CreateSession(ctx, testUserID, "Test Session 2 Title", "nlah:v1")
+	if err != nil {
+		t.Fatalf("Failed to create second session: %v", err)
+	}
+	defer repo.DeleteSession(ctx, session2.ID)
+
+	sessionsLimit, err := repo.ListByUser(ctx, testUserID, 1, 0)
+	if err != nil {
+		t.Fatalf("Failed to list sessions with limit: %v", err)
+	}
+	if len(sessionsLimit) != 1 {
+		t.Errorf("Expected 1 session with limit=1, got %d", len(sessionsLimit))
+	}
+
+	// Test Pagination for Messages
+	// Current messages in session: 3 messages (turn 1)
+	// Add 2 more messages (turn 2)
+	msg4 := &chatmodel.Message{Role: "user", Content: "Second turn user", TokenCount: 3, TurnNumber: 2}
+	msg5 := &chatmodel.Message{Role: "assistant", Content: "Second turn assistant", TokenCount: 5, TurnNumber: 2}
+	err = repo.SaveTurnMessages(ctx, session.ID, msg4, msg5, nil)
+	if err != nil {
+		t.Fatalf("Failed to save second turn: %v", err)
+	}
+
+	// Session now has 5 messages. Fetch latest 2 (should be turn 2 user & assistant)
+	messagesLimit, err := repo.GetSessionMessages(ctx, session.ID, 2, 0)
+	if err != nil {
+		t.Fatalf("Failed to get session messages with limit: %v", err)
+	}
+	if len(messagesLimit) != 2 {
+		t.Errorf("Expected 2 messages with limit=2, got %d", len(messagesLimit))
+	}
+	if messagesLimit[0].TurnNumber != 2 || messagesLimit[1].TurnNumber != 2 {
+		t.Errorf("Expected turn 2 messages, got turns %d and %d", messagesLimit[0].TurnNumber, messagesLimit[1].TurnNumber)
+	}
+
+	// Fetch next older 2 (should be turn 1 messages)
+	messagesOffset, err := repo.GetSessionMessages(ctx, session.ID, 2, 2)
+	if err != nil {
+		t.Fatalf("Failed to get session messages with offset: %v", err)
+	}
+	if len(messagesOffset) != 2 {
+		t.Errorf("Expected 2 messages with offset=2, got %d", len(messagesOffset))
+	}
+	if messagesOffset[0].TurnNumber != 1 || messagesOffset[1].TurnNumber != 1 {
+		t.Errorf("Expected turn 1 messages, got turns %d and %d", messagesOffset[0].TurnNumber, messagesOffset[1].TurnNumber)
+	}
+
+	// Test counting sessions
+	totalSessions, err := repo.CountByUser(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("Failed to count sessions: %v", err)
+	}
+	if totalSessions <= 0 {
+		t.Errorf("Expected positive session count, got %d", totalSessions)
+	}
+
+	// Test counting messages
+	totalMessages, err := repo.CountMessagesBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("Failed to count messages: %v", err)
+	}
+	if totalMessages != 5 {
+		t.Errorf("Expected 5 total messages, got %d", totalMessages)
 	}
 
 	err = repo.DeleteSession(ctx, session.ID)

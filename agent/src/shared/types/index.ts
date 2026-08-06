@@ -43,6 +43,8 @@ export interface HarnessFeatureToggles {
 export interface HarnessSnapshot {
   strategyName: string;
   toolNames: string[];
+  /** REST tool configs (JSON-serializable, unlike built ToolDefinitions). */
+  restTools?: import("../../infrastructure/transports/rest/types").RestToolConfig[];
   providerConfig: {
     type: string;
     base_url: string;
@@ -51,6 +53,14 @@ export interface HarnessSnapshot {
   };
   delegationDepth: number;
   featureToggles: HarnessFeatureToggles;
+  /** Behavior prompt resolved at mission start, restored on HITL resume. */
+  behaviorPrompt?: {
+    templateName: string;
+    version: number;
+    systemPrompt: string;
+    boundTools: string[];
+    variables: string[];
+  } | null;
 }
 
 export interface TenantContext {
@@ -244,10 +254,18 @@ export interface Task {
 /**
  * Strategy interface — responsible only for constructing the system prompt.
  * The harness drives all loop logic.
+ *
+ * `behaviorPrompt` is a structural subset of the BehaviorPrompt type from
+ * core/agent/prompts (deliberately inline to keep shared/types free of
+ * core imports and circular dependencies).
  */
 export interface AgentStrategy {
   name: string;
-  buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string;
+  buildSystemPrompt(
+    state: AgentState,
+    tools: ToolDefinition[],
+    behaviorPrompt?: { systemPrompt?: string; boundTools?: string[] } | null,
+  ): string;
 }
 
 export type StrategyStatus = "active" | "deprecated";

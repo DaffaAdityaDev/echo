@@ -31,7 +31,7 @@ export function HitlApprovalModal() {
     setLoading(true);
     try {
       await api.stream(
-        `/api/v1/missions/${hitlPending.missionId}/approve`,
+        `/v1/missions/${hitlPending.missionId}/approve`,
         { approvalId: hitlPending.approvalId, decision: "approve" },
         () => {},
       );
@@ -48,7 +48,7 @@ export function HitlApprovalModal() {
     setLoading(true);
     try {
       await api.stream(
-        `/api/v1/missions/${hitlPending.missionId}/deny`,
+        `/v1/missions/${hitlPending.missionId}/deny`,
         { approvalId: hitlPending.approvalId, decision: "deny", reason },
         () => {},
       );

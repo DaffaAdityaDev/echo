@@ -56,7 +56,16 @@ const SettingsModal = dynamic(
 );
 
 export function ChatPage() {
-  const { sendMessage, clearMessages, createSession, deleteSession, selectSession } = useChatPage();
+  const {
+    sendMessage,
+    clearMessages,
+    createSession,
+    deleteSession,
+    selectSession,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useChatPage();
   const { user } = useAuth();
   const { models } = useModels();
   const { toggleSidebar } = useSidebar();
@@ -269,9 +278,23 @@ export function ChatPage() {
 
           {/* Active Tools Count */}
           <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 border border-zinc-300/40 dark:border-zinc-700/40">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 border border-zinc-300/40 dark:border-zinc-700/40">
               <Wrench className="h-3 w-3 text-purple-400" />
-              <span>{missionMeta?.toolsAvailable?.length ?? selectedFeatures.length} Capabilities Active</span>
+              {missionMeta?.toolsAvailable && missionMeta.toolsAvailable.length > 0 ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    {missionMeta.toolsAvailable.length}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {missionMeta.toolsAvailable.length === 1 ? "Capability Active:" : "Capabilities Active:"}
+                  </span>
+                  <span className="font-mono text-purple-500 dark:text-purple-400 truncate max-w-[16rem]">
+                    {missionMeta.toolsAvailable.join(", ")}
+                  </span>
+                </span>
+              ) : (
+                <span>{selectedFeatures.length} Capabilities Active</span>
+              )}
             </div>
           </div>
         </div>
@@ -377,6 +400,9 @@ export function ChatPage() {
               messages={messages}
               isLoading={isLoading}
               onScrollBtnChange={setShowScrollBtn}
+              fetchNextPage={fetchNextPage}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
             />
 
             {lastAssistantMsg && lastAssistantMsg.steps.length > 0 && (

@@ -9,6 +9,9 @@ interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   onScrollBtnChange?: (show: boolean) => void;
+  fetchNextPage?: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
 }
 
 export interface MessageListHandle {
@@ -18,7 +21,14 @@ export interface MessageListHandle {
 import { UI_CONFIG } from "@/constants";
 
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(function MessageList(
-  { messages, isLoading, onScrollBtnChange },
+  {
+    messages,
+    isLoading,
+    onScrollBtnChange,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -62,15 +72,28 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
 
   const handleScroll = useCallback(() => {
     onScrollBtnChange?.(!isNearBottom());
-  }, [isNearBottom, onScrollBtnChange]);
+
+    const el = containerRef.current;
+    if (el && el.scrollTop < 50 && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+      fetchNextPage();
+    }
+  }, [isNearBottom, onScrollBtnChange, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
+      style={{ overflowAnchor: "auto" }}
       className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scrollbar-hide relative"
     >
       <div className="max-w-5xl mx-auto space-y-8">
+        {isFetchingNextPage && (
+          <div className="py-4 flex items-center justify-center gap-2">
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 animate-pulse font-medium">
+              Loading older messages...
+            </span>
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in">
             <div className="relative">

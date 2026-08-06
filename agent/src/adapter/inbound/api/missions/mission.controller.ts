@@ -5,11 +5,15 @@ import { streamSSE } from "hono/streaming";
 import { StandardContextAnchor } from "../../../../core/agent/anchors";
 import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import type { HarnessEvent } from "../../../../core/agent/harness/types";
+import { type BehaviorPrompt, resolveBehaviorPrompt } from "../../../../core/agent/prompts";
+import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
 import { SkillRegistry } from "../../../../core/agent/skills";
 import { stateStorage } from "../../../../core/agent/storage";
 import { StrategyFactory, strategyRegistry } from "../../../../core/agent/strategies";
-import { getImplementedFeatures, toolRegistry } from "../../../../core/agent/tools";
+import { createRestTool, getImplementedFeatures, toolRegistry } from "../../../../core/agent/tools";
+import { isRedisAvailable } from "../../../../infrastructure/cache/redis";
 import { type ProviderConnectionConfig, ProviderFactory } from "../../../../infrastructure/providers/factory";
+import type { RestToolConfig } from "../../../../infrastructure/transports/rest/types";
 import { ERROR_STATUS } from "../../../../shared/constants/errors";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
 import type {
@@ -30,7 +34,36 @@ import {
   VALIDATION_MESSAGES,
 } from "./mission.constants";
 import { createMissionSchema, hitlDecisionSchema } from "./mission.schema";
-import { HttpStreamTransport } from "./stream.transport";
+import { getHistory, getLastEvent, isTerminalPacket, recordEvent, subscribe } from "./mission-stream";
+import { HttpStreamTransport, type StreamPacket } from "./stream.transport";
+
+function toRestToolConfig(restTool: {
+  name: string;
+  endpoint: string;
+  url?: string;
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  description: string;
+  headers?: Record<string, string>;
+  global_headers?: Record<string, string>;
+  inputSchema: Record<string, unknown>;
+  auth?: { type: "bearer" | "basic" | "header"; credentials: Record<string, string> };
+  timeout?: number;
+  url_interpolation?: boolean;
+}): RestToolConfig {
+  return {
+    name: restTool.name,
+    description: restTool.description,
+    endpoint: restTool.endpoint,
+    url: restTool.url,
+    method: restTool.method ?? "POST",
+    headers: restTool.headers,
+    global_headers: restTool.global_headers,
+    schema: restTool.inputSchema as RestToolConfig["schema"],
+    auth: restTool.auth,
+    timeout: restTool.timeout ?? 30000,
+    url_interpolation: restTool.url_interpolation ?? false,
+  };
+}
 
 export async function createMission(c: Context) {
   try {
@@ -126,6 +159,30 @@ export async function createMission(c: Context) {
       }
     }
 
+    // REST tools are scoped to THIS mission only. They are built as standalone
+    // definitions and appended to the resolved tool set — never registered into
+    // the process-global registry, which would leak the tool (and its headers)
+    // into every subsequent mission on this agent.
+    const restConfigs = (validatedData.config?.restTools ?? []).map(toRestToolConfig);
+    if (restConfigs.length > 0) {
+      const restDefs = restConfigs.map(createRestTool);
+      resolvedTools = resolvedTools ? [...resolvedTools, ...restDefs] : restDefs;
+    }
+
+    let behaviorPrompt: BehaviorPrompt | null = null;
+    try {
+      behaviorPrompt = await resolveBehaviorPrompt({
+        templateName: validatedData.prompt_template,
+        tenantId: payload.tenant.tenantId,
+      });
+    } catch (promptErr: unknown) {
+      logger.warn("Prompt resolution failed; falling back to default behavior", promptErr);
+    }
+
+    if (behaviorPrompt && behaviorPrompt.boundTools.length > 0 && resolvedTools !== undefined) {
+      resolvedTools = applyBoundTools(resolvedTools, behaviorPrompt.boundTools);
+    }
+
     try {
       await llmProvider.validate?.();
     } catch (validateErr: unknown) {
@@ -146,9 +203,11 @@ export async function createMission(c: Context) {
       provider: llmProvider,
       strategy: executionStrategy,
       tools: resolvedTools,
+      restTools: restConfigs,
       skills: validatedData.skills ?? undefined,
       harnessConfig: validatedData.config.featureToggles ?? validatedData.config.harnessConfig,
       delegationDepth: validatedData.config.harness.delegationDepth,
+      behaviorPrompt,
     });
 
     return streamHarnessExecution(c, {
@@ -193,7 +252,13 @@ export async function handleHitlDecision(c: Context) {
   const { state, pendingToolCall, harnessSnapshot, metadata } = pausedState;
 
   if (body.decision === HITL_DECISIONS.APPROVE) {
-    const toolMap = toolRegistry.resolveToolsMap(harnessSnapshot.toolNames);
+    const toolMap = new Map<string, ToolDefinition>();
+    for (const [name, tool] of toolRegistry.resolveToolsMap(harnessSnapshot.toolNames)) {
+      toolMap.set(name, tool);
+    }
+    for (const restConfig of harnessSnapshot.restTools ?? []) {
+      toolMap.set(restConfig.name, createRestTool(restConfig));
+    }
     const tool = toolMap.get(pendingToolCall.name);
 
     let observation: Observation;
@@ -222,13 +287,26 @@ export async function handleHitlDecision(c: Context) {
   const provider = ProviderFactory.fromConfig(harnessSnapshot.providerConfig as ProviderConnectionConfig);
   const strategy = StrategyFactory.create(harnessSnapshot.strategyName);
 
+  const behaviorPrompt = harnessSnapshot.behaviorPrompt ?? null;
+  const restoredRestTools = (harnessSnapshot.restTools ?? []).map(createRestTool);
+  const restoredTools = applyBoundTools(
+    Array.from(toolRegistry.resolveToolsMap(harnessSnapshot.toolNames).values()),
+    behaviorPrompt?.boundTools ?? [],
+  );
+  if (restoredRestTools.length > 0) {
+    restoredTools.push(...restoredRestTools);
+  }
+
   const harness = new NlahHarness({
     missionId,
     provider,
     strategy,
+    tools: restoredTools,
+    restTools: harnessSnapshot.restTools ?? [],
     harnessConfig: harnessSnapshot.featureToggles,
     initialCostUsd: metadata.totalCostUsd,
     delegationDepth: harnessSnapshot.delegationDepth,
+    behaviorPrompt,
   });
 
   harness.restoreLoopDetectorHistory(metadata.loopDetectorHistory);
@@ -260,29 +338,172 @@ async function streamHarnessExecution(
       cancellationManager.cancelLocal(opts.missionId);
     });
 
+    let completedCleanly = false;
+
     try {
       await opts.harness.runMission(opts.state, async (packet: HarnessEvent) => {
         if (signal.aborted) {
           throw new Error(STREAM_CONSTANTS.CANCELLED_MESSAGE);
         }
-        await transport.send(packet);
+        const enriched = await transport.send(packet);
+        await recordEvent(opts.missionId, enriched);
       });
+      completedCleanly = true;
     } catch (streamErr: unknown) {
       const errorMessage = streamErr instanceof Error ? streamErr.message : String(streamErr);
       logger.error(`${opts.executionLog} ${errorMessage}`);
       try {
-        await transport.send({
+        const errorPacket = {
           type: ERROR_STATUS,
           missionId: opts.missionId,
           step: STREAM_CONSTANTS.ERROR_STEP,
           content: errorMessage,
           code: STREAM_CONSTANTS.ERROR_CODE,
-        });
+        };
+        await transport.send(errorPacket);
+        await recordEvent(opts.missionId, errorPacket);
       } catch (sendErr) {
         logger.warn(`${opts.sendErrorLog} ${sendErr}`);
       }
     } finally {
       cancellationManager.unregister(opts.missionId);
+      // Only a clean completion gets the terminal "completed" marker. A
+      // cancelled/errored run already recorded an error packet, which replay
+      // treats as terminal — stamping it "completed" too would make a
+      // cancelled mission replay as a success.
+      if (completedCleanly) {
+        await recordEvent(opts.missionId, {
+          type: "mission_completed",
+          missionId: opts.missionId,
+        });
+      }
     }
   });
+}
+
+export async function streamMissionLogs(c: Context) {
+  const missionId = c.req.param("id") as string;
+  if (!missionId) {
+    return c.json({ error: MISSION_ERROR_MESSAGES.MISSION_ID_REQUIRED }, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!isRedisAvailable()) {
+    return c.json({ error: MISSION_ERROR_MESSAGES.STREAM_UNAVAILABLE }, HTTP_STATUS.SERVICE_UNAVAILABLE);
+  }
+
+  const after = c.req.query("after") || c.req.header("Last-Event-ID") || undefined;
+
+  return streamSSE(c, async (streamInstance) => {
+    let cleanup = () => {};
+    let finished = false;
+    let resolveDone = () => {};
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+    };
+
+    const done = () => {
+      finish();
+      resolveDone();
+    };
+
+    const write = async (event: { sid: string; packet: StreamPacket }) => {
+      await streamInstance.writeSSE({ data: JSON.stringify({ ...event.packet, sid: event.sid }) });
+      if (isTerminalPacket(event.packet)) {
+        done();
+      }
+    };
+
+    const history = await getHistory(missionId, after);
+    for (const event of history) {
+      if (finished) return;
+      await write(event);
+    }
+    if (finished) return;
+
+    // Stream already ended (terminal marker before the cursor): close instead
+    // of blocking forever on subscribe.
+    const lastEvent = await getLastEvent(missionId);
+    if (lastEvent && isTerminalPacket(lastEvent.packet)) {
+      return;
+    }
+
+    // A stream with no terminal marker is either a mission that just started
+    // (first event not yet recorded), one whose Redis stream expired after the
+    // 24h TTL, or one whose agent died mid-run. None of these will produce a
+    // terminal packet, so close after an idle window instead of blocking
+    // forever:
+    //   - Empty history: a single-shot window for the expired/TTL case. The
+    //     first live event proves the mission is genuinely running, so it
+    //     cancels the timer (a live mission must never be cut off on silence).
+    //   - Partial history: a sliding window reset on every live event, so a
+    //     mission whose agent died mid-run closes instead of hanging forever.
+    const idleMs =
+      history.length === 0
+        ? (emptyStreamIdleMs ?? STREAM_CONSTANTS.EMPTY_STREAM_IDLE_MS)
+        : (partialHistoryIdleMs ?? STREAM_CONSTANTS.PARTIAL_HISTORY_IDLE_MS);
+
+    let idleTimer: NodeJS.Timeout | undefined;
+    const scheduleIdleClose = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(done, idleMs);
+    };
+    const cancelIdleTimer = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = undefined;
+      }
+    };
+
+    const unsubscribe = subscribe(
+      missionId,
+      (event) => {
+        if (history.length === 0) {
+          cancelIdleTimer();
+        } else {
+          scheduleIdleClose();
+        }
+        write(event).catch(done);
+      },
+      history.length > 0 ? history[history.length - 1].sid : undefined,
+    );
+
+    scheduleIdleClose();
+
+    // Replayed history is done; signal the client so it can switch from
+    // replay (skip already-applied content) to live (apply content deltas).
+    // Sent before the first live event can be delivered: subscribe's XREAD
+    // callback is asynchronous, and the history was already written above.
+    await streamInstance.writeSSE({ data: JSON.stringify({ type: STREAM_CONSTANTS.REPLAY_DONE_TYPE }) });
+
+    const heartbeat = setInterval(() => {
+      streamInstance.write(": heartbeat\n\n").catch(done);
+    }, STREAM_CONSTANTS.HEARTBEAT_INTERVAL_MS);
+
+    cleanup = () => {
+      clearInterval(heartbeat);
+      cancelIdleTimer();
+      unsubscribe();
+    };
+
+    streamInstance.onAbort(done);
+    c.req.raw.signal.addEventListener("abort", done);
+
+    await new Promise<void>((resolve) => {
+      resolveDone = resolve;
+    });
+  });
+}
+
+let emptyStreamIdleMs: number | null = null;
+let partialHistoryIdleMs: number | null = null;
+
+export function __setEmptyStreamIdleMsForTest(ms: number | null) {
+  emptyStreamIdleMs = ms;
+}
+
+export function __setPartialHistoryIdleMsForTest(ms: number | null) {
+  partialHistoryIdleMs = ms;
 }

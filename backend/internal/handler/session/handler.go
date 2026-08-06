@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,15 +25,30 @@ type SessionRepo interface {
 	CreateSession(ctx context.Context, userID int, title string, strategyVersion string) (*chatmodel.Session, error)
 	GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
-	ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error)
-	GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error)
+	ListByUser(ctx context.Context, userID int, limit int, offset int) ([]*chatmodel.Session, error)
+	GetSessionMessages(ctx context.Context, sessionID string, limit int, offset int) ([]*chatmodel.Message, error)
 	UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error
 	GetSessionTokenCount(ctx context.Context, sessionID string) (int, error)
+	CountByUser(ctx context.Context, userID int) (int, error)
+	CountMessagesBySession(ctx context.Context, sessionID string) (int, error)
 }
 
 type ConsolidationSvc interface {
 	CheckThreshold(ctx context.Context, sessionID string) (bool, error)
 	TriggerConsolidation(ctx context.Context, sessionID string, providerConfig map[string]interface{}) error
+}
+
+// parseNonNegativeInt parses a query int, defaulting to 0 and clamping
+// negative values so they never reach SQL as LIMIT/OFFSET (which 500s).
+func parseNonNegativeInt(s string) int {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	if val < 0 {
+		return 0
+	}
+	return val
 }
 
 type ModelSvc interface {
@@ -67,6 +83,22 @@ func NewHandler(cfg *cfgmodel.Config, sessionRepo SessionRepo, consolidationSvc 
 type CreateSessionRequest struct {
 	Title           string `json:"title" example:"Build a REST API with Express"`
 	StrategyVersion string `json:"strategyVersion,omitempty" example:"nlah:v1"`
+}
+
+type PaginationMeta struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Total  int `json:"total"`
+}
+
+type ListSessionsResponse struct {
+	Sessions   []*chatmodel.Session `json:"sessions"`
+	Pagination PaginationMeta        `json:"pagination"`
+}
+
+type GetMessagesResponse struct {
+	Messages   []*chatmodel.Message `json:"messages"`
+	Pagination PaginationMeta       `json:"pagination"`
 }
 
 // HandleCreateSession godoc
@@ -125,7 +157,10 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessions, err := h.SessionRepo.ListByUser(c.Context(), userID)
+	limitVal := parseNonNegativeInt(c.Query("limit"))
+	offsetVal := parseNonNegativeInt(c.Query("offset"))
+
+	sessions, err := h.SessionRepo.ListByUser(c.Context(), userID, limitVal, offsetVal)
 	if err != nil {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to list sessions", err.Error())
 	}
@@ -134,7 +169,19 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 		sessions = []*chatmodel.Session{}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"sessions": sessions})
+	totalVal, err := h.SessionRepo.CountByUser(c.Context(), userID)
+	if err != nil {
+		totalVal = len(sessions)
+	}
+
+	return handlerutil.RespondSuccess(c, ListSessionsResponse{
+		Sessions: sessions,
+		Pagination: PaginationMeta{
+			Limit:  limitVal,
+			Offset: offsetVal,
+			Total:  totalVal,
+		},
+	})
 }
 
 // HandleGetSession godoc
@@ -210,7 +257,10 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
-	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID)
+	limitVal := parseNonNegativeInt(c.Query("limit"))
+	offsetVal := parseNonNegativeInt(c.Query("offset"))
+
+	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, limitVal, offsetVal)
 	if err != nil {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
 	}
@@ -219,7 +269,19 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 		messages = []*chatmodel.Message{}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"messages": messages})
+	totalVal, err := h.SessionRepo.CountMessagesBySession(c.Context(), sessionID)
+	if err != nil {
+		totalVal = len(messages)
+	}
+
+	return handlerutil.RespondSuccess(c, GetMessagesResponse{
+		Messages: messages,
+		Pagination: PaginationMeta{
+			Limit:  limitVal,
+			Offset: offsetVal,
+			Total:  totalVal,
+		},
+	})
 }
 
 // HandleUpdateSession godoc
@@ -364,7 +426,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 		return handlerutil.RespondSuccess(c, fiber.Map{"title": session.Title, "summary": session.ContextSummary, "cached": true})
 	}
 
-	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID)
+	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, 0, 0)
 	if err != nil {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
 	}

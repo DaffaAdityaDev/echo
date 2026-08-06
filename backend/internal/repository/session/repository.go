@@ -5,13 +5,13 @@ import (
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/chat"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -39,8 +39,8 @@ func (r *Repository) CreateSession(ctx context.Context, userID int, title string
 	return &s, nil
 }
 
-func (r *Repository) ListByUser(ctx context.Context, userID int) ([]*chatmodel.Session, error) {
-	rows, err := r.pool.Query(ctx, db.QueryListSessions, userID)
+func (r *Repository) ListByUser(ctx context.Context, userID int, limit int, offset int) ([]*chatmodel.Session, error) {
+	rows, err := r.pool.Query(ctx, db.QueryListSessions, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sessions: %w", err)
 	}
@@ -87,7 +87,6 @@ func (r *Repository) TouchSession(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-
 func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error {
 	_, err := r.pool.Exec(ctx, db.QueryDeleteSession, sessionID)
 	if err != nil {
@@ -112,10 +111,35 @@ func (r *Repository) UpdateTitleAndSummary(ctx context.Context, sessionID string
 	return nil
 }
 
-func (r *Repository) GetSessionMessages(ctx context.Context, sessionID string) ([]*chatmodel.Message, error) {
-	rows, err := r.pool.Query(ctx, db.QueryGetSessionMessages, sessionID)
+func (r *Repository) GetSessionMessages(ctx context.Context, sessionID string, limit int, offset int) ([]*chatmodel.Message, error) {
+	rows, err := r.pool.Query(ctx, db.QueryGetSessionMessages, sessionID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []*chatmodel.Message
+	for rows.Next() {
+		var m chatmodel.Message
+		var stepsBytes []byte
+		err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.TokenCount, &m.TurnNumber, &stepsBytes, &m.Status, &m.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan message row: %w", err)
+		}
+		if len(stepsBytes) > 0 && string(stepsBytes) != "null" {
+			m.Steps = json.RawMessage(stepsBytes)
+		}
+		messages = append(messages, &m)
+	}
+	return messages, nil
+}
+
+// GetSessionMessagesOldestFirst returns the oldest messages in a session,
+// capped by limit. Used by consolidation, which summarizes the oldest turns.
+func (r *Repository) GetSessionMessagesOldestFirst(ctx context.Context, sessionID string, limit int) ([]*chatmodel.Message, error) {
+	rows, err := r.pool.Query(ctx, db.QueryGetSessionMessagesAscending, sessionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query oldest messages: %w", err)
 	}
 	defer rows.Close()
 
@@ -151,6 +175,22 @@ func (r *Repository) GetMaxTurnNumber(ctx context.Context, sessionID string) (in
 		return 0, fmt.Errorf("failed to get max turn number: %w", err)
 	}
 	return turn, nil
+}
+
+// GetLatestAssistantMessageID returns the id of the session's newest assistant
+// message that is still streaming/interrupted (i.e. awaiting completion), or 0
+// if none exists. Used by the mission-stream relay to finalize a recovered
+// mission without having run PrepareTurn itself.
+func (r *Repository) GetLatestAssistantMessageID(ctx context.Context, sessionID string) (int64, error) {
+	var id int64
+	err := r.pool.QueryRow(ctx, db.QueryGetLatestAssistantMessageID, sessionID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to query latest assistant message: %w", err)
+	}
+	return id, nil
 }
 
 func (r *Repository) DeleteMessagesUpToTurn(ctx context.Context, sessionID string, maxTurn int) error {
@@ -394,4 +434,20 @@ func (r *Repository) DeleteMessagesForArchivedSessions(ctx context.Context, arch
 	return tag.RowsAffected(), nil
 }
 
+func (r *Repository) CountByUser(ctx context.Context, userID int) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx, db.QueryCountSessions, userID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count sessions: %w", err)
+	}
+	return count, nil
+}
 
+func (r *Repository) CountMessagesBySession(ctx context.Context, sessionID string) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx, db.QueryCountMessages, sessionID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count messages: %w", err)
+	}
+	return count, nil
+}

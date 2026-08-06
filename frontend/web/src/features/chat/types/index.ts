@@ -115,10 +115,10 @@ export interface AgentStatus {
   state: AgentState;
   step: number;
   throughput: number;
-  activeBreakers: string[];
+  activeCircuitBreakers: string[];
   currentTool?: string;
-  thought?: string;
-  lastActivity: number;
+  currentThought?: string;
+  lastActivity: string;
 }
 
 export interface TurnComplete {
@@ -132,6 +132,7 @@ interface StreamPacketBase {
   step: number;
   seq: number;
   timestamp: number;
+  sid?: string;
   agentStatus?: AgentStatus;
 }
 
@@ -240,7 +241,8 @@ export type StreamPacket =
   | (StreamPacketBase & {
       type: "mission_completed";
       payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number };
-    });
+    })
+  | { type: "replay_done" };
 
 export interface FailedUrl {
   url: string;

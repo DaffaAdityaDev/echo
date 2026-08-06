@@ -24,6 +24,11 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 			if err == nil && token.Valid {
 				claims := token.Claims.(jwt.MapClaims)
 				c.Locals("user_id", claims["sub"])
+				role, _ := claims["role"].(string)
+				if role != "admin" {
+					return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
+				}
+				c.Locals("user_role", role)
 				return c.Next()
 			}
 			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid token")
@@ -45,6 +50,11 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 		if err == nil && token.Valid {
 			claims := token.Claims.(jwt.MapClaims)
 			c.Locals("user_id", claims["sub"])
+			role, _ := claims["role"].(string)
+			if role != "admin" {
+				return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
+			}
+			c.Locals("user_role", role)
 			return c.Next()
 		}
 

@@ -98,5 +98,54 @@ describe("writeTodosTool", () => {
       expect(observation.error).toBeDefined();
       expect(observation.summary).toContain("Failed to write plan");
     });
+
+    test("writes a STATE.md checklist to the state root", async () => {
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "state-test-"));
+      process.env.STATE_ROOT = tmpDir;
+      try {
+        const observation = await writeTodosTool.execute({
+          todos: [
+            { id: "t1", description: "Research", status: "pending" },
+            { id: "t2", description: "Draft", status: "done" },
+          ],
+        });
+
+        expect(observation.status).toBe("success");
+        const content = fs.readFileSync(path.join(tmpDir, "STATE.md"), "utf8");
+        expect(content).toContain("- [ ] Research");
+        expect(content).toContain("- [x] Draft");
+        expect(content).toContain("# Mission Plan");
+      } finally {
+        delete process.env.STATE_ROOT;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("returns an error observation when the state root is not writable", async () => {
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "state-test-"));
+      const fileAsDir = path.join(tmpDir, "blocked");
+      fs.writeFileSync(fileAsDir, "occupied");
+      process.env.STATE_ROOT = fileAsDir;
+      try {
+        const observation = await writeTodosTool.execute({
+          todos: [{ id: "t1", description: "Research", status: "pending" }],
+        });
+
+        expect(observation.status).toBe("error");
+        expect(observation.error).toBeDefined();
+        expect(observation.summary).toContain("Failed to write plan");
+      } finally {
+        delete process.env.STATE_ROOT;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 });

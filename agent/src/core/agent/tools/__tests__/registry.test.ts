@@ -108,6 +108,25 @@ describe("ToolRegistry", () => {
     });
   });
 
+  describe("addRestTool", () => {
+    test("registers a REST tool and exposes it via getAllTools", () => {
+      registry.addRestTool({
+        name: "external_api",
+        description: "Calls an external API",
+        endpoint: "https://api.example.com/things",
+        method: "POST",
+        schema: { type: "object", properties: { query: { type: "string" } } },
+      });
+
+      const all = registry.getAllTools();
+      expect(all).toHaveLength(1);
+      expect(all[0].name).toBe("external_api");
+      expect(all[0].description).toBe("Calls an external API");
+      expect(all[0].schema).toBeDefined();
+      expect(all[0].execute).toBeDefined();
+    });
+  });
+
   describe("getImplementedFeatures", () => {
     test("returns the 3 canonical ids sorted when no tools are loaded", () => {
       const features = getImplementedFeatures(registry);

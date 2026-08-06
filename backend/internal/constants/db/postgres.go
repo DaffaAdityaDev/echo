@@ -47,6 +47,7 @@ const (
 		WHERE s.user_id = $1 AND s.status = 'active'
 		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.strategy_version, s.last_accessed_at, s.created_at, s.updated_at
 		ORDER BY s.updated_at DESC
+		LIMIT NULLIF($2, 0) OFFSET $3
 	`
 	QueryGetSession = `
 		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, COALESCE(s.strategy_version, ''), COALESCE(s.last_accessed_at, s.updated_at), s.created_at, s.updated_at,
@@ -83,10 +84,36 @@ const (
 		WHERE id = $1
 	`
 	QueryGetSessionMessages = `
-		SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, status, created_at
+		WITH msg_sub AS (
+			SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, status, created_at
+			FROM messages
+			WHERE session_id = $1
+			ORDER BY turn_number DESC, id DESC
+			LIMIT NULLIF($2, 0) OFFSET $3
+		)
+		SELECT id, session_id, role, content, token_count, turn_number, steps, status, created_at FROM msg_sub
+		ORDER BY turn_number ASC, id ASC
+	`
+	QueryGetSessionMessagesAscending = `
+		WITH msg_sub AS (
+			SELECT id, session_id, role, content, token_count, turn_number, COALESCE(steps, 'null') as steps, status, created_at
+			FROM messages
+			WHERE session_id = $1
+			ORDER BY turn_number ASC, id ASC
+			LIMIT NULLIF($2, 0)
+		)
+		SELECT id, session_id, role, content, token_count, turn_number, steps, status, created_at FROM msg_sub
+		ORDER BY turn_number ASC, id ASC
+	`
+	QueryCountSessions = `
+		SELECT COUNT(*)
+		FROM sessions
+		WHERE user_id = $1 AND status = 'active'
+	`
+	QueryCountMessages = `
+		SELECT COUNT(*)
 		FROM messages
 		WHERE session_id = $1
-		ORDER BY turn_number ASC, id ASC
 	`
 	QueryInsertMessageWithStatus = `
 		INSERT INTO messages (session_id, role, content, token_count, turn_number, status, created_at)
@@ -122,6 +149,13 @@ const (
 		SELECT COALESCE(MAX(turn_number), 0)
 		FROM messages
 		WHERE session_id = $1
+	`
+	QueryGetLatestAssistantMessageID = `
+		SELECT id
+		FROM messages
+		WHERE session_id = $1 AND role = 'assistant' AND status IN ('streaming', 'interrupted')
+		ORDER BY turn_number DESC, id DESC
+		LIMIT 1
 	`
 	QueryDeleteMessagesUpToTurn = `
 		DELETE FROM messages
@@ -177,9 +211,7 @@ const (
 		  AND COALESCE(last_accessed_at, updated_at) < $1
 		  AND COALESCE(last_accessed_at, updated_at) >= $2
 	`
-
 )
-
 
 const (
 	QueryUpsertPreferences = `
@@ -228,20 +260,20 @@ const (
 
 // API Key queries
 const (
-	QueryCreateApiKey   = `INSERT INTO api_keys (key_hash, prefix, name, scopes, user_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`
-	QueryGetApiKeyByHash = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE key_hash = $1`
+	QueryCreateApiKey     = `INSERT INTO api_keys (key_hash, prefix, name, scopes, user_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`
+	QueryGetApiKeyByHash  = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE key_hash = $1`
 	QueryGetApiKeysByUser = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC`
-	QueryListApiKeys    = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys ORDER BY created_at DESC`
-	QueryRevokeApiKey   = `UPDATE api_keys SET status = 'revoked' WHERE id = $1 AND status = 'active'`
-	QueryGetApiKeyByID  = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE id = $1`
+	QueryListApiKeys      = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys ORDER BY created_at DESC`
+	QueryRevokeApiKey     = `UPDATE api_keys SET status = 'revoked' WHERE id = $1 AND status = 'active'`
+	QueryGetApiKeyByID    = `SELECT id, key_hash, prefix, name, scopes, user_id, status, created_at FROM api_keys WHERE id = $1`
 )
 
 // API Key error messages
 const (
-	ErrCreateApiKey  = "failed to create API key"
-	ErrGetApiKey     = "failed to get API key"
-	ErrListApiKeys   = "failed to list API keys"
-	ErrRevokeApiKey  = "failed to revoke API key"
+	ErrCreateApiKey = "failed to create API key"
+	ErrGetApiKey    = "failed to get API key"
+	ErrListApiKeys  = "failed to list API keys"
+	ErrRevokeApiKey = "failed to revoke API key"
 )
 
 const (
