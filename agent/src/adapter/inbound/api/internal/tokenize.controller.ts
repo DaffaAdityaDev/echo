@@ -7,10 +7,7 @@ import { TokenizeRequestSchema } from "./internal.schema";
 export async function tokenize(c: Context) {
   const parseResult = TokenizeRequestSchema.safeParse(await c.req.json());
   if (!parseResult.success) {
-    return c.json(
-      { error: "Invalid tokenize request", details: parseResult.error.format() },
-      HTTP_STATUS.BAD_REQUEST,
-    );
+    return c.json({ error: "Invalid tokenize request", details: parseResult.error.format() }, HTTP_STATUS.BAD_REQUEST);
   }
 
   try {

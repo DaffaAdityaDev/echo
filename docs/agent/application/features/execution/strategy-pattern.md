@@ -113,8 +113,9 @@ strategies/
 | Prompt style      | Minimal assistant      | NLAH coordinator                         |
 | Tool usage        | None                   | Orchestrator + delegation                |
 | Best for          | Simple Q&A             | Multi-agent research                     |
-| Template vars     | None                   | `{tools}`, `{objective}`,               |
-|                   |                        | `{workflow}`, `{delegation}`             |
+| Template vars     | None                   | `{capability_mode}`, `{core_protocols}`, |
+|                   |                        | `{workflow}`, `{tools}`, `{objective}`,  |
+|                   |                        | `{completion}`                           |
 +-------------------+------------------------+------------------------------------------+
 
 ---
@@ -188,15 +189,16 @@ before `strategy_version` is resolved.
 "You are Echo, a helpful AI assistant. Answer the user's question directly and concisely."
 ```
 
-### NLAH (`prompts.ts:59-84`) — internal driver for "agent" mode
+### NLAH (`prompts.ts:65-90`) — internal driver for "agent" mode
 ```
 "You are Echo, a Coordinator Parent Agent operating under the NLAH framework.
+{capability_mode}
+CORE PROTOCOLS: {core_protocols}
 {workflow}
-{delegation}
-CORE PROTOCOLS: 1. Orchestrator Only 2. In-State Planning 3. Clear Validation 4. Durable State
-AVAILABLE ORCHESTRATION TOOLS:
-{tools}
-OBJECTIVE: {objective}"
+FORMATTING: Never write tool-call syntax (XML tags...) in visible reply.
+AVAILABLE TOOLS: {tools}
+OBJECTIVE: {objective}
+{completion}"
 ```
 
 ---

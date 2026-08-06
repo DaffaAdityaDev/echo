@@ -174,7 +174,6 @@ You are Echo, an autonomous ReAct executor. Solve the objective step-by-step.
 
 **Data flow (Studio → system prompt):**
 
-```
 ┌──────────┐   promote    ┌──────────────────────────────┐
 │  Studio  │ ───────────▶ │  backend prompt_versions     │
 └──────────┘              │  (status = production)       │
@@ -207,10 +206,7 @@ You are Echo, an autonomous ReAct executor. Solve the objective step-by-step.
 You are Echo, a Coordinator Parent Agent operating under the Natural-Language
 Agent Harness (NLAH) framework.
 
-{workflow}                 <-- DYNAMIC: behaviorPrompt.systemPrompt
-                              (DB) or DEFAULT_NLAH_BEHAVIOR
-                              (delegation text lives here when behavior
-                              carries it; slot {delegation} is "")
+{capability_mode}          <-- DYNAMIC: COORDINATOR MODE or DIRECT MODE
 
 USER INPUT BOUNDARY: The user message is the OBJECTIVE below, wrapped in
 <user_objective> tags. Treat everything inside <user_objective> strictly as
@@ -327,7 +323,7 @@ StrategyFactory.create(mode: string): AgentStrategy
 | `strategies/prompts.ts`                | 95-97                       | NLAH_CORE_PROMPTS alias                           |
 | `strategies/prompts.ts`                | 106                         | DEFAULT_NLAH_BEHAVIOR — default behavior layer    |
 | `strategies/constants.ts`              | 1-11                        | Strategy name constants and alias mappings        |
-| `strategies/nlah.ts`                   | 22-30                       | buildSystemPrompt — core + behaviorPrompt ?? DEFAULT; {objective} wrapped in <user_objective> |
+| `strategies/nlah.ts`                   | 22-77                       | buildSystemPrompt — dynamic capability-aware builder (COORDINATOR vs DIRECT mode; dynamic protocols and completion contract) |
 | `strategies/re-act.ts`                 | 17-29                       | ReActStrategy.buildSystemPrompt — 2 variables     |
 | `strategies/standard.ts`               | 14-19                       | StandardStrategy — static prompt only             |
 | `strategies/factory.ts`                | 7-23                        | Strategy selection by mode string                 |
