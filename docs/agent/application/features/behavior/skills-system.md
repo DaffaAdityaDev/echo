@@ -329,7 +329,7 @@ Backend receives skills: ["research"]
 |                            |                                          | preferredTools, modifiers                |
 | compileSkillPrompts()      | `core/agent/skills/registry.ts:32`        | Delegates to SkillCompiler for templates  |
 | compileModifiers()         | `core/agent/skills/registry.ts:45`        | Merges modifier flags from skills         |
-| Harness integration        | `core/agent/harness/harness.ts:328-337`   | compileSkillPrompts + compileModifiers in |
+| Harness integration        | `core/agent/harness/harness.ts:182`       | compileSkillPrompts + compileModifiers in |
 |                            |                                          | buildSystemPrompt(); static registry at 54|
 | Controller usage           | `adapter/inbound/api/missions/mission.controller.ts:113` | `new SkillRegistry()` for HITL/creation |
 | Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`      | features XOR preferredTools              |

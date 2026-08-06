@@ -9,37 +9,7 @@ import type { RestToolConfig } from "../../../infrastructure/transports/rest/typ
 import type { ToolDefinition } from "../../../shared/types";
 import { logger } from "../../../shared/utils/logger";
 import { CredentialManager } from "../credentials/manager";
-
-// 1. Static Lazy-Loading Registry (Developer controlled)
-export const LAZY_TOOLS: Record<string, () => Promise<{ default: ToolDefinition } | ToolDefinition>> = {
-  delegate_task: () => import("./definitions/delegation"),
-  write_todos: () => import("./definitions/planning"),
-  web_search: () => import("./definitions/web-search"),
-};
-
-export interface ImplementedFeature {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export function getImplementedFeatures(registry: ToolRegistry = toolRegistry): ImplementedFeature[] {
-  const loadedById = new Map<string, ToolDefinition>();
-  for (const tool of registry.getAllTools()) {
-    loadedById.set(tool.name, tool);
-  }
-
-  const features: ImplementedFeature[] = [];
-  for (const id of Object.keys(LAZY_TOOLS)) {
-    const tool = loadedById.get(id);
-    if (tool) {
-      features.push({ id, name: tool.name, description: tool.description });
-    } else {
-      features.push({ id, name: id, description: "" });
-    }
-  }
-  return features.sort((a, b) => a.id.localeCompare(b.id));
-}
+import { LAZY_TOOLS } from "./lazy-tools";
 
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
@@ -231,15 +201,6 @@ export class ToolRegistry {
     }
     return map;
   }
-}
-
-/**
- * Builds a REST tool definition WITHOUT mutating the process-global registry
- * or the shared credential manager. Used to scope a mission's REST tools to
- * that mission only; secrets live in the returned definition's closures.
- */
-export function createRestTool(config: RestToolConfig): ToolDefinition {
-  return new RestAdapter().createTool(config);
 }
 
 export const toolRegistry = new ToolRegistry();

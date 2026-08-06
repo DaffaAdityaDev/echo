@@ -244,14 +244,14 @@ DEGRADATION = {
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Tool execution error     | `harness/harness.ts:633-655`        | Error → Observation mapping + circuit.recordFailure   |
-| Circuit open skip        | `harness/harness.ts:580-592`        | isOpen check → emitToolSkip + synthetic AIMessage     |
-| Compaction               | `harness/harness.ts:400-447`        | Token-based context compression                       |
+| Tool execution error     | `harness/tool-executor.ts:21`      | Error → Observation mapping + circuit.recordFailure   |
+| Circuit open skip        | `harness/tool-executor.ts:21`      | isOpen check → emitToolSkip + synthetic AIMessage     |
+| Compaction               | `harness/recovery.ts:27`           | Token-based context compression                       |
 | HARNESS_CONFIG           | `harness/constants.ts`              | CIRCUIT_BREAKER + DEGRADATION nested config           |
 | Degradation levels       | `harness/degradation.ts:25-40`      | getLevel() / shouldAbort() thresholds                 |
-| Degradation abort        | `harness/harness.ts:835-840`        | shouldAbort → throws generic Error                    |
-| Loop detection           | `harness/harness.ts:921-934`        | Cosine similarity thought comparison                  |
-| Stuck check              | `harness/harness.ts:273-294`        | Tier 2 recovery — separate LLM call                   |
+| Degradation abort        | `harness.ts:378` (runTurn)          | shouldAbort → throws generic Error                    |
+| Loop detection           | `harness.ts:378` (runTurn)          | Cosine similarity thought comparison                  |
+| Stuck check              | `harness/recovery.ts:27`            | Tier 2 recovery — separate LLM call                   |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

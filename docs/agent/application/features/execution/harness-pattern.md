@@ -32,7 +32,11 @@ harness/
   cancel_manager.ts          # AbortController-based cancellation (singleton)
   constants.ts               # HARNESS_CONFIG, PACKET_TYPES, OPERATION_STATUS
   prompts.ts                 # System prompts for compaction, recovery, stuck
-  harness.ts                 # NlahHarness — primary execution loop
+  harness.ts                 # NlahHarness — thin orchestrator (runMission + composition)
+  events.ts                  # HarnessEventEmitter — sendBase + emit* + updateStatus
+  stream-processor.ts        # processStreamEvents — provider AsyncIterable consumer
+  tool-executor.ts           # ToolExecutor — executeToolCall, circuit breaker, cost
+  recovery.ts                # RecoveryHandler — auto-recovery, compaction, degradation, stuck
   circuit_breaker.ts         # CircuitBreaker — per-tool retry tracking
   degradation.ts             # DegradationManager + DegradationLevel
   debug.ts                   # queuePromptDebug — async prompt ledger writer
@@ -189,7 +193,7 @@ unions.
 +-----------------------+--------------------------------+--------------------------------------------+
 | Export                | Source                         | Type                                       |
 +-----------------------+--------------------------------+--------------------------------------------+
-| `NlahHarness`         | `harness.ts:43`                | Primary harness implementation (instantiated directly by the mission controller — there is no facade) |
+| `NlahHarness`         | `harness.ts:44`                | Primary harness implementation (instantiated directly by the mission controller — there is no facade) |
 | `HarnessConfig`       | `types.ts`                     | Configuration interface                    |
 | `HarnessRuntimeConfig`| `types.ts`                     | Runtime overrides (circuit breaker, degradation, agent status) |
 | `DEFAULT_HARNESS_TOGGLES` | `types.ts`                | Default feature toggle values              |
@@ -225,24 +229,34 @@ unions.
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                     | Key Lines                                             |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
-| Main loop                | `harness.ts:832-1131`                | `while (!isComplete && iteration < maxIterations)`    |
-| Provider stream          | `harness.ts:490-584`                | Iterates event stream, dispatches by type             |
-| Native tool call         | `harness.ts:586-703`                | O(1) map lookup, execute, emit                        |
-| Soft recovery (XML)      | `harness.ts:705-767`                | `parseXmlToolCall` (harness.ts:713) — legacy `<function=…>` + generic `<N>…</N>`/`<N/>`/bare tags; rerouted to tool execution, never final content |
-| XML tool parser          | `harness/xml_tool_parser.ts:60-89`  | `parseXmlToolCall` — first match in document order; JSON body, malformed → `{}` |
-| Content sanitizer        | `harness/content_sanitizer.ts`      | `ContentSanitizer` — strips fake tool traces (`<write_todos>`), DSML `<invoke>` blocks, and echoed `<user_objective>` tags from streamed content chunks BEFORE emit (chunk-boundary safe, buffers partial tags; trailing partials are held across chunks with a `MAX_HOLD_LENGTH` bound and the flush only strips partials matching known tool names, so legitimate `<` in code is preserved); flush on stream end |
-| Tier 2 stuck check       | `harness.ts:279-300`                | LLM classifier, feedback prompt                       |
-| Pacing threshold         | `harness.ts:885-890`                | Iteration > 5 → force synthesis                       |
-| Context compaction       | `harness.ts:419-466`                | Token ratio > 90% → summarize                         |
-| Financial abort          | `harness.ts:892-912`                | Cost >= cap → state 'aborted', isComplete (no throw)  |
-| Cosine similarity        | `harness.ts:943-954`                | Threshold 0.92 → loop warning                         |
-| Tool selection at start  | `harness.ts:314-359`                | explicitTools !== undefined → use as-is (even []), else ToolRetriever; skills filter (338-344) + boundTools filter (346-355) |
-| Bound-tools filter       | `harness.ts:346-355`                | `applyBoundTools(tools, behaviorPrompt.boundTools)` — empty = no filter |
-| Behavior prompt config   | `harness/types.ts:32-44`            | `HarnessConfig.behaviorPrompt` (optional)             |
-| Behavior prompt plumbing | `harness.ts:51,77,361-372`          | Stored in ctor; passed to `strategy.buildSystemPrompt(state, tools, behaviorPrompt)` |
-| HITL snapshot            | `harness.ts:1007-1019`              | `harnessSnapshot.behaviorPrompt` — restored on HITL resume (controller re-applies bound filter) |
-| Cancel check             | `harness.ts:374-381`                | Checks `cancellationManager.isAborted()`               |
-| Harness config           | `constants.ts`                      | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
+| Main loop                | `harness.ts:226` (runMission)            | `while (!isComplete && iteration < maxIterations)`    |
+| Per-turn pipeline        | `harness.ts:378` (runTurn)               | Turn pipeline: cancellation, pacing, budget, loop     |
+|                                           |                                          | detection, HITL pause, tool dispatch                  |
+| Provider stream          | `harness/stream-processor.ts:34`         | `processStreamEvents` — consumes AsyncIterable,       |
+|                                           |                                          | dispatches by type, sanitizer, heartbeat/stall       |
+| Native tool call         | `harness/tool-executor.ts:21`            | `ToolExecutor.execute` — O(1) map lookup, execute,    |
+|                                           |                                          | emit, circuit breaker, cost progress                 |
+| Auto-recovery (XML etc.) | `harness/recovery.ts:27`                 | `RecoveryHandler.handleAutoRecovery` — XML parse →    |
+|                                           |                                          | unparseable → stuck classifier → fake trace          |
+| XML tool parser          | `harness/xml_tool_parser.ts:60-89`       | `parseXmlToolCall` — first match in document order;   |
+|                                           |                                          | JSON body, malformed → `{}`                          |
+| Content sanitizer        | `harness/content_sanitizer.ts`           | `ContentSanitizer` — strips fake tool traces          |
+| Tier 2 stuck check       | `harness/recovery.ts` (checkStuckState)  | LLM classifier, feedback prompt                       |
+| Pacing threshold         | `harness.ts:378` (runTurn)               | Iteration > 5 → force synthesis                       |
+| Context compaction       | `harness/recovery.ts` (handleCompaction) | Token ratio > 90% → summarize                         |
+| Financial abort          | `harness.ts:378` (runTurn)               | Cost >= cap → state 'aborted', isComplete (no throw)  |
+| Cosine similarity        | `harness.ts:378` (runTurn)               | Threshold 0.92 → loop warning                         |
+| Tool selection at start  | `harness.ts:135` (selectTools)           | explicitTools !== undefined → use as-is (even []),    |
+|                                           |                                          | else ToolRetriever; skills + boundTools filters      |
+| Bound-tools filter       | `harness.ts:135` (selectTools)           | `applyBoundTools(tools, behaviorPrompt.boundTools)`   |
+| Behavior prompt config   | `harness/types.ts:32-44`                 | `HarnessConfig.behaviorPrompt` (optional)             |
+| Behavior prompt plumbing | `harness.ts:74` (ctor), `harness.ts:182` | Stored in ctor; passed to                             |
+|                                           | (buildSystemPrompt)                      | `strategy.buildSystemPrompt(state, tools, behaviorPrompt)` |
+| HITL snapshot            | `harness.ts:378` (runTurn)               | `harnessSnapshot.behaviorPrompt` — restored on HITL   |
+|                                           |                                          | resume (controller re-applies bound filter)           |
+| Cancel check             | `harness.ts:195` (checkCancellation)     | Checks `cancellationManager.isAborted()`              |
+| Event emission           | `harness/events.ts:11`                   | `HarnessEventEmitter` — sendBase + emit* + updateStatus |
+| Harness config           | `constants.ts`                           | MAX_ITERATIONS: 15, COMPACTION_RATIO: 0.9, etc.       |
 +--------------------------+------------------------------------------+-------------------------------------------------------+
 
 ================================================================================

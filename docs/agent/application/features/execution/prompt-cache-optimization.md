@@ -68,8 +68,8 @@ reuses these tokens at near-zero cost after the first turn.
 
 ### 1. System Prompt stable mid-mission — EXCEPT degradation
 
-Built once before the harness loop in `harness.ts:756` (via
-`buildSystemPrompt()` at `harness.ts:342`):
+Built once before the harness loop in `harness.ts:226` (via
+`buildSystemPrompt()` at `harness.ts:182`):
 
 ```typescript
 let systemPrompt = this.strategy.buildSystemPrompt(state, tools);
@@ -79,7 +79,7 @@ if (this.skills && this.skills.length > 0) {
 ```
 
 This runs ONCE and is not modified inside the `while` loop — **unless the
-mission degrades**. `handleDegradation()` (`harness.ts:364-398`) rebuilds the
+mission degrades**. `handleDegradation()` (`harness/recovery.ts` — `RecoveryHandler.handleDegradation`) rebuilds the
 system prompt with an empty tool list at the `restricted` level and switches
 the strategy to `standard` at the `standard` level, replacing
 `currentSystemPrompt` for the rest of the mission.
@@ -88,7 +88,7 @@ the strategy to `standard` at the `standard` level, replacing
 
 The `tools` array passed to `provider.stream()` is stable across turns, but
 **can be emptied by degradation**: at any non-normal degradation level the
-harness passes `activeTools = []` (`harness.ts:896`). Pacing does NOT empty
+harness passes `activeTools = []` (`harness.ts:378` — `runTurn`). Pacing does NOT empty
 it — pacing only clears the execution-side `toolMap` via the `pacingForced`
 flag.
 
@@ -278,10 +278,10 @@ LLM API Call:
 +----------------------------+------------------------------------------+------------------------------------------+
 | Ref                        | File                                      | Key Lines                                |
 +----------------------------+------------------------------------------+------------------------------------------+
-| System prompt construction | `harness/harness.ts:342-353`    | `buildSystemPrompt()` once before loop   |
-| Tool array passed to LLM   | `harness/harness.ts:896`        | `activeTools` — [] when degraded         |
-| Degradation prompt rebuild | `harness/harness.ts:364-398`    | Restricted/standard system prompt swap   |
-| Pacing (preserves tools)   | `harness/harness.ts:864-869`    | `pacingForced` flag instead of tools=[]  |
+| System prompt construction | `harness/harness.ts:182`        | `buildSystemPrompt()` once before loop   |
+| Tool array passed to LLM   | `harness.ts:378` (runTurn)      | `activeTools` — [] when degraded         |
+| Degradation prompt rebuild | `harness/recovery.ts:27`        | Restricted/standard system prompt swap   |
+| Pacing (preserves tools)   | `harness.ts:378` (runTurn)      | `pacingForced` flag instead of tools=[]  |
 | Anthropic cache_control    | `providers/anthropic/index.ts`  | System + all tools get ephemeral cache   |
 | OpenAI prompt caching      | `providers/openai/index.ts`     | Auto — no special handling needed        |
 | LangChain Anthropic conv   | `node_modules/@langchain/anthropic/...`   | `_convertMessagesToAnthropicPayload()`   |

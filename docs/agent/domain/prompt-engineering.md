@@ -227,7 +227,7 @@ tools = (explicitFeatures / skills resolved tools) ∩ bound_tools
 
 - Enforced in **two places** (idempotent):
   1. Mission controller — `applyBoundTools(resolvedTools, behaviorPrompt.boundTools)` (`mission.controller.ts:172-174`).
-  2. Harness `selectTools` — `applyBoundTools(tools, bound)` before the loop (`harness.ts:346-355`).
+  2. Harness `selectTools` — `applyBoundTools(tools, bound)` before the loop (`harness.ts:135`).
 - Empty `boundTools` = **no restriction** — `applyBoundTools` returns the tools
   unchanged (`bound_tools.ts:5-8`).
 - The HITL resume path re-applies the filter from the harness snapshot
@@ -247,7 +247,7 @@ tools = (explicitFeatures / skills resolved tools) ∩ bound_tools
 When the model emits protocol XML in assistant content instead of a native
 tool call (e.g. `<write_todos>{"todos":[]}</write_todos>`), the harness
 `handleAutoRecovery` reroutes it through `parseXmlToolCall`
-(`harness.ts:713`) — the call is executed as a real tool and the protocol XML
+(`harness/recovery.ts` — `handleAutoRecovery`) — the call is executed as a real tool and the protocol XML
 **never reaches final user-facing content**. Unparseable XML escalates to the
 Tier 2 stuck check instead.
 

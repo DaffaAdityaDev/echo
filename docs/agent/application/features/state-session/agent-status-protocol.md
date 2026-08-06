@@ -346,11 +346,11 @@ recorded and treated as terminal by the stream endpoint
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 | Ref                      | File                                         | Key Lines                                             |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
-| Typed emit methods       | `harness/harness.ts:87-270`            | sendBase() + typed emit*() methods (no generic emit)  |
+| Typed emit methods       | `harness/events.ts:11`               | sendBase() + typed emit*() methods (no generic emit)  |
 | Status tracker           | `harness/status-tracker.ts:3-52`       | AgentStatusTracker (update, markStalled)              |
 | Packet types             | `shared/types/index.ts:69-92`          | AgentPacketType union                                 |
 | Packet type shapes       | `shared/types/index.ts:112-193`        | HarnessPacket discriminated union (flat, no meta)     |
-| Heartbeat + stall        | `harness/harness.ts:498-513`           | Heartbeat interval + STALL_TIMEOUT check              |
+| Heartbeat + stall        | `harness/stream-processor.ts:34`      | Heartbeat interval + STALL_TIMEOUT check              |
 | Frontend types           | `frontend/web/src/features/chat/types/ | StreamPacket + AgentStatus discriminated union        |
 |                          |   index.ts:114-122`                    | (activeCircuitBreakers, currentThought, lastActivity: string) |
 | Cancel manager           | `harness/cancel_manager.ts`            | Abort controller for disconnect detection              |

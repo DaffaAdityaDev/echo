@@ -282,7 +282,7 @@ The Agent's responsibility is:
 ### Modified Tool Resolution (in NlahHarness)
 
 ```
-Current (harness.ts:308-340):
+Current (harness.ts:135 — `selectTools`):
   if (this.explicitTools !== undefined) → use as-is
   else → toolRetriever.getRelevantTools(state.objective)
 
@@ -558,7 +558,7 @@ CONTEXT_RESOLVER = {
 +---------------------------+------------------------------------------+-------------------------------------------------------+
 | ToolRetriever (current)   | `services/retriever.ts`                  | Naive keyword scoring — to be replaced                |
 | RETRIEVER_CONFIG          | `services/constants.ts`        | Current weights: 0.6/0.3/0.1                          |
-| Tool resolution in harness| `harness/harness.ts:308-340`        | Where retriever is called                             |
+| Tool resolution in harness| `harness/harness.ts:135` (selectTools) | Where retriever is called                             |
 | Prefix-caching layout     | `docs/shared/architecture/headless-      | KV cache optimization strategy                       |
 |                           |   haas.md`                              |                                                       |
 | Session management        | `docs/agent/application/features/        | Go as session authority, BLOCK 4 loading, pruning     |

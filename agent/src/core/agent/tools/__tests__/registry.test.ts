@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ToolDefinition } from "../../../../shared/types";
-import { getImplementedFeatures, LAZY_TOOLS, ToolRegistry } from "../registry";
+import { getImplementedFeatures, LAZY_TOOLS, ToolRegistry } from "../index";
 
 const mockWebSearchTool: ToolDefinition = {
   name: "web_search",
