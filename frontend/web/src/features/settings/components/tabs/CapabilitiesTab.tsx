@@ -34,9 +34,12 @@ export function CapabilitiesTab({
   return (
     <>
       <div className="space-y-3">
-        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+        <div className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
           Harness Tool Capabilities
-        </label>
+        </div>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-1">
+          Checked = capabilities enabled by default for new chats. Unchecked tools are not provided to the agent.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {features.map((f) => (
             <label
@@ -72,9 +75,9 @@ export function CapabilitiesTab({
       </div>
 
       <div className="space-y-3 pt-2">
-        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+        <div className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
           Autoloaded Agent Skills
-        </label>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {skills.map((s) => (
             <label

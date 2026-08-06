@@ -22,15 +22,6 @@ export interface PromptVersion {
   created_at: string;
 }
 
-export interface PlaygroundResult {
-  model: string;
-  content: string;
-  reasoning?: string;
-  latency_ms: number;
-  tokens: number;
-  error?: string;
-}
-
 // AI-Ready Maturity Model Types
 export type MaturityLevel = "L1" | "L2" | "L3" | "L4" | "L5";
 

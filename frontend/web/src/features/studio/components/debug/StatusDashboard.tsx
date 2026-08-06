@@ -8,10 +8,10 @@ interface AgentStatus {
   state: "starting" | "running" | "looping" | "stalled" | "degraded" | "completed" | "aborted" | "error";
   step: number;
   throughput: number;
-  activeBreakers: string[];
+  activeCircuitBreakers: string[];
   currentTool?: string;
-  thought?: string;
-  lastActivity: number;
+  currentThought?: string;
+  lastActivity: string;
 }
 
 interface StatusDashboardProps {
@@ -61,7 +61,7 @@ export function StatusDashboard({
 }: StatusDashboardProps) {
   const state = agentStatus?.state ?? "starting";
   const deg = degradationPills[degradationLevel] ?? degradationPills.none;
-  const breakers = agentStatus?.activeBreakers ?? [];
+  const breakers = agentStatus?.activeCircuitBreakers ?? [];
 
   return (
     <div className={cn("border border-zinc-200 bg-zinc-50/80 rounded-2xl p-5 space-y-4", className)}>

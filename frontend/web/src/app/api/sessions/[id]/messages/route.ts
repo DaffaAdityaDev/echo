@@ -8,7 +8,8 @@ const BASE_URL = getBackendApiUrl();
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
-  return proxyFetch(`${BASE_URL}/sessions/${id}/messages`, {
+  const searchParams = req.nextUrl.search;
+  return proxyFetch(`${BASE_URL}/sessions/${id}/messages${searchParams}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }

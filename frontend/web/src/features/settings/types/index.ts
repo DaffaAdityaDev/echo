@@ -62,7 +62,7 @@ export interface AgentConfig {
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   defaultMode: "standard",
   defaultModel: "",
-  defaultFeatures: ["web_search", "write_todos"],
+  defaultFeatures: ["write_todos"],
   defaultSkills: [],
   providerType: "opencode-go",
   apiKey: "",

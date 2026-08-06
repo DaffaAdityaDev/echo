@@ -90,6 +90,25 @@ async function stream<T = unknown>(
     signal: signal as AbortSignal,
   });
 
+  await readStream(response, onChunk, signal as AbortSignal);
+}
+
+async function streamGet<T = unknown>(endpoint: string, onChunk: (data: T) => void, options: ApiRequestOptions = {}) {
+  const { signal } = options;
+
+  const headers = new Headers();
+  setAuthHeaders(headers, undefined);
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: "GET",
+    headers,
+    signal: signal as AbortSignal,
+  });
+
+  await readStream(response, onChunk, signal as AbortSignal);
+}
+
+async function readStream<T = unknown>(response: Response, onChunk: (data: T) => void, signal?: AbortSignal) {
   if (!response.ok) {
     const errorText = await response.text();
     let message = `Request failed with status ${response.status}`;
@@ -120,7 +139,7 @@ async function stream<T = unknown>(
 
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (!trimmedLine) continue;
+      if (!trimmedLine || trimmedLine.startsWith(":")) continue;
 
       let jsonStr = trimmedLine;
       if (trimmedLine.startsWith("data: ")) {
@@ -141,6 +160,9 @@ async function stream<T = unknown>(
     }
   }
 
+  if (!hasReceivedData && signal?.aborted) {
+    return;
+  }
   if (!hasReceivedData) {
     throw new Error("Stream ended without receiving any data");
   }
@@ -156,4 +178,5 @@ export const api = {
     request<T>(url, { ...opts, method: "PATCH", data: body }),
   delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "DELETE" }),
   stream,
+  streamGet,
 };

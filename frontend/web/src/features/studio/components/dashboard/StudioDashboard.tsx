@@ -63,13 +63,6 @@ export function StudioDashboard({
 
   const cards = [
     {
-      title: "Playground & Sandbox",
-      value: "Multi-Model",
-      icon: FlaskConical,
-      description: "Side-by-side prompt testing & mocking",
-      href: "/playground",
-    },
-    {
       title: "Prompt Library",
       value: promptCount,
       icon: ScrollText,
