@@ -9,7 +9,7 @@ export class HttpStreamTransport {
   private seq = 0;
   constructor(private streamInstance: { writeSSE: (packet: { data: string }) => unknown }) {}
 
-  async send(packet: StreamPacket): Promise<void> {
+  async send(packet: StreamPacket): Promise<StreamPacket> {
     this.seq++;
     const enriched = {
       ...packet,
@@ -25,5 +25,6 @@ export class HttpStreamTransport {
         `HttpStreamTransport: Failed to write packet to stream: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+    return enriched;
   }
 }

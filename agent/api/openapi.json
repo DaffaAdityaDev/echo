@@ -1737,6 +1737,74 @@
         }
       }
     },
+    "/api/v1/missions/{id}/stream": {
+      "get": {
+        "summary": "Stream mission execution logs",
+        "description": "Streams recorded execution packets for a mission as Server-Sent Events. Replays history after an optional exclusive cursor (query `after` or Last-Event-ID header), then delivers live events from the Redis mission event store with a heartbeat comment every 15 seconds. Closes after a terminal packet (mission_completed/error). Returns 503 when Redis is offline.",
+        "tags": ["Missions"],
+        "security": [
+          {
+            "InternalTokenAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mission ID"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Exclusive Redis stream ID cursor; replay only events after this ID. Omitted = full history replay. Also accepted via the Last-Event-ID header."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream of mission log packets",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "data: {HarnessPacket, sid}\\n\\n"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mission ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Redis offline — mission stream unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/models": {
       "get": {
         "summary": "List agent provider models",

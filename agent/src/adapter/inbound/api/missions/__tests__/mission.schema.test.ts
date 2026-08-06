@@ -45,4 +45,42 @@ describe("createMissionSchema Validation", () => {
       expect(result.data.config.harness).toBeDefined();
     }
   });
+
+  test("passes through prompt_template and tenant_id (DB-driven prompt chain)", () => {
+    const rawInput = {
+      message: "halo",
+      prompt_template: "behavior_test",
+      tenant_id: "local",
+      provider_config: {
+        base_url: "http://localhost:1234",
+        model: "opencode-go/deepseek-v4-flash",
+        type: "opencode-go",
+      },
+    };
+
+    const result = createMissionSchema.safeParse(rawInput);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.prompt_template).toBe("behavior_test");
+      expect(result.data.tenantId).toBe("local");
+    }
+  });
+
+  test("prompt_template and tenantId are optional and default gracefully", () => {
+    const rawInput = {
+      message: "halo",
+      provider_config: {
+        base_url: "http://localhost:1234",
+        model: "gpt-4o",
+        type: "openai",
+      },
+    };
+
+    const result = createMissionSchema.safeParse(rawInput);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.prompt_template).toBeUndefined();
+      expect(result.data.tenantId).toBe("local-developer");
+    }
+  });
 });

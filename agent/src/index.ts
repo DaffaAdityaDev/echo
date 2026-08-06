@@ -13,10 +13,14 @@ import { MemoryAdapter } from "./adapter/outbound/backend/memory.adapter";
 import { ENV } from "./config/env";
 import { CredentialManager } from "./core/agent/credentials";
 import { toolRegistry } from "./core/agent/tools";
+import { initRedis } from "./infrastructure/cache/redis";
 import { logger } from "./shared/utils/logger";
 
 // Autoload Agent Tools
 await toolRegistry.autoload();
+
+// Initialize Redis (mission event store)
+initRedis(ENV.REDIS_URL);
 
 // Cleanup leftover files from previous sessions at startup only
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -36,6 +40,17 @@ logger.info("Credential manager initialized");
 // Initialize MCP clients if configured
 if (ENV.ENABLE_MCP && ENV.MCP_SERVER_URL) {
   logger.info(`MCP server configured at ${ENV.MCP_SERVER_URL}`);
+  try {
+    await toolRegistry.connectMCPServer({
+      name: "default-mcp",
+      url: ENV.MCP_SERVER_URL,
+      transport: "sse",
+    });
+  } catch (mcpErr: unknown) {
+    logger.warn(
+      `Failed to connect MCP server at ${ENV.MCP_SERVER_URL}: ${mcpErr instanceof Error ? mcpErr.message : String(mcpErr)}`,
+    );
+  }
 }
 
 import docsRouter from "./adapter/inbound/api/docs/docs";

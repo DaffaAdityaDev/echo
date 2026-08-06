@@ -43,7 +43,11 @@ describe("HttpStreamTransport", () => {
     };
     const transport = new HttpStreamTransport(stream);
 
-    await expect(transport.send({ type: "content", content: "x" })).resolves.toBeUndefined();
+    await expect(transport.send({ type: "content", content: "x" })).resolves.toMatchObject({
+      type: "content",
+      content: "x",
+      seq: 1,
+    });
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Failed to write packet to stream"));
   });
 });

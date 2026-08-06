@@ -26,10 +26,10 @@ const MemoryConfigSchema = z
 const CompressionConfigSchema = z
   .object({
     enabled: z.boolean().default(true),
-    ratio: z.number().min(0).max(1).default(0.8),
-    keepLastTurns: z.number().int().default(10),
+    ratio: z.number().min(0).max(1).default(0.9),
+    keepLastTurns: z.number().int().default(2),
   })
-  .default({ enabled: true, ratio: 0.8, keepLastTurns: 10 });
+  .default({ enabled: true, ratio: 0.9, keepLastTurns: 2 });
 
 const PacingConfigSchema = z
   .object({
@@ -55,7 +55,7 @@ const HarnessConfigSchema = z
     delegationDepth: z.number().int().min(0).max(10).default(0),
   })
   .default({
-    compression: { enabled: true, ratio: 0.8, keepLastTurns: 10 },
+    compression: { enabled: true, ratio: 0.9, keepLastTurns: 2 },
     pacing: { enabled: true, threshold: 5 },
     loopDetection: { enabled: true, similarityThreshold: 0.92 },
     maxIterations: 15,
@@ -205,7 +205,7 @@ export const AgentConfigSchema = z
   .default({
     memory: { episodic: true, semantic: false, procedural: false, ttl: 86400 },
     harness: {
-      compression: { enabled: true, ratio: 0.8, keepLastTurns: 10 },
+      compression: { enabled: true, ratio: 0.9, keepLastTurns: 2 },
       pacing: { enabled: true, threshold: 5 },
       loopDetection: { enabled: true, similarityThreshold: 0.92 },
       maxIterations: 15,
@@ -255,6 +255,7 @@ export const createMissionSchema = z.preprocess(
       skills: raw.skills ?? undefined,
       missionId: raw.missionId ?? undefined,
       model: raw.model ?? undefined,
+      prompt_template: raw.prompt_template ?? undefined,
       config: raw.config,
     };
   },
@@ -268,6 +269,7 @@ export const createMissionSchema = z.preprocess(
     orgId: z.string(),
     missionId: z.string().nullable().optional(),
     model: z.string().nullable().optional(),
+    prompt_template: z.string().nullable().optional(),
     provider_config: z.object({
       type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
       base_url: z.string(),

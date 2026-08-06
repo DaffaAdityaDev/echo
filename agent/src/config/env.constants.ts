@@ -5,6 +5,7 @@ export const ENV_DEFAULTS = {
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   LANGFUSE_BASE_URL: "http://localhost:3000",
   BACKEND_URL: "http://localhost:8080",
+  REDIS_URL: "redis://localhost:6379",
 } as const;
 
 export const ENV_VALUES = {
