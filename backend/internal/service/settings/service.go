@@ -6,9 +6,26 @@ import (
 	"echo-backend/internal/models/user"
 	"echo-backend/internal/repository/settings"
 	"echo-backend/pkg/crypto"
+	"encoding/json"
 	"fmt"
 	"log"
 )
+
+const PromptTemplateSettingKey = "prompt_template_name"
+
+func ResolvePromptTemplateName(raw []byte, tenantID, fallback string) string {
+	var mapping map[string]string
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &mapping)
+	}
+	if name := mapping[tenantID]; name != "" {
+		return name
+	}
+	if name := mapping["default"]; name != "" {
+		return name
+	}
+	return fallback
+}
 
 func defaultBaseURL(providerType string) string {
 	switch providerType {
@@ -37,7 +54,7 @@ func NewService(cfg *cfgmodel.Config, settingsRepo *settings.Repository) *Servic
 }
 
 func (s *Service) GetDefaults() *usermodel.UserPreferences {
-	defaultFeatures := []string{"web_search", "write_todos"}
+	defaultFeatures := []string{"write_todos"}
 	return &usermodel.UserPreferences{
 		UserID:          0,
 		DefaultMode:     "standard",
@@ -130,4 +147,18 @@ func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*usermod
 	}
 
 	return prefs, nil
+}
+
+func (s *Service) ResolvePromptTemplateNameForTenant(ctx context.Context, tenantID string) (string, error) {
+	raw, err := s.settingsRepo.GetAppSetting(ctx, PromptTemplateSettingKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to query app setting %s: %w", PromptTemplateSettingKey, err)
+	}
+
+	cfgDefault := ""
+	if s.cfg != nil {
+		cfgDefault = s.cfg.PromptTemplateName
+	}
+
+	return ResolvePromptTemplateName(raw, tenantID, cfgDefault), nil
 }

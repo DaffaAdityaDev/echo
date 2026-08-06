@@ -14,6 +14,7 @@ import (
 type Repository interface {
 	CreateTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error)
 	GetTemplateByName(ctx context.Context, tenantID, name string) (*llmopsmodel.PromptTemplate, error)
+	GetTemplateByID(ctx context.Context, templateID string) (*llmopsmodel.PromptTemplate, error)
 	ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error)
 	CreateVersion(ctx context.Context, v *llmopsmodel.PromptVersion) (*llmopsmodel.PromptVersion, error)
 	GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error)
@@ -84,6 +85,24 @@ func (r *repository) GetTemplateByName(ctx context.Context, tenantID, name strin
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get template by name: %w", err)
+	}
+	return t, nil
+}
+
+func (r *repository) GetTemplateByID(ctx context.Context, templateID string) (*llmopsmodel.PromptTemplate, error) {
+	query := `
+		SELECT id, tenant_id, name, description, active_version, created_at, updated_at
+		FROM prompt_templates WHERE id = $1
+	`
+	t := &llmopsmodel.PromptTemplate{}
+	err := r.pool.QueryRow(ctx, query, templateID).Scan(
+		&t.ID, &t.TenantID, &t.Name, &t.Description, &t.ActiveVersion, &t.CreatedAt, &t.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get template by id: %w", err)
 	}
 	return t, nil
 }

@@ -781,8 +781,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: List available agent features
       tags:
       - Chat
@@ -812,6 +810,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Recall episodic memory
       tags:
       - Memory
@@ -841,6 +841,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Store episodic memory
       tags:
       - Memory
@@ -870,6 +872,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Get procedural memory
       tags:
       - Memory
@@ -899,6 +903,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Store procedural memory
       tags:
       - Memory
@@ -928,6 +934,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Search semantic memory
       tags:
       - Memory
@@ -957,6 +965,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Store semantic memory
       tags:
       - Memory
@@ -999,6 +1009,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ServiceJWTAuth: []
       summary: Prune and consolidate a session
       tags:
       - Sessions
@@ -1467,8 +1479,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: List available agent skills
       tags:
       - Chat
@@ -1489,6 +1499,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: List strategy catalog
       tags:
       - Strategies
@@ -1533,6 +1545,8 @@ paths:
           schema:
             additionalProperties: true
             type: object
+      security:
+      - BearerAuth: []
       summary: List prompt templates
       tags:
       - Studio
@@ -1560,6 +1574,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Create a prompt template
       tags:
       - Studio
@@ -1585,6 +1601,8 @@ paths:
           schema:
             additionalProperties: true
             type: object
+      security:
+      - BearerAuth: []
       summary: Promote a prompt template version
       tags:
       - Studio
@@ -1617,6 +1635,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Rollback a prompt template version
       tags:
       - Studio
@@ -1637,6 +1657,8 @@ paths:
           schema:
             additionalProperties: true
             type: object
+      security:
+      - BearerAuth: []
       summary: List prompt template versions
       tags:
       - Studio
@@ -1669,6 +1691,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Create a prompt template version
       tags:
       - Studio
@@ -1705,6 +1729,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Get a prompt template version
       tags:
       - Studio
@@ -1737,6 +1763,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Get active prompt
       tags:
       - Studio
@@ -1758,6 +1786,11 @@ paths:
 securityDefinitions:
   BearerAuth:
     description: 'Bearer token authorization header (Format: Bearer <JWT>).'
+    in: header
+    name: Authorization
+    type: apiKey
+  ServiceJWTAuth:
+    description: 'Service JWT authorization header (Format: Bearer <JWT>, signed with SERVICE_JWT_SECRET, sub=agent).'
     in: header
     name: Authorization
     type: apiKey

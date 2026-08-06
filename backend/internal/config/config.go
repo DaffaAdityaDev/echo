@@ -3,6 +3,7 @@ package config
 import (
 	cfgConst "echo-backend/internal/constants/config"
 	"echo-backend/internal/models/config"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -26,11 +27,18 @@ func Load() *cfgmodel.Config {
 	c.PRUNE_THRESHOLD = envInt("PRUNE_THRESHOLD", 100000)
 	c.PRUNE_KEEP_LATEST_TURNS = envInt("PRUNE_KEEP_LATEST_TURNS", 10)
 	c.SUMMARIZE_MAX_TOKENS = envInt("SUMMARIZE_MAX_TOKENS", 500)
+	c.HistoryMaxTokens = envInt("HISTORY_MAX_TOKENS", 50000)
+	c.HistoryMaxMsgChars = envInt("HISTORY_MAX_MSG_CHARS", 100000)
+	c.ConsolidationSkipTokens = envInt("CONSOLIDATION_SKIP_TOKENS", 200000)
 	c.EvaluatorEndpoint = envStr("EVALUATOR_ENDPOINT", "https://api.openai.com/v1/chat/completions")
 	c.EvaluatorAPIKey = os.Getenv("EVALUATOR_API_KEY")
 	c.EvaluatorModel = envStr("EVALUATOR_MODEL", "gpt-4o")
 	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
+	if c.EncryptionKey == "" {
+		log.Println("ENCRYPTION_KEY is empty; API key encryption will fail at runtime. Set a 32-char key.")
+	}
 	c.StrategyRolloutDefault = envFloat("STRATEGY_ROLLOUT_DEFAULT", 0.1)
+	c.PromptTemplateName = envStr("PROMPT_TEMPLATE_NAME", "")
 	c.WorkerInterval = envStr("WORKER_INTERVAL", "15m")
 	c.DecayDeprecateAfter = envInt("DECAY_DEPRECATE_AFTER", 30)
 	c.DecayArchiveAfter = envInt("DECAY_ARCHIVE_AFTER", 90)

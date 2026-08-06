@@ -3,9 +3,11 @@ package llmops
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"echo-backend/internal/models/llmops"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
+	"github.com/redis/go-redis/v9"
 )
 
 type PromptService interface {
@@ -21,10 +23,11 @@ type PromptService interface {
 
 type promptService struct {
 	repo propsrepo.Repository
+	rdb  *redis.Client
 }
 
-func NewPromptService(repo propsrepo.Repository) PromptService {
-	return &promptService{repo: repo}
+func NewPromptService(repo propsrepo.Repository, rdb *redis.Client) PromptService {
+	return &promptService{repo: repo, rdb: rdb}
 }
 
 func (s *promptService) ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error) {
@@ -92,6 +95,7 @@ func (s *promptService) PromoteToProduction(ctx context.Context, templateID stri
 	if err != nil {
 		return err
 	}
+	s.invalidateActivePromptCache(ctx, templateID)
 	return nil
 }
 
@@ -100,7 +104,26 @@ func (s *promptService) RollbackToVersion(ctx context.Context, templateID string
 	if err != nil {
 		return err
 	}
+	s.invalidateActivePromptCache(ctx, templateID)
 	return nil
+}
+
+func (s *promptService) invalidateActivePromptCache(ctx context.Context, templateID string) {
+	if s.rdb == nil {
+		return
+	}
+	tmpl, err := s.repo.GetTemplateByID(ctx, templateID)
+	if err != nil || tmpl == nil {
+		return
+	}
+	key := promptCacheKey(tmpl.TenantID, tmpl.Name)
+	if err := s.rdb.Del(ctx, key).Err(); err != nil {
+		log.Printf("[LLMOPS] Failed to invalidate prompt cache key %s: %v", key, err)
+	}
+}
+
+func promptCacheKey(tenantID, name string) string {
+	return fmt.Sprintf("agent:prompts:%s:%s", tenantID, name)
 }
 
 func (s *promptService) GetVersionHistory(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error) {
