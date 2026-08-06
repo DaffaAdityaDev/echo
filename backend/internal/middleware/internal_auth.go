@@ -23,7 +23,7 @@ func InternalAuthRequired(cfg *cfgmodel.Config) fiber.Handler {
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(cfg.ServiceJWTSecret), nil
-		})
+		}, jwt.WithValidMethods([]string{"HS256"}))
 		if err != nil || !token.Valid {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid internal token")
 		}
@@ -35,7 +35,7 @@ func InternalAuthRequired(cfg *cfgmodel.Config) fiber.Handler {
 
 		sub, ok := claims["sub"].(string)
 		if !ok || sub != "agent" {
-		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid token subject")
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: Invalid token subject")
 		}
 
 		c.Locals("service_name", sub)

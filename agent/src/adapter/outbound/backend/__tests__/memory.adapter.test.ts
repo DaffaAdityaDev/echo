@@ -95,13 +95,20 @@ describe("MemoryAdapter", () => {
   });
 
   describe("get", () => {
-    test("returns the deserialized state from content", async () => {
+    test("returns the deserialized state from entries", async () => {
       const serialized = serializeAgentState({
         ...makeState(),
         messages: [new HumanMessage({ content: "hi" }), new AIMessage({ content: "yo" })],
       });
       fetchMock.mockResolvedValue(
-        new Response(JSON.stringify({ content: JSON.stringify(serialized) }), { status: 200 }),
+        new Response(
+          JSON.stringify({
+            session_id: "m1",
+            entries: [{ content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:00Z" }],
+            total: 1,
+          }),
+          { status: 200 },
+        ),
       );
       const adapter = new MemoryAdapter(baseUrl);
       const result = await adapter.get("m1");
@@ -112,6 +119,38 @@ describe("MemoryAdapter", () => {
       expect(result?.messages[0]).toBeInstanceOf(HumanMessage);
       expect(result?.messages[1]).toBeInstanceOf(AIMessage);
       expect(result?.messages[0].content).toBe("hi");
+    });
+
+    test("joins multiple entry contents", async () => {
+      const serialized = serializeAgentState(makeState());
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            session_id: "m1",
+            entries: [
+              { content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:00Z" },
+              { content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:01Z" },
+            ],
+            total: 2,
+          }),
+          { status: 200 },
+        ),
+      );
+      const adapter = new MemoryAdapter(baseUrl);
+      const result = await adapter.get("m1");
+      expect(result).not.toBeNull();
+      expect(result?.missionId).toBe("m1");
+    });
+
+    test("falls back to legacy top-level content", async () => {
+      const serialized = serializeAgentState(makeState());
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ content: JSON.stringify(serialized) }), { status: 200 }),
+      );
+      const adapter = new MemoryAdapter(baseUrl);
+      const result = await adapter.get("m1");
+      expect(result).not.toBeNull();
+      expect(result?.missionId).toBe("m1");
     });
 
     test("returns null when content is empty", async () => {

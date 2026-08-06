@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+export const TokenizeRequestSchema = z.object({
+  text: z.string(),
+});
+
 export const SummarizeRequestSchema = z.object({
   session_id: z.string().optional(),
   messages: z.array(

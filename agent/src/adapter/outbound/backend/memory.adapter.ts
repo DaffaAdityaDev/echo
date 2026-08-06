@@ -8,6 +8,23 @@ const ENDPOINTS = {
   recall: "/api/v1/internal/memory/episodic/recall",
 };
 
+function parseRecallContent(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    let last: unknown = null;
+    for (const fragment of content.split("\n")) {
+      if (fragment === "") continue;
+      try {
+        last = JSON.parse(fragment);
+      } catch {
+        // Skip fragments that are not standalone JSON documents
+      }
+    }
+    return last;
+  }
+}
+
 export class MemoryAdapter {
   readonly type = "memory";
   private baseUrl: string;
@@ -69,9 +86,32 @@ export class MemoryAdapter {
     try {
       const data = (await this.request("POST", ENDPOINTS.recall, {
         session_id: missionId,
-      })) as { content?: unknown } | null;
-      if (!data?.content) return null;
-      const parsed = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
+      })) as {
+        session_id?: string;
+        entries?: Array<{ content?: unknown } | string>;
+        content?: unknown;
+      } | null;
+      if (!data) return null;
+
+      let content = "";
+      if (Array.isArray(data.entries) && data.entries.length > 0) {
+        content = data.entries
+          .map((entry) => {
+            if (typeof entry === "string") return entry;
+            const entryContent = entry?.content;
+            if (typeof entryContent === "string") return entryContent;
+            if (entryContent == null) return "";
+            return JSON.stringify(entryContent);
+          })
+          .filter((part) => part !== "")
+          .join("\n");
+      } else if (typeof data.content === "string") {
+        content = data.content;
+      }
+
+      if (!content) return null;
+      const parsed = parseRecallContent(content);
+      if (parsed == null) return null;
       return deserializeAgentState(parsed);
     } catch {
       return null;

@@ -38,7 +38,7 @@ func TestInternalAuthRequired(t *testing.T) {
 			wantStatus: fiber.StatusOK,
 		},
 		{
-			name: "valid JWT but sub is not agent returns 401",
+			name: "valid JWT but sub is not agent returns 403",
 			setupReq: func() *http.Request {
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 					"sub": "not-agent",
@@ -49,7 +49,7 @@ func TestInternalAuthRequired(t *testing.T) {
 				req.Header.Set("Authorization", "Bearer "+tokenStr)
 				return req
 			},
-			wantStatus: fiber.StatusUnauthorized,
+			wantStatus: fiber.StatusForbidden,
 		},
 		{
 			name: "wrong signing secret returns 401",
