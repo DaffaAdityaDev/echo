@@ -7,12 +7,12 @@ services:
       - "${AGENT_PORT:-3001}:3001"
     environment:
       - PORT=${AGENT_PORT:-3001}
-      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
       - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
-      - ENABLE_REDIS=${ENABLE_REDIS:-true}
       - STATE_BACKEND=${STATE_BACKEND:-backend}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
+      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
     depends_on:
       - echo-redis
     restart: unless-stopped
@@ -37,11 +37,6 @@ services:
       - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - ENABLE_OTEL=${ENABLE_OTEL:-false}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
-      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
-      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
     depends_on:

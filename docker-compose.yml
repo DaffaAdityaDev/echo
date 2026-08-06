@@ -72,13 +72,12 @@ services:
     container_name: echo_agent
     environment:
       - PORT=${AGENT_PORT:-3001}
-      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
       - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
-      - ENABLE_REDIS=${ENABLE_REDIS:-true}
       - STATE_BACKEND=${STATE_BACKEND:-backend}
       - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
+      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
       - CHROMA_URL=${CHROMA_URL:-http://localhost:8000}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-pk-lf-dummy}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-sk-lf-dummy}
@@ -117,16 +116,10 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - JWT_SECRET=${JWT_SECRET:-replace-this-with-a-secure-secret}
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
-      - CORS_ORIGIN=${CORS_ORIGIN:-${ALLOW_ORIGINS:-http://localhost:3000}}
       - ALLOW_ORIGINS=${ALLOW_ORIGINS:-http://localhost:3000}
       - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
       - ENABLE_OTEL=false
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENCODE_GO_API_KEY=${OPENCODE_GO_API_KEY:-}
-      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL:-}
-      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY:-}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-to-a-32-char-key!!!!}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
     depends_on:
       - echo-postgres

@@ -208,6 +208,7 @@ dist
 # Agent runtime data
 agent/debug/
 agent/logs/
+agent/.echo/
 
 # Assistant state
 .agents/

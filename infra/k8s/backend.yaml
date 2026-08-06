@@ -41,6 +41,8 @@ spec:
           value: "password"
         - name: DB_NAME
           value: "echo_db"
+        - name: SERVICE_JWT_SECRET
+          value: "change-this-to-a-secure-service-jwt-secret-min32chars"
         - name: OTEL_COLLECTOR_ADDR
           value: "echo-otel-collector:4317"
         - name: ENABLE_OTEL
