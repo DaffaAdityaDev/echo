@@ -62,6 +62,8 @@ Format your response immediately as the final conclusion for the user.`,
 
   FEEDBACK_PROMPT: `[HARNESS SYSTEM NOTICE]: You are currently halting in a thought state without triggering an action. If you need external data, you MUST call an available tool now. If you have completed the task, output your FINAL ANSWER immediately.`,
 
+  FAKE_TRACE_FEEDBACK: `[HARNESS SYSTEM NOTICE]: You wrote a tool-execution trace ("Tool Action:", "Observation:", "Search results for ...") as plain text instead of actually calling a tool. Tool traces are produced by the system, never by you. If you need a tool, call it through the native function interface now. Otherwise, output your FINAL ANSWER to the user directly. Do not reproduce tool traces, tool catalogs, or schemas as text.`,
+
   LOG_COMPACTED: (tokens: number) =>
     `*[System: Context compacted. Accumulated history of ${tokens} tokens summarized into structured high-density state to avoid context window bloating.]*`,
 

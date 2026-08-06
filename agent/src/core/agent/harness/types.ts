@@ -1,4 +1,6 @@
+import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import type { AgentStrategy, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
+import type { BehaviorPrompt } from "../prompts";
 
 export type HarnessEvent = {
   type: string;
@@ -24,6 +26,7 @@ export interface HarnessRuntimeConfig {
   };
   agentStatus?: {
     heartbeatInterval?: number;
+    stallTimeout?: number;
   };
 }
 
@@ -35,9 +38,12 @@ export interface HarnessConfig {
   harnessType?: string;
   tools?: ToolDefinition[];
   skills?: string[];
+  /** REST tool configs scoped to this mission; rebuilt into tools per run. */
+  restTools?: RestToolConfig[];
   harnessConfig?: Partial<HarnessFeatureToggles> & HarnessRuntimeConfig;
   delegationDepth?: number;
   initialCostUsd?: number;
+  behaviorPrompt?: BehaviorPrompt | null;
 }
 
 export const DEFAULT_HARNESS_TOGGLES: HarnessFeatureToggles = {

@@ -71,6 +71,8 @@ describe("HARNESS_PROMPTS", () => {
     expect(HARNESS_PROMPTS.REPEATING_WARNING.length).toBeGreaterThan(0);
     expect(HARNESS_PROMPTS.RECOVERY_PROMPT).toContain("tool");
     expect(HARNESS_PROMPTS.FEEDBACK_PROMPT).toContain("FINAL ANSWER");
+    expect(HARNESS_PROMPTS.FAKE_TRACE_FEEDBACK).toContain("FINAL ANSWER");
+    expect(HARNESS_PROMPTS.FAKE_TRACE_FEEDBACK).toContain("native function interface");
   });
 
   test("log compacted prompt includes the token count", () => {

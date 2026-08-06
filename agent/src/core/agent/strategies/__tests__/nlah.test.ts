@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { AgentState, ToolDefinition } from "../../../../shared/types";
+import type { BehaviorPrompt } from "../../prompts";
 import { NLAHStrategy } from "../nlah";
-import { NLAH_INSTRUCTIONS } from "../prompts";
+import { DEFAULT_NLAH_BEHAVIOR, NLAH_INSTRUCTIONS } from "../prompts";
 
 function makeState(objective: string = "Test objective"): AgentState {
   return {
@@ -52,6 +53,41 @@ describe("NLAHStrategy.buildSystemPrompt", () => {
     expect(prompt).toContain(NLAH_INSTRUCTIONS.SUBAGENT_DELEGATION);
     expect(prompt).toContain("RESEARCH WORKFLOW INSTRUCTIONS");
     expect(prompt).toContain("SUB-AGENT DELEGATION PROTOCOL");
+  });
+
+  test("without a behavior prompt, uses the default behavior and core protocols", () => {
+    const prompt = strategy.buildSystemPrompt(makeState(), []);
+    expect(prompt).toContain(DEFAULT_NLAH_BEHAVIOR);
+    expect(prompt).toContain("CORE PROTOCOLS:");
+    expect(prompt).toContain("EVIDENCE-BACKED ANSWERING:");
+    expect(prompt).toContain("COMPLETION CONTRACT:");
+  });
+
+  test("wraps the objective in <user_objective> tags", () => {
+    const prompt = strategy.buildSystemPrompt(makeState("Find the answer"), []);
+    expect(prompt).toContain("<user_objective>Find the answer</user_objective>");
+  });
+
+  test("with a behavior prompt, uses its systemPrompt instead of the default behavior", () => {
+    const behavior: BehaviorPrompt = {
+      templateName: "custom-template",
+      version: 3,
+      systemPrompt: "CUSTOM WORKFLOW:\n1. Do the custom thing.\n2. Custom delegation protocol.",
+      boundTools: ["write_todos"],
+      variables: [],
+    };
+    const prompt = strategy.buildSystemPrompt(makeState("Find the answer"), [], behavior);
+
+    expect(prompt).toContain(behavior.systemPrompt);
+    expect(prompt).toContain("<user_objective>Find the answer</user_objective>");
+    expect(prompt).toContain("CORE PROTOCOLS:");
+    expect(prompt).not.toContain(DEFAULT_NLAH_BEHAVIOR);
+    expect(prompt).not.toContain("RESEARCH WORKFLOW INSTRUCTIONS");
+  });
+
+  test("treats a null behavior prompt like an absent one", () => {
+    const prompt = strategy.buildSystemPrompt(makeState(), [], null);
+    expect(prompt).toContain(DEFAULT_NLAH_BEHAVIOR);
   });
 
   test("leaves no template placeholders behind", () => {

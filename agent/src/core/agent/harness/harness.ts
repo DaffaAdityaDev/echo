@@ -3,6 +3,7 @@ import type { LangfuseSpan } from "@langfuse/tracing";
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { ENV } from "../../../config/env";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
+import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import type {
   AgentState,
   AgentStatus,
@@ -17,6 +18,8 @@ import type {
 import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from "../../../shared/utils/harness";
 import { langfuseStorage, startAgentTrace } from "../../../shared/utils/langfuse";
 import { logger } from "../../../shared/utils/logger";
+import type { BehaviorPrompt } from "../prompts";
+import { applyBoundTools } from "../prompts/bound_tools";
 import { ToolRetriever } from "../services/retriever";
 import { SkillRegistry } from "../skills";
 import { stateStorage } from "../storage/factory";
@@ -27,6 +30,7 @@ import { cancellationManager } from "./cancel_manager";
 import { CircuitBreaker } from "./circuit_breaker";
 import { compressObservation } from "./compressor";
 import { DEBUG_CONFIG, HARNESS_CONFIG, OPERATION_STATUS } from "./constants";
+import { ContentSanitizer } from "./content_sanitizer";
 import { ContextManager } from "./context_manager";
 import { queuePromptDebug } from "./debug";
 import { type DegradationLevel, DegradationManager } from "./degradation";
@@ -34,7 +38,9 @@ import { HitlGuard } from "./hitl_guard";
 import { LoopDetector } from "./loop_detector";
 import { HARNESS_PROMPTS } from "./prompts";
 import { AgentStatusTracker } from "./status-tracker";
+import { isFakeToolTrace } from "./trace-guard";
 import { DEFAULT_HARNESS_TOGGLES, type HarnessConfig, type HarnessEvent, type HarnessRuntimeConfig } from "./types";
+import { hasProtocolMarkup, parseXmlToolCall } from "./xml_tool_parser";
 
 export class NlahHarness {
   private provider: LLMProvider;
@@ -43,7 +49,9 @@ export class NlahHarness {
   private tenantId: string;
   private delegationDepth: number;
   private explicitTools?: ToolDefinition[];
+  private restTools: RestToolConfig[] = [];
   private skills?: string[];
+  private behaviorPrompt: BehaviorPrompt | null = null;
   private compressionEnabled = true;
   private pacingEnabled = true;
   private pacingForced = false;
@@ -56,8 +64,11 @@ export class NlahHarness {
   private featureToggles: HarnessFeatureToggles;
   private loopDetector: LoopDetector;
   private hitlGuard: HitlGuard;
+  private contentSanitizer: ContentSanitizer;
   private contextManager: ContextManager;
   private totalCostUsd = 0;
+  private lastActivityAt = Date.now();
+  private stallEmitted = false;
 
   constructor(options: HarnessConfig) {
     this.provider = options.provider;
@@ -66,7 +77,9 @@ export class NlahHarness {
     this.tenantId = options.tenantId || HARNESS_CONFIG.DEFAULT_TENANT_ID;
     this.delegationDepth = options.delegationDepth ?? 0;
     this.explicitTools = options.tools;
+    this.restTools = options.restTools ?? [];
     this.skills = options.skills;
+    this.behaviorPrompt = options.behaviorPrompt ?? null;
     this.harnessConfig = options.harnessConfig;
     this.totalCostUsd = options.initialCostUsd ?? 0;
 
@@ -74,6 +87,7 @@ export class NlahHarness {
     this.loopDetector = new LoopDetector(this.featureToggles.loopDetection);
     this.hitlGuard = new HitlGuard(this.featureToggles.hitlGuard);
     this.contextManager = new ContextManager(this.featureToggles.contextOptimization);
+    this.contentSanitizer = new ContentSanitizer();
 
     if (!NlahHarness.toolRetriever) {
       NlahHarness.toolRetriever = new ToolRetriever();
@@ -100,6 +114,10 @@ export class NlahHarness {
     onPacket: (p: HarnessEvent) => Promise<void>,
     packet: { type: string } & Record<string, unknown>,
   ) {
+    if (packet.type !== "heartbeat") {
+      this.lastActivityAt = Date.now();
+      this.stallEmitted = false;
+    }
     const agentStatus = this.statusTracker?.getStatus();
     await onPacket({
       missionId: this.missionId,
@@ -228,6 +246,14 @@ export class NlahHarness {
     await this.sendBase(onPacket, { type: "turn_complete", step, completed, totalIterations, totalCost });
   }
 
+  private async markStalledIfNeeded(onPacket: (p: HarnessEvent) => Promise<void>, iteration: number): Promise<void> {
+    if (this.stallEmitted || !this.statusTracker) return;
+    const { changed, from, to } = this.statusTracker.markStalled();
+    if (!changed) return;
+    this.stallEmitted = true;
+    await this.emitStateChange(onPacket, iteration, from, to, "stalled");
+  }
+
   private async emitDebug(
     onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
@@ -310,7 +336,9 @@ export class NlahHarness {
       logger.info(
         `[selectTools] No explicitTools set â€” falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`,
       );
-      tools = (NlahHarness.toolRetriever as ToolRetriever).getRelevantTools(state.objective, filteredFullPool);
+      // Strict allowlist: web_search can only be enabled via explicit features.
+      const retrieverPool = filteredFullPool.filter((t) => t.name !== "web_search");
+      tools = (NlahHarness.toolRetriever as ToolRetriever).getRelevantTools(state.objective, retrieverPool);
     }
 
     if (this.skills?.length) {
@@ -321,12 +349,23 @@ export class NlahHarness {
       );
     }
 
+    if (this.behaviorPrompt?.boundTools?.length) {
+      const bound = this.behaviorPrompt.boundTools;
+      const removed = tools.filter((t) => !bound.includes(t.name));
+      tools = applyBoundTools(tools, bound);
+      if (removed.length > 0) {
+        logger.warn(
+          `[selectTools] Bound-tools filter removed (${removed.length}): ${removed.map((t) => t.name).join(", ")}`,
+        );
+      }
+    }
+
     logger.info(`[selectTools] Final tools (${tools.length}): ${tools.map((t) => t.name).join(", ") || "(none)"}`);
     return { tools, toolMap: new Map(tools.map((t) => [t.name, t])) };
   }
 
   private buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string {
-    let systemPrompt = this.strategy.buildSystemPrompt(state, tools);
+    let systemPrompt = this.strategy.buildSystemPrompt(state, tools, this.behaviorPrompt);
     if (this.skills?.length) {
       const skillPrompts = NlahHarness.skillRegistry.compileSkillPrompts(this.skills);
       const modifiers = NlahHarness.skillRegistry.compileModifiers(this.skills);
@@ -370,14 +409,14 @@ export class NlahHarness {
 
     if (currentLevel === "restricted") {
       state.messages.push(new HumanMessage("System: tool execution errors detected. Continuing with knowledge only."));
-      systemPrompt = this.strategy.buildSystemPrompt(state, []);
+      systemPrompt = this.strategy.buildSystemPrompt(state, [], this.behaviorPrompt);
     } else if (currentLevel === "standard") {
       state.messages.push(new HumanMessage("System: switching to direct response."));
       this.strategy = StrategyFactory.create("standard");
       const anchor = state.messages[0];
       const lastUserMsg = [...state.messages].reverse().find((m) => m._getType() === "human");
       state.messages = lastUserMsg ? [anchor, lastUserMsg] : [anchor];
-      systemPrompt = this.strategy.buildSystemPrompt(state, []);
+      systemPrompt = this.strategy.buildSystemPrompt(state, [], this.behaviorPrompt);
     }
 
     return { systemPrompt, toolMap, lastDegradationLevel: currentLevel };
@@ -480,8 +519,12 @@ export class NlahHarness {
     let lastChunkTime = Date.now();
     const heartbeatIntervalTime =
       this.harnessConfig?.agentStatus?.heartbeatInterval ?? HARNESS_CONFIG.AGENT_STATUS.HEARTBEAT_INTERVAL;
+    const stallTimeout = this.harnessConfig?.agentStatus?.stallTimeout ?? HARNESS_CONFIG.AGENT_STATUS.STALL_TIMEOUT;
 
     const heartbeatInterval = setInterval(() => {
+      if (Date.now() - this.lastActivityAt > stallTimeout) {
+        this.markStalledIfNeeded(onPacket, iteration).catch(() => {});
+      }
       if (Date.now() - lastChunkTime >= heartbeatIntervalTime) {
         this.emitHeartbeat(onPacket, iteration).catch(() => {});
       }
@@ -516,7 +559,10 @@ export class NlahHarness {
         }
         if (event.content && !pendingToolCall) {
           hasContentEmitted = true;
-          await this.emitContent(onPacket, iteration, event.content);
+          const cleanContent = this.contentSanitizer.sanitize(event.content);
+          if (cleanContent) {
+            await this.emitContent(onPacket, iteration, cleanContent);
+          }
         } else if (event.content && pendingToolCall) {
           logger.info(
             `[processStreamEvents] Content suppressed â€” toolCall pending, content_len=${event.content.length}`,
@@ -538,6 +584,12 @@ export class NlahHarness {
       }
     } finally {
       clearInterval(heartbeatInterval);
+    }
+
+    const flushedContent = this.contentSanitizer.flush();
+    if (flushedContent) {
+      hasContentEmitted = true;
+      await this.emitContent(onPacket, iteration, flushedContent);
     }
 
     logger.info(
@@ -611,6 +663,7 @@ export class NlahHarness {
         provider: this.provider,
         tools: [...toolMap.values()],
         delegationDepth: this.delegationDepth,
+        missionId: state.missionId,
       });
     } catch (err: unknown) {
       const toolError = err as { message?: string };
@@ -671,38 +724,28 @@ export class NlahHarness {
     iteration: number,
     _onPacket: (p: HarnessEvent) => Promise<void>,
     state: AgentState,
+    toolMap: Map<string, ToolDefinition>,
   ): Promise<{ isComplete: boolean; retryWithTool: { name: string; args: Record<string, unknown> } | null }> {
-    if (assistantContent.includes("<tool_call>") || assistantContent.includes("</tool_call>")) {
+    const parsedTool = parseXmlToolCall(assistantContent, new Set(toolMap.keys()));
+    if (parsedTool) {
       logger.warn(`[NLAH RECOVER] Soft Recovery triggered. Parsing raw XML tool syntax.`);
-      const funcMatch = assistantContent.match(/<function=(.*?)>/);
-      if (funcMatch) {
-        const toolName = funcMatch[1].trim();
-        const args: Record<string, unknown> = {};
-        const paramRegex = /<parameter=(.*?)>\s*([\s\S]*?)\s*<\/parameter>/g;
-        let match = paramRegex.exec(assistantContent);
-        while (match !== null) {
-          let val: string | boolean = match[2].trim();
-          if (val === "false") val = false;
-          if (val === "true") val = true;
-          args[match[1].trim()] = val;
-          match = paramRegex.exec(assistantContent);
-        }
-        logger.info(`[NLAH RECOVER] Successfully extracted tool: ${toolName}. Retrying loop.`);
-        state.messages.push(
-          new AIMessage({
-            content: assistantContent,
-            additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
-          }),
-        );
-        state.messages.push(
-          new ToolMessage({ tool_call_id: `fallback_${Date.now()}`, content: HARNESS_PROMPTS.LOG_RE_ROUTE }),
-        );
-        return { isComplete: false, retryWithTool: { name: toolName, args } };
-      } else {
-        logger.error(`[NLAH RECOVER] XML detected but unparseable. Escalating to Tier 2.`);
-        state.messages.push(new HumanMessage(HARNESS_PROMPTS.RECOVERY_PROMPT));
-        return { isComplete: false, retryWithTool: null };
-      }
+      logger.info(`[NLAH RECOVER] Successfully extracted tool: ${parsedTool.name}. Retrying loop.`);
+      state.messages.push(
+        new AIMessage({
+          content: assistantContent,
+          additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
+        }),
+      );
+      state.messages.push(
+        new ToolMessage({ tool_call_id: `fallback_${Date.now()}`, content: HARNESS_PROMPTS.LOG_RE_ROUTE }),
+      );
+      return { isComplete: false, retryWithTool: parsedTool };
+    }
+
+    if (hasProtocolMarkup(assistantContent, new Set(toolMap.keys()))) {
+      logger.error(`[NLAH RECOVER] XML detected but unparseable. Escalating to Tier 2.`);
+      state.messages.push(new HumanMessage(HARNESS_PROMPTS.RECOVERY_PROMPT));
+      return { isComplete: false, retryWithTool: null };
     }
 
     const looksLikeThinking = await this.checkStuckState(state.objective, assistantContent);
@@ -715,6 +758,18 @@ export class NlahHarness {
         }),
       );
       state.messages.push(new HumanMessage(HARNESS_PROMPTS.FEEDBACK_PROMPT));
+      return { isComplete: false, retryWithTool: null };
+    }
+
+    if (isFakeToolTrace(assistantContent) && iteration < HARNESS_CONFIG.MAX_ITERATIONS) {
+      logger.warn(`[NLAH RECOVER] Fake tool trace detected in assistant content. Re-prompting the model.`);
+      state.messages.push(
+        new AIMessage({
+          content: assistantContent,
+          additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
+        }),
+      );
+      state.messages.push(new HumanMessage(HARNESS_PROMPTS.FAKE_TRACE_FEEDBACK));
       return { isComplete: false, retryWithTool: null };
     }
 
@@ -787,7 +842,7 @@ export class NlahHarness {
     }
 
     const budgetMonitor = new BudgetMonitor(this.featureToggles.budgetMonitor);
-    const totalInputTokensSum = 0;
+    let totalInputTokensSum = 0;
     let previousThought = "";
 
     while (!isComplete && iteration < maxIterations) {
@@ -897,6 +952,7 @@ export class NlahHarness {
                 usage.cachedTokens ?? 0,
               );
               this.totalCostUsd += stepCost;
+              totalInputTokensSum += usage.promptTokens;
             }
 
             // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) â€” existing behavior preserved
@@ -967,6 +1023,7 @@ export class NlahHarness {
                   harnessSnapshot: {
                     strategyName: this.strategy.name,
                     toolNames: Array.from(currentToolMap.keys()),
+                    restTools: this.restTools,
                     providerConfig: {
                       type: this.provider.constructor.name,
                       base_url: this.provider.baseURL ?? "",
@@ -975,6 +1032,7 @@ export class NlahHarness {
                     },
                     delegationDepth: this.delegationDepth,
                     featureToggles: this.featureToggles,
+                    behaviorPrompt: this.behaviorPrompt,
                   },
                   metadata: {
                     totalCostUsd: this.totalCostUsd,
@@ -1032,6 +1090,7 @@ export class NlahHarness {
                 iteration,
                 onPacket,
                 state,
+                currentToolMap,
               );
               isComplete = turnComplete;
               if (retryWithTool) {

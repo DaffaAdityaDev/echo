@@ -11,6 +11,13 @@ export {
   RESEARCHER_INSTRUCTIONS,
   SUBAGENT_DELEGATION_INSTRUCTIONS,
 } from "./nlah";
-export { NLAH_INSTRUCTIONS, NLAH_PROMPTS, REACT_PROMPTS, STANDARD_PROMPTS } from "./prompts";
+export {
+  DEFAULT_NLAH_BEHAVIOR,
+  NLAH_CORE_PROMPTS,
+  NLAH_INSTRUCTIONS,
+  NLAH_PROMPTS,
+  REACT_PROMPTS,
+  STANDARD_PROMPTS,
+} from "./prompts";
 export { StrategyRegistry, strategyRegistry } from "./registry";
 export { StandardStrategy } from "./standard";

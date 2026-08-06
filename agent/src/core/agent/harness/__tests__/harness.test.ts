@@ -231,6 +231,42 @@ describe("NlahHarness", () => {
       expect(stateStorage.set).toHaveBeenCalledWith("mission-1", state, 600);
     });
 
+    it("completes in one iteration when the reply only contains tag-like text, without escalating", async () => {
+      // "support" is not a protocol/tool tag, so this must NOT escalate to
+      // Tier-2 recovery (which would spin the mission to MAX_ITERATIONS).
+      const { provider, stream } = makeProvider([
+        [{ content: "Contact <support@example.com> for help. Note: a<b." }],
+        [{ content: "CLEAR" }],
+      ]);
+      const state = makeState("mission-escalate-free");
+      const harness = makeHarness(provider, { missionId: "mission-escalate-free" });
+      const packets = await runHarness(harness, state);
+
+      expect(stream).toHaveBeenCalledTimes(2);
+      const turnComplete = packets.find((p) => p.type === "turn_complete");
+      expect(turnComplete).toMatchObject({ completed: true, totalIterations: 1 });
+      expect(packets.some((p) => p.type === "state_change" && p.to === "completed")).toBe(true);
+      expect(packets.some((p) => p.type === "content" && String(p.content).includes("Contact"))).toBe(true);
+    });
+
+    it("escalates generic protocol markup to Tier-2 recovery and recovers next turn", async () => {
+      // <parameter> is protocol markup but not a known tool, so it escalates
+      // (recovery prompt injected, iteration 1 not complete) and the mission
+      // completes on the following turn.
+      const { provider, stream } = makeProvider([
+        [{ content: '<parameter name="query">x</parameter>' }],
+        [{ content: "OK" }],
+        [{ content: "CLEAR" }],
+      ]);
+      const state = makeState("mission-escalate");
+      const harness = makeHarness(provider, { missionId: "mission-escalate" });
+      const packets = await runHarness(harness, state);
+
+      expect(stream).toHaveBeenCalledTimes(3);
+      const turnComplete = packets.find((p) => p.type === "turn_complete");
+      expect(turnComplete).toMatchObject({ completed: true, totalIterations: 2 });
+    });
+
     it("executes a tool call and emits tool_call and tool_result packets", async () => {
       const { provider } = makeProvider([
         [{ toolCall: { name: "fake_tool", args: { query: "hello" } } }],
@@ -452,6 +488,59 @@ describe("NlahHarness", () => {
       expect(
         packets.some((p) => p.type === "system_notice" && (p.payload as { code?: string }).code === "LOOP_DETECTED"),
       ).toBe(true);
+      expect(packets.some((p) => p.type === "state_change" && p.to === "completed")).toBe(true);
+    });
+
+    it("passes the behaviorPrompt through to the strategy", async () => {
+      const { provider } = makeProvider([[{ content: "COMPLETE" }]]);
+      let received: unknown = null;
+      const strategy: AgentStrategy = {
+        name: "agent",
+        buildSystemPrompt: (_state: AgentState, _tools: ToolDefinition[], behaviorPrompt?: unknown) => {
+          received = behaviorPrompt;
+          return "behavior-aware prompt";
+        },
+      };
+      const behaviorPrompt = {
+        templateName: "custom-template",
+        version: 1,
+        systemPrompt: "custom system prompt",
+        boundTools: ["fake_tool"],
+        variables: [],
+      };
+      const harness = new NlahHarness({
+        provider,
+        strategy,
+        missionId: "mission-bp",
+        tenantId: "tenant-1",
+        tools: [FAKE_TOOL as unknown as ToolDefinition],
+        behaviorPrompt,
+      });
+      const packets = await runHarness(harness, makeState("mission-bp"));
+
+      expect(received).toEqual(behaviorPrompt);
+      expect(packets.some((p) => p.type === "state_change" && p.to === "completed")).toBe(true);
+    });
+
+    it("filters explicit tools down to the behavior prompt bound tools", async () => {
+      const { provider, stream } = makeProvider([[{ content: "COMPLETE" }]]);
+      const harness = new NlahHarness({
+        provider,
+        strategy: fakeStrategy(),
+        missionId: "mission-bp2",
+        tenantId: "tenant-1",
+        tools: [FAKE_TOOL as unknown as ToolDefinition],
+        behaviorPrompt: {
+          templateName: "custom-template",
+          version: 1,
+          systemPrompt: "custom system prompt",
+          boundTools: ["write_todos"],
+          variables: [],
+        },
+      });
+      const packets = await runHarness(harness, makeState("mission-bp2"));
+
+      expect(stream.mock.calls[0][1]).toEqual([]);
       expect(packets.some((p) => p.type === "state_change" && p.to === "completed")).toBe(true);
     });
 

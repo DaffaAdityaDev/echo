@@ -16,3 +16,24 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
+
+export class ValidationError extends AppError {
+  constructor(message: string) {
+    super(message, HTTP_STATUS.BAD_REQUEST);
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message: string) {
+    super(message, HTTP_STATUS.NOT_FOUND);
+    Object.setPrototypeOf(this, NotFoundError.prototype);
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string) {
+    super(message, HTTP_STATUS.FORBIDDEN);
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
+  }
+}

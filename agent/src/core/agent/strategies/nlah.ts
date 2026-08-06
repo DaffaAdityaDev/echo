@@ -1,6 +1,7 @@
 import type { AgentState, AgentStrategy, ToolDefinition } from "../../../shared/types";
+import type { BehaviorPrompt } from "../prompts";
 import { STRATEGY_NAMES } from "./constants";
-import { NLAH_INSTRUCTIONS, NLAH_PROMPTS } from "./prompts";
+import { DEFAULT_NLAH_BEHAVIOR, NLAH_INSTRUCTIONS, NLAH_PROMPTS } from "./prompts";
 
 export const RESEARCH_WORKFLOW_INSTRUCTIONS = NLAH_INSTRUCTIONS.RESEARCH_WORKFLOW;
 export const SUBAGENT_DELEGATION_INSTRUCTIONS = NLAH_INSTRUCTIONS.SUBAGENT_DELEGATION;
@@ -18,13 +19,13 @@ export const RESEARCHER_INSTRUCTIONS = NLAH_INSTRUCTIONS.RESEARCHER;
 export class NLAHStrategy implements AgentStrategy {
   name = STRATEGY_NAMES.AGENT;
 
-  buildSystemPrompt(state: AgentState, tools: ToolDefinition[]): string {
+  buildSystemPrompt(state: AgentState, tools: ToolDefinition[], behaviorPrompt?: BehaviorPrompt | null): string {
     const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
     const toolDescriptions = sortedTools.map((t) => `- ${t.name}: ${t.description}`).join("\n");
 
-    return NLAH_PROMPTS.SYSTEM_TEMPLATE.replace("{objective}", state.objective)
+    return NLAH_PROMPTS.SYSTEM_TEMPLATE.replace("{objective}", `<user_objective>${state.objective}</user_objective>`)
       .replace("{tools}", toolDescriptions)
-      .replace("{workflow}", RESEARCH_WORKFLOW_INSTRUCTIONS)
-      .replace("{delegation}", SUBAGENT_DELEGATION_INSTRUCTIONS);
+      .replace("{workflow}", behaviorPrompt?.systemPrompt ?? DEFAULT_NLAH_BEHAVIOR)
+      .replace("{delegation}", "");
   }
 }

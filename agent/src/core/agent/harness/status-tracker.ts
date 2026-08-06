@@ -34,4 +34,17 @@ export class AgentStatusTracker {
     const changed = from !== to;
     return { changed, from, to };
   }
+
+  markStalled(): { changed: boolean; from: string; to: string } {
+    const from = this.status.state;
+    if (from === "completed" || from === "aborted" || from === "stalled") {
+      return { changed: false, from, to: from };
+    }
+    this.status = {
+      ...this.status,
+      state: "stalled",
+      lastActivity: new Date().toISOString(),
+    };
+    return { changed: true, from, to: "stalled" };
+  }
 }

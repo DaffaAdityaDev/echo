@@ -1,5 +1,5 @@
 import { HTTP_STATUS } from "../../constants/http";
-import { AppError } from "../errors";
+import { AppError, ForbiddenError, NotFoundError, ValidationError } from "../errors";
 
 describe("AppError", () => {
   test("defaults to 500 internal server error and operational", () => {
@@ -26,5 +26,36 @@ describe("AppError", () => {
   test("is an instance of AppError", () => {
     const error = new AppError("anything");
     expect(error).toBeInstanceOf(AppError);
+  });
+});
+
+describe("ValidationError", () => {
+  test("defaults to 400 bad request", () => {
+    const error = new ValidationError("invalid payload");
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.statusCode).toBe(HTTP_STATUS.BAD_REQUEST);
+    expect(error.statusCode).toBe(400);
+    expect(error.message).toBe("invalid payload");
+    expect(error.isOperational).toBe(true);
+  });
+});
+
+describe("NotFoundError", () => {
+  test("defaults to 404 not found", () => {
+    const error = new NotFoundError("resource missing");
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.statusCode).toBe(HTTP_STATUS.NOT_FOUND);
+    expect(error.statusCode).toBe(404);
+    expect(error.message).toBe("resource missing");
+  });
+});
+
+describe("ForbiddenError", () => {
+  test("defaults to 403 forbidden", () => {
+    const error = new ForbiddenError("access denied");
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.statusCode).toBe(HTTP_STATUS.FORBIDDEN);
+    expect(error.statusCode).toBe(403);
+    expect(error.message).toBe("access denied");
   });
 });

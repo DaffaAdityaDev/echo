@@ -54,11 +54,10 @@ describe("ToolRetriever", () => {
       expect(result[0].name).toBe("write_todos");
     });
 
-    test("falls back to web_search when no tools match", () => {
+    test("returns empty array when no tools match (no implicit fallback)", () => {
       const retriever = new ToolRetriever();
       const result = retriever.getRelevantTools("xyznonexistent12345", allTools);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("web_search");
+      expect(result).toEqual([]);
     });
 
     test("returns multiple tools ranked by score", () => {
@@ -86,8 +85,7 @@ describe("ToolRetriever", () => {
       const bareTool = makeTool({ name: "bareBare", description: "A bare tool" });
       const retriever = new ToolRetriever();
       const result = retriever.getRelevantTools("xyznonexistent", [bareTool, webSearchTool]);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("web_search");
+      expect(result).toEqual([]);
     });
 
     test("returns empty array when allTools is empty", () => {
