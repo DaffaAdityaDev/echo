@@ -22,11 +22,22 @@ File Structure
 | Path                                           | Description                                |
 +------------------------------------------------+--------------------------------------------+
 | internal/handler/auth/handler.go               | Auth routes handler                        |
-| internal/handler/chat/handler.go               | Chat, stream, features handler             |
+| internal/handler/chat/handler.go               | Chat helpers + Handler struct + NewHandler |
+| internal/handler/chat/chat.go                  | HandleChat — SSE chat stream orchestration |
+| internal/handler/chat/stream.go                | StreamMissionLogs — mission log stream     |
+| internal/handler/chat/hitl.go                  | HITL approve/deny actions                  |
+| internal/handler/chat/skills.go                | GetSkills / HandleGetSkills                |
+| internal/handler/chat/mission_replay.go        | Mission replay/resume                      |
 | internal/handler/aimodel/handler.go           | Model listing handler                      |
 | internal/handler/admin/handler.go              | Admin API key management handler           |
-| internal/handler/session/handler.go            | Session CRUD + title generation handler    |
-| internal/handler/memory/handler.go             | Episodic/semantic/procedural memory API    |
+| internal/handler/session/handler.go            | Session helpers + Handler struct + NewHandler |
+| internal/handler/session/crud.go               | Session CRUD handlers                      |
+| internal/handler/session/title.go              | HandleGenerateTitle + title helpers        |
+| internal/handler/session/prune.go              | HandlePruneSession                         |
+| internal/handler/memory/handler.go             | Memory helpers + NewHandler                |
+| internal/handler/memory/episodic.go            | Episodic memory handlers                   |
+| internal/handler/memory/semantic.go            | Semantic memory handlers + search          |
+| internal/handler/memory/procedural.go          | Procedural memory handlers                 |
 | internal/handler/settings/handler.go           | User preferences handler                   |
 | internal/handler/handlerutil/helpers.go        | Shared utilities (GetUserID, GenerateUUID) |
 | internal/handler/llmops/                       | Prompt & studio handlers (sub-package)     |
