@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckCircle2, Info, ShieldCheck, Zap } from "lucide-react";
-import React from "react";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { EndpointDetail } from "@/components/docs/EndpointDetail";
 import { useSpec } from "@/components/docs/OpenApiSpecProvider";

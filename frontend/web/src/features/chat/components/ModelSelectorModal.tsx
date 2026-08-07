@@ -61,8 +61,10 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
+      <button
+        type="button"
+        aria-label="Close model selector"
+        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in cursor-pointer"
         onClick={onClose}
       />
 
@@ -140,54 +142,55 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
               const contextInfo = getContextWindow(m);
 
               return (
-                <div
+                <button
                   key={m.id}
+                  type="button"
                   onClick={() => {
                     setSelectedModel(m.id);
                     onClose();
                   }}
                   className={cn(
-                    "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative group",
+                    "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative group text-left w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50",
                     isSelected
                       ? "bg-purple-500/10 border-purple-500/40 text-purple-600 dark:text-purple-400 shadow-md"
                       : "bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200/80 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-200 hover:border-purple-500/30 hover:bg-zinc-100 dark:hover:bg-zinc-900",
                   )}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div
+                  <span className="flex items-center justify-between">
+                    <span className="flex items-center gap-2.5">
+                      <span
                         className={cn(
-                          "p-2 rounded-xl border shrink-0",
+                          "p-2 rounded-xl border shrink-0 inline-flex items-center justify-center",
                           isSelected
                             ? "bg-purple-600 text-white border-purple-500"
                             : "bg-zinc-200/80 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300",
                         )}
                       >
                         <ProviderIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+                      </span>
+                      <span>
+                        <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
                           {m.name}
-                        </h4>
+                        </span>
                         <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">{m.id}</span>
-                      </div>
-                    </div>
+                      </span>
+                    </span>
 
-                    <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-2">
                       <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-200/60 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-300/40 dark:border-zinc-700/40">
                         {contextInfo}
                       </span>
                       {isSelected && (
-                        <div className="flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                           <Check className="h-3.5 w-3.5" />
                           <span>Active</span>
-                        </div>
+                        </span>
                       )}
-                    </div>
-                  </div>
+                    </span>
+                  </span>
 
                   {/* Capability Badges */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="flex items-center gap-1.5 flex-wrap pt-1">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-1">
                       {m.provider_name}
                     </span>
@@ -206,8 +209,8 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                         </span>
                       );
                     })}
-                  </div>
-                </div>
+                  </span>
+                </button>
               );
             })
           )}

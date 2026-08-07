@@ -10,7 +10,7 @@ import type { Session } from "../types";
 export function useSessionsInfinite() {
   const queryClient = useQueryClient();
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const setSessions = useChatStore((s) => s.setSessions);
   const setActiveSession = useChatStore((s) => s.setActiveSession);
 
@@ -88,7 +88,7 @@ export function useSessionsInfinite() {
     hasNextPage,
     isFetchingNextPage,
     isError,
-    isInitialLoading,
+    isInitialLoading: (isInitialLoading || isAuthLoading) && flattenedSessions.length === 0,
     refetch,
   };
 }

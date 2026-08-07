@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowLeft, Code, Terminal } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import React from "react";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function LanguageExamplePage() {

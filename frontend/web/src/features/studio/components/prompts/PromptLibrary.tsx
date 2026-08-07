@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, ChevronRight, Plus, ScrollText, Search } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { PromptTemplate } from "../../types";
 import { EmptyState } from "../shared/EmptyState";
@@ -52,7 +52,11 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
             className="w-full h-9 pl-9 pr-3 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-blue-500/50 transition-colors"
           />
         </div>
-        <Button size="sm" onClick={() => setShowCreate(!showCreate)} className="gap-1.5 text-xs font-semibold shrink-0 cursor-pointer">
+        <Button
+          size="sm"
+          onClick={() => setShowCreate(!showCreate)}
+          className="gap-1.5 text-xs font-semibold shrink-0 cursor-pointer"
+        >
           <Plus className="h-3.5 w-3.5" /> New Template
         </Button>
       </div>
@@ -103,6 +107,7 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
           {filtered.map((t) => (
             <button
               key={t.id}
+              type="button"
               onClick={() => onSelect(t.id)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors text-left cursor-pointer"
             >
@@ -111,9 +116,13 @@ export function PromptLibrary({ templates, isLoading, error, onSelect, onCreate,
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{t.name}</div>
-                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">{t.description || "No description"}</div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  {t.description || "No description"}
+                </div>
               </div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400 shrink-0 font-mono font-medium">v{t.active_version}</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 shrink-0 font-mono font-medium">
+                v{t.active_version}
+              </div>
               <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />
             </button>
           ))}

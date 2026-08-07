@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, HelpCircle, Layers, Map, Sparkles } from "lucide-react";
+import { AlertTriangle, HelpCircle, Layers, Map as MapIcon, Sparkles } from "lucide-react";
 import type {
   ClientCompanyAssessment,
   MaturityDimension,
@@ -52,8 +52,6 @@ export function MaturityDashboard({
   levelsInfo,
   dimensions,
   questions,
-  serverAssessment,
-  isSaving,
   onSaveClient,
 }: MaturityDashboardProps) {
   return (
@@ -96,6 +94,7 @@ export function MaturityDashboard({
       {/* Tabs */}
       <div className="flex border-b border-border gap-6 font-mono">
         <button
+          type="button"
           onClick={() => setActiveTab("matrix")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "matrix"
@@ -108,6 +107,7 @@ export function MaturityDashboard({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("roadmap")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "roadmap"
@@ -115,11 +115,12 @@ export function MaturityDashboard({
               : "border-transparent text-muted hover:text-foreground"
           }`}
         >
-          <Map className="h-4 w-4" />
+          <MapIcon className="h-4 w-4" />
           Roadmap to Validated (L4)
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("scoring")}
           className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === "scoring"

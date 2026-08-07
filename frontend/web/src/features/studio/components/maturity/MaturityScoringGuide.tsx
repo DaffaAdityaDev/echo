@@ -47,6 +47,7 @@ export function MaturityScoringGuide({
       {/* Sub-tab selection */}
       <div className="flex border-b border-zinc-800 gap-6">
         <button
+          type="button"
           onClick={() => setSubTab("self")}
           className={`pb-3 text-sm font-semibold transition-all border-b-2 ${
             subTab === "self" ? "border-blue-500 text-blue-400" : "border-transparent text-zinc-400 hover:text-zinc-200"
@@ -55,6 +56,7 @@ export function MaturityScoringGuide({
           Internal Self-Assessment Questions
         </button>
         <button
+          type="button"
           onClick={() => setSubTab("client")}
           className={`pb-3 text-sm font-semibold transition-all border-b-2 ${
             subTab === "client"
@@ -83,33 +85,35 @@ export function MaturityScoringGuide({
             {questions.map((q) => {
               const isChecked = !!questionAnswers[q.id];
               return (
-                <div
+                <button
                   key={q.id}
+                  type="button"
                   onClick={() => onToggleQuestion(q.id)}
-                  className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  aria-pressed={isChecked}
+                  className={`w-full text-left flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                     isChecked
                       ? "border-blue-500/30 bg-blue-500/10 text-zinc-100"
                       : "border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:bg-zinc-800/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-3">
                     {isChecked ? (
                       <CheckSquare className="h-5 w-5 text-blue-400 shrink-0" />
                     ) : (
                       <Square className="h-5 w-5 text-zinc-600 shrink-0" />
                     )}
                     <span className="text-xs md:text-sm font-medium">{q.question}</span>
-                  </div>
+                  </span>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <span className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                       {DIMENSION_LABELS[q.dimension]}
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold">
                       Requires {q.minLevel}
                     </span>
-                  </div>
-                </div>
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -138,8 +142,11 @@ export function MaturityScoringGuide({
           {/* Client Info & Score summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-semibold text-zinc-300">Client Company Name</label>
+              <label htmlFor="client-company-name" className="text-xs font-semibold text-zinc-300">
+                Client Company Name
+              </label>
               <input
+                id="client-company-name"
                 type="text"
                 value={clientName}
                 onChange={(e) => onClientNameChange(e.target.value)}

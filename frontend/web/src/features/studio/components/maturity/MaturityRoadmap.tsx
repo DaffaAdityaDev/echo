@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowUpRight, CheckCircle2, Circle, Clock, ShieldCheck } from "lucide-react";
-import React from "react";
 import type { RoadmapItem } from "../../types";
 
 export interface MaturityRoadmapProps {
@@ -50,10 +49,11 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
             const isInProgress = item.status === "in_progress";
 
             return (
-              <div
+              <button
                 key={item.id}
+                type="button"
                 onClick={() => onToggleStatus?.(item.id)}
-                className={`border rounded-xs p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                className={`border rounded-xs p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gb-bright-blue/50 ${
                   isCompleted
                     ? "border-success bg-emerald-50 text-emerald-700"
                     : isInProgress
@@ -61,8 +61,8 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                       : "border-border bg-surface hover:bg-white text-foreground"
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 shrink-0">
+                <span className="flex items-start gap-3">
+                  <span className="mt-0.5 shrink-0">
                     {isCompleted ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-700" />
                     ) : isInProgress ? (
@@ -70,10 +70,10 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                     ) : (
                       <Circle className="h-5 w-5 text-slate-400" />
                     )}
-                  </div>
+                  </span>
 
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <span>
+                    <span className="flex items-center gap-2">
                       <span className="text-sm font-bold text-foreground">{item.title}</span>
                       <span
                         className={`text-[10px] font-mono px-2 py-0.5 rounded-xs border uppercase font-bold ${
@@ -86,12 +86,14 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                       >
                         {item.priority}
                       </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">{item.description}</p>
-                  </div>
-                </div>
+                    </span>
+                    <span className="block text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
+                      {item.description}
+                    </span>
+                  </span>
+                </span>
 
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                <span className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                   <span
                     className={`text-xs font-mono px-2.5 py-1 rounded-xs font-bold ${
                       isCompleted
@@ -104,8 +106,8 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                     Target: {item.targetLevel}
                   </span>
                   <ArrowUpRight className="h-4 w-4 text-slate-400" />
-                </div>
-              </div>
+                </span>
+              </button>
             );
           })}
         </div>

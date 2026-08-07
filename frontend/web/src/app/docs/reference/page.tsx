@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { EndpointList } from "@/components/docs/EndpointList";
 import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 

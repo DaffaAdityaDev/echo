@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { EndpointDetail } from "@/components/docs/EndpointDetail";
 import { useSpec } from "@/components/docs/OpenApiSpecProvider";

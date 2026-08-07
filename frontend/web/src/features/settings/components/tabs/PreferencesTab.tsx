@@ -18,7 +18,6 @@ interface PreferencesTabProps {
 
 export function PreferencesTab({
   config,
-  setConfig,
   groupedModels,
   handleModeChange,
   handleModelChange,
@@ -29,9 +28,9 @@ export function PreferencesTab({
   return (
     <>
       <div className="space-y-3">
-        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+        <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
           Default Execution Strategy
-        </label>
+        </p>
         <div className="grid grid-cols-2 gap-3">
           {([CHAT_MODES.STANDARD, CHAT_MODES.AGENT] as const).map((value) => (
             <button
@@ -64,10 +63,14 @@ export function PreferencesTab({
       </div>
 
       <div className="space-y-3">
-        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+        <label
+          htmlFor="default-model-select"
+          className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block"
+        >
           Default Model
         </label>
         <select
+          id="default-model-select"
           value={config.defaultModel}
           onChange={(e) => handleModelChange(e.target.value)}
           className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
@@ -87,9 +90,9 @@ export function PreferencesTab({
       </div>
 
       <div className="space-y-3 pt-2">
-        <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+        <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
           LLM Provider Configuration
-        </label>
+        </p>
 
         <select
           value={config.providerType}
@@ -104,7 +107,9 @@ export function PreferencesTab({
         </select>
 
         <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">API Key</label>
+          <label htmlFor="api-key-input" className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            API Key
+          </label>
           <span
             className={cn(
               "text-[10px] font-semibold px-2 py-0.5 rounded-full",
@@ -118,6 +123,7 @@ export function PreferencesTab({
         </div>
         <div className="flex gap-2">
           <input
+            id="api-key-input"
             type="password"
             value={config.apiKey}
             onChange={(e) => handleApiKeyChange(e.target.value)}
@@ -135,8 +141,11 @@ export function PreferencesTab({
           )}
         </div>
 
-        <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Base URL</label>
+        <label htmlFor="base-url-input" className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          Base URL
+        </label>
         <input
+          id="base-url-input"
           type="text"
           value={config.baseUrl}
           onChange={(e) => handleBaseUrlChange(e.target.value)}

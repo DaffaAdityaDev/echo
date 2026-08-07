@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import type { Endpoint, SchemaObject } from "@/lib/docs/types";
 import { CodeBlock } from "./CodeBlock";
 import { SchemaViewer } from "./SchemaViewer";
@@ -25,7 +24,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
 
   let cleanPath = endpoint.path.replace(/\{(\w+)\}/g, "<$1>");
   if (!cleanPath.startsWith("/")) {
-    cleanPath = "/" + cleanPath;
+    cleanPath = `/${cleanPath}`;
   }
 
   // Deduplicate base path prefix e.g. rawBase "http://localhost:8080/api/v1" and cleanPath "/api/v1/sessions/<id>"
@@ -41,7 +40,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
     }
   }
 
-  const pathParams = endpoint.parameters.filter((p) => p.in === "path");
+  const _pathParams = endpoint.parameters.filter((p) => p.in === "path");
   const queryParams = endpoint.parameters.filter((p) => p.in === "query");
   const headerParams = endpoint.parameters.filter((p) => p.in === "header");
   const hasBody = endpoint.method === "post" || endpoint.method === "put" || endpoint.method === "patch";
@@ -59,7 +58,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
     headers.push('-H "Authorization: Bearer <token>"');
   }
 
-  const queryStr = queryParams.length > 0 ? "?" + queryParams.map((p) => `${p.name}=<${p.name}>`).join("&") : "";
+  const queryStr = queryParams.length > 0 ? `?${queryParams.map((p) => `${p.name}=<${p.name}>`).join("&")}` : "";
 
   const fullUrl = `${rawBase}${cleanPath}${queryStr}`;
   const lines: string[] = [];
@@ -71,7 +70,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
 
   if (hasBody && endpoint.requestBodySchema) {
     const props = endpoint.requestBodySchema.properties
-      ? Object.keys(endpoint.requestBodySchema.properties).reduce((acc, key) => ({ ...acc, [key]: `<${key}>` }), {})
+      ? Object.fromEntries(Object.keys(endpoint.requestBodySchema.properties).map((key) => [key, `<${key}>`] as const))
       : { message: "<string>" };
     lines.push(`  -d '${JSON.stringify(props, null, 2).replace(/\n/g, "\n  ")}'`);
   } else {
@@ -176,7 +175,7 @@ function ResponseCard({
   response: { statusCode: string; description: string; schema: SchemaObject | null };
   definitions?: Record<string, SchemaObject>;
 }) {
-  const statusNum = parseInt(response.statusCode);
+  const statusNum = parseInt(response.statusCode, 10);
   const colorClass =
     statusNum >= 200 && statusNum < 300
       ? "text-emerald-600 font-bold"

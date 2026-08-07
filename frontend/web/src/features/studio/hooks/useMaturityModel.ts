@@ -10,6 +10,7 @@ import {
 import type {
   ClientAssessmentScore,
   ClientCompanyAssessment,
+  MaturityDimension,
   MaturityDimensionKey,
   MaturityLevel,
   RoadmapItem,
@@ -79,7 +80,7 @@ export function useMaturityModel() {
     let minWeight = 5;
     let weakest: MaturityDimensionKey = "skills";
 
-    const dimMap = {} as Record<MaturityDimensionKey, any>;
+    const dimMap = {} as Record<MaturityDimensionKey, MaturityDimension>;
 
     MATURITY_DIMENSIONS.forEach((dim) => {
       const w = LEVEL_WEIGHTS[dim.currentLevel as MaturityLevel];

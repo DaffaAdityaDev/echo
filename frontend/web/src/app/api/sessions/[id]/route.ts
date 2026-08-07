@@ -5,7 +5,7 @@ import { proxyFetch } from "@/lib/proxy-fetch";
 
 const BASE_URL = getBackendApiUrl();
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
   return proxyFetch(`${BASE_URL}/sessions/${id}`, {
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
   return proxyFetch(`${BASE_URL}/sessions/${id}`, {

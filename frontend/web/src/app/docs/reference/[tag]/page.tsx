@@ -3,7 +3,6 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import React from "react";
 import { EndpointList } from "@/components/docs/EndpointList";
 import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { cn } from "@/utils/cn";
 import type { PromptVersion } from "../../types";
 import { VersionStatusBadge } from "./VersionStatusBadge";
@@ -28,6 +27,7 @@ export function PromptVersionTimeline({
         return (
           <button
             key={v.id}
+            type="button"
             onClick={() => onSelect(v.version)}
             className={cn(
               "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 border cursor-pointer",

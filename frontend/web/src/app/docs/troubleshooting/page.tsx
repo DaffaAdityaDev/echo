@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function TroubleshootingPage() {
   const { spec } = useSpec();
-  const healthEndpoint = spec?.tags.flatMap((t) => t.endpoints).find((ep) => ep.path === "/health");
+  const _healthEndpoint = spec?.tags.flatMap((t) => t.endpoints).find((ep) => ep.path === "/health");
 
   return (
     <div className="space-y-12 max-w-4xl font-mono">

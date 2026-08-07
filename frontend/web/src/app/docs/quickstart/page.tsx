@@ -1,7 +1,6 @@
 "use client";
 
 import { Info, Rocket } from "lucide-react";
-import React from "react";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function QuickStartPage() {

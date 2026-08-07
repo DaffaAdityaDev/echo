@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/utils/cn";
@@ -49,8 +49,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
+      <button
+        type="button"
+        aria-label="Close settings"
+        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in cursor-pointer"
         onClick={onClose}
       />
 
@@ -71,6 +73,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={resetConfig}
               className="p-2 text-xs font-semibold text-zinc-400 hover:text-red-500 transition-colors flex items-center gap-1.5"
               title="Reset to defaults"
@@ -79,6 +82,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <span className="hidden sm:inline">Reset</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
               className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
@@ -103,7 +107,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   "flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all cursor-pointer",
                   active

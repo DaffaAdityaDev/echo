@@ -91,6 +91,7 @@ export function DocsSidebar() {
           return (
             <div key={section.id} className="space-y-1">
               <button
+                type="button"
                 onClick={() => toggleSection(section.id)}
                 className="flex w-full items-center gap-2 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
               >

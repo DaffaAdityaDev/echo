@@ -3,7 +3,7 @@
 import { AlertCircle, RefreshCcw } from "lucide-react";
 import { useEffect } from "react";
 
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
@@ -21,6 +21,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         </p>
       </div>
       <button
+        type="button"
         onClick={() => reset()}
         className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10"
       >

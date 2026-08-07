@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Rocket, Save, Undo2 } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { usePromptLibrary } from "../../hooks/usePromptLibrary";
 import { PromptLibrary } from "./PromptLibrary";
@@ -191,7 +191,12 @@ export function PromptsPage(props: Props) {
       {/* Confirmation modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setConfirmAction(null)} />
+          <button
+            type="button"
+            aria-label="Dismiss confirmation"
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            onClick={() => setConfirmAction(null)}
+          />
           <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl rounded-2xl p-6 space-y-4">
             <h3 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
               {confirmAction.type === "promote" ? "Promote to Production?" : "Rollback Version?"}

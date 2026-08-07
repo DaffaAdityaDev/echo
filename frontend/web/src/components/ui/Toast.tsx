@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
-import * as React from "react";
 import { cn } from "@/utils/cn";
 
 export interface ToastProps {
@@ -36,7 +35,11 @@ export function Toast({ show, message, type = "success", onClose }: ToastProps) 
       {icons[type]}
       <span>{message}</span>
       {onClose && (
-        <button onClick={onClose} className="ml-2 p-1 rounded-md text-zinc-400 hover:text-white transition-colors">
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-2 p-1 rounded-md text-zinc-400 hover:text-white transition-colors"
+        >
           <X className="h-3.5 w-3.5" />
         </button>
       )}

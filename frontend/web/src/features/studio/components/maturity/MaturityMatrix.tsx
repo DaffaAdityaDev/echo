@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertTriangle, Layers, ShieldCheck, Sparkles } from "lucide-react";
-import React from "react";
 import type { MaturityDimension, MaturityLevelInfo } from "../../types";
 
 export interface MaturityMatrixProps {

@@ -33,8 +33,10 @@ export function Modal({ isOpen, onClose, title, description, children, className
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+      <button
+        type="button"
+        aria-label="Close dialog"
+        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in cursor-pointer"
         onClick={onClose}
       />
 
@@ -52,6 +54,7 @@ export function Modal({ isOpen, onClose, title, description, children, className
             {description && <p className="text-xs text-muted mt-1 leading-relaxed">{description}</p>}
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-xs text-muted hover:text-foreground hover:bg-surface transition-colors border border-transparent hover:border-border"
           >

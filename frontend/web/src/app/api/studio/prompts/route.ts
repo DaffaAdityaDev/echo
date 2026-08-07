@@ -5,7 +5,7 @@ import { proxyFetch } from "@/lib/proxy-fetch";
 
 const BASE_URL = getBackendApiUrl();
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const token = await getRequestToken();
   return proxyFetch(`${BASE_URL}/studio/prompts`, {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

@@ -18,6 +18,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <header className="sticky top-0 z-40 w-full h-[57px] border-b border-border bg-white/95 backdrop-blur-md px-6 flex items-center justify-between shrink-0 shadow-xs">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               className="lg:hidden p-1.5 rounded-xs text-slate-600 hover:text-foreground hover:bg-slate-100 transition-colors cursor-pointer"
               onClick={() => setSidebarOpen(!sidebarOpen)}
               aria-label="Toggle sidebar"
@@ -49,8 +50,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <div className="flex-1 flex w-full">
           {/* Mobile overlay */}
           {sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-xs"
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-xs cursor-pointer"
               onClick={() => setSidebarOpen(false)}
             />
           )}

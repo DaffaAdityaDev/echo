@@ -107,11 +107,11 @@ export function normalizeSpec(raw: Record<string, unknown>): NormalizedSpec {
 
       // Sort responses (200, 201, 400, 401, 404, 500...)
       responses.sort((a, b) => {
-        const aNum = parseInt(a.statusCode);
-        const bNum = parseInt(b.statusCode);
-        if (isNaN(aNum) && isNaN(bNum)) return a.statusCode.localeCompare(b.statusCode);
-        if (isNaN(aNum)) return 1;
-        if (isNaN(bNum)) return -1;
+        const aNum = parseInt(a.statusCode, 10);
+        const bNum = parseInt(b.statusCode, 10);
+        if (Number.isNaN(aNum) && Number.isNaN(bNum)) return a.statusCode.localeCompare(b.statusCode);
+        if (Number.isNaN(aNum)) return 1;
+        if (Number.isNaN(bNum)) return -1;
         return aNum - bNum;
       });
 
@@ -134,7 +134,7 @@ export function normalizeSpec(raw: Record<string, unknown>): NormalizedSpec {
   for (const ep of allEndpoints) {
     const tag = ep.tags[0] || "Other";
     if (!tagMap.has(tag)) tagMap.set(tag, []);
-    tagMap.get(tag)!.push(ep);
+    tagMap.get(tag)?.push(ep);
   }
 
   const tags: TagGroup[] = [];

@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, ChevronDown, ChevronRight, Search, SkipForward } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { PACKET_TYPES } from "../constants";
 import type { ThoughtStep } from "../types";
 
@@ -24,6 +24,7 @@ export function ToolCallTimeline({ steps }: ToolCallTimelineProps) {
   return (
     <div className="rounded-xl bg-white/[0.02] border border-white/5 px-3 py-2">
       <button
+        type="button"
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center gap-2 text-[10px] font-bold text-muted uppercase tracking-wider w-full text-left"
       >
@@ -33,6 +34,7 @@ export function ToolCallTimeline({ steps }: ToolCallTimelineProps) {
       {!collapsed && (
         <div className="mt-2 space-y-1.5">
           {toolSteps.map((step, idx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: tool steps are transient stream snapshots without stable ids
             <ToolCallItem key={idx} step={step} />
           ))}
         </div>

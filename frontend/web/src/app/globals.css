@@ -31,7 +31,7 @@
   --echo-muted: #64748b;
   --echo-border: #e2e8f0;
   --echo-border-strong: #cbd5e1;
-  
+
   /* Brand Accents */
   --echo-accent: #2563eb;
   --echo-accent-muted: rgba(37, 99, 235, 0.08);
@@ -43,7 +43,7 @@
   --gb-tracking-hero: -0.045em;
   --gb-tracking-section: -0.035em;
   --gb-tracking-button: 0.06em;
-  --gb-tracking-eyebrow: 0.10em;
+  --gb-tracking-eyebrow: 0.1em;
 
   /* Glassmorphism */
   --echo-glass-bg: rgba(255, 255, 255, 0.85);
@@ -54,7 +54,6 @@
   --echo-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --echo-duration: 200ms;
 }
-
 
 @theme inline {
   --color-background: var(--echo-bg);
@@ -69,7 +68,7 @@
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  
+
   /* Guardbase Blue Palette Extensions */
   --color-gb-blue: #2563eb;
   --color-gb-bright-blue: #3b82f6;
@@ -100,8 +99,14 @@
 }
 
 @keyframes animate-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @layer base {
@@ -122,7 +127,12 @@
     letter-spacing: 0em;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-mono);
     font-weight: 700;
   }
@@ -143,7 +153,7 @@
   }
   .crosshair-container::before,
   .crosshair-container::after {
-    content: '+';
+    content: "+";
     position: absolute;
     font-family: var(--font-mono);
     font-size: 14px;
@@ -153,8 +163,14 @@
     user-select: none;
     z-index: 20;
   }
-  .crosshair-container::before { top: -7px; left: -7px; }
-  .crosshair-container::after  { bottom: -7px; right: -7px; }
+  .crosshair-container::before {
+    top: -7px;
+    left: -7px;
+  }
+  .crosshair-container::after {
+    bottom: -7px;
+    right: -7px;
+  }
 
   /* Additional corner crosshairs for top-right and bottom-left */
   .crosshair-container > .crosshair-tr,
@@ -168,8 +184,14 @@
     user-select: none;
     z-index: 20;
   }
-  .crosshair-container > .crosshair-tr { top: -7px; right: -7px; }
-  .crosshair-container > .crosshair-bl { bottom: -7px; left: -7px; }
+  .crosshair-container > .crosshair-tr {
+    top: -7px;
+    right: -7px;
+  }
+  .crosshair-container > .crosshair-bl {
+    bottom: -7px;
+    left: -7px;
+  }
 
   /* Primary Action Button Blueprint */
   .gb-btn-primary {
@@ -232,16 +254,32 @@
   }
 
   @keyframes slideInFromBottom2 {
-    from { opacity: 0; transform: translateY(0.5rem); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   @keyframes zoomIn95 {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .glass {
@@ -279,7 +317,7 @@
 @utility prose-xs {
   font-size: 0.75rem;
   line-height: 1.5;
-  
+
   p {
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
@@ -305,4 +343,3 @@
   white-space: pre-wrap;
   animation: streamBlurIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-

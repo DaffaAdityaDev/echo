@@ -7,7 +7,7 @@ function flattenProperties(
   schema: SchemaObject | null,
   definitions?: Record<string, SchemaObject>,
 ): { name: string; type: string; required: boolean; description: string; example?: unknown; nested?: SchemaObject }[] {
-  if (!schema || !schema.properties) return [];
+  if (!schema?.properties) return [];
 
   const requiredFields = new Set<string>(schema.required || []);
 

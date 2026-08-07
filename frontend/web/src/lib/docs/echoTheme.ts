@@ -1,6 +1,7 @@
+import type { CSSProperties } from "react";
+
 // Custom syntax highlighting theme using Echo design tokens.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const echoTheme: any = {
+const echoTheme: Record<string, CSSProperties> = {
   'code[class*="language-"]': {
     color: "#f8fafc",
     fontSize: "0.8125rem",

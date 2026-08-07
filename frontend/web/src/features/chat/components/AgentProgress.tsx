@@ -1,21 +1,7 @@
 "use client";
 
-import {
-  Activity,
-  Bot,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Cpu,
-  Globe,
-  Loader2,
-  RefreshCw,
-  Sparkles,
-  Terminal,
-  Wrench,
-  XCircle,
-} from "lucide-react";
-import React, { useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronUp, Globe, Loader2, RefreshCw, Sparkles, XCircle } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/utils/cn";
 import type { AgentProgress as AgentProgressType, AgentState } from "../types";
 import { AgentStatusBadge } from "./AgentStatusBadge";
@@ -67,7 +53,6 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-2 font-sans animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="rounded-2xl border border-purple-500/30 dark:border-purple-500/20 bg-gradient-to-r from-purple-500/10 via-blue-500/5 to-zinc-50/80 dark:to-zinc-900/60 p-4 shadow-xl backdrop-blur-xl flex flex-col gap-3 relative overflow-hidden transition-all duration-300">
-        
         {/* Animated Background Glow */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none animate-pulse" />
 
@@ -91,7 +76,10 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 
               {/* Active Tool Badge */}
               {currentTool && (
-                <div key={currentTool} className="flex items-center gap-2 mt-1 animate-in fade-in slide-in-from-left-2 duration-300">
+                <div
+                  key={currentTool}
+                  className="flex items-center gap-2 mt-1 animate-in fade-in slide-in-from-left-2 duration-300"
+                >
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
                     Tool: {currentTool}
                   </span>
@@ -118,7 +106,8 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
             <div className="flex items-center gap-1.5">
               <Globe className="h-3.5 w-3.5 text-blue-500" />
               <span>
-                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{discoveredCount}</strong> URLs Discovered
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{discoveredCount}</strong> URLs
+                Discovered
               </span>
             </div>
 
@@ -212,6 +201,7 @@ function SmoothTextReveal({ text, className }: { text: string; className?: strin
     <span key={text} className={cn("inline-flex flex-wrap gap-x-1 items-center", className)}>
       {words.map((word, index) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: composite word-index key keeps duplicates stable in streaming reveal
           key={`${word}-${index}`}
           className="inline-block animate-in fade-in slide-in-from-bottom-1 fill-mode-forwards duration-200"
           style={{ animationDelay: `${index * 30}ms` }}

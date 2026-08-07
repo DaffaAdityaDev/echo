@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { cn } from "@/utils/cn";
 
 interface VersionDiffViewerProps {
@@ -79,6 +79,7 @@ export function VersionDiffViewer({ oldText, newText, oldLabel, newLabel }: Vers
       <div className="max-h-[500px] overflow-y-auto font-mono text-xs">
         {diff.map((line, idx) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id and are static per render
             key={idx}
             className={cn(
               "px-4 py-1 whitespace-pre-wrap break-all",
