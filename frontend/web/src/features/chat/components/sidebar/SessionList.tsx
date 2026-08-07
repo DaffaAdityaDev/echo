@@ -14,6 +14,7 @@ interface SessionListProps {
   isInitialLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  searchTerm?: string;
 }
 
 export function SessionList({
@@ -26,6 +27,7 @@ export function SessionList({
   isInitialLoading = false,
   isError = false,
   onRetry,
+  searchTerm = "",
 }: SessionListProps) {
   // Group sessions by recency
   const now = new Date();
@@ -75,7 +77,9 @@ export function SessionList({
           )}
         </div>
       ) : sessions.length === 0 ? (
-        <p className="text-[11px] text-zinc-400 px-3 py-2">No recent chats</p>
+        <p className="text-[11px] text-zinc-400 px-3 py-2">
+          {searchTerm ? `No results for "${searchTerm}"` : "No recent chats"}
+        </p>
       ) : (
         <>
           {todaySessions.length > 0 && (

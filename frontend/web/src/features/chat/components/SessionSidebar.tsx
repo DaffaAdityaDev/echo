@@ -30,6 +30,7 @@ export function SessionSidebar({
   const [searchTerm, setSearchTerm] = useState("");
   const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isInitialLoading, refetch } =
     useSessionsInfinite();
+
   const {
     activeSessionId,
     createSession: storeCreateSession,
@@ -159,6 +160,8 @@ export function SessionSidebar({
             <Search className="h-3.5 w-3.5 absolute left-3 text-zinc-400 pointer-events-none" />
             <input
               type="text"
+              name="chat-search"
+              autoComplete="off"
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -204,6 +207,7 @@ export function SessionSidebar({
           isInitialLoading={isInitialLoading}
           isError={isError}
           onRetry={refetch}
+          searchTerm={searchTerm}
         />
 
         {/* User Profile Footer */}
