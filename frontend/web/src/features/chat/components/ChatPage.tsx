@@ -123,8 +123,10 @@ export function ChatPage() {
       {/* Toast Feedback */}
       <Toast show={!!toastMessage} message={toastMessage || ""} type="info" onClose={() => setToastMessage(null)} />
 
-      {/* Settings Overlay Modal */}
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+      {/* Settings Overlay Modal (lazy: chunk + data fetch hanya saat dibuka) */}
+      {isSettingsModalOpen && (
+        <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+      )}
 
       {/* Model Selector Modal */}
       <ModelSelectorModal isOpen={isWorkspaceModalOpen} onClose={() => setIsWorkspaceModalOpen(false)} />
