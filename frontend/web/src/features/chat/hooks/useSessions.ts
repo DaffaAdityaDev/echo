@@ -5,7 +5,11 @@ import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 
 export function useSessions() {
-  const { sessions, activeSessionId, setSessions, setActiveSession, clearMessages } = useChatStore();
+  const sessions = useChatStore((s) => s.sessions);
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const setSessions = useChatStore((s) => s.setSessions);
+  const setActiveSession = useChatStore((s) => s.setActiveSession);
+  const clearMessages = useChatStore((s) => s.clearMessages);
   const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();

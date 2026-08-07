@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
@@ -29,7 +29,10 @@ export function useSessionsInfinite() {
     staleTime: 30_000,
   });
 
-  const flattenedSessions = sessionsData ? sessionsData.pages.flatMap((page) => page.sessions) : [];
+  const flattenedSessions = useMemo(
+    () => (sessionsData ? sessionsData.pages.flatMap((page) => page.sessions) : []),
+    [sessionsData],
+  );
 
   useEffect(() => {
     if (flattenedSessions.length === 0) return;

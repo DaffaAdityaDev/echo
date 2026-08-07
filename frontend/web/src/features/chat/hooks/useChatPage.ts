@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { CHAT_MODES } from "../constants";
@@ -114,7 +114,10 @@ export function useChatPage() {
     staleTime: 30_000,
   });
 
-  const flattenedMessages = messagesData ? messagesData.pages.flatMap((page) => page.messages) : [];
+  const flattenedMessages = useMemo(
+    () => (messagesData ? messagesData.pages.flatMap((page) => page.messages) : []),
+    [messagesData],
+  );
 
   // While a recovered session's DB snapshot is still stale (status interrupted
   // — local mode, or saas before the relay persists), the store holds the
