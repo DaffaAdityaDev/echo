@@ -4,8 +4,8 @@ import { ChevronDown } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Toast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
 import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
 import { useModels } from "../hooks/useModels";
@@ -61,13 +61,13 @@ export function ChatPage() {
 
   const messageListRef = useRef<MessageListHandle>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const { showToast } = useToast();
 
   // Modals & Drawers State
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Global Keyboard Shortcut: Ctrl + ` or Ctrl + Shift + D to toggle debug drawer
   useEffect(() => {
@@ -87,26 +87,26 @@ export function ChatPage() {
   // Functional Export Chat Handler
   const handleExportChat = () => {
     if (messages.length === 0) {
-      setToastMessage("No chat history available to export.");
+      showToast("No chat history available to export.", "info");
       return;
     }
     downloadJson(`echo-chat-session-${Date.now()}.json`, messages);
-    setToastMessage("Chat session exported to JSON!");
+    showToast("Chat session exported to JSON!", "success");
   };
 
   const activeSessionId = useChatStore((s) => s.activeSessionId);
 
   const handleShareSession = async () => {
     if (!activeSessionId) {
-      setToastMessage("No active session selected.");
+      showToast("No active session selected.", "info");
       return;
     }
     const shareUrl = `${window.location.origin}/session/${activeSessionId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setToastMessage("Session URL copied to clipboard!");
+      showToast("Session URL copied to clipboard!", "success");
     } catch {
-      setToastMessage("Failed to copy session URL.");
+      showToast("Failed to copy session URL.", "error");
     }
   };
 
@@ -114,9 +114,6 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
-      {/* Toast Feedback */}
-      <Toast show={!!toastMessage} message={toastMessage || ""} type="info" onClose={() => setToastMessage(null)} />
-
       {/* Settings Overlay Modal (lazy: chunk + data fetch hanya saat dibuka) */}
       {isSettingsModalOpen && (
         <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
@@ -194,7 +191,6 @@ export function ChatPage() {
               isLoading={isLoading}
               onOpenHelp={() => setIsHelpModalOpen(true)}
               onOpenSettings={() => setIsSettingsModalOpen(true)}
-              onShowToast={setToastMessage}
             />
           )
         ) : (

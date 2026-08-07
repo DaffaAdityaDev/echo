@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, HelpCircle, Layers, Map as MapIcon, Sparkles } from "lucide-react";
+import { Tabs } from "@/components/ui/Tabs";
 import type {
   ClientCompanyAssessment,
   MaturityDimension,
@@ -92,45 +93,20 @@ export function MaturityDashboard({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border gap-6 font-mono">
-        <button
-          type="button"
-          onClick={() => setActiveTab("matrix")}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
-            activeTab === "matrix"
-              ? "border-gb-blue text-gb-blue"
-              : "border-transparent text-muted hover:text-foreground"
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          7-Dimension Matrix
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("roadmap")}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
-            activeTab === "roadmap"
-              ? "border-gb-blue text-gb-blue"
-              : "border-transparent text-muted hover:text-foreground"
-          }`}
-        >
-          <MapIcon className="h-4 w-4" />
-          Roadmap to Validated (L4)
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("scoring")}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
-            activeTab === "scoring"
-              ? "border-gb-blue text-gb-blue"
-              : "border-transparent text-muted hover:text-foreground"
-          }`}
-        >
-          <HelpCircle className="h-4 w-4" />
-          Scoring & Client Diagnostics
-        </button>
+      <div className="border-b border-border">
+        <Tabs
+          tabs={[
+            { id: "matrix", label: "7-Dimension Matrix", icon: Layers },
+            { id: "roadmap", label: "Roadmap to Validated (L4)", icon: MapIcon },
+            { id: "scoring", label: "Scoring & Client Diagnostics", icon: HelpCircle },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+          className="gap-6 font-mono"
+          itemClassName="pb-3 uppercase tracking-wider"
+          activeClassName="border-gb-blue text-gb-blue font-bold"
+          inactiveClassName="border-transparent text-muted hover:text-foreground"
+        />
       </div>
 
       {/* Main Content View */}

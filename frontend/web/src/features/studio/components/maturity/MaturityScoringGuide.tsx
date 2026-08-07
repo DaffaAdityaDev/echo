@@ -3,6 +3,7 @@
 import { AlertTriangle, Building2, CheckSquare, HelpCircle, Save, Square } from "lucide-react";
 import React from "react";
 import { Button } from "@/components/ui/Button";
+import { Tabs } from "@/components/ui/Tabs";
 import type { ClientCompanyAssessment, MaturityDimensionKey, MaturityLevel, ScoringQuestion } from "../../types";
 
 export interface MaturityScoringGuideProps {
@@ -45,27 +46,19 @@ export function MaturityScoringGuide({
   return (
     <div className="space-y-6">
       {/* Sub-tab selection */}
-      <div className="flex border-b border-zinc-800 gap-6">
-        <button
-          type="button"
-          onClick={() => setSubTab("self")}
-          className={`pb-3 text-sm font-semibold transition-all border-b-2 ${
-            subTab === "self" ? "border-blue-500 text-blue-400" : "border-transparent text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          Internal Self-Assessment Questions
-        </button>
-        <button
-          type="button"
-          onClick={() => setSubTab("client")}
-          className={`pb-3 text-sm font-semibold transition-all border-b-2 ${
-            subTab === "client"
-              ? "border-blue-500 text-blue-400"
-              : "border-transparent text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          External Client Diagnostics
-        </button>
+      <div className="border-b border-zinc-800">
+        <Tabs
+          tabs={[
+            { id: "self", label: "Internal Self-Assessment Questions" },
+            { id: "client", label: "External Client Diagnostics" },
+          ]}
+          active={subTab}
+          onChange={setSubTab}
+          className="gap-6"
+          itemClassName="pb-3 text-sm"
+          activeClassName="border-blue-500 text-blue-400"
+          inactiveClassName="border-transparent text-zinc-400 hover:text-zinc-200"
+        />
       </div>
 
       {subTab === "self" ? (

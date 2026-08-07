@@ -1,14 +1,11 @@
 "use client";
 
-import { Check, Copy, Terminal } from "lucide-react";
 import React from "react";
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import echoTheme from "@/lib/docs/echoTheme";
+import { CodeBlock } from "@/components/docs/CodeBlock";
 import { cn } from "@/utils/cn";
 import "katex/dist/katex.min.css";
 
@@ -83,7 +80,7 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
             const isInline = !match && !String(children).includes("\n");
 
             if (!isInline) {
-              return <CodeBlock language={language || "text"} value={String(children).replace(/\n$/, "")} />;
+              return <CodeBlock language={language || "text"} code={String(children).replace(/\n$/, "")} />;
             }
 
             return (
@@ -126,54 +123,3 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
 Markdown.displayName = "Markdown";
 
 export default Markdown;
-
-interface CodeBlockProps {
-  language: string;
-  value: string;
-}
-
-function CodeBlock({ language, value }: CodeBlockProps) {
-  const { copied, copy } = useCopyToClipboard();
-
-  return (
-    <div className="relative group my-6 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950/80 animate-in">
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/50 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <Terminal size={12} className="text-zinc-500" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{language}</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => copy(value)}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all active:scale-95"
-          aria-label={copied ? "Copied" : "Copy code"}
-        >
-          {copied ? (
-            <>
-              <Check size={12} className="text-emerald-500" />
-              <span className="text-emerald-500">Copied</span>
-            </>
-          ) : (
-            <>
-              <Copy size={12} />
-              <span>Copy</span>
-            </>
-          )}
-        </button>
-      </div>
-      <SyntaxHighlighter
-        style={echoTheme}
-        language={language}
-        PreTag="div"
-        customStyle={{
-          margin: 0,
-          padding: "1.25rem",
-          background: "transparent",
-        }}
-        translate="no"
-      >
-        {value}
-      </SyntaxHighlighter>
-    </div>
-  );
-}

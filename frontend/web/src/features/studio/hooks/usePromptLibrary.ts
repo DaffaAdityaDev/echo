@@ -8,7 +8,7 @@ import {
   usePromptTemplates,
   usePromptVersions,
   useRollbackVersion,
-} from "../api/usePrompts";
+} from "./usePrompts";
 
 export function usePromptLibrary() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);

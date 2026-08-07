@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, HelpCircle, Languages, Lightbulb, ShieldCheck } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
 import { ChatInput } from "../ChatInput";
 
 interface WelcomeHeroProps {
@@ -9,7 +10,6 @@ interface WelcomeHeroProps {
   isLoading: boolean;
   onOpenHelp: () => void;
   onOpenSettings: () => void;
-  onShowToast: (message: string) => void;
 }
 
 const promptSuggestions = [
@@ -33,14 +33,8 @@ const promptSuggestions = [
   },
 ];
 
-export function WelcomeHero({
-  userName,
-  onSend,
-  isLoading,
-  onOpenHelp,
-  onOpenSettings,
-  onShowToast,
-}: WelcomeHeroProps) {
+export function WelcomeHero({ userName, onSend, isLoading, onOpenHelp, onOpenSettings }: WelcomeHeroProps) {
+  const { showToast } = useToast();
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-10 flex flex-col justify-between items-center text-center">
       <div className="w-full max-w-5xl my-auto space-y-8 flex flex-col items-center">
@@ -121,7 +115,7 @@ export function WelcomeHero({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => onShowToast("System language set to English (US)")}
+            onClick={() => showToast("System language set to English (US)", "info")}
             className="hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
             title="Language Selector"
           >

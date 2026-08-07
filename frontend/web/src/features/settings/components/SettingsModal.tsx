@@ -1,10 +1,11 @@
 "use client";
 
-import { CheckCircle2, RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
+import { RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { cn } from "@/utils/cn";
+import { useToast } from "@/hooks/useToast";
 import { useSettingsPage } from "../hooks/useSettingsPage";
 import { AccountTab } from "./tabs/AccountTab";
 import { CapabilitiesTab } from "./tabs/CapabilitiesTab";
@@ -18,25 +19,9 @@ export interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "harness" | "account">("preferences");
-  const {
-    config,
-    loaded,
-    features,
-    skills,
-    groupedModels,
-    saved,
-    handleSave,
-    handleModeChange,
-    handleModelChange,
-    handleFeatureToggle,
-    handleSkillToggle,
-    handleProviderTypeChange,
-    handleApiKeyChange,
-    handleBaseUrlChange,
-    setConfig,
-    resetConfig,
-  } = useSettingsPage();
+  const { config, loaded, features, skills, groupedModels, handleSave, setConfig, resetConfig } = useSettingsPage();
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
 
   if (!isOpen) return null;
 
@@ -91,36 +76,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Saved Success Toast */}
-        {saved && (
-          <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2 shrink-0 animate-in fade-in">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Settings successfully updated and saved!</span>
-          </div>
-        )}
-
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 pt-4 border-b border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all cursor-pointer",
-                  active
-                    ? "border-purple-600 text-purple-600 dark:text-purple-400 bg-purple-500/5 font-bold"
-                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        <div className="pt-4 border-b border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
+          <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} itemClassName="px-3.5 py-2.5 rounded-t-xl" />
         </div>
 
         {/* Tab Content */}
@@ -128,24 +86,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {!loaded ? (
             <div className="text-center py-10 text-xs text-zinc-400">Loading settings...</div>
           ) : activeTab === "preferences" ? (
-            <PreferencesTab
-              config={config}
-              setConfig={setConfig}
-              groupedModels={groupedModels}
-              handleModeChange={handleModeChange}
-              handleModelChange={handleModelChange}
-              handleProviderTypeChange={handleProviderTypeChange}
-              handleApiKeyChange={handleApiKeyChange}
-              handleBaseUrlChange={handleBaseUrlChange}
-            />
+            <PreferencesTab config={config} setConfig={setConfig} groupedModels={groupedModels} />
           ) : activeTab === "capabilities" ? (
-            <CapabilitiesTab
-              config={config}
-              features={features}
-              skills={skills}
-              handleFeatureToggle={handleFeatureToggle}
-              handleSkillToggle={handleSkillToggle}
-            />
+            <CapabilitiesTab config={config} features={features} skills={skills} setConfig={setConfig} />
           ) : activeTab === "harness" ? (
             <HarnessTab config={config} setConfig={setConfig} />
           ) : (
@@ -158,7 +101,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} className="gap-2 text-xs font-semibold shadow-md">
+          <Button
+            size="sm"
+            onClick={async () => {
+              const ok = await handleSave();
+              showToast(
+                ok ? "Settings successfully updated and saved!" : "Failed to save settings",
+                ok ? "success" : "error",
+              );
+            }}
+            className="gap-2 text-xs font-semibold shadow-md"
+          >
             <Save className="h-4 w-4" />
             <span>Save Preferences</span>
           </Button>

@@ -33,6 +33,23 @@ const WEIGHT_TO_LEVEL: Record<number, MaturityLevel> = {
   5: "L5",
 };
 
+function findWeakestLink(scores: Record<MaturityDimensionKey, MaturityLevel>): {
+  minWeight: number;
+  weakest: MaturityDimensionKey;
+} {
+  const keys = Object.keys(scores) as MaturityDimensionKey[];
+  let minWeight = LEVEL_WEIGHTS.L5;
+  let weakest: MaturityDimensionKey = keys[0] ?? "skills";
+  for (const key of keys) {
+    const weight = LEVEL_WEIGHTS[scores[key]];
+    if (weight < minWeight) {
+      minWeight = weight;
+      weakest = key;
+    }
+  }
+  return { minWeight, weakest };
+}
+
 export function useMaturityModel() {
   const [activeTab, setActiveTab] = useState<"matrix" | "scoring" | "roadmap" | "client">("matrix");
   const [clientName, setClientName] = useState("");
@@ -77,49 +94,36 @@ export function useMaturityModel() {
 
   // Calculate internal assessment using Weakest Link Rule
   const echoAssessment = useMemo<SystemMaturityAssessment>(() => {
-    let minWeight = 5;
-    let weakest: MaturityDimensionKey = "skills";
-
-    const dimMap = {} as Record<MaturityDimensionKey, MaturityDimension>;
-
-    MATURITY_DIMENSIONS.forEach((dim) => {
-      const w = LEVEL_WEIGHTS[dim.currentLevel as MaturityLevel];
-      if (w < minWeight) {
-        minWeight = w;
-        weakest = dim.key as MaturityDimensionKey;
-      }
-      dimMap[dim.key as MaturityDimensionKey] = { ...dim };
-    });
+    const scores = Object.fromEntries(
+      MATURITY_DIMENSIONS.map((dim) => [dim.key as MaturityDimensionKey, dim.currentLevel as MaturityLevel]),
+    ) as Record<MaturityDimensionKey, MaturityLevel>;
+    const { minWeight, weakest } = findWeakestLink(scores);
 
     return {
       overallLevel: WEIGHT_TO_LEVEL[minWeight] || "L2",
       weakestDimension: weakest,
-      dimensions: dimMap,
+      dimensions: Object.fromEntries(
+        MATURITY_DIMENSIONS.map((dim) => [dim.key as MaturityDimensionKey, { ...dim }]),
+      ) as Record<MaturityDimensionKey, MaturityDimension>,
       lastAssessedAt: "2026-07-25",
     };
   }, []);
 
   // Calculate client company overall level using Weakest Link Rule
   const clientAssessment = useMemo<ClientCompanyAssessment>(() => {
-    let minWeight = 5;
-    let weakest: MaturityDimensionKey = "tools";
+    const { minWeight, weakest } = findWeakestLink(clientScores);
 
-    const scoresMap = {} as Record<MaturityDimensionKey, ClientAssessmentScore>;
-
-    (Object.keys(clientScores) as MaturityDimensionKey[]).forEach((key) => {
-      const level = clientScores[key];
-      const weight = LEVEL_WEIGHTS[level];
-      if (weight < minWeight) {
-        minWeight = weight;
-        weakest = key;
-      }
-      scoresMap[key] = {
-        dimension: key,
-        level,
-        evidence: clientEvidences[key] || "No evidence provided",
-        quickestL3Action: `Upgrade ${key} to L3 (Structured) schemas and contracts`,
-      };
-    });
+    const scoresMap = Object.fromEntries(
+      (Object.keys(clientScores) as MaturityDimensionKey[]).map((key) => [
+        key,
+        {
+          dimension: key,
+          level: clientScores[key],
+          evidence: clientEvidences[key] || "No evidence provided",
+          quickestL3Action: `Upgrade ${key} to L3 (Structured) schemas and contracts`,
+        } satisfies ClientAssessmentScore,
+      ]),
+    ) as Record<MaturityDimensionKey, ClientAssessmentScore>;
 
     return {
       clientName: clientName || "Sample Client Corp",

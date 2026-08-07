@@ -9,22 +9,9 @@ interface PreferencesTabProps {
   config: AgentConfig;
   setConfig: (partial: Partial<AgentConfig>) => void;
   groupedModels: Record<string, { id: string; name: string; provider_name: string }[]>;
-  handleModeChange: (value: string) => void;
-  handleModelChange: (value: string) => void;
-  handleProviderTypeChange: (value: string) => void;
-  handleApiKeyChange: (value: string) => void;
-  handleBaseUrlChange: (value: string) => void;
 }
 
-export function PreferencesTab({
-  config,
-  groupedModels,
-  handleModeChange,
-  handleModelChange,
-  handleProviderTypeChange,
-  handleApiKeyChange,
-  handleBaseUrlChange,
-}: PreferencesTabProps) {
+export function PreferencesTab({ config, setConfig, groupedModels }: PreferencesTabProps) {
   return (
     <>
       <div className="space-y-3">
@@ -36,7 +23,7 @@ export function PreferencesTab({
             <button
               key={value}
               type="button"
-              onClick={() => handleModeChange(value)}
+              onClick={() => setConfig({ defaultMode: value })}
               className={cn(
                 "p-4 rounded-2xl text-left border transition-all text-xs font-medium flex flex-col gap-1 cursor-pointer",
                 config.defaultMode === value
@@ -72,7 +59,7 @@ export function PreferencesTab({
         <select
           id="default-model-select"
           value={config.defaultModel}
-          onChange={(e) => handleModelChange(e.target.value)}
+          onChange={(e) => setConfig({ defaultModel: e.target.value })}
           className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
           style={{ colorScheme: "dark" }}
         >
@@ -96,7 +83,7 @@ export function PreferencesTab({
 
         <select
           value={config.providerType}
-          onChange={(e) => handleProviderTypeChange(e.target.value)}
+          onChange={(e) => setConfig({ providerType: e.target.value })}
           className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
           style={{ colorScheme: "dark" }}
         >
@@ -126,14 +113,14 @@ export function PreferencesTab({
             id="api-key-input"
             type="password"
             value={config.apiKey}
-            onChange={(e) => handleApiKeyChange(e.target.value)}
+            onChange={(e) => setConfig({ apiKey: e.target.value })}
             placeholder={config.hasApiKey ? "Enter new key to change" : "Enter your API key"}
             className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50"
           />
           {config.hasApiKey && (
             <button
               type="button"
-              onClick={() => handleApiKeyChange("")}
+              onClick={() => setConfig({ apiKey: "" })}
               className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 text-xs font-medium transition-colors"
             >
               Clear
@@ -148,7 +135,7 @@ export function PreferencesTab({
           id="base-url-input"
           type="text"
           value={config.baseUrl}
-          onChange={(e) => handleBaseUrlChange(e.target.value)}
+          onChange={(e) => setConfig({ baseUrl: e.target.value })}
           placeholder="https://..."
           className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 font-mono"
         />

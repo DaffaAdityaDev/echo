@@ -1,6 +1,6 @@
 "use client";
 
-import { useMaturityAssessment, useSaveClientAssessment } from "../api/useMaturity";
+import { useMaturityAssessment, useSaveClientAssessment } from "./useMaturity";
 import { useMaturityModel } from "./useMaturityModel";
 
 export function useMaturityPage() {
