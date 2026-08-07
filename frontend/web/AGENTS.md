@@ -1,4 +1,5 @@
 <reference>docs/shared/patterns/anti-slop.md</reference>
+<reference>docs/frontend/web/shared/logic-layering.md</reference>
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

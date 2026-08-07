@@ -141,7 +141,7 @@ export const QUERY_KEYS = {
 } as const;
 ```
 
-### Feature-specific keys (`src/features/auth/constants.ts`)
+### Feature-specific keys (`src/features/<feature>/constants.ts`)
 
 ```typescript
 export const AUTH_QUERY_KEYS = {
@@ -149,7 +149,18 @@ export const AUTH_QUERY_KEYS = {
 } as const;
 ```
 
-Convention: array of strings in descending scope (`["domain", "subdomain"]`).
+```typescript
+// src/features/chat/constants.ts
+export const CHAT_QUERY_KEYS = {
+  sessions: ["sessions"],
+  messages: (sessionId: string) => ["sessions", sessionId, "messages"],
+} as const;
+```
+
+Convention: array of strings in descending scope (`["domain", "subdomain"]`);
+parameterized keys (per-session messages) are factory functions. All chat query
+keys and invalidations MUST go through `CHAT_QUERY_KEYS` — inline key strings
+break silently when a key changes.
 
 ## Predefined Queries
 
@@ -200,56 +211,26 @@ Used by:
 When multiple components mount simultaneously and need the same data, React Query
 deduplicates by `queryKey`. Only one network request is made per key.
 
-### Pattern: Fetch via useQuery, sync to Zustand
+### Pattern: Query cache is the store
+
+Catalog data (features, skills, models) is NOT mirrored into a Zustand store —
+the react-query cache is the single source of truth and hooks return
+`query.data` directly:
 
 ```typescript
-// In a shared hook (called by multiple components):
-const { data } = useQuery({
-  queryKey: ["settings"],    // ← same key = single request
-  queryFn: settingsApi.get,
-  staleTime: 60_000,
+// useFeatures.ts — no store sync, no useEffect
+const query = useQuery<AgentFeature[]>({
+  queryKey: ["features"],
+  queryFn: featuresApi.list,
+  ...QUERY_STANDARD,
+  staleTime: 5 * 60_000,
 });
-
-useEffect(() => {
-  if (data) setConfig(data); // ← sync into Zustand store
-}, [data, setConfig]);
+return { features: query.data || [], isLoading: query.isLoading };
 ```
 
-**Before:** manual `useEffect` + module-level `fetchInFlight` flag (brittle).
-**After:** React Query dedup by key — works automatically for `SettingsPage`
-and `SettingsModal` sharing the same hook.
-
-### Pattern — Session & Messages via useQuery
-
-```typescript
-// useChatPage.ts
-const { data: sessionsList } = useQuery({
-  queryKey: ["sessions"],
-  queryFn: sessionApi.list,
-  enabled: isAuthenticated,
-  staleTime: 30_000,
-});
-
-const { data: messagesData } = useQuery({
-  queryKey: ["sessions", activeSessionId, "messages"],
-  queryFn: () => sessionApi.getMessages(activeSessionId!),
-  enabled: !!activeSessionId,
-  staleTime: 30_000,
-});
-
-// Sync to Zustand store
-useEffect(() => {
-  if (sessionsList) setSessions(sessionsList);
-}, [sessionsList]);
-
-useEffect(() => {
-  if (messagesData) setMessages(transform(messagesData));
-}, [messagesData]);
-```
-
-Key insight: when `activeSessionId` changes (via `selectSession`), React Query
-automatically re-fetches messages because the `queryKey` changed — no manual
-fetch needed.
+Zustand stores are reserved for client-only UI state (chat draft, settings
+form state). The write-only `catalogStore` was removed because it duplicated
+the query cache without ever being read.
 
 ## Standard Query Options (WAJIB)
 
@@ -321,11 +302,13 @@ placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[2] === templateId ?
 |                               |                | isAuthenticated. Expiry tetap  |
 |                               |                | ditangani interceptor 401.     |
 +-------------------------------+----------------+--------------------------------+
-| ["sessions"] (infinite)       | 30 detik       | List utama; di-refresh via     |
+| ["sessions"] (infinite)       | 30 detik       | `CHAT_QUERY_KEYS.sessions`;    |
+|                               |                | list utama; di-refresh via     |
 |                               |                | invalidate exact setelah       |
 |                               |                | create/delete/title-gen.       |
 +-------------------------------+----------------+--------------------------------+
-| ["sessions", id, "messages"]  | 30 detik       | Pesan per session (infinite).  |
+| ["sessions", id, "messages"]  | 30 detik       | `CHAT_QUERY_KEYS.messages(id)` |
+|                               |                | pesan per session (infinite).  |
 +-------------------------------+----------------+--------------------------------+
 | ["models"], ["features"],     | 5 menit        | Katalog statis-ish.            |
 | ["skills"]                    |                |                                |
@@ -355,6 +338,7 @@ Referensi: `SessionList.tsx` (sidebar), `ChatPage.tsx` (messages),
 ### Internal
 
 - `@/constants` — `QUERY_CONFIG`, `QUERY_KEYS`
+- `src/features/chat/constants.ts` — `CHAT_QUERY_KEYS`
 - `@/lib/api-client` — `api.get()` inside queryFn
 
 ### External
