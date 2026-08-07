@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 import type { Session } from "../types";
@@ -19,6 +20,8 @@ export function useSessionsInfinite() {
     hasNextPage,
     isFetchingNextPage,
     isError,
+    isInitialLoading,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ["sessions"],
     queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
@@ -29,6 +32,7 @@ export function useSessionsInfinite() {
     },
     enabled: isAuthenticated,
     staleTime: 30_000,
+    ...QUERY_STANDARD,
   });
 
   const flattenedSessions = useMemo(() => {
@@ -78,5 +82,13 @@ export function useSessionsInfinite() {
     }
   }, [sessionsData, setSessions, setActiveSession, queryClient]);
 
-  return { sessions: flattenedSessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError };
+  return {
+    sessions: flattenedSessions,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isError,
+    isInitialLoading,
+    refetch,
+  };
 }

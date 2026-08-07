@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 import { STUDIO_QUERY_KEYS } from "../constants";
 import { studioApi } from "../services/studio-api";
 import { useStudioStore } from "../stores/studioStore";
@@ -12,6 +13,8 @@ export function usePromptTemplates() {
   const query = useQuery<{ templates: PromptTemplate[] }>({
     queryKey: STUDIO_QUERY_KEYS.PROMPTS,
     queryFn: studioApi.listPrompts,
+    ...QUERY_STANDARD,
+    staleTime: 5 * 60_000,
   });
 
   useEffect(() => {
@@ -33,6 +36,10 @@ export function usePromptVersions(templateId: string | null) {
       return studioApi.listPromptVersions(templateId);
     },
     enabled: !!templateId,
+    ...QUERY_STANDARD,
+    staleTime: 5 * 60_000,
+    // Hanya reuse data saat masih di template yang sama; ganti template = clean slate.
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[2] === templateId ? prev : undefined),
   });
 }
 

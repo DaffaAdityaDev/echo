@@ -1,5 +1,6 @@
 import { QUERY_KEYS } from "@/constants";
 import { modelsApi } from "@/features/chat/services/models-api";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 
 export interface Model {
   id: string;
@@ -14,5 +15,7 @@ export const modelQueries = {
   list: () => ({
     queryKey: modelQueries.all,
     queryFn: () => modelsApi.list(),
+    ...QUERY_STANDARD,
+    staleTime: 5 * 60_000,
   }),
 };

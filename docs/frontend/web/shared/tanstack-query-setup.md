@@ -3,8 +3,8 @@
 ================================================================================
   Module    : TanStack Query Setup
   Service   : Web
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-08-07 (query standard: cache retention, retry, focus, auth staleTime)
 ================================================================================
 
 ## Deskripsi
@@ -250,6 +250,105 @@ useEffect(() => {
 Key insight: when `activeSessionId` changes (via `selectSession`), React Query
 automatically re-fetches messages because the `queryKey` changed — no manual
 fetch needed.
+
+## Standard Query Options (WAJIB)
+
+Semua `useQuery` / `useInfiniteQuery` di web WAJIB memakai `QUERY_STANDARD`
+dari `src/lib/query-standard.ts`:
+
+```typescript
+// src/lib/query-standard.ts
+import { keepPreviousData } from "@tanstack/react-query";
+
+export const QUERY_STANDARD = {
+  retry: 1,
+  refetchOnWindowFocus: false,
+  placeholderData: keepPreviousData,
+} as const;
+```
+
++--------------------------------+-------------------------------------------+
+| Option                         | Alasan                                    |
++--------------------------------+-------------------------------------------+
+| placeholderData:               | React Query v5 MEMBUANG `data` saat       |
+| keepPreviousData               | refetch gagal (breaking v4). Tanpa ini,   |
+|                                | satu kegagalan refetch membuat list       |
+|                                | tampil kosong ("No recent chats") dan     |
+|                                | MENETAP sampai query dimuat ulang. Data   |
+|                                | lama tetap tampil selama refetch/error.   |
++--------------------------------+-------------------------------------------+
+| retry: 1                       | Hindari retry storm (default 3).          |
++--------------------------------+-------------------------------------------+
+| refetchOnWindowFocus: false    | Sinkronisasi lewat invalidasi eksplisit   |
+|                                | (invalidateQueries + exact), bukan        |
+|                                | refetch tak terduga saat tab fokus.       |
++--------------------------------+-------------------------------------------+
+
+Contoh pemakaian:
+
+```typescript
+const query = useQuery({
+  queryKey: ["features"],
+  queryFn: featuresApi.list,
+  ...QUERY_STANDARD,
+  staleTime: 5 * 60_000,          // per-domain; lihat tabel di bawah
+});
+```
+
+### Query dengan key berubah per-seleksi
+
+`keepPreviousData` menampilkan data query sebelumnya sebagai placeholder saat
+key berubah — untuk messages (per session) dan prompt versions (per template)
+ini SALAH: akan menampilkan chat/versi milik entitas lain. Wajib menimpa
+`placeholderData` dengan fungsi yang dibatasi key sebelumnya:
+
+```typescript
+// messages per session (queryKey: ["sessions", activeSessionId, "messages"])
+placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[1] === activeSessionId ? prev : undefined),
+
+// prompt versions per template (queryKey: ["studio", "prompts", id, "versions"])
+placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[2] === templateId ? prev : undefined),
+```
+
+### staleTime per domain
+
++-------------------------------+----------------+--------------------------------+
+| Domain                        | staleTime      | Keterangan                     |
++-------------------------------+----------------+--------------------------------+
+| ["auth", "me"]                | 5 menit        | Mount komponen baru (mis.      |
+|                               |                | SettingsModal) tidak memicu    |
+|                               |                | refetch auth → tidak flip      |
+|                               |                | isAuthenticated. Expiry tetap  |
+|                               |                | ditangani interceptor 401.     |
++-------------------------------+----------------+--------------------------------+
+| ["sessions"] (infinite)       | 30 detik       | List utama; di-refresh via     |
+|                               |                | invalidate exact setelah       |
+|                               |                | create/delete/title-gen.       |
++-------------------------------+----------------+--------------------------------+
+| ["sessions", id, "messages"]  | 30 detik       | Pesan per session (infinite).  |
++-------------------------------+----------------+--------------------------------+
+| ["models"], ["features"],     | 5 menit        | Katalog statis-ish.            |
+| ["skills"]                    |                |                                |
++-------------------------------+----------------+--------------------------------+
+| ["settings"]                  | 60 detik       | retry: false (override).       |
++-------------------------------+----------------+--------------------------------+
+| ["studio", ...]               | 5 menit        | Prompts/maturity; invalidated  |
+|                               |                | eksplisit oleh mutation.       |
++-------------------------------+----------------+--------------------------------+
+
+### UI tiga-state (loading / error / empty)
+
+Empty state ("No recent chats", "No messages") HANYA dirender saat query
+sukses dan benar-benar kosong:
+
+1. query pending tanpa data → indikator loading
+2. query error tanpa data → pesan error + tombol Retry (`refetch`)
+3. query error dengan data (placeholder) → banner "Failed to refresh" + Retry,
+   data lama tetap tampil
+4. sukses & kosong → empty state
+
+Referensi: `SessionList.tsx` (sidebar), `ChatPage.tsx` (messages), 
+`PromptLibrary.tsx` (studio). Lihat `ui-components.md`.
 
 ## Dependencies
 

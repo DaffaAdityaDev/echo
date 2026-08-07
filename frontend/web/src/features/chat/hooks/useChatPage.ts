@@ -4,6 +4,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 import { CHAT_MODES } from "../constants";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
@@ -102,9 +103,11 @@ export function useChatPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isError: isMessagesError,
+    refetch: refetchMessages,
   } = useInfiniteQuery({
     queryKey: ["sessions", activeSessionId, "messages"],
-    queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId!, 10, pageParam as number),
+    queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId as string, 10, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
@@ -112,6 +115,9 @@ export function useChatPage() {
     },
     enabled: !!activeSessionId && isAuthenticated,
     staleTime: 30_000,
+    ...QUERY_STANDARD,
+    // Hanya reuse data saat masih di session yang sama; pindah session = clean slate.
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[1] === activeSessionId ? prev : undefined),
   });
 
   const flattenedMessages = useMemo(
@@ -206,7 +212,7 @@ export function useChatPage() {
         m.id === defaultModel ||
         m.name === defaultModel ||
         (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
-        (defaultModel && defaultModel.endsWith(`/${m.name}`)),
+        defaultModel?.endsWith(`/${m.name}`),
     );
 
     const initialModel = matchedModel ? matchedModel.id : models.length > 0 ? models[0].id : defaultModel || "";
@@ -238,5 +244,7 @@ export function useChatPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isMessagesError,
+    refetchMessages,
   };
 }

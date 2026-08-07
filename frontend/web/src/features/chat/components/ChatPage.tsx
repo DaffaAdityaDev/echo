@@ -48,7 +48,15 @@ const SettingsModal = dynamic(
 );
 
 export function ChatPage() {
-  const { sendMessage, createSession, fetchNextPage, hasNextPage, isFetchingNextPage } = useChatPage();
+  const {
+    sendMessage,
+    createSession,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isMessagesError,
+    refetchMessages,
+  } = useChatPage();
   const { user } = useAuth();
   const { models } = useModels();
   const messages = useChatMessages();
@@ -182,16 +190,41 @@ export function ChatPage() {
 
         {/* Main Body: Welcome Hero or Message Stream */}
         {messages.length === 0 ? (
-          <WelcomeHero
-            userName={userName}
-            onSend={sendMessage}
-            isLoading={isLoading}
-            onOpenHelp={() => setIsHelpModalOpen(true)}
-            onOpenSettings={() => setIsSettingsModalOpen(true)}
-            onShowToast={setToastMessage}
-          />
+          isMessagesError ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Failed to load messages</p>
+              <button
+                type="button"
+                onClick={() => refetchMessages()}
+                className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <WelcomeHero
+              userName={userName}
+              onSend={sendMessage}
+              isLoading={isLoading}
+              onOpenHelp={() => setIsHelpModalOpen(true)}
+              onOpenSettings={() => setIsSettingsModalOpen(true)}
+              onShowToast={setToastMessage}
+            />
+          )
         ) : (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+            {isMessagesError && (
+              <div className="flex items-center justify-between px-4 py-1.5 bg-red-500/5 border-b border-red-500/20">
+                <p className="text-[10px] text-red-500/80">Failed to refresh messages</p>
+                <button
+                  type="button"
+                  onClick={() => refetchMessages()}
+                  className="text-[10px] font-semibold text-red-500 hover:underline cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             <MessageList
               ref={messageListRef}
               messages={messages}

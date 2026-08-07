@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 import { STUDIO_QUERY_KEYS } from "../constants";
 import { studioApi } from "../services/studio-api";
 import { useStudioStore } from "../stores/studioStore";
@@ -12,7 +13,8 @@ export function useMaturityAssessment() {
   const query = useQuery<SystemMaturityAssessment>({
     queryKey: STUDIO_QUERY_KEYS.MATURITY,
     queryFn: studioApi.getMaturity,
-    staleTime: 1000 * 60 * 5,
+    ...QUERY_STANDARD,
+    staleTime: 5 * 60_000,
   });
 
   useEffect(() => {

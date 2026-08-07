@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useModels } from "@/features/chat/hooks/useModels";
 import { useFeatures } from "@/features/shared/hooks/useFeatures";
 import { useSkills } from "@/features/shared/hooks/useSkills";
+import { QUERY_STANDARD } from "@/lib/query-standard";
 import { settingsApi } from "../services/settings-api";
 import { useSettingsStore } from "../stores/settingsStore";
 
@@ -23,6 +24,7 @@ export function useSettingsPage() {
     queryKey: ["settings"],
     queryFn: settingsApi.get,
     staleTime: 60_000,
+    ...QUERY_STANDARD,
     retry: false,
   });
 
@@ -107,7 +109,8 @@ export function useSettingsPage() {
   );
 
   const groupedModels = models.reduce<Record<string, typeof models>>((acc, m) => {
-    (acc[m.provider_name] ??= []).push(m);
+    const group = acc[m.provider_name] ?? [];
+    acc[m.provider_name] = [...group, m];
     return acc;
   }, {});
 

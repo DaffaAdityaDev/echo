@@ -28,7 +28,8 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError } = useSessionsInfinite();
+  const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isInitialLoading, refetch } =
+    useSessionsInfinite();
   const {
     activeSessionId,
     createSession: storeCreateSession,
@@ -200,6 +201,9 @@ export function SessionSidebar({
           onDelete={handleDeleteSession}
           loadMoreRef={loadMoreRef}
           isFetchingNextPage={isFetchingNextPage}
+          isInitialLoading={isInitialLoading}
+          isError={isError}
+          onRetry={refetch}
         />
 
         {/* User Profile Footer */}

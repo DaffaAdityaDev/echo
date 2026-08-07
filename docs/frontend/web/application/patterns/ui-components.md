@@ -3,8 +3,8 @@
 ================================================================================
   Module    : UI Components
   Service   : Web
-  Version   : 1.0
-  Updated   : 2026-07-09
+  Version   : 1.1
+  Updated   : 2026-08-07 (three-state standard: loading / error / empty)
 ================================================================================
 
 ## Deskripsi
@@ -243,6 +243,46 @@ Styled `<kbd>` keycap for shortcut hints.
 +-------------+--------+-------------------------------------------------------+
 | children    | ReactNode | Key label                                          |
 +-------------+--------+-------------------------------------------------------+
+
+## Three-State Standard (Loading / Error / Empty)
+
+Setiap komponen yang merender data dari query WAJIB membedakan tiga state:
+
++-------------------------------+-------------------------------------------+
+| State                         | Render                                    |
++-------------------------------+-------------------------------------------+
+| Query pending tanpa data      | Indikator loading ("Loading...", skeleton)|
+| (isInitialLoading)            | — BUKAN empty state                       |
++-------------------------------+-------------------------------------------+
+| Query error tanpa data        | Pesan error + tombol Retry (`refetch`)    |
+| (isError && length === 0)     |                                           |
++-------------------------------+-------------------------------------------+
+| Query error DENGAN data lama  | Banner "Failed to refresh" + Retry; data  |
+| (placeholderData terisi)      | lama tetap tampil                         |
++-------------------------------+-------------------------------------------+
+| Sukses & kosong               | Empty state asli ("No recent chats",      |
+|                               | WelcomeHero, EmptyState)                  |
++-------------------------------+-------------------------------------------+
+
+Aturan:
+
+- Empty state TIDAK boleh dirender saat data masih dimuat atau gagal dimuat
+  — keduanya akan terlihat seperti "tidak ada data" (bug UX: mis. list chat
+  hilang padahal ada).
+- Semua query memakai `QUERY_STANDARD` (`src/lib/query-standard.ts`) sehingga
+  data lama bertahan saat refetch error (react-query v5 membuang data saat
+  error). Lihat `tanstack-query-setup.md`.
+- Membuka modal/drawer tidak pernah mengosongkan state — modal adalah state
+  lokal; cache dan store tidak disentuh.
+
+Referensi implementasi kanonik:
+
+- `src/features/chat/components/sidebar/SessionList.tsx` — tiga-state + banner
+  refresh-error
+- `src/features/chat/components/ChatPage.tsx` — error state messages (empty)
+  + banner (dengan data)
+- `src/features/studio/components/prompts/PromptLibrary.tsx` — loading
+  skeleton + error block + EmptyState
 
 ## Dependencies
 

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Feature
   Service   : Web
-  Version   : 1.2
-  Updated   : 2026-08-06 (recovery persistence, step-timeline dedup removal, replay_done)
+  Version   : 1.3
+  Updated   : 2026-08-07 (session list cache standard — no state loss on modal open)
 ================================================================================
 
 ## Deskripsi
@@ -241,6 +241,45 @@ session id). It opens `GET /api/v1/missions/{id}/stream` through the
   `useChatPage` suppresses the snapshot rebuild so the recovered store content
   is not clobbered; the suppression clears when the snapshot catches up or the
   active session changes.
+
+## Session List & Cache Behavior (Standard)
+
+Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
+
+1. **Membuka modal / drawer TIDAK pernah menghapus state atau list.**
+   Modal (settings, model selector, help) hanyalah `useState` lokal di
+   `ChatPage`; tidak ada satu pun yang menyentuh `chatStore` atau cache
+   `["sessions"]`. List sidebar dirender dari **React Query cache**
+   (`useSessionsInfinite` → `flattenedSessions`), bukan dari `chatStore`
+   (store hanya mirror untuk aksi CRUD & auto-select).
+
+2. **Cache tidak pernah di-drop saat refetch gagal.** React Query v5 membuang
+   `data` ketika refetch error (perubahan breaking dari v4) — tanpa
+   `placeholderData: keepPreviousData`, satu kegagalan refetch membuat list
+   tampil kosong ("No recent chats") **menetap** sampai halaman di-refresh.
+   Semua query list memakai `QUERY_STANDARD` (`src/lib/query-standard.ts`):
+   `placeholderData: keepPreviousData`, `retry: 1`,
+   `refetchOnWindowFocus: false`. Query yang queryKey-nya berubah per seleksi
+   (messages per session, prompt versions per template) menimpa
+   `placeholderData` dengan fungsi yang dibatasi key sebelumnya — pindah
+   session/template = clean slate, tidak menampilkan data milik entitas lain.
+
+3. **`/auth/me` memakai `staleTime: 5 menit`** — mounting komponen baru yang
+   memakai `useAuth` (mis. membuka SettingsModal) tidak lagi memicu refetch
+   auth; mencegah flip `isAuthenticated` yang mematikan-nyalakan
+   `enabled` query sessions (pemicu refetch tak terduga). Kedaluwarsa tetap
+   ditangani oleh interceptor 401 di `api-client.ts` (redirect ke `/login`).
+
+4. **UI tiga-state (loading / error / empty).** Empty state ("No recent chats",
+   "No messages") hanya dirender saat query **sukses dan benar-benar kosong**:
+   - query pending tanpa data → "Loading chats..."
+   - query error tanpa data → pesan error + tombol Retry (`refetch`)
+   - query error dengan data (placeholder) → banner "Failed to refresh" + Retry,
+     list lama tetap tampil
+   - sukses & kosong → "No recent chats" / WelcomeHero
+
+   Referensi implementasi: `SessionList.tsx`, `ChatPage.tsx` (messages error
+   state + banner), `PromptLibrary.tsx`.
 
 ## Entry Points & Exports
 

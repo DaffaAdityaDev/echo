@@ -16,6 +16,8 @@ export function useAuth() {
     queryKey: AUTH_QUERY_KEYS.ME,
     queryFn: authApi.me,
     retry: false,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     enabled: true,
   });
 
