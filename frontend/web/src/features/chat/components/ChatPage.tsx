@@ -8,17 +8,8 @@ import { Toast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
-import {
-  useActiveSessionId,
-  useAgentProgress,
-  useChatIsLoading,
-  useChatMessages,
-  useMissionMeta,
-  usePacketLogs,
-  useSelectedFeatures,
-  useSelectedModel,
-} from "../hooks/useChatSelectors";
 import { useModels } from "../hooks/useModels";
+import { useChatStore } from "../stores/chatStore";
 import { AgentProgress } from "./AgentProgress";
 import { ChatInput } from "./ChatInput";
 import { ChatHeader } from "./chat-page/ChatHeader";
@@ -60,13 +51,13 @@ export function ChatPage() {
   } = useChatPage();
   const { user } = useAuth();
   const { models } = useModels();
-  const messages = useChatMessages();
-  const isLoading = useChatIsLoading();
-  const selectedModel = useSelectedModel();
-  const agentProgress = useAgentProgress();
-  const missionMeta = useMissionMeta();
-  const packetLogs = usePacketLogs();
-  const selectedFeatures = useSelectedFeatures();
+  const messages = useChatStore((s) => s.messages);
+  const isLoading = useChatStore((s) => s.isLoading);
+  const selectedModel = useChatStore((s) => s.selectedModel);
+  const agentProgress = useChatStore((s) => s.agentProgress);
+  const missionMeta = useChatStore((s) => s.missionMeta);
+  const packetLogs = useChatStore((s) => s.packetLogs);
+  const selectedFeatures = useChatStore((s) => s.selectedFeatures);
 
   const messageListRef = useRef<MessageListHandle>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -103,7 +94,7 @@ export function ChatPage() {
     setToastMessage("Chat session exported to JSON!");
   };
 
-  const activeSessionId = useActiveSessionId();
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
 
   const handleShareSession = async () => {
     if (!activeSessionId) {

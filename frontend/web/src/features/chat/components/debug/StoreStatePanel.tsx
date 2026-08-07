@@ -2,36 +2,22 @@
 
 import { Database } from "lucide-react";
 import { CopyButton } from "@/components/ui/CopyButton";
-import {
-  useActiveSessionId,
-  useAgentProgress,
-  useAgentState,
-  useChatMessages,
-  useChatMode,
-  useChatSessions,
-  useCumulativeUsage,
-  useDebugPacketHistory,
-  useMaxPacketLogSize,
-  usePacketLogs,
-  useSelectedFeatures,
-  useSelectedModel,
-  useSetMaxPacketLogSize,
-} from "../../hooks/useChatSelectors";
+import { useChatStore } from "../../stores/chatStore";
 
 export function StoreStatePanel() {
-  const agentState = useAgentState();
-  const agentProgress = useAgentProgress();
-  const selectedModel = useSelectedModel();
-  const mode = useChatMode();
-  const selectedFeatures = useSelectedFeatures();
-  const messages = useChatMessages();
-  const activeSessionId = useActiveSessionId();
-  const sessions = useChatSessions();
-  const packetLogs = usePacketLogs();
-  const maxPacketLogSize = useMaxPacketLogSize();
-  const debugPacketHistory = useDebugPacketHistory();
-  const cumulativeUsage = useCumulativeUsage();
-  const setMaxPacketLogSize = useSetMaxPacketLogSize();
+  const agentState = useChatStore((s) => s.agentState);
+  const agentProgress = useChatStore((s) => s.agentProgress);
+  const selectedModel = useChatStore((s) => s.selectedModel);
+  const mode = useChatStore((s) => s.mode);
+  const selectedFeatures = useChatStore((s) => s.selectedFeatures);
+  const messages = useChatStore((s) => s.messages);
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const sessions = useChatStore((s) => s.sessions);
+  const packetLogs = useChatStore((s) => s.packetLogs);
+  const maxPacketLogSize = useChatStore((s) => s.maxPacketLogSize);
+  const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
+  const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
+  const setMaxPacketLogSize = useChatStore((s) => s.setMaxPacketLogSize);
 
   const storeSnapshot = JSON.stringify(
     {

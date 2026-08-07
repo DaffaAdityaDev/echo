@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/utils/cn";
-import { useAgentState } from "../hooks/useChatSelectors";
+import { useChatStore } from "../stores/chatStore";
 import type { AgentState } from "../types";
 
 interface AgentStatusBadgeProps {
@@ -39,7 +39,7 @@ const stateConfig: Record<AgentState, { label: string; className: string }> = {
 };
 
 export function AgentStatusBadge({ state, className }: AgentStatusBadgeProps) {
-  const storeState = useAgentState();
+  const storeState = useChatStore((s) => s.agentState);
   const resolvedState = state ?? storeState;
   const config = stateConfig[resolvedState];
 

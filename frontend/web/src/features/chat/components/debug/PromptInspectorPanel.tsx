@@ -5,10 +5,10 @@ import { useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { StatCard } from "@/components/ui/StatCard";
 import { cn } from "@/utils/cn";
-import { useDebugPacketHistory } from "../../hooks/useChatSelectors";
+import { useChatStore } from "../../stores/chatStore";
 
 export function PromptInspectorPanel() {
-  const debugPacketHistory = useDebugPacketHistory();
+  const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
 
   const [promptSearch, setPromptSearch] = useState<string>("");
   const [selectedDebugIdx, setSelectedDebugIdx] = useState<number>(debugPacketHistory.length - 1);

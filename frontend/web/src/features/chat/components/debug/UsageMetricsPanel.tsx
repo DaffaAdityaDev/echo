@@ -3,10 +3,10 @@
 import { Coins, Gauge, Zap } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatCompactNumber } from "@/utils/format";
-import { useCumulativeUsage } from "../../hooks/useChatSelectors";
+import { useChatStore } from "../../stores/chatStore";
 
 export function UsageMetricsPanel() {
-  const cumulativeUsage = useCumulativeUsage();
+  const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
 
   const promptTokens = cumulativeUsage?.promptTokens || 0;
   const completionTokens = cumulativeUsage?.completionTokens || 0;

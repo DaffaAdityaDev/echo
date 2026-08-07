@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useSetActiveSession } from "./useChatSelectors";
+import { useChatStore } from "../stores/chatStore";
 
 export function useActiveSessionFromParams(sessionId: string | undefined) {
-  const setActiveSession = useSetActiveSession();
+  const setActiveSession = useChatStore((s) => s.setActiveSession);
 
   useEffect(() => {
     if (sessionId) {

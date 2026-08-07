@@ -2,17 +2,9 @@ import { useCallback } from "react";
 import { missionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 
-export function useHitlApprovalPending() {
-  return useChatStore((s) => s.hitlPendingApproval);
-}
-
-export function useClearHitlApproval() {
-  return useChatStore((s) => s.clearHitlPendingApproval);
-}
-
 export function useHitlApproval() {
-  const pending = useHitlApprovalPending();
-  const clearPending = useClearHitlApproval();
+  const pending = useChatStore((s) => s.hitlPendingApproval);
+  const clearPending = useChatStore((s) => s.clearHitlPendingApproval);
 
   const approve = useCallback(async () => {
     if (!pending) return;

@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { cn } from "@/utils/cn";
 import { downloadJson } from "@/utils/download";
 import { PACKET_TYPES } from "../../constants";
-import { useClearPacketLogs, useMaxPacketLogSize, usePacketLogs } from "../../hooks/useChatSelectors";
+import { useChatStore } from "../../stores/chatStore";
 
 const typeBadgeColors: Record<string, string> = {
   metadata: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
@@ -21,9 +21,9 @@ const typeBadgeColors: Record<string, string> = {
 };
 
 export function PacketLogsPanel() {
-  const packetLogs = usePacketLogs();
-  const maxPacketLogSize = useMaxPacketLogSize();
-  const clearPacketLogs = useClearPacketLogs();
+  const packetLogs = useChatStore((s) => s.packetLogs);
+  const maxPacketLogSize = useChatStore((s) => s.maxPacketLogSize);
+  const clearPacketLogs = useChatStore((s) => s.clearPacketLogs);
 
   const [packetFilter, setPacketFilter] = useState<string>("all");
   const [packetSearch, setPacketSearch] = useState<string>("");

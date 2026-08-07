@@ -2,10 +2,10 @@
 
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useAgentState } from "../hooks/useChatSelectors";
+import { useChatStore } from "../stores/chatStore";
 
 export function DegradationToast() {
-  const agentState = useAgentState();
+  const agentState = useChatStore((s) => s.agentState);
   const [dismissed, setDismissed] = useState(false);
 
   const visible = agentState === "degraded" && !dismissed;

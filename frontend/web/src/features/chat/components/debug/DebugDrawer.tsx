@@ -5,14 +5,7 @@ import { useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Kbd } from "@/components/ui/Kbd";
 import { cn } from "@/utils/cn";
-import {
-  useActiveSessionId,
-  useChatMode,
-  useCumulativeUsage,
-  useDebugPacketHistory,
-  usePacketLogs,
-  useSelectedModel,
-} from "../../hooks/useChatSelectors";
+import { useChatStore } from "../../stores/chatStore";
 import { PacketLogsPanel } from "./PacketLogsPanel";
 import { PromptInspectorPanel } from "./PromptInspectorPanel";
 import { StoreStatePanel } from "./StoreStatePanel";
@@ -35,12 +28,12 @@ type TabId = (typeof tabs)[number]["id"];
 export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabId>("packets");
 
-  const packetLogs = usePacketLogs();
-  const debugPacketHistory = useDebugPacketHistory();
-  const cumulativeUsage = useCumulativeUsage();
-  const selectedModel = useSelectedModel();
-  const mode = useChatMode();
-  const activeSessionId = useActiveSessionId();
+  const packetLogs = useChatStore((s) => s.packetLogs);
+  const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
+  const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
+  const selectedModel = useChatStore((s) => s.selectedModel);
+  const mode = useChatStore((s) => s.mode);
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
 
   if (!isOpen) return null;
 

@@ -5,8 +5,8 @@ import type React from "react";
 import { useState } from "react";
 import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
-import { useSelectedModel, useSetSelectedModel } from "../hooks/useChatSelectors";
 import { useModels } from "../hooks/useModels";
+import { useChatStore } from "../stores/chatStore";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -25,8 +25,8 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const [selectedProvider, setSelectedProvider] = useState<string>("All");
 
   const { models } = useModels();
-  const selectedModel = useSelectedModel();
-  const setSelectedModel = useSetSelectedModel();
+  const selectedModel = useChatStore((s) => s.selectedModel);
+  const setSelectedModel = useChatStore((s) => s.setSelectedModel);
 
   if (!isOpen) return null;
 

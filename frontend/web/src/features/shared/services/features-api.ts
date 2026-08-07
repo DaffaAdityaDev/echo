@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client";
-import type { AgentFeature } from "../hooks/useFeatures";
+import type { AgentFeature } from "../types";
 
 export const featuresApi = {
   list: async (): Promise<AgentFeature[]> => {
