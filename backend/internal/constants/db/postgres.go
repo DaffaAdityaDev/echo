@@ -46,7 +46,7 @@ const (
 		LEFT JOIN messages m ON m.session_id = s.id
 		WHERE s.user_id = $1 AND s.status = 'active'
 		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.strategy_version, s.last_accessed_at, s.created_at, s.updated_at
-		ORDER BY s.updated_at DESC
+		ORDER BY s.updated_at DESC, s.id DESC
 		LIMIT NULLIF($2, 0) OFFSET $3
 	`
 	QueryGetSession = `
