@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Menu, ShieldAlert, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Menu, X } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useState } from "react";
@@ -35,13 +35,6 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors"
-            >
-              <ShieldAlert size={14} />
-              Admin Console
-            </Link>
             <Link
               href="/"
               className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-foreground transition-colors"

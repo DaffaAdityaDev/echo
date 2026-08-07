@@ -1,7 +1,6 @@
 "use client";
 
-import { Bug, ChevronDown, Cpu, Download, Menu, Plus, Settings, Share2, ShieldAlert } from "lucide-react";
-import Link from "next/link";
+import { Bug, ChevronDown, Cpu, Download, Menu, Plus, Settings, Share2 } from "lucide-react";
 import { useSidebar } from "@/lib/sidebar-context";
 import { AgentStatusBadge } from "../AgentStatusBadge";
 
@@ -105,14 +104,6 @@ export function ChatHeader({
         >
           <Download className="h-4 w-4" />
         </button>
-
-        <Link
-          href="/admin"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-white transition-all shadow-sm"
-        >
-          <ShieldAlert className="h-3.5 w-3.5" />
-          <span>Admin Console</span>
-        </Link>
       </div>
     </header>
   );

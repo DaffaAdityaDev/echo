@@ -1,7 +1,6 @@
 "use client";
 
 import { Globe, Loader2, Paperclip, Send, Sliders, Sparkles, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import type React from "react";
 import { useRef, useState } from "react";
 import { cn } from "@/utils/cn";
@@ -11,10 +10,10 @@ import { useChatMode, useSelectedFeatures, useSetChatMode, useSetSelectedFeature
 interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
+  onOpenSettings: () => void;
 }
 
-export function ChatInput({ onSend, isLoading }: ChatInputProps) {
-  const router = useRouter();
+export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -149,7 +148,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
 
             <button
               type="button"
-              onClick={() => router.push("/settings")}
+              onClick={onOpenSettings}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border border-transparent"
               title="Harness Settings"
             >

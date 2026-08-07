@@ -1,7 +1,6 @@
 "use client";
 
-import { Key, LogOut } from "lucide-react";
-import Link from "next/link";
+import { LogOut } from "lucide-react";
 
 interface AccountTabProps {
   user: { email?: string; role?: string } | null;
@@ -26,22 +25,9 @@ export function AccountTab({ user, logout, onClose }: AccountTabProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-        <Link
-          href="/admin/api-keys"
-          onClick={onClose}
-          className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 hover:border-purple-500/40 transition-all flex items-center gap-3"
-        >
-          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
-            <Key className="h-5 w-5" />
-          </div>
-          <div>
-            <h5 className="text-xs font-bold text-zinc-900 dark:text-white">Developer API Keys</h5>
-            <p className="text-[11px] text-zinc-400">Manage credentials & scopes</p>
-          </div>
-        </Link>
-
+      <div className="pt-2">
         <button
+          type="button"
           onClick={() => {
             logout();
             onClose();

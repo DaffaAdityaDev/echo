@@ -185,6 +185,7 @@ export function ChatPage() {
             onSend={sendMessage}
             isLoading={isLoading}
             onOpenHelp={() => setIsHelpModalOpen(true)}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
             onShowToast={setToastMessage}
           />
         ) : (
@@ -219,7 +220,11 @@ export function ChatPage() {
             {isLoading && <AgentProgress progress={agentProgress} />}
 
             <div className="p-4">
-              <ChatInput onSend={sendMessage} isLoading={isLoading} />
+              <ChatInput
+                onSend={sendMessage}
+                isLoading={isLoading}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+              />
             </div>
           </div>
         )}

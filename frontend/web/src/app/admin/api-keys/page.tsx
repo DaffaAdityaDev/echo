@@ -1,8 +1,0 @@
-"use client";
-
-import { AdminApiKeysPage, useAdminApiKeysPage } from "@/features/admin";
-
-export default function ApiKeysRoute() {
-  const apiKeys = useAdminApiKeysPage();
-  return <AdminApiKeysPage {...apiKeys} />;
-}

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, Settings, X } from "lucide-react";
+import { BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +16,6 @@ interface SessionSidebarProps {
   selectSession?: (id: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
-  onOpenSettings?: () => void;
 }
 
 export function SessionSidebar({
@@ -25,7 +24,6 @@ export function SessionSidebar({
   selectSession: selectSessionProp,
   isOpen = false,
   onClose,
-  onOpenSettings,
 }: SessionSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -201,24 +199,6 @@ export function SessionSidebar({
               </p>
               <p className="text-[10px] text-zinc-400 truncate">{user?.email || "guest@echo.ai"}</p>
             </div>
-            {onOpenSettings ? (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors shrink-0"
-                title="Agent Settings"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <Link
-                href="/settings"
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors shrink-0"
-                title="Agent Settings"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </Link>
-            )}
             <button
               type="button"
               onClick={() => logout()}
