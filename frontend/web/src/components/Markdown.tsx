@@ -1,12 +1,13 @@
 "use client";
 
 import { Check, Copy, Terminal } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import echoTheme from "@/lib/docs/echoTheme";
 import { cn } from "@/utils/cn";
 import "katex/dist/katex.min.css";
@@ -26,6 +27,7 @@ export const TokenizedText = React.memo(({ text }: { text: string }) => {
   return (
     <>
       {tokens.map((token, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: streaming tokens re-render as one frame, no stable ids
         <span key={index} className="stream-token">
           {token}
         </span>
@@ -131,17 +133,7 @@ interface CodeBlockProps {
 }
 
 function CodeBlock({ language, value }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy!", err);
-    }
-  };
+  const { copied, copy } = useCopyToClipboard();
 
   return (
     <div className="relative group my-6 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950/80 animate-in">
@@ -151,7 +143,8 @@ function CodeBlock({ language, value }: CodeBlockProps) {
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{language}</span>
         </div>
         <button
-          onClick={copyToClipboard}
+          type="button"
+          onClick={() => copy(value)}
           className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all active:scale-95"
           aria-label={copied ? "Copied" : "Copy code"}
         >

@@ -2,6 +2,7 @@
 
 import { Coins, Gauge, Zap } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { formatCompactNumber } from "@/utils/format";
 import { useCumulativeUsage } from "../../hooks/useChatSelectors";
 
 export function UsageMetricsPanel() {
@@ -18,10 +19,7 @@ export function UsageMetricsPanel() {
 
   const maxContextWindow = cumulativeUsage?.maxContextTokens || 0;
   const contextUtilization = maxContextWindow > 0 ? ((totalTokens / maxContextWindow) * 100).toFixed(2) : "0.00";
-  const contextLabel =
-    maxContextWindow >= 1000000
-      ? `${(maxContextWindow / 1000000).toFixed(0)}M`
-      : `${(maxContextWindow / 1000).toFixed(0)}k`;
+  const contextLabel = formatCompactNumber(maxContextWindow);
 
   const estimatedCost = (cumulativeUsage?.estimatedCostUsd ?? 0).toFixed(5);
 

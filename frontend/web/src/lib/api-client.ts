@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
+import { extractErrorMessage } from "@/utils/error";
 import { generateTraceContext } from "./telemetry-fetch";
 
 const BASE_URL = "/api";
@@ -39,10 +40,9 @@ client.interceptors.response.use(
       window.location.href = "/login";
     }
     if (error.response) {
-      const msg = error.response.data?.message || error.response.data?.error || error.response.statusText;
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(error.response.data, error.response.statusText));
     }
-    throw new Error(error.message || "Network error");
+    throw new Error(extractErrorMessage(error.message, "Network error"));
   },
 );
 
@@ -105,8 +105,7 @@ async function readStream<T = unknown>(response: Response, onChunk: (data: T) =>
     const errorText = await response.text();
     let message = `Request failed with status ${response.status}`;
     try {
-      const parsed = JSON.parse(errorText);
-      message = parsed.error || parsed.message || message;
+      message = extractErrorMessage(JSON.parse(errorText), message);
     } catch {
       message = errorText || message;
     }

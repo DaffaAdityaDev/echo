@@ -1,8 +1,8 @@
 "use client";
 
 import { Check, Copy, Terminal } from "lucide-react";
-import React, { useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import echoTheme from "@/lib/docs/echoTheme";
 
 interface CodeBlockProps {
@@ -11,17 +11,7 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ language, code }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy code: ", err);
-    }
-  };
+  const { copied, copy } = useCopyToClipboard();
 
   return (
     <div className="relative group my-4 rounded-xs overflow-hidden border border-slate-800 bg-slate-950 font-mono shadow-xs animate-in">
@@ -33,7 +23,8 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
         </div>
 
         <button
-          onClick={copyToClipboard}
+          type="button"
+          onClick={() => copy(code)}
           className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all active:scale-95 cursor-pointer"
           aria-label={copied ? "Copied" : "Copy code"}
         >

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Download, Search, Terminal, Trash2 } from "l
 import { useRef, useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { cn } from "@/utils/cn";
+import { downloadJson } from "@/utils/download";
 import { PACKET_TYPES } from "../../constants";
 import { useClearPacketLogs, useMaxPacketLogSize, usePacketLogs } from "../../hooks/useChatSelectors";
 
@@ -39,13 +40,7 @@ export function PacketLogsPanel() {
   const packetTypesList = ["all", ...Object.values(PACKET_TYPES)];
 
   const handleExportLogs = () => {
-    const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(packetLogs, null, 2))}`;
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `echo-telemetry-packets-${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    downloadJson(`echo-telemetry-packets-${Date.now()}.json`, packetLogs);
   };
 
   return (

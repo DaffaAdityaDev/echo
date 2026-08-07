@@ -3,7 +3,9 @@
 import { AlertTriangle, Check, ChevronDown, Copy, Lightbulb, Loader2, Sparkles, Terminal, User } from "lucide-react";
 import dynamic from "next/dynamic";
 import { memo, useDeferredValue, useState } from "react";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { cn } from "@/utils/cn";
+import { formatContentSize } from "@/utils/format";
 import { CHAT_ROLES } from "../constants";
 import type { Message } from "../types";
 import { ThoughtStepView } from "./steps";
@@ -22,12 +24,6 @@ function stripProtocolMarkup(content: string): string {
   return content.replace(PROTOCOL_MARKUP, "");
 }
 
-function formatContentSize(length: number): string {
-  if (length >= 1_000_000) return `${(length / 1_000_000).toFixed(1)} MB`;
-  if (length >= 1_000) return `${Math.round(length / 1_000)} KB`;
-  return `${length} chars`;
-}
-
 interface MessageItemProps {
   msg: Message;
   isLast: boolean;
@@ -40,18 +36,16 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
   const deferredContent = useDeferredValue(msg.content);
   const activeContent = isStreaming ? deferredContent : msg.content;
 
-  const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [renderAsMarkdown, setRenderAsMarkdown] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const isLarge = activeContent.length > LARGE_MESSAGE_THRESHOLD;
   const showPreview = isLarge && !expanded;
 
   const handleCopy = () => {
     if (!msg.content) return;
-    navigator.clipboard.writeText(msg.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copy(msg.content);
   };
 
   const renderContent = () => {

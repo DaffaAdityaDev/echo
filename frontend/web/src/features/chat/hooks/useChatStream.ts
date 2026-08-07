@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
+import { extractErrorMessage } from "@/utils/error";
 import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 import { chatApi, missionApi, sessionApi } from "../services/chat-api";
 import { clearMissionCursor, getMissionCursor, setMissionCursor } from "../services/mission-cursor";
@@ -151,7 +152,7 @@ export function useChatStream() {
       const currentMsgs = store.messages;
       if (currentMsgs.length === 0) return;
       const lastIdx = currentMsgs.length - 1;
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch response from agent.";
+      const errorMessage = extractErrorMessage(err, "Failed to fetch response from agent.");
       const prevContent = currentMsgs[lastIdx]?.content || "";
       const updatedContent = prevContent ? `${prevContent}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`;
       const lastMessage = {

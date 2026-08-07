@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
 import {
   useActiveSessionId,
@@ -98,13 +99,7 @@ export function ChatPage() {
       setToastMessage("No chat history available to export.");
       return;
     }
-    const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(messages, null, 2))}`;
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `echo-chat-session-${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    downloadJson(`echo-chat-session-${Date.now()}.json`, messages);
     setToastMessage("Chat session exported to JSON!");
   };
 

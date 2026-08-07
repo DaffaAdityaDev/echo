@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { extractErrorMessage } from "@/utils/error";
 
 export async function proxyFetch(url: string, init?: RequestInit): Promise<NextResponse> {
   try {
@@ -20,7 +21,7 @@ export async function proxyFetch(url: string, init?: RequestInit): Promise<NextR
     return NextResponse.json({ error: text }, { status: res.status });
   } catch (err: unknown) {
     console.error(`[proxyFetch] Error fetching ${url}:`, err);
-    const message = err instanceof Error ? err.message : "Failed to proxy request";
+    const message = extractErrorMessage(err, "Failed to proxy request");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { normalizeSpec } from "@/lib/docs/normalize";
 import type { NormalizedSpec } from "@/lib/docs/types";
+import { extractErrorMessage } from "@/utils/error";
 
 interface SpecContextValue {
   spec: NormalizedSpec | null;
@@ -37,7 +38,7 @@ export function OpenApiSpecProvider({ children }: { children: React.ReactNode })
       const raw = await res.json();
       setSpec(normalizeSpec(raw));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(extractErrorMessage(err, "Unknown error"));
     } finally {
       setLoading(false);
     }
