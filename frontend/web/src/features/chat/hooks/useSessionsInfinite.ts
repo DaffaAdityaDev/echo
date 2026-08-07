@@ -3,6 +3,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { QUERY_STANDARD } from "@/lib/query-standard";
+import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 import type { Session } from "../types";
@@ -23,7 +24,7 @@ export function useSessionsInfinite() {
     isInitialLoading,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["sessions"],
+    queryKey: CHAT_QUERY_KEYS.sessions,
     queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
@@ -73,7 +74,7 @@ export function useSessionsInfinite() {
         .then((session) => {
           setSessions([session]);
           setActiveSession(session.id);
-          queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
+          queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
         })
         .catch((err) => {
           console.error("[Chat] Failed to create initial session:", err);

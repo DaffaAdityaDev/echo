@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { QUERY_STANDARD } from "@/lib/query-standard";
-import { CHAT_MODES } from "../constants";
+import { CHAT_MODES, CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 import type { DbMessage, Message, ThoughtStep } from "../types";
@@ -106,7 +106,7 @@ export function useChatPage() {
     isError: isMessagesError,
     refetch: refetchMessages,
   } = useInfiniteQuery({
-    queryKey: ["sessions", activeSessionId, "messages"],
+    queryKey: CHAT_QUERY_KEYS.messages(activeSessionId as string),
     queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId as string, 10, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {

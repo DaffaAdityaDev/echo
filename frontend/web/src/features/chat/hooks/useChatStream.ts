@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { extractErrorMessage } from "@/utils/error";
-import { CHAT_ROLES, PACKET_TYPES } from "../constants";
+import { CHAT_QUERY_KEYS, CHAT_ROLES, PACKET_TYPES } from "../constants";
 import { chatApi, missionApi, sessionApi } from "../services/chat-api";
 import { clearMissionCursor, getMissionCursor, setMissionCursor } from "../services/mission-cursor";
 import { applyStreamPacket } from "../services/stream";
@@ -105,7 +105,7 @@ export function useChatStream() {
           store.setActiveSession(newSession.id);
           store.setNewChatPending(false);
           router.push(`/session/${newSession.id}`);
-          queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
+          queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
         } catch (err) {
           throw new Error(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -175,7 +175,7 @@ export function useChatStream() {
       const sid = store.activeSessionId;
       if (sid) {
         try {
-          await queryClient.invalidateQueries({ queryKey: ["sessions", sid, "messages"] });
+          await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(sid) });
         } catch (err) {
           console.warn("[Chat] Failed to invalidate messages query:", err);
         }
@@ -189,7 +189,7 @@ export function useChatStream() {
       // invalidating exact ["sessions"] avoids refetching the messages queries.
       try {
         await generateSessionTitle(sid || "");
-        await queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
+        await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
       } catch (err) {
         console.warn("[Chat] Failed to refresh sessions:", err);
       }
@@ -252,7 +252,7 @@ export function useChatStream() {
       // snapshot-rebuild effect in useChatPage runs against fresh data.
       const recoveredSid = useChatStore.getState().activeSessionId || missionId;
       try {
-        await queryClient.invalidateQueries({ queryKey: ["sessions", recoveredSid, "messages"] });
+        await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(recoveredSid) });
       } catch (err) {
         console.warn("[Chat] Failed to invalidate messages query after recovery:", err);
       }

@@ -1,3 +1,8 @@
+export const CHAT_QUERY_KEYS = {
+  sessions: ["sessions"],
+  messages: (sessionId: string) => ["sessions", sessionId, "messages"],
+} as const;
+
 export const CHAT_ROLES = {
   USER: "user",
   ASSISTANT: "assistant",

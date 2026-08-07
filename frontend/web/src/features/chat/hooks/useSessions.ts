@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 
@@ -39,7 +40,7 @@ export function useSessions() {
       } catch (e) {
         console.error("Failed to delete session on backend:", e);
       } finally {
-        queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
+        queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
       }
     },
     [sessions, activeSessionId, setSessions, setActiveSession, clearMessages, queryClient, router, pathname],
