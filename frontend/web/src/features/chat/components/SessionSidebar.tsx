@@ -28,7 +28,7 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage } = useSessionsInfinite();
+  const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError } = useSessionsInfinite();
   const {
     activeSessionId,
     createSession: storeCreateSession,
@@ -37,25 +37,40 @@ export function SessionSidebar({
   } = useSessions();
   const { user, logout } = useAuth();
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const hasNextPageRef = useRef(hasNextPage);
+  const isFetchingNextPageRef = useRef(isFetchingNextPage);
+  const isErrorRef = useRef(isError);
 
   useEffect(() => {
+    hasNextPageRef.current = hasNextPage;
+    isFetchingNextPageRef.current = isFetchingNextPage;
+    isErrorRef.current = isError;
+  }, [hasNextPage, isFetchingNextPage, isError]);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        if (
+          entries[0].isIntersecting &&
+          hasNextPageRef.current &&
+          !isFetchingNextPageRef.current &&
+          !isErrorRef.current
+        ) {
           fetchNextPage();
         }
       },
       { threshold: 0.1 },
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+    observer.observe(el);
 
     return () => {
       observer.disconnect();
     };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [fetchNextPage]);
 
   const handleCreateSession = async () => {
     if (createSessionProp) {

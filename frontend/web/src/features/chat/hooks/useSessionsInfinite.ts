@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
+import type { Session } from "../types";
 
 export function useSessionsInfinite() {
   const queryClient = useQueryClient();
@@ -17,6 +18,7 @@ export function useSessionsInfinite() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isError,
   } = useInfiniteQuery({
     queryKey: ["sessions"],
     queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
@@ -29,15 +31,26 @@ export function useSessionsInfinite() {
     staleTime: 30_000,
   });
 
-  const flattenedSessions = useMemo(
-    () => (sessionsData ? sessionsData.pages.flatMap((page) => page.sessions) : []),
-    [sessionsData],
-  );
+  const flattenedSessions = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: Session[] = [];
+    for (const page of sessionsData?.pages ?? []) {
+      for (const session of page.sessions) {
+        if (!seen.has(session.id)) {
+          seen.add(session.id);
+          unique.push(session);
+        }
+      }
+    }
+    return unique;
+  }, [sessionsData]);
 
   useEffect(() => {
     if (flattenedSessions.length === 0) return;
     setSessions(flattenedSessions);
-    const currentId = useChatStore.getState().activeSessionId;
+    const store = useChatStore.getState();
+    if (store.newChatPending) return;
+    const currentId = store.activeSessionId;
     const urlSessionMatch = pathname.match(/^\/(?:session|c)\/([^/]+)/);
     if (urlSessionMatch) return;
     if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
@@ -56,7 +69,7 @@ export function useSessionsInfinite() {
         .then((session) => {
           setSessions([session]);
           setActiveSession(session.id);
-          queryClient.invalidateQueries({ queryKey: ["sessions"] });
+          queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
         })
         .catch((err) => {
           console.error("[Chat] Failed to create initial session:", err);
@@ -65,5 +78,5 @@ export function useSessionsInfinite() {
     }
   }, [sessionsData, setSessions, setActiveSession, queryClient]);
 
-  return { sessions: flattenedSessions, fetchNextPage, hasNextPage, isFetchingNextPage };
+  return { sessions: flattenedSessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError };
 }

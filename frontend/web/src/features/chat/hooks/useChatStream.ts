@@ -38,7 +38,12 @@ async function generateSessionTitle(sid: string): Promise<void> {
 }
 
 export function useChatStream() {
-  const { isLoading, setMessages, setIsLoading, setAgentProgress, setAgentState, clearMessages } = useChatStore();
+  const isLoading = useChatStore((s) => s.isLoading);
+  const setMessages = useChatStore((s) => s.setMessages);
+  const setIsLoading = useChatStore((s) => s.setIsLoading);
+  const setAgentProgress = useChatStore((s) => s.setAgentProgress);
+  const setAgentState = useChatStore((s) => s.setAgentState);
+  const clearMessages = useChatStore((s) => s.clearMessages);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -97,8 +102,9 @@ export function useChatStream() {
           const store = useChatStore.getState();
           store.setSessions([newSession, ...store.sessions]);
           store.setActiveSession(newSession.id);
+          store.setNewChatPending(false);
           router.push(`/session/${newSession.id}`);
-          queryClient.invalidateQueries({ queryKey: ["sessions"] });
+          queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
         } catch (err) {
           throw new Error(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -178,11 +184,14 @@ export function useChatStream() {
       setAgentProgress(null);
 
       // Auto-generate title if still default, then refresh the session list.
-      generateSessionTitle(sid || "")
-        .then(() => sessionApi.list().then((res) => useChatStore.getState().setSessions(res.sessions)))
-        .catch((err) => {
-          console.warn("[Chat] Failed to refresh sessions:", err);
-        });
+      // Title generation bumps updated_at, so the paginated list must refetch;
+      // invalidating exact ["sessions"] avoids refetching the messages queries.
+      try {
+        await generateSessionTitle(sid || "");
+        await queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
+      } catch (err) {
+        console.warn("[Chat] Failed to refresh sessions:", err);
+      }
     }
   };
 

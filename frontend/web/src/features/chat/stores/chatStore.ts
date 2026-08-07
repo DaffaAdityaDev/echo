@@ -27,6 +27,7 @@ interface ChatState {
   agentProgress: AgentProgress | null;
   sessions: Session[];
   activeSessionId: string | null;
+  newChatPending: boolean;
   agentState: AgentState;
   selectedModel: string;
   mode: string;
@@ -46,6 +47,7 @@ interface ChatState {
   setAgentProgress: (updater: AgentProgress | null | ((prev: AgentProgress | null) => AgentProgress | null)) => void;
   setSessions: (sessions: Session[]) => void;
   setActiveSession: (id: string | null) => void;
+  setNewChatPending: (pending: boolean) => void;
   setAgentState: (state: AgentState) => void;
   clearMessages: () => void;
   setSelectedModel: (model: string) => void;
@@ -71,6 +73,7 @@ export const useChatStore = create<ChatState>((set) => ({
   agentProgress: null,
   sessions: [],
   activeSessionId: null,
+  newChatPending: false,
   agentState: "completed",
   selectedModel: "",
   mode: "standard",
@@ -96,6 +99,7 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
   setSessions: (sessions) => set({ sessions }),
   setActiveSession: (id) => set({ activeSessionId: id }),
+  setNewChatPending: (pending) => set({ newChatPending: pending }),
   setAgentState: (agentState) => set({ agentState }),
   clearMessages: () =>
     set({

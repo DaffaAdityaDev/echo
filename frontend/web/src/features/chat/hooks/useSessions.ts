@@ -9,6 +9,7 @@ export function useSessions() {
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const setSessions = useChatStore((s) => s.setSessions);
   const setActiveSession = useChatStore((s) => s.setActiveSession);
+  const setNewChatPending = useChatStore((s) => s.setNewChatPending);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -16,11 +17,12 @@ export function useSessions() {
 
   const createSession = useCallback(() => {
     setActiveSession(null);
+    setNewChatPending(true);
     clearMessages();
     if (pathname !== "/") {
       router.push("/");
     }
-  }, [setActiveSession, clearMessages, router, pathname]);
+  }, [setActiveSession, setNewChatPending, clearMessages, router, pathname]);
 
   const deleteSession = useCallback(
     async (id: string) => {
@@ -37,7 +39,7 @@ export function useSessions() {
       } catch (e) {
         console.error("Failed to delete session on backend:", e);
       } finally {
-        queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["sessions"], exact: true });
       }
     },
     [sessions, activeSessionId, setSessions, setActiveSession, clearMessages, queryClient, router, pathname],
@@ -45,9 +47,10 @@ export function useSessions() {
 
   const selectSession = useCallback(
     async (id: string) => {
+      setNewChatPending(false);
       setActiveSession(id);
     },
-    [setActiveSession],
+    [setNewChatPending, setActiveSession],
   );
 
   return { sessions, activeSessionId, createSession, deleteSession, selectSession };
