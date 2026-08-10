@@ -152,7 +152,8 @@ configured for the backend service.
 > **KEDA / event-driven autoscaling is deferred** (not a current requirement).
 > If adopted later, the worker job bodies move to a queue consumer
 > (NATS/Kafka), and KEDA scales on queue depth — no logic change in the jobs.
-> Bridge today: Redis pub/sub (already used for mission streams in SaaS mode).
+> Bridge today: Redis (already used for the gateway's cross-instance session
+> turn lock in SaaS mode).
 
 ## ConfigMaps
 

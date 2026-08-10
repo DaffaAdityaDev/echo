@@ -1,12 +1,7 @@
 import type { Message, StreamPacket } from "../../../types";
-import type { StreamHandlerOptions, StreamStore } from "./types";
+import type { StreamStore } from "./types";
 
-export function handleUsage(
-  lastMessage: Message,
-  data: StreamPacket & { type: "usage" },
-  store: StreamStore,
-  _opts: StreamHandlerOptions,
-): void {
+export function handleUsage(lastMessage: Message, data: StreamPacket & { type: "usage" }, store: StreamStore): void {
   if (data.usage) {
     lastMessage.usage = data.usage;
     store.setCumulativeUsage(data.usage);
@@ -17,7 +12,6 @@ export function handleTokenMetrics(
   _lastMessage: Message,
   data: StreamPacket & { type: "token_metrics" },
   store: StreamStore,
-  _opts: StreamHandlerOptions,
 ): void {
   if (data.payload) {
     store.setCumulativeUsage({

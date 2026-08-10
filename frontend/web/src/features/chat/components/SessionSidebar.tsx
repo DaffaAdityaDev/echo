@@ -162,6 +162,8 @@ export function SessionSidebar({
               type="text"
               name="chat-search"
               autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}

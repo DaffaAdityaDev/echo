@@ -17,9 +17,12 @@ func NewRedisClient(cfg *cfgmodel.Config) *redis.Client {
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       0,
+		Addr:         cfg.RedisAddr,
+		Password:     cfg.RedisPassword,
+		DB:           0,
+		PoolSize:     100,
+		MinIdleConns: 10,
+		PoolTimeout:  4 * time.Second,
 	})
 	log.Println("Redis connection initialized")
 	return rdb

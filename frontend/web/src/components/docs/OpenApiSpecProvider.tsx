@@ -33,7 +33,7 @@ export function OpenApiSpecProvider({ children }: { children: React.ReactNode })
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/docs/spec");
+      const res = await fetch("/api/docs/spec", { cache: "no-store" });
       if (!res.ok) throw new Error(`Failed to load spec: ${res.statusText}`);
       const raw = await res.json();
       setSpec(normalizeSpec(raw));

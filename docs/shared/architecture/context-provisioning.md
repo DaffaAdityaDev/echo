@@ -38,27 +38,26 @@ fast.
 |                      |                                          |   userId/user_id)              | mission.schema.ts:230,256            |
 | message / prompt     | ChatRequest.Message                       | prompt (normalized from        | chat/handler.go:342;                 |
 |                      |                                          |   prompt/message)              | mission.schema.ts:238,251            |
-| model                | ChatRequest.Model (default from config)   | model                          | chat/handler.go:197-200,343;         |
-|                      |                                          |                                | mission.schema.ts:259                |
-| history              | Session history or request history        | history                        | chat/handler.go:232-289,344;         |
-|                      |                                          |                                | mission.schema.ts:268-276            |
+| model                | user_preferences.DefaultModel (default  | model                          | chat/handler.go:69-72,235;           |
+|                      |   from config)                         |                                | mission.schema.ts:259                |
+| history              | Session history (always from DB —      | history                        | chat/handler.go:180-201;             |
+|                      |   never from the request)              |                                | mission.schema.ts:268-276            |
 | provider_config      | Resolved via ModelService from per-user   | provider_config (type,         | chat/handler.go:201-230,345;         |
 |   (incl. api_key)    |   stored keys (aimodel/service.go)        |   base_url, api_key, model)    | mission.schema.ts:4-9,260-265        |
 | strategy_version     | Resolved/pinned by StrategyService        | strategy_version               | chat/handler.go:313-319,346;         |
 |                      |                                          |                                | mission.schema.ts:237,253            |
-| features             | ALWAYS sent after tier gate — `[]` never  | features                       | chat/handler.go:180-195,356-360;     |
-|                      |   null; validated against the effective   |                                | mission.schema.ts:266               |
+| features             | Resolved from user_preferences, ALWAYS   | features                       | chat/handler.go:77,84-94;            |
+|                      |   sent after tier gate — `[]` never      |                                | mission.schema.ts:266               |
 |                      |   catalog (DB `features` table ∩ agent    |                                |                                     |
 |                      |   implemented registry, GET /api/features)|                                |                                     |
 |                      |   — unknown feature → 400                 |                                |                                     |
-| skills               | Sent only when non-empty (validated)      | skills                         | chat/handler.go:206-221,361-363;     |
-|                      |                                          |                                | mission.schema.ts:267                |
-| config               | Sent only when non-empty; may carry       | config (AgentConfigSchema:     | chat/handler.go:364-366;             |
-|   (mcpServers/       |   mcpServers + restTools credentials,     |   mcpServers credentials,      | mission.schema.ts:156-215,277        |
-|   restTools creds)   |   harness config incl. costCap)           |   restTools headers/auth,      |                                       |
-|                      |                                          |   harness costCap 1.0, memory) |                                       |
-| missionId            | Session ID (chat path) or missionId       | missionId (generated if absent)| chat/handler.go:349-355;              |
-|                      |                                          |                                | mission.schema.ts:258                |
+| skills               | Sent only when non-empty (validated);    | skills                         | chat/handler.go:78,110-125;          |
+|                      |   from user_preferences.DefaultSkills    |                                | mission.schema.ts:267                |
+| config               | Sent only when non-empty; carries        | config (AgentConfigSchema:     | chat/handler.go:79-82,242;           |
+|   (featureToggles)   |   featureToggles from user               |   featureToggles, memory,      | mission.schema.ts:156-215,277        |
+|                      |   harness_toggles                        |   harness costCap 1.0)         |                                       |
+| session_id         | Always sent — session id IS the run id   | sessionId (run id generated  | chat/handler.go:215-218,229;          |
+|                    |                                          |   if absent)                 | mission.schema.ts:256,270            |
 +----------------------+------------------------------------------+--------------------------------+--------------------------------------+
 
 > **Note**: `tenant_id` / `org_id` are part of the agent schema but are not
@@ -148,7 +147,7 @@ New pull capabilities MUST follow the same shape:
    │  user_id, tenant_id*, org_id*, provider_config(+api_key),           │
    │  features (tier-checked; unknown id → 400), skills,                 │
    │  strategy_version,                                                   │
-   │  config (mcpServers/restTools creds), missionId                     │
+   │  config (mcpServers/restTools creds), session_id                    │
    │                                                                      │
    │  POST /api/generate-mission  (X-Internal-Token)                      │
    ▼                                                                      ▼

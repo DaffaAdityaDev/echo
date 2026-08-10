@@ -19,9 +19,8 @@ export const VALIDATION_MESSAGES = {
 
 export const MISSION_ROUTES = {
   GENERATE_MISSION: "/generate-mission",
-  APPROVE: "/v1/missions/:id/approve",
-  DENY: "/v1/missions/:id/deny",
-  STREAM: "/v1/missions/:id/stream",
+  APPROVE: "/v1/sessions/:id/approve",
+  DENY: "/v1/sessions/:id/deny",
 } as const;
 
 export const HITL_DECISIONS = {
@@ -38,21 +37,6 @@ export const STREAM_CONSTANTS = {
   CANCELLED_MESSAGE: "Mission cancelled by client disconnect",
   ERROR_CODE: "STREAM_EXECUTION_ERROR",
   ERROR_STEP: 0,
-  HEARTBEAT_INTERVAL_MS: 15_000,
-  // Close a stream whose mission has no recorded events at all after this long.
-  // Covers the case where the Redis stream expired (24h TTL) while a terminal
-  // marker was never seen; a live mission records its first event well within
-  // this window, so the just-started race is preserved.
-  EMPTY_STREAM_IDLE_MS: 5_000,
-  // Close a stream whose mission recorded events but never reached a terminal
-  // marker (e.g. the agent died mid-run) after this long without ANY live
-  // event. The window is sliding — reset on every live event — so a mission
-  // that is genuinely still running is never cut off.
-  PARTIAL_HISTORY_IDLE_MS: 60_000,
-  // Synthetic packet emitted by the stream right after the replayed history
-  // segment, before any live event. The recovery client uses it to switch from
-  // replay (skip already-applied content) to live (apply content deltas).
-  REPLAY_DONE_TYPE: "replay_done",
 } as const;
 
 export const STREAM_LOG_MESSAGES = {
@@ -67,6 +51,4 @@ export const MISSION_ERROR_MESSAGES = {
   PROVIDER_UNREACHABLE: "Provider unreachable",
   APPROVAL_EXPIRED_OR_NOT_FOUND: "APPROVAL_EXPIRED_OR_NOT_FOUND",
   INVALID_DECISION: "Invalid decision payload",
-  MISSION_ID_REQUIRED: "Mission ID required",
-  STREAM_UNAVAILABLE: "Mission stream unavailable: Redis is offline",
 } as const;

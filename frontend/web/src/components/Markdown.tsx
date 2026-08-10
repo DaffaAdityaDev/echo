@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -18,18 +19,26 @@ interface MarkdownProps {
 export const TokenizedText = React.memo(({ text }: { text: string }) => {
   const tokens = React.useMemo(() => {
     if (!text) return [];
-    return text.split(/(\s+)/);
+    return text.split(/(\s+)/).filter((token) => token !== "");
   }, [text]);
 
   return (
-    <>
-      {tokens.map((token, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: streaming tokens re-render as one frame, no stable ids
-        <span key={index} className="stream-token">
-          {token}
-        </span>
-      ))}
-    </>
+    <span className="inline">
+      {tokens.map((token, index) => {
+        const isWhitespace = /^\s+$/.test(token);
+        return isWhitespace ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: whitespace tokens are static, no re-animation needed
+          <span key={index} style={{ whiteSpace: "pre" }}>
+            {token}
+          </span>
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static index key prevents re-triggering blur keyframes on sub-word completion
+          <span key={index} className="inline-block animate-cursor-reveal">
+            {token}
+          </span>
+        );
+      })}
+    </span>
   );
 });
 
@@ -50,7 +59,7 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
   return (
     <div
       className={cn(
-        "prose max-w-none text-inherit font-mono",
+        "prose max-w-none text-inherit font-mono relative",
         "prose-p:leading-relaxed prose-p:text-inherit",
         "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-inherit",
         "prose-a:text-gb-blue prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
@@ -65,14 +74,56 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
         rehypePlugins={[rehypeKatex]}
         components={{
           p({ children }) {
-            if (isStreaming && typeof children === "string") {
-              return (
-                <p className="my-2 leading-relaxed">
-                  <TokenizedText text={children} />
-                </p>
-              );
+            if (isStreaming) {
+              if (typeof children === "string") {
+                return (
+                  <p className="my-2 leading-relaxed">
+                    <TokenizedText text={children} />
+                  </p>
+                );
+              }
+              if (Array.isArray(children)) {
+                return (
+                  <p className="my-2 leading-relaxed">
+                    {children.map((child, idx) =>
+                      typeof child === "string" ? (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: composite array-index key keeps streaming tokens stable
+                        <TokenizedText key={`child-${idx}`} text={child} />
+                      ) : (
+                        child
+                      ),
+                    )}
+                  </p>
+                );
+              }
             }
             return <p className="my-2 leading-relaxed">{children}</p>;
+          },
+          li({ children }) {
+            if (isStreaming) {
+              if (typeof children === "string") {
+                return (
+                  <li className="my-1">
+                    <TokenizedText text={children} />
+                  </li>
+                );
+              }
+              if (Array.isArray(children)) {
+                return (
+                  <li className="my-1">
+                    {children.map((child, idx) =>
+                      typeof child === "string" ? (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: composite array-index key keeps streaming tokens stable
+                        <TokenizedText key={`child-li-${idx}`} text={child} />
+                      ) : (
+                        child
+                      ),
+                    )}
+                  </li>
+                );
+              }
+            }
+            return <li className="my-1">{children}</li>;
           },
           code({ className, children, ...props }: React.ComponentPropsWithoutRef<"code">) {
             const match = /language-(\w+)/.exec(className || "");
@@ -116,6 +167,19 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
       >
         {processedContent}
       </ReactMarkdown>
+      {isStreaming && (
+        <motion.span
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [1, 0.4, 1] }}
+          transition={{
+            layout: { type: "spring", stiffness: 400, damping: 30 },
+            opacity: { repeat: Infinity, duration: 0.8, ease: "easeInOut" },
+          }}
+          className="inline-block h-4 w-[2.5px] bg-sky-400 dark:bg-sky-400 ml-1 align-middle shadow-[0_0_8px_rgba(56,189,248,0.9)] rounded-xs"
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 });

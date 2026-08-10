@@ -18,7 +18,9 @@ func NewPromptHandler(promptSvc llmops.PromptService) *PromptHandler {
 }
 
 type createTemplateReq struct {
-	Name        string `json:"name"`
+	// Name is the display name of the new template.
+	Name string `json:"name"`
+	// Description is a human-readable description of the new template.
 	Description string `json:"description"`
 }
 
@@ -29,8 +31,10 @@ type createTemplateReq struct {
 // @Accept json
 // @Produce json
 // @Param request body createTemplateReq true "Template payload"
-// @Success 201 {object} llmopsmodel.PromptTemplate
+// @Success 201 {object} llmopsmodel.PromptTemplate "Created template"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts [post]
 func (h *PromptHandler) HandleCreateTemplate(c fiber.Ctx) error {
 	var req createTemplateReq
@@ -47,12 +51,19 @@ func (h *PromptHandler) HandleCreateTemplate(c fiber.Ctx) error {
 	return handlerutil.RespondCreated(c, tmpl)
 }
 
+type PromptTemplatesResponse struct {
+	// Templates are the prompt templates of the tenant.
+	Templates []llmopsmodel.PromptTemplate `json:"templates"`
+}
+
 // HandleListTemplates godoc
 // @Summary List prompt templates
 // @Description Returns all prompt templates (LLMOps Studio)
 // @Tags Studio
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Success 200 {object} PromptTemplatesResponse "List of prompt templates"
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/studio/prompts [get]
 func (h *PromptHandler) HandleListTemplates(c fiber.Ctx) error {
 	tenantID := c.Get("X-Tenant-ID", "local")
@@ -65,13 +76,16 @@ func (h *PromptHandler) HandleListTemplates(c fiber.Ctx) error {
 		templates = []llmopsmodel.PromptTemplate{}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"templates": templates})
+	return handlerutil.RespondSuccess(c, PromptTemplatesResponse{Templates: templates})
 }
 
 type createVersionReq struct {
-	SystemPrompt string   `json:"system_prompt"`
-	BoundTools   []string `json:"bound_tools"`
-	Variables    []string `json:"variables"`
+	// SystemPrompt is the full system prompt text.
+	SystemPrompt string `json:"system_prompt"`
+	// BoundTools are the tools the prompt is allowed to call.
+	BoundTools []string `json:"bound_tools"`
+	// Variables are the template variables used by the prompt.
+	Variables []string `json:"variables"`
 }
 
 // HandleCreateVersion godoc
@@ -82,8 +96,10 @@ type createVersionReq struct {
 // @Produce json
 // @Param id path string true "Template ID"
 // @Param request body createVersionReq true "Version payload"
-// @Success 201 {object} llmopsmodel.PromptVersion
+// @Success 201 {object} llmopsmodel.PromptVersion "Created version"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/versions [post]
 func (h *PromptHandler) HandleCreateVersion(c fiber.Ctx) error {
 	templateID := c.Params("id")
@@ -109,9 +125,10 @@ func (h *PromptHandler) HandleCreateVersion(c fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "Template ID"
 // @Param v path int true "Version number"
-// @Success 200 {object} llmopsmodel.PromptVersion
+// @Success 200 {object} llmopsmodel.PromptVersion "Prompt template version"
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/versions/{v} [get]
 func (h *PromptHandler) HandleGetVersion(c fiber.Ctx) error {
 	templateID := c.Params("id")
@@ -135,9 +152,10 @@ func (h *PromptHandler) HandleGetVersion(c fiber.Ctx) error {
 // @Tags Studio
 // @Produce json
 // @Param name query string true "Template name"
-// @Success 200 {object} llmopsmodel.PromptVersion
+// @Success 200 {object} llmopsmodel.PromptVersion "Active production prompt version"
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/active [get]
 func (h *PromptHandler) HandleGetActivePrompt(c fiber.Ctx) error {
 	templateName := c.Query("name")
@@ -154,13 +172,21 @@ func (h *PromptHandler) HandleGetActivePrompt(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, pv)
 }
 
+// PromptVersionsResponse is the response for listing prompt template versions.
+type PromptVersionsResponse struct {
+	// Versions is the version history of the template.
+	Versions []llmopsmodel.PromptVersion `json:"versions"`
+}
+
 // HandleListVersions godoc
 // @Summary List prompt template versions
 // @Description Returns the version history of a prompt template (LLMOps Studio)
 // @Tags Studio
 // @Produce json
 // @Param id path string true "Template ID"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} PromptVersionsResponse "Version history"
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/versions [get]
 func (h *PromptHandler) HandleListVersions(c fiber.Ctx) error {
 	templateID := c.Params("id")
@@ -169,7 +195,15 @@ func (h *PromptHandler) HandleListVersions(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"versions": versions})
+	return handlerutil.RespondSuccess(c, PromptVersionsResponse{Versions: versions})
+}
+
+// PromoteResponse is the response for promoting a prompt template version.
+type PromoteResponse struct {
+	// Status is the outcome of the promotion.
+	Status string `json:"status"`
+	// PromotedVersion is the version promoted to production.
+	PromotedVersion int `json:"promoted_version"`
 }
 
 // HandlePromote godoc
@@ -179,7 +213,9 @@ func (h *PromptHandler) HandleListVersions(c fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "Template ID"
 // @Param version path int true "Version number"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} PromoteResponse "Promotion result"
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/promote/{version} [post]
 func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 	templateID := c.Params("id")
@@ -192,7 +228,15 @@ func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"status": "success", "promoted_version": version})
+	return handlerutil.RespondSuccess(c, PromoteResponse{Status: "success", PromotedVersion: version})
+}
+
+// RollbackResponse is the response for rolling back a prompt template version.
+type RollbackResponse struct {
+	// Status is the outcome of the rollback.
+	Status string `json:"status"`
+	// RolledBackTo is the version the template was rolled back to.
+	RolledBackTo int `json:"rolled_back_to"`
 }
 
 // HandleRollback godoc
@@ -202,8 +246,10 @@ func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "Template ID"
 // @Param version path int true "Version number"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} RollbackResponse "Rollback result"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/rollback/{version} [post]
 func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
 	templateID := c.Params("id")
@@ -219,5 +265,5 @@ func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"status": "success", "rolled_back_to": version})
+	return handlerutil.RespondSuccess(c, RollbackResponse{Status: "success", RolledBackTo: version})
 }

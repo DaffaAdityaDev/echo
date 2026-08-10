@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { useToast } from "@/hooks/useToast";
 import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
@@ -53,11 +54,10 @@ export function ChatPage() {
   const { models } = useModels();
   const messages = useChatStore((s) => s.messages);
   const isLoading = useChatStore((s) => s.isLoading);
-  const selectedModel = useChatStore((s) => s.selectedModel);
   const agentProgress = useChatStore((s) => s.agentProgress);
   const missionMeta = useChatStore((s) => s.missionMeta);
   const packetLogs = useChatStore((s) => s.packetLogs);
-  const selectedFeatures = useChatStore((s) => s.selectedFeatures);
+  const { defaultModel, defaultFeatures } = useSettingsStore((s) => s.config);
 
   const messageListRef = useRef<MessageListHandle>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -110,7 +110,14 @@ export function ChatPage() {
     }
   };
 
-  const activeModelName = models.find((m) => m.id === selectedModel)?.name || "Echo Brain";
+  const activeModelName =
+    models.find(
+      (m) =>
+        m.id === defaultModel ||
+        m.name === defaultModel ||
+        defaultModel?.endsWith(`/${m.name}`) ||
+        m.id.endsWith(`/${defaultModel}`),
+    )?.name || "Echo Brain";
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
@@ -169,7 +176,7 @@ export function ChatPage() {
         />
 
         {/* Phase 2: Header Mission Info Bar */}
-        <MissionInfoBar missionMeta={missionMeta} selectedFeatures={selectedFeatures} />
+        <MissionInfoBar missionMeta={missionMeta} selectedFeatures={defaultFeatures} />
 
         {/* Main Body: Welcome Hero or Message Stream */}
         {messages.length === 0 ? (

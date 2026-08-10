@@ -253,7 +253,7 @@ export const createMissionSchema = z.preprocess(
       history: raw.history ?? undefined,
       features: raw.features ?? undefined,
       skills: raw.skills ?? undefined,
-      missionId: raw.missionId ?? undefined,
+      sessionId: raw.sessionId ?? raw.session_id ?? undefined,
       model: raw.model ?? undefined,
       prompt_template: raw.prompt_template ?? undefined,
       config: raw.config,
@@ -267,7 +267,7 @@ export const createMissionSchema = z.preprocess(
 
     userId: z.string(),
     orgId: z.string(),
-    missionId: z.string().nullable().optional(),
+    sessionId: z.string().nullable().optional(),
     model: z.string().nullable().optional(),
     prompt_template: z.string().nullable().optional(),
     provider_config: z.object({

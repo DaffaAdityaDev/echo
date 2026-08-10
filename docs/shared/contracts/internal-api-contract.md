@@ -68,7 +68,7 @@ Store episodic memory (conversation turn / event).
     "message": "The capital of France is Paris."
   },
   "metadata": {
-    "mission_id": "mission-xyz-456",
+    "session_id": "session-xyz-456",
     "type": "chat_turn"
   }
 }
@@ -131,7 +131,7 @@ Recall episodic memories for a session.
     {
       "content": { "role": "assistant", "message": "The capital of France is Paris." },
       "timestamp": "2026-07-09T12:00:00Z",
-      "metadata": { "mission_id": "mission-xyz-456" }
+      "metadata": { "session_id": "session-xyz-456" }
     }
   ],
   "total": 42
@@ -455,7 +455,7 @@ curl -X POST http://localhost:8080/api/v1/internal/memory/episodic/store \
       "message": "The capital of France is Paris."
     },
     "metadata": {
-      "mission_id": "mission-xyz-456"
+      "session_id": "session-xyz-456"
     }
   }'
 ```

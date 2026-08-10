@@ -5,61 +5,93 @@
             "type": "object",
             "properties": {
                 "description": {
+                    "description": "Description is the feature description.",
                     "type": "string"
                 },
                 "id": {
+                    "description": "ID is the feature identifier.",
                     "type": "string"
                 },
                 "locked": {
+                    "description": "Locked is true when the user's tier cannot access the feature.",
                     "type": "boolean"
                 },
                 "name": {
+                    "description": "Name is the display name.",
                     "type": "string"
                 }
             }
         },
         "internal_handler_chat.ChatRequest": {
             "type": "object",
+            "required": [
+                "message"
+            ],
             "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "features": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "history": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handler_chat.HistoryMessage"
-                    }
-                },
                 "message": {
-                    "type": "string"
-                },
-                "missionId": {
-                    "type": "string"
+                    "description": "Message is the user's chat message. First message in a session.",
+                    "type": "string",
+                    "example": "Build a REST API with Express"
                 },
                 "mode": {
-                    "type": "string"
+                    "description": "Mode is an optional agent mode override. When set, it takes precedence\nover the user's default mode.",
+                    "type": "string",
+                    "example": "agent"
                 },
                 "model": {
-                    "type": "string"
+                    "description": "Model is an optional model override. When set, it takes precedence over\nthe user's default model. Clients without user identity (e.g. the Discord\nbot's per-channel selection) use this.",
+                    "type": "string",
+                    "example": "nvidia/nemotron-3-nano-4b"
                 },
                 "sessionId": {
+                    "description": "SessionID is an optional session ID. Omit to start a new session (the\nbackend creates it and returns its ID in the X-Session-ID response\nheader). Include to continue an existing session.",
+                    "type": "string",
+                    "example": "sess_abc123"
+                }
+            }
+        },
+        "internal_handler_chat.SkillModifiers": {
+            "type": "object",
+            "properties": {
+                "compression": {
+                    "description": "Compression indicates whether the skill compresses its context.",
+                    "type": "boolean"
+                },
+                "maxTokens": {
+                    "description": "MaxTokens is the maximum number of tokens the skill may generate.",
+                    "type": "integer"
+                },
+                "temperature": {
+                    "description": "Temperature is the sampling temperature for the skill's model calls.",
+                    "type": "number"
+                }
+            }
+        },
+        "internal_handler_chat.SkillResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Description is a human-readable summary of what the skill does.",
                     "type": "string"
                 },
-                "skills": {
+                "modifiers": {
+                    "description": "Modifiers are optional tuning parameters applied when the skill runs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_chat.SkillModifiers"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "Name is the unique identifier of the skill.",
+                    "type": "string"
+                },
+                "preferredTools": {
+                    "description": "PreferredTools lists tools the skill prefers to use, if any.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
-                },
-                "strategyVersion": {
-                    "type": "string"
                 }
             }
         }
@@ -87,7 +119,7 @@
                     "Chat"
                 ],
                 "summary": "Send a chat message",
-                "description": "Forwards a user message to the agent for processing",
+                "description": "Forwards a user message to the agent and streams the agent's progress as Server-Sent Events (SSE).\nThe stream starts with an X-Session-ID response header set to the session ID (new or existing).\nEach line is `data: \u003cjson\u003e` where the JSON is a StreamPacket: { \"type\": \"...\", \"missionId\": \"...\", \"step\": number, \"seq\": number, \"timestamp\": number }.\nPacket types: metadata, reasoning, content, tool_call, tool_result, tool_skip, todo, subagent_call, subagent_result, usage, progress, heartbeat, state_change, degraded, turn_complete, debug, error, system_notice, token_metrics, hitl_approval_required, mission_completed.\nTerminal packets: turn_complete, mission_completed, error.\nIf the connection drops mid-run, the mission is cancelled (token safety) and the turn is finalized as interrupted — send a new message to continue.\nSee docs/shared/contracts/json-api-contract.md §SSE Event Format for the full schema.",
                 "parameters": [
                     {
                         "description": "Chat payload",
@@ -101,10 +133,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SSE stream of StreamPacket JSON lines (text/event-stream)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -124,6 +155,33 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -135,7 +193,7 @@
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "text/event-stream"
                 ]
             }
         },
@@ -146,10 +204,17 @@
                 ],
                 "summary": "List available agent features",
                 "description": "Returns the catalog of agent features with tier-based locking",
-                "parameters": null,
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User tier, default pro",
+                        "name": "X-User-Tier",
+                        "in": "header"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Catalog of agent features for the user's tier",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -167,28 +232,24 @@
                         }
                     }
                 },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
+                "security": null,
                 "consumes": null,
                 "produces": [
                     "application/json"
                 ]
             }
         },
-        "/api/v1/missions/{id}/approve": {
+        "/api/v1/sessions/{id}/approve": {
             "post": {
                 "tags": [
                     "Chat"
                 ],
                 "summary": "Approve a pending tool call",
-                "description": "Approves a human-in-the-loop tool approval request for a mission",
+                "description": "Approves a human-in-the-loop tool approval request for a session",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Mission ID",
+                        "description": "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise).",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -212,6 +273,33 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -225,17 +313,17 @@
                 ]
             }
         },
-        "/api/v1/missions/{id}/deny": {
+        "/api/v1/sessions/{id}/deny": {
             "post": {
                 "tags": [
                     "Chat"
                 ],
                 "summary": "Deny a pending tool call",
-                "description": "Denies a human-in-the-loop tool approval request for a mission",
+                "description": "Denies a human-in-the-loop tool approval request for a session",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Mission ID",
+                        "description": "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise).",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -259,44 +347,27 @@
                                 "type": "string"
                             }
                         }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            }
-        },
-        "/api/v1/missions/{missionId}/stream": {
-            "get": {
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Stream mission logs",
-                "description": "Streams real-time mission execution logs as Server-Sent Events",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "missionId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Event stream",
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -312,7 +383,7 @@
                 ],
                 "consumes": null,
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ]
             }
         },
@@ -326,12 +397,11 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Agent skill catalog",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                                "$ref": "#/definitions/internal_handler_chat.SkillResponse"
                             }
                         }
                     },
@@ -345,11 +415,7 @@
                         }
                     }
                 },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
+                "security": null,
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -363,7 +429,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

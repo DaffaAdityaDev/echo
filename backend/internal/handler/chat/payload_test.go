@@ -10,6 +10,7 @@ func baseArgs() payloadArgs {
 		history:         []HistoryMessage{{Role: "user", Content: "sebelumnya"}},
 		providerConfig:  map[string]interface{}{"type": "opencode-go"},
 		strategyVersion: "nlah:v1",
+		sessionID:       "sess-123",
 		tenantID:        "local",
 	}
 }
@@ -61,14 +62,20 @@ func TestBuildPayload_PreservesFeaturesAndCoreKeys(t *testing.T) {
 	}
 }
 
+func TestBuildPayload_AlwaysIncludesSessionID(t *testing.T) {
+	p := buildChatAgentPayload(baseArgs())
+	if p["session_id"] != "sess-123" {
+		t.Fatalf("expected session_id=sess-123, got %v", p["session_id"])
+	}
+}
+
 func TestBuildPayload_OptionalKeysOnlyWhenProvided(t *testing.T) {
 	args := baseArgs()
-	args.missionID = "sess-123"
 	args.skills = []string{"research"}
 	args.config = map[string]interface{}{"memory": map[string]interface{}{"episodic": true}}
 	p := buildChatAgentPayload(args)
-	if p["missionId"] != "sess-123" {
-		t.Fatalf("expected missionId, got %v", p["missionId"])
+	if p["session_id"] != "sess-123" {
+		t.Fatalf("expected session_id, got %v", p["session_id"])
 	}
 	if len(p["skills"].([]string)) != 1 {
 		t.Fatalf("expected skills, got %#v", p["skills"])
@@ -78,9 +85,6 @@ func TestBuildPayload_OptionalKeysOnlyWhenProvided(t *testing.T) {
 	}
 
 	plain := buildChatAgentPayload(baseArgs())
-	if _, ok := plain["missionId"]; ok {
-		t.Fatal("missionId should be absent when empty")
-	}
 	if _, ok := plain["skills"]; ok {
 		t.Fatal("skills should be absent when empty")
 	}

@@ -1,0 +1,93 @@
+{
+    "basePath": "/",
+    "definitions": {},
+    "host": "localhost:8080",
+    "info": {
+        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+        "title": "Echo Backend API",
+        "termsOfService": "https://echo.app/terms",
+        "contact": {
+            "name": "Echo API Support",
+            "url": "https://echo.app/support",
+            "email": "support@echo.app"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/v1/internal/prompts/active": {
+            "get": {
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get active prompt for the agent (internal)",
+                "description": "Returns the active production prompt version for the agent (service-to-service)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template name",
+                        "name": "template",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active production prompt version",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
+        }
+    },
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
+}

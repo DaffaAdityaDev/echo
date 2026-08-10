@@ -15,36 +15,57 @@ import (
 
 // HandleApproveTool godoc
 // @Summary Approve a pending tool call
-// @Description Approves a human-in-the-loop tool approval request for a mission
+// @Description Approves a human-in-the-loop tool approval request for a session
 // @Tags Chat
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "Mission ID"
+// @Param id path string true "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise)."
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
-// @Router /api/v1/missions/{id}/approve [post]
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id}/approve [post]
 func (h *Handler) HandleApproveTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "approve")
 }
 
 // HandleDenyTool godoc
 // @Summary Deny a pending tool call
-// @Description Denies a human-in-the-loop tool approval request for a mission
+// @Description Denies a human-in-the-loop tool approval request for a session
 // @Tags Chat
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "Mission ID"
+// @Param id path string true "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise)."
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
-// @Router /api/v1/missions/{id}/deny [post]
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/sessions/{id}/deny [post]
 func (h *Handler) HandleDenyTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "deny")
 }
 
 func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
-	missionID := c.Params("id")
-	if missionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "mission ID required")
+	sessionID := c.Params("id")
+	if sessionID == "" {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "session ID required")
+	}
+
+	sess, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	if err != nil {
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session", err.Error())
+	}
+	if sess == nil || sess.Status == "deleted" {
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
+	}
+	userID, err := handlerutil.GetUserID(c)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+	if sess.UserID != userID {
+		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
 	var body map[string]interface{}
@@ -52,7 +73,7 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	agentURL := fmt.Sprintf("%s/api/v1/missions/%s/%s", h.Cfg.AgentHTTPURL, missionID, action)
+	agentURL := fmt.Sprintf("%s/api/v1/sessions/%s/%s", h.Cfg.AgentHTTPURL, sessionID, action)
 	jsonPayload, _ := json.Marshal(body)
 
 	agentReq, err := http.NewRequestWithContext(c.Context(), "POST", agentURL, bytes.NewBuffer(jsonPayload))

@@ -7,7 +7,7 @@ describe("createMissionSchema Validation", () => {
       config: { featureToggles: {} },
       features: ["web_search", "write_todos"],
       message: "test",
-      missionId: "b5948ef6-d000-4a5a-8605-51c48a07e5a2",
+      sessionId: "b5948ef6-d000-4a5a-8605-51c48a07e5a2",
       model: "liquid/lfm2.5-1.2b",
       provider_config: {
         api_key: "admin123",

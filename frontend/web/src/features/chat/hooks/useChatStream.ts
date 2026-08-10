@@ -5,22 +5,15 @@ import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { extractErrorMessage } from "@/utils/error";
-import { CHAT_QUERY_KEYS, CHAT_ROLES, PACKET_TYPES } from "../constants";
-import { chatApi, missionApi, sessionApi } from "../services/chat-api";
-import { clearMissionCursor, getMissionCursor, setMissionCursor } from "../services/mission-cursor";
+import { CHAT_QUERY_KEYS, CHAT_ROLES } from "../constants";
+import { chatApi, sessionApi } from "../services/chat-api";
 import { applyStreamPacket } from "../services/stream";
 import { useChatStore } from "../stores/chatStore";
-import type { HistoryMessage, Message, StreamPacket } from "../types";
-
-const TERMINAL_PACKETS = new Set<string>([
-  PACKET_TYPES.TURN_COMPLETE,
-  PACKET_TYPES.MISSION_COMPLETED,
-  PACKET_TYPES.ERROR,
-]);
+import type { Message, StreamPacket } from "../types";
 
 async function generateSessionTitle(sid: string): Promise<void> {
   const state = useChatStore.getState();
-  const model = state.selectedModel;
+  const model = useSettingsStore.getState().config.defaultModel;
   if (!sid || !model) return;
 
   const activeSess = state.sessions.find((s) => s.id === sid);
@@ -69,22 +62,6 @@ export function useChatStream() {
     };
 
     try {
-      const currentMessages = useChatStore.getState().messages;
-      const history: HistoryMessage[] = [
-        ...currentMessages
-          .filter((m) => m.content.trim().length > 0)
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        { role: CHAT_ROLES.USER, content: input },
-      ];
-
-      const activeMissionId = currentMessages
-        .slice()
-        .reverse()
-        .find((m) => m.role === CHAT_ROLES.ASSISTANT && m.meta?.missionId)?.meta?.missionId;
-
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       setIsLoading(true);
       setAgentState("running");
@@ -95,54 +72,27 @@ export function useChatStream() {
 
       abortRef.current = new AbortController();
 
-      let currentSessionId = useChatStore.getState().activeSessionId;
-      if (!currentSessionId) {
-        try {
-          const newSession = await sessionApi.create();
-          currentSessionId = newSession.id;
-          const store = useChatStore.getState();
-          store.setSessions([newSession, ...store.sessions]);
-          store.setActiveSession(newSession.id);
-          store.setNewChatPending(false);
-          router.push(`/session/${newSession.id}`);
-          queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
-        } catch (err) {
-          throw new Error(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
-
-      const storeState = useChatStore.getState();
-      const settingsState = useSettingsStore.getState();
-      const payload: Record<string, unknown> = {
-        message: input,
-        mode: storeState.mode,
-        missionId: activeMissionId,
-        sessionId: currentSessionId || undefined,
-        history,
-        features: storeState.selectedFeatures,
-      };
-
-      if (storeState.selectedModel) {
-        payload.model = storeState.selectedModel;
-      }
-
-      if (settingsState.config.harnessToggles) {
-        payload.config = { featureToggles: settingsState.config.harnessToggles };
+      const payload: Record<string, unknown> = { message: input };
+      const activeSessionId = useChatStore.getState().activeSessionId;
+      if (activeSessionId) {
+        payload.sessionId = activeSessionId;
       }
 
       await chatApi.sendMessage(
         payload,
         (data: StreamPacket) => {
-          if (data.type === PACKET_TYPES.REPLAY_DONE) return;
-          if (data.missionId && typeof data.sid === "string") {
-            setMissionCursor(data.missionId, data.sid);
-            if (TERMINAL_PACKETS.has(data.type)) {
-              clearMissionCursor(data.missionId);
-            }
-          }
           applyStreamPacket(data);
         },
         abortRef.current.signal,
+        (response: Response) => {
+          const sessionId = response.headers.get("X-Session-ID");
+          if (sessionId && useChatStore.getState().activeSessionId === null) {
+            useChatStore.getState().setActiveSession(sessionId);
+            useChatStore.getState().setNewChatPending(false);
+            router.push(`/session/${sessionId}`);
+            queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
+          }
+        },
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
@@ -206,66 +156,6 @@ export function useChatStream() {
     }
   };
 
-  const recoverMission = async (missionId: string) => {
-    const store = useChatStore.getState();
-    if (store.isLoading) return;
-    if (!missionId) return;
-
-    const cursor = getMissionCursor(missionId);
-    setIsLoading(true);
-    setAgentState("running");
-    abortRef.current = new AbortController();
-
-    // Replayed history is already represented in the message rebuilt from the
-    // DB, so content/reasoning deltas are skipped while replaying. The stream
-    // emits a replay_done marker once the live phase begins; after it, content
-    // and reasoning are applied normally so a recovered mission keeps streaming.
-    let replay = true;
-
-    try {
-      await missionApi.getStream(
-        missionId,
-        cursor,
-        (data: StreamPacket) => {
-          if (data.type === PACKET_TYPES.REPLAY_DONE) {
-            replay = false;
-            return;
-          }
-          if (typeof data.sid === "string") {
-            setMissionCursor(missionId, data.sid);
-            if (TERMINAL_PACKETS.has(data.type)) {
-              clearMissionCursor(missionId);
-            }
-          }
-          applyStreamPacket(data, { replay });
-        },
-        abortRef.current.signal,
-      );
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      console.warn("[Chat] Mission stream recovery failed:", err);
-      useChatStore.getState().setAgentState("error");
-    } finally {
-      // Refresh the message snapshot so the recovery result lands in the DB
-      // query (in saas mode the gateway persists the recovered completion).
-      // The await keeps isLoading true until the refetch settles, so the
-      // snapshot-rebuild effect in useChatPage runs against fresh data.
-      const recoveredSid = useChatStore.getState().activeSessionId || missionId;
-      try {
-        await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(recoveredSid) });
-      } catch (err) {
-        console.warn("[Chat] Failed to invalidate messages query after recovery:", err);
-      }
-
-      setIsLoading(false);
-      setAgentProgress(null);
-      abortRef.current = null;
-      // The gateway treats missionId as the session id — generate the title
-      // for a session recovered after refresh so it never stays "New Chat".
-      void generateSessionTitle(missionId);
-    }
-  };
-
   const handleClearMessages = () => {
     stopStream();
     clearMessages();
@@ -274,7 +164,6 @@ export function useChatStream() {
   return {
     sendMessage,
     stopStream,
-    recoverMission,
     isLoading,
     clearMessages: handleClearMessages,
   };

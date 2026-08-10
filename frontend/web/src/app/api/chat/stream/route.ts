@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
+        "X-Session-ID": upstream.headers.get("X-Session-ID") || "",
       },
     },
   );

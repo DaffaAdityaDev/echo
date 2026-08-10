@@ -11,10 +11,22 @@ import (
 )
 
 type semanticStoreRequest struct {
-	ID        string                 `json:"id"`
-	Content   string                 `json:"content"`
-	Embedding []float64              `json:"embedding,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	// ID is the semantic memory identifier (required).
+	ID string `json:"id" binding:"required" example:"sem_123"`
+	// Content is the semantic memory content (required).
+	Content string `json:"content" binding:"required"`
+	// Embedding is the optional vector embedding of the content.
+	Embedding []float64 `json:"embedding,omitempty"`
+	// Metadata is optional free-form metadata attached to the entry.
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// SemanticStoreResponse is the response returned when a semantic memory entry is indexed.
+type SemanticStoreResponse struct {
+	// ID is the generated memory entry ID.
+	ID string `json:"id"`
+	// Status is always "indexed".
+	Status string `json:"status"`
 }
 
 // HandleStoreSemantic godoc
@@ -23,9 +35,11 @@ type semanticStoreRequest struct {
 // @Tags Memory
 // @Accept json
 // @Produce json
+// @Security InternalAuth
 // @Param request body semanticStoreRequest true "Semantic memory payload"
-// @Success 201 {object} map[string]interface{}
+// @Success 201 {object} SemanticStoreResponse "Indexed entry"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/semantic/store [post]
 func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 	var req semanticStoreRequest
@@ -56,9 +70,9 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 			SET content = $2, embedding = $3::vector, metadata = $4
 		`, req.ID, req.Content, vec, metadataJSON)
 		if err == nil {
-			return handlerutil.RespondCreated(c, fiber.Map{
-				"id":     generateID("mem_sm_"),
-				"status": "indexed",
+			return handlerutil.RespondCreated(c, SemanticStoreResponse{
+				ID:     generateID("mem_sm_"),
+				Status: "indexed",
 			})
 		}
 	}
@@ -73,17 +87,39 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store semantic memory")
 	}
 
-	return handlerutil.RespondCreated(c, fiber.Map{
-		"id":     generateID("mem_sm_"),
-		"status": "indexed",
+	return handlerutil.RespondCreated(c, SemanticStoreResponse{
+		ID:     generateID("mem_sm_"),
+		Status: "indexed",
 	})
 }
 
 type semanticSearchRequest struct {
-	Query     string    `json:"query"`
+	// Query is the search text (required).
+	Query string `json:"query" binding:"required" example:"how to reset password"`
+	// Embedding is the optional vector embedding used for the search.
 	Embedding []float64 `json:"embedding,omitempty"`
-	Limit     int       `json:"limit,omitempty"`
-	Threshold float64   `json:"threshold,omitempty"`
+	// Limit is the maximum number of results to return (default 10).
+	Limit int `json:"limit,omitempty" example:"10"`
+	// Threshold is the optional similarity threshold for the search.
+	Threshold float64 `json:"threshold,omitempty" example:"0.5"`
+}
+
+// SemanticSearchResult is a single semantic memory entry returned by a search.
+type SemanticSearchResult struct {
+	// ID is the semantic memory identifier.
+	ID string `json:"id"`
+	// Content is the semantic memory content.
+	Content string `json:"content"`
+	// Metadata is the free-form metadata attached to the entry.
+	Metadata interface{} `json:"metadata"`
+	// CreatedAt is when the entry was created.
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// SemanticSearchResponse is the response returned by a semantic memory search.
+type SemanticSearchResponse struct {
+	// Results are the matching semantic memory entries.
+	Results []SemanticSearchResult `json:"results"`
 }
 
 // HandleSemanticSearch godoc
@@ -92,9 +128,11 @@ type semanticSearchRequest struct {
 // @Tags Memory
 // @Accept json
 // @Produce json
+// @Security InternalAuth
 // @Param request body semanticSearchRequest true "Semantic search payload"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} SemanticSearchResponse "Search results"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/semantic/search [post]
 func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 	var req semanticSearchRequest
@@ -110,7 +148,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 
 	ctx := context.Background()
 
-	var results []fiber.Map
+	var results []SemanticSearchResult
 
 	rows, err := h.pool.Query(ctx, `
 		SELECT id, content, metadata, created_at
@@ -136,19 +174,19 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 		var metadata interface{}
 		json.Unmarshal(metadataBytes, &metadata)
 
-		results = append(results, fiber.Map{
-			"id":         id,
-			"content":    content,
-			"metadata":   metadata,
-			"created_at": createdAt,
+		results = append(results, SemanticSearchResult{
+			ID:        id,
+			Content:   content,
+			Metadata:  metadata,
+			CreatedAt: createdAt,
 		})
 	}
 
 	if results == nil {
-		results = []fiber.Map{}
+		results = []SemanticSearchResult{}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{
-		"results": results,
+	return handlerutil.RespondSuccess(c, SemanticSearchResponse{
+		Results: results,
 	})
 }

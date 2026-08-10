@@ -2,6 +2,7 @@ package llmops
 
 import (
 	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/models/llmops"
 	"echo-backend/internal/service/llmops"
 	"github.com/gofiber/fiber/v3"
 )
@@ -20,9 +21,10 @@ func NewAgentPromptHandler(promptSvc llmops.PromptService) *AgentPromptHandler {
 // @Tags Internal
 // @Produce json
 // @Param template query string true "Template name"
-// @Success 200 {object} llmopsmodel.PromptVersion
+// @Success 200 {object} llmopsmodel.PromptVersion "Active production prompt version"
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Security InternalAuth
 // @Router /api/v1/internal/prompts/active [get]
 func (h *AgentPromptHandler) HandleGetAgentActivePrompt(c fiber.Ctx) error {
 	template := c.Query("template")
@@ -31,6 +33,7 @@ func (h *AgentPromptHandler) HandleGetAgentActivePrompt(c fiber.Ctx) error {
 	}
 
 	tenantID := c.Get("X-Tenant-ID", "local")
+	var pv *llmopsmodel.PromptVersion
 	pv, err := h.promptSvc.GetActivePrompt(c.Context(), tenantID, template)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())

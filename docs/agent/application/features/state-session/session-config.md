@@ -89,7 +89,7 @@ export const createMissionSchema = z.preprocess(/* normalize aliases + defaults 
   tenantId: z.string(),
   userId: z.string(),
   orgId: z.string(),
-  missionId: z.string().nullable().optional(),
+  sessionId: z.string().nullable().optional(),
   model: z.string().nullable().optional(),
   provider_config: z.object({
     type: z.enum(['openai', 'anthropic', 'lm-studio', 'opencode-go']),
@@ -348,7 +348,7 @@ There are no `skill` / `skill_variables` fields — skills are passed as the
     { "role": "assistant", "content": "I can help with that. What specific metrics are you interested in?" }
   ],
 
-  "missionId": "resume-mission-abc-123"
+  "sessionId": "session-abc-123"
 }
 ```
 

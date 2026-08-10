@@ -5,7 +5,6 @@ import (
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/chat"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -159,22 +158,6 @@ func (r *Repository) GetMaxTurnNumber(ctx context.Context, sessionID string) (in
 		return 0, fmt.Errorf("failed to get max turn number: %w", err)
 	}
 	return turn, nil
-}
-
-// GetLatestAssistantMessageID returns the id of the session's newest assistant
-// message that is still streaming/interrupted (i.e. awaiting completion), or 0
-// if none exists. Used by the mission-stream relay to finalize a recovered
-// mission without having run PrepareTurn itself.
-func (r *Repository) GetLatestAssistantMessageID(ctx context.Context, sessionID string) (int64, error) {
-	var id int64
-	err := r.pool.QueryRow(ctx, db.QueryGetLatestAssistantMessageID, sessionID).Scan(&id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("failed to query latest assistant message: %w", err)
-	}
-	return id, nil
 }
 
 func (r *Repository) DeleteMessagesUpToTurn(ctx context.Context, sessionID string, maxTurn int) error {

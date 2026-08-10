@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Endpoints
   Service   : Shared / Contracts
-   Version   : 1.4
-   Updated   : 2026-08-05 (internal active prompt endpoint added)
+   Version   : 1.5
+   Updated   : 2026-08-10 (optional model/mode overrides on chat request)
 ================================================================================
 
 ## Description
@@ -61,7 +61,6 @@ Base path: `/api/v1`
 | GET    | /v1/auth/me                      | Go      | JWT    | Retrieve current logged-in user  | Active |
 | POST   | /v1/auth/logout                  | Go      | JWT    | Invalidate session/logout        | Active |
 | POST   | /v1/chat                         | Go      | JWT    | Send message, get SSE stream     | Active |
-| GET    | /v1/missions/:missionId/stream   | Go      | JWT    | SSE mission log stream           | Active |
 | POST   | /v1/sessions                     | Go      | JWT    | Create session                   | Active |
 | GET    | /v1/sessions                     | Go      | JWT    | List sessions (by user)          | Active |
 | GET    | /v1/sessions/:id                 | Go      | JWT    | Load session metadata & history  | Active |
@@ -73,14 +72,14 @@ Base path: `/api/v1`
 | PUT    | /v1/settings                     | Go      | JWT    | Update user preferences          | Active |
 | GET    | /v1/settings/defaults            | Go      | None   | Get system default preferences   | Active |
 | GET    | /v1/strategies                   | Go      | JWT    | List strategy catalog w/ rollout | Active |
-| POST   | /v1/missions/:id/approve         | Go      | JWT    | Approve HITL tool call           | Active |
-| POST   | /v1/missions/:id/deny            | Go      | JWT    | Deny HITL tool call              | Active |
+| POST   | /v1/sessions/:id/approve         | Go      | JWT    | Approve HITL tool call           | Active |
+| POST   | /v1/sessions/:id/deny            | Go      | JWT    | Deny HITL tool call              | Active |
 +--------+----------------------------------+---------+--------+----------------------------------+--------+
 
-> **HITL proxy**: `POST /api/v1/missions/:id/approve` and
-> `POST /api/v1/missions/:id/deny` accept the HITL decision body
+> **HITL proxy**: `POST /api/v1/sessions/:id/approve` and
+> `POST /api/v1/sessions/:id/deny` accept the HITL decision body
 > (`{approvalId, decision, reason?}`), forward it to the agent
-> (`/api/v1/missions/:id/approve|deny`) with `X-Internal-Token`, and relay the
+> (`/api/v1/sessions/:id/approve|deny`) with `X-Internal-Token`, and relay the
 > resume-execution SSE stream back to the client. See
 > `docs/shared/contracts/internal-api-contract.md`.
 
@@ -89,6 +88,20 @@ Base path: `/api/v1`
 > with the gateway's rollout configuration from `app_settings`. The gateway also
 > resolves `strategy_version` for `/chat` requests (session pin → rollout %).
 > See `docs/shared/patterns/strategy-lifecycle.md`.
+
+> **Chat Contract**: `POST /api/v1/chat` accepts
+> `{ "message": "string (required)", "sessionId": "string (optional)" }`.
+> `model`/`mode` are optional per-request overrides (used by clients without a
+> user identity, e.g. the Discord bot's per-channel selection); the web client
+> omits them. No `sessionId` → the gateway creates a new session (this message
+> becomes turn 1). With `sessionId` → the message is appended to that session
+> (append-only, never replace). All config (model, mode, features, skills,
+> harness feature toggles) is resolved SERVER-SIDE per request from the
+> user's global settings (`user_preferences`, GET/PUT `/api/v1/settings`);
+> the chat request carries no features/skills/history fields.
+> History is always loaded server-side from the session's DB messages. The
+> response always sets the `X-Session-ID` header with the session id in use —
+> the frontend reads it to learn the id of a newly created session.
 
 > **Note**: `GET /api/v1/models` now requires JWT auth (was optional). Model
 > listing is per-user — it reads the authenticated user's provider config
@@ -190,9 +203,8 @@ Base path: `/api`
 | GET    | /api/models                                | Agent   | Internal | List models from LLM provider    | Active |
 | GET    | /api/features                              | Agent   | Internal | Implemented tool registry ([{id,name,description}]) | Active |
 | GET    | /api/strategies                            | Agent   | Internal | Strategy catalog (versions/status)| Active |
-| GET    | /api/v1/missions/:id/stream                | Agent   | Internal | Mission log stream (history + live SSE) | Active |
-| POST   | /api/v1/missions/:id/approve               | Agent   | Internal | Approve HITL tool call, resume mission (SSE) | Active |
-| POST   | /api/v1/missions/:id/deny                  | Agent   | Internal | Deny HITL tool call, resume mission (SSE) | Active |
+| POST   | /api/v1/sessions/:id/approve               | Agent   | Internal | Approve HITL tool call, resume run (SSE) | Active |
+| POST   | /api/v1/sessions/:id/deny                  | Agent   | Internal | Deny HITL tool call, resume run (SSE) | Active |
 | POST   | /api/internal/sessions/summarize           | Agent   | Internal | Perform LLM session summary      | Active |
 +--------+--------------------------------------------+---------+----------+----------------------------------+--------+
 
@@ -271,11 +283,9 @@ From `docs/architecture-plan.md` — not yet implemented:
 | Go Gateway| Agent Hono  | GET    | /api/features                            | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/strategies                          | X-Internal-Token      |
 | Go Gateway| Agent Hono  | GET    | /api/models                              | X-Internal-Token      |
-| Go Gateway| Agent Hono  | GET    | /api/v1/missions/:id/stream              | X-Internal-Token      |
-| Go Gateway| Agent Hono  | POST   | /api/v1/missions/:id/approve             | X-Internal-Token      |
-| Go Gateway| Agent Hono  | POST   | /api/v1/missions/:id/deny                | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/sessions/:id/approve             | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/sessions/:id/deny                | X-Internal-Token      |
 | Go Gateway| Agent Hono  | POST   | /api/internal/sessions/summarize         | X-Internal-Token      |
-| Go Gateway| Redis       | Pub/Sub| stream:{missionId}                       | Network isolation     |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/episodic/store   | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/episodic/recall  | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/semantic/store   | Service JWT (Bearer)  |

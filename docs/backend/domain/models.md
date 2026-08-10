@@ -293,7 +293,7 @@ Struct Definitions
   (internal/models/agent/mission.go)
 
   type AgentMissionPayload struct {
-      MissionID            string         `json:"mission_id,omitempty"`
+      SessionID            string         `json:"session_id,omitempty"`
       TemplateID           string         `json:"template_id,omitempty"`
       PromptVersionID      string         `json:"prompt_version_id,omitempty"`
       SystemPromptOverride string         `json:"system_prompt_override,omitempty"`

@@ -42,9 +42,8 @@ Route Table
 | POST   | /api/v1/auth/logout                                 | authhdl.HandleLogout       | Yes  | Logout          |
 | POST   | /api/v1/chat                                        | chathdl.HandleChat         | Yes  | Chat/stream     |
 | GET    | /api/v1/skills                                      | chathdl.HandleGetSkills    | No   | Skill catalog   |
-| GET    | /api/v1/missions/:missionId/stream                  | chathdl.StreamMissionLogs  | Yes  | Mission log SSE |
-| POST   | /api/v1/missions/:id/approve                        | chathdl.HandleApproveTool  | Yes  | HITL approve    |
-| POST   | /api/v1/missions/:id/deny                           | chathdl.HandleDenyTool     | Yes  | HITL deny       |
+| POST   | /api/v1/sessions/:id/approve                 | chathdl.HandleApproveTool | Yes  | HITL approve    |
+| POST   | /api/v1/sessions/:id/deny                    | chathdl.HandleDenyTool    | Yes  | HITL deny       |
 | GET    | /api/v1/models                                      | aimodelhdl.HandleGetModels | Yes  | Model listing   |
 | GET    | /api/v1/features                                    | featureshdl.HandleGetFeatures | No  | Feature catalog |
 | GET    | /api/v1/strategies                                  | strathdl.HandleGetStrategies | Yes | Strategy catalog|
@@ -154,9 +153,6 @@ Route Grouping
       │
       ├── POST /chat
       ├── GET  /skills
-      ├── GET  /missions/:missionId/stream
-      ├── POST /missions/:id/approve
-      ├── POST /missions/:id/deny
       ├── GET  /models
       ├── GET  /features
       ├── GET  /strategies
@@ -171,7 +167,10 @@ Route Grouping
       │   ├── PATCH /:id
       │   ├── GET  /:id/messages
       │   ├── DELETE /:id
-      │   └── POST /:id/generate-title
+      │   ├── POST /:id/generate-title
+      │   ├── GET  /:id/stream
+      │   ├── POST /:id/approve
+      │   └── POST /:id/deny
       │
       ├── /admin                       (AuthOrAPIKeyRequired group)
       │   ├── GET  /api-keys

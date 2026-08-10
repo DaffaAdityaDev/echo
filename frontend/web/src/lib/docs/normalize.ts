@@ -125,6 +125,7 @@ export function normalizeSpec(raw: Record<string, unknown>): NormalizedSpec {
         requestBodySchema,
         responses,
         security: (op.security || []) as Record<string, string[]>[],
+        produces: (op.produces || []) as string[],
       });
     }
   }

@@ -1,8 +1,9 @@
 "use client";
 
+import { generateExample, SSE_SAMPLE } from "@/lib/docs/example";
 import type { Endpoint, SchemaObject } from "@/lib/docs/types";
 import { CodeBlock } from "./CodeBlock";
-import { SchemaViewer } from "./SchemaViewer";
+import { SchemaTable, SchemaViewer } from "./SchemaViewer";
 
 interface EndpointDetailProps {
   endpoint: Endpoint;
@@ -86,6 +87,7 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
 
   const pathParams = endpoint.parameters.filter((p) => p.in === "path");
   const queryParams = endpoint.parameters.filter((p) => p.in === "query");
+  const isSse = endpoint.produces?.some((p) => p.includes("event-stream")) ?? false;
 
   return (
     <div className="border border-border bg-white rounded-xs p-5 md:p-6 space-y-6 shadow-xs font-mono crosshair-container relative">
@@ -106,47 +108,46 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
 
       {/* Path Parameters */}
       {pathParams.length > 0 && (
-        <div className="space-y-2">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-foreground">Path Parameters</h5>
-          <div className="flex flex-wrap gap-2">
-            {pathParams.map((p) => (
-              <span
-                key={p.name}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-border rounded-xs text-xs font-mono"
-              >
-                <span className="text-blue-600 font-semibold">{p.name}</span>
-                <span className="text-muted">:</span>
-                <span className="text-purple-600">{p.type || "string"}</span>
-                {p.required && <span className="text-rose-500 text-[10px]">*</span>}
-              </span>
-            ))}
-          </div>
-        </div>
+        <SchemaTable
+          title="Path Parameters"
+          depth={0}
+          maxDepth={1}
+          fields={pathParams.map((p) => ({
+            name: p.name,
+            type: p.type || "string",
+            required: !!p.required,
+            description: p.description || "",
+          }))}
+        />
       )}
 
       {/* Query Parameters */}
       {queryParams.length > 0 && (
-        <div className="space-y-2">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-foreground">Query Parameters</h5>
-          <div className="flex flex-wrap gap-2">
-            {queryParams.map((p) => (
-              <span
-                key={p.name}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-border rounded-xs text-xs font-mono"
-              >
-                <span className="text-amber-600 font-semibold">{p.name}</span>
-                <span className="text-muted">:</span>
-                <span className="text-purple-600">{p.type || "string"}</span>
-                {p.required && <span className="text-rose-500 text-[10px]">*</span>}
-              </span>
-            ))}
-          </div>
-        </div>
+        <SchemaTable
+          title="Query Parameters"
+          depth={0}
+          maxDepth={1}
+          fields={queryParams.map((p) => ({
+            name: p.name,
+            type: p.type || "string",
+            required: !!p.required,
+            description: p.description || "",
+          }))}
+        />
       )}
 
       {/* Request Body Schema */}
       {endpoint.requestBodySchema && (
-        <SchemaViewer schema={endpoint.requestBodySchema} title="Request Body" definitions={definitions} />
+        <div className="space-y-2">
+          <SchemaViewer schema={endpoint.requestBodySchema} title="Request Body" definitions={definitions} />
+          <div className="space-y-1.5">
+            <h6 className="text-[10px] font-bold uppercase tracking-wider text-muted">Example Request</h6>
+            <CodeBlock
+              language="json"
+              code={JSON.stringify(generateExample(endpoint.requestBodySchema, definitions), null, 2)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Responses */}
@@ -154,7 +155,12 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         <div className="space-y-4">
           <h5 className="text-[11px] font-bold uppercase tracking-wider text-foreground">Responses</h5>
           {endpoint.responses.map((resp) => (
-            <ResponseCard key={resp.statusCode} response={resp} definitions={definitions} />
+            <ResponseCard
+              key={resp.statusCode}
+              response={resp}
+              definitions={definitions}
+              sse={isSse && resp.statusCode.startsWith("2")}
+            />
           ))}
         </div>
       )}
@@ -171,9 +177,11 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
 function ResponseCard({
   response,
   definitions,
+  sse,
 }: {
   response: { statusCode: string; description: string; schema: SchemaObject | null };
   definitions?: Record<string, SchemaObject>;
+  sse?: boolean;
 }) {
   const statusNum = parseInt(response.statusCode, 10);
   const colorClass =
@@ -185,6 +193,13 @@ function ResponseCard({
           ? "text-rose-600 font-bold"
           : "text-muted font-bold";
 
+  const hasProperties = !!response.schema?.properties;
+  const example = sse
+    ? SSE_SAMPLE
+    : response.schema && hasProperties
+      ? JSON.stringify(generateExample(response.schema, definitions), null, 2)
+      : null;
+
   return (
     <div className="border border-border bg-slate-50/50 rounded-xs p-4 font-mono">
       <div className="flex items-center gap-3 mb-2">
@@ -192,6 +207,14 @@ function ResponseCard({
         <span className="text-xs text-muted">{response.description}</span>
       </div>
       {response.schema && <SchemaViewer schema={response.schema} definitions={definitions} />}
+      {example !== null && (
+        <div className="mt-3 space-y-1.5">
+          <h6 className="text-[10px] font-bold uppercase tracking-wider text-muted">
+            {sse ? "Example Stream" : "Example Response"}
+          </h6>
+          <CodeBlock language={sse ? "text" : "json"} code={example} />
+        </div>
+      )}
     </div>
   );
 }

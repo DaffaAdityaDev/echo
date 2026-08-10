@@ -29,9 +29,6 @@ interface ChatState {
   activeSessionId: string | null;
   newChatPending: boolean;
   agentState: AgentState;
-  selectedModel: string;
-  mode: string;
-  selectedFeatures: string[];
 
   // Debug & Telemetry State
   packetLogs: LoggedPacket[];
@@ -50,9 +47,6 @@ interface ChatState {
   setNewChatPending: (pending: boolean) => void;
   setAgentState: (state: AgentState) => void;
   clearMessages: () => void;
-  setSelectedModel: (model: string) => void;
-  setMode: (mode: string) => void;
-  setSelectedFeatures: (updater: string[] | ((prev: string[]) => string[])) => void;
 
   // Debug Actions
   appendPacketLog: (packet: StreamPacket) => void;
@@ -75,9 +69,6 @@ export const useChatStore = create<ChatState>((set) => ({
   activeSessionId: null,
   newChatPending: false,
   agentState: "completed",
-  selectedModel: "",
-  mode: "standard",
-  selectedFeatures: [],
 
   // Debug Telemetry Initial State
   packetLogs: [],
@@ -113,12 +104,6 @@ export const useChatStore = create<ChatState>((set) => ({
       hitlPendingApproval: null,
       systemNotices: [],
     }),
-  setSelectedModel: (selectedModel) => set({ selectedModel }),
-  setMode: (mode) => set({ mode }),
-  setSelectedFeatures: (updater) =>
-    set((state) => ({
-      selectedFeatures: typeof updater === "function" ? updater(state.selectedFeatures) : updater,
-    })),
 
   // Ring Buffer & Debug Actions
   appendPacketLog: (packet) =>

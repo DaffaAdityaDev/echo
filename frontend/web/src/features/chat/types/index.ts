@@ -47,7 +47,6 @@ export interface ThoughtStep {
 }
 
 export interface MissionMeta {
-  missionId?: string;
   strategy?: string;
   historyDepth?: number;
   toolsAvailable?: string[];
@@ -243,8 +242,7 @@ export type StreamPacket =
   | (StreamPacketBase & {
       type: "mission_completed";
       payload: { completed: boolean; totalSteps: number; totalCostUsd: number; durationMs: number };
-    })
-  | { type: "replay_done" };
+    });
 
 export interface FailedUrl {
   url: string;
@@ -288,7 +286,7 @@ export interface HitlApproval {
   args: Record<string, unknown>;
   riskLevel: "medium" | "high" | "critical";
   expiresAt: number;
-  missionId: string;
+  sessionId: string;
 }
 
 export interface SystemNotice {

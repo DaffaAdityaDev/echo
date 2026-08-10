@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Models Data Flow
   Service   : Shared / Domain
-  Version   : 1.1
-  Updated   : 2026-07-31 (planned: strategy resolution flow)
+  Version   : 1.2
+  Updated   : 2026-08-07 (chat request trimmed to {message, sessionId}; X-Session-ID response header)
 ================================================================================
 
 ## Description
@@ -244,17 +244,14 @@ repetitions, last_score, priority, created_at
 │   FRONTEND   │   │   GO BACKEND     │   │   HONO AGENT     │   │   POSTGRESQL     │
 └──────┬───────┘   └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
        │                    │                       │                     │
-       │  POST /chat        │                       │                     │
-       │  { message,         │                       │                     │
-       │    model,           │                       │                     │
-       │    mode,            │                       │                     │
-       │    features,        │                       │                     │
-       │    history,         │                       │                     │
-       │    missionId }      │                       │                     │
-       │───────────────────►│                       │                     │
-       │                    │                       │                     │
-       │                    │  Validate tier        │                     │
-       │                    │  Resolve model        │                     │
+        │  POST /chat        │                       │                     │
+        │  { message,         │                       │                     │
+        │    sessionId }      │                       │                     │
+        │───────────────────►│                       │                     │
+        │                    │                       │                     │
+        │                    │  Validate tier        │                     │
+        │                    │  Resolve model        │                     │
+        │                    │  (user_preferences)   │                     │
        │                    │                       │                     │
        │                    │  POST /api/            │                     │
        │                    │  generate-mission     │                     │
@@ -262,7 +259,7 @@ repetitions, last_score, priority, created_at
        │                    │    features,           │                     │
        │                    │    provider_config,   │                     │
        │                    │    history,            │                     │
-       │                    │    missionId }        │                     │
+       │                    │    session_id }       │                     │
        │                    │──────────────────────►│                     │
        │                    │                       │                     │
        │                    │                       │  Zod validate       │
@@ -270,12 +267,16 @@ repetitions, last_score, priority, created_at
        │                    │                       │  createHarness()    │
        │                    │                       │  runMission()       │
        │                    │                       │                     │
-       │                    │    SSE Stream         │                     │
-       │                    │◄──────────────────────│                     │
-       │                    │                       │                     │
-       │  SSE Stream        │                       │                     │
-       │◄───────────────────│                       │                     │
-       │                    │                       │                     │
+        │                    │    SSE Stream         │                     │
+        │                    │◄──────────────────────│                     │
+        │                    │                       │                     │
+        │  X-Session-ID:     │                       │                     │
+        │  <session id>      │                       │                     │
+        │◄───────────────────│                       │                     │
+        │                    │                       │                     │
+        │  SSE Stream        │                       │                     │
+        │◄───────────────────│                       │                     │
+        │                    │                       │                     │
 ```
 
 **Mission Flow (Planned MVP)**:

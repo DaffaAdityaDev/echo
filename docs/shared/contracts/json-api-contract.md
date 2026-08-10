@@ -3,8 +3,8 @@
 ================================================================================
   Module    : JSON API Contract
   Service   : Shared / Contracts
-  Version   : 1.2
-  Updated   : 2026-08-04 (agent /api/features → implemented registry; catalog metadata moved to backend)
+  Version   : 1.3
+  Updated   : 2026-08-10 (optional model/mode overrides on chat request)
 ================================================================================
 
 ## Description
@@ -47,9 +47,9 @@ convention.
 | (JSON tags)      |                             |   provider_config            |
 | Agent Zod        | camelCase + snake_case      | provides both via            |
 | schemas          | alias                       |   preprocessor               |
-| Agent TypeScript | camelCase                   | missionId, userId, orgId     |
+| Agent TypeScript | camelCase                   | sessionId, userId, orgId     |
 | types            |                             |                              |
-| Frontend types   | camelCase                   | toolName, missionId          |
+| Frontend types   | camelCase                   | toolName, sessionId          |
 | SSE events       | snake_case                  | tool_call, subagent_result   |
 +------------------+-----------------------------+------------------------------+
 
@@ -59,6 +59,7 @@ conventions:
 ```
 input.userId ?? input.user_id    -> userId
 input.orgId ?? input.org_id      -> orgId
+input.sessionId ?? input.session_id -> sessionId
 input.prompt || input.message    -> prompt
 ```
 
@@ -278,30 +279,30 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 ```json
 // Request
 {
-  "message": "string",
-  "model": "string",
-  "mode": "standard | agent",
-  "strategyVersion": "nlah:v1 (optional, resolved by gateway if absent) [Active]",
-  "sessionId": "string (optional)",
-  "missionId": "string (optional)",
-  "history": [
-    { "role": "user | assistant | system", "content": "string" }
-  ],
-  "features": ["string (feature IDs)"],
-  "skills": ["string (skill names)"]
+  "message": "string (required)",
+  "sessionId": "string (optional — omit to create a new session)"
 }
 
 // Response 200 -> SSE Stream (text/event-stream)
+// Response headers: X-Session-ID (always set — the session id in use;
+//   the frontend reads it to learn the id of a newly created session)
 ```
 
-> There is no top-level `strategy` field on the chat request — the mode is
-> conveyed by `mode` and the version by `strategyVersion`.
+> The chat request accepts `{ message, sessionId }` — nothing else is
+> required. `model` and `mode` are OPTIONAL per-request overrides: when set,
+> they take precedence over the user's defaults (used by clients without a
+> user identity, e.g. the Discord bot's per-channel selection); the web client
+> omits them. No `sessionId` → the gateway creates a new session (this message
+> is turn 1). With `sessionId` → the message appends to that session
+> (append-only, never replace). Model, mode, features, skills, and harness
+> feature toggles are resolved SERVER-SIDE per request from the user's
+> global settings (`user_preferences`, GET/PUT `/api/v1/settings`). History
+> is always loaded server-side from the session's DB messages.
 
-> **Strategy Lifecycle**: The gateway resolves `strategyVersion`
-> when `sessionId` is present — pinned from the session if set, otherwise
-> resolved from rollout config (see `docs/shared/patterns/strategy-lifecycle.md`).
-> The resolved version is forwarded to the agent in the generate-mission
-> payload. The field is additive; clients may omit it.
+> **Strategy Lifecycle**: the gateway still resolves the strategy version
+> server-side (session pin → rollout config, see
+> `docs/shared/patterns/strategy-lifecycle.md`) and forwards it in the
+> generate-mission payload — clients never supply it on the chat request.
 
 ### Agent Internal: Generate Mission
 
@@ -320,7 +321,7 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
     "api_key": "string (optional)",
     "model": "string"
   },
-  "missionId": "string (optional)",
+  "session_id": "string (always sent — the session id is the run id)",
   "features": ["string (always sent — empty [] means 'no tools')"],
   "skills": ["string (optional)"],
   "strategy_version": "string (optional, e.g. 'nlah:v1') [Active]"
@@ -342,7 +343,7 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
   tenantId: string,            // default: 'local-developer'
   userId: string,              // default: 'local-dev-user'
   orgId: string,               // default: 'local-org'
-  missionId: string | null,    // optional (generated if absent)
+  sessionId: string | null,    // optional (session id; a run id is generated if absent)
   model: string | null,        // optional
   provider_config: {
     type: 'openai'|'anthropic'|'lm-studio'|'opencode-go',
@@ -493,7 +494,7 @@ and is merged by Go. Unknown feature ids requested in
 
 **GET /api/skills** (Agent internal, used by Go)
 
-Backend fetches only when `skills[]` is provided in the chat request.
+Backend fetches only when the user's preferences list skills.
 Cached in Redis (10 min TTL).
 
 ```json

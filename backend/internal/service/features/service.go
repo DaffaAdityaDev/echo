@@ -24,11 +24,16 @@ type ImplementedFeature struct {
 	Description string `json:"description"`
 }
 
+// FeatureResponse is a feature exposed in the public catalog.
 type FeatureResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
+	// ID is the feature identifier.
+	ID string `json:"id"`
+	// Name is the display name.
+	Name string `json:"name"`
+	// Description is the feature description.
 	Description string `json:"description"`
-	Locked      bool   `json:"locked"`
+	// Locked is true when the user's tier cannot access the feature.
+	Locked bool `json:"locked"`
 }
 
 type ErrUnknownFeature struct {

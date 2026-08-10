@@ -18,7 +18,17 @@ import (
 )
 
 type GenerateTitleRequest struct {
+	// Model is the model ID used for generation; falls back to the configured default when empty.
 	Model string `json:"model"`
+}
+
+type GenerateTitleResponse struct {
+	// Title is the generated session title.
+	Title string `json:"title"`
+	// Summary is a one-sentence summary of the session conversation.
+	Summary string `json:"summary"`
+	// Cached is true when the response was served from the existing session metadata.
+	Cached bool `json:"cached"`
 }
 
 // HandleGenerateTitle godoc
@@ -30,10 +40,13 @@ type GenerateTitleRequest struct {
 // @Security BearerAuth
 // @Param id path string true "Session ID"
 // @Param request body GenerateTitleRequest true "Model selection (optional)"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} GenerateTitleResponse "Generated title and summary"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Failure 502 {object} map[string]string
 // @Router /api/v1/sessions/{id}/generate-title [post]
 func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -58,7 +71,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 	}
 
 	if session.Title != "" && session.Title != db.DefaultSessionTitle {
-		return handlerutil.RespondSuccess(c, fiber.Map{"title": session.Title, "summary": session.ContextSummary, "cached": true})
+		return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: session.Title, Summary: session.ContextSummary, Cached: true})
 	}
 
 	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, 0, 0)
@@ -196,7 +209,7 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	log.Printf("[AUTO-TITLE] Generated title for session %s: '%s'", sessionID, title)
-	return handlerutil.RespondSuccess(c, fiber.Map{"title": title, "summary": summary})
+	return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: title, Summary: summary})
 }
 
 func truncateStr(s string, maxLen int) string {

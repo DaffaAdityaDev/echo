@@ -2,14 +2,7 @@ import { PACKET_TYPES } from "../../constants";
 import { useChatStore } from "../../stores/chatStore";
 import type { Message, StreamPacket } from "../../types";
 import { handleTokenMetrics, handleUsage } from "./handlers/metrics";
-import {
-  handleDebug,
-  handleDefault,
-  handleHitlApproval,
-  handleMetadata,
-  handleReplayDone,
-  handleSystemNotice,
-} from "./handlers/misc";
+import { handleDebug, handleDefault, handleHitlApproval, handleMetadata, handleSystemNotice } from "./handlers/misc";
 import {
   handleError,
   handleHeartbeat,
@@ -30,12 +23,8 @@ import {
   handleToolResult,
   handleToolSkip,
 } from "./handlers/steps";
-import type { ApplyPacketOptions } from "./handlers/types";
 
-export type { ApplyPacketOptions } from "./handlers/types";
-
-export function applyStreamPacket(data: StreamPacket, opts: ApplyPacketOptions = {}): void {
-  const { replay = false } = opts;
+export function applyStreamPacket(data: StreamPacket): void {
   const store = useChatStore.getState();
 
   store.appendPacketLog(data);
@@ -52,76 +41,73 @@ export function applyStreamPacket(data: StreamPacket, opts: ApplyPacketOptions =
 
   switch (data.type) {
     case PACKET_TYPES.METADATA:
-      handleMetadata(lastMessage, data, store, { replay });
+      handleMetadata(lastMessage, data, store);
       break;
     case PACKET_TYPES.DEBUG:
-      handleDebug(lastMessage, data, store, { replay });
+      handleDebug(lastMessage, data, store);
       break;
     case PACKET_TYPES.USAGE:
-      handleUsage(lastMessage, data, store, { replay });
+      handleUsage(lastMessage, data, store);
       break;
     case PACKET_TYPES.REASONING:
-      handleReasoning(lastMessage, data, store, { replay });
+      handleReasoning(lastMessage, data, store);
       break;
     case PACKET_TYPES.TOOL_CALL:
-      handleToolCall(lastMessage, data, store, { replay });
+      handleToolCall(lastMessage, data, store);
       break;
     case PACKET_TYPES.TOOL_RESULT:
-      handleToolResult(lastMessage, data, store, { replay });
+      handleToolResult(lastMessage, data, store);
       break;
     case PACKET_TYPES.TODO:
-      handleTodo(lastMessage, data, store, { replay });
+      handleTodo(lastMessage, data, store);
       break;
     case PACKET_TYPES.SUBAGENT_CALL:
-      handleSubagentCall(lastMessage, data, store, { replay });
+      handleSubagentCall(lastMessage, data, store);
       break;
     case PACKET_TYPES.SUBAGENT_RESULT:
-      handleSubagentResult(lastMessage, data, store, { replay });
+      handleSubagentResult(lastMessage, data, store);
       break;
     case PACKET_TYPES.FILE_OPERATION:
-      handleFileOperation(lastMessage, data, store, { replay });
+      handleFileOperation(lastMessage, data, store);
       break;
     case PACKET_TYPES.SWARM_STATUS:
-      handleSwarmStatus(lastMessage, data, store, { replay });
+      handleSwarmStatus(lastMessage, data, store);
       break;
     case PACKET_TYPES.TOOL_SKIP:
-      handleToolSkip(lastMessage, data, store, { replay });
+      handleToolSkip(lastMessage, data, store);
       break;
     case PACKET_TYPES.HEARTBEAT:
-      handleHeartbeat(lastMessage, data, store, { replay });
+      handleHeartbeat(lastMessage, data, store);
       break;
     case PACKET_TYPES.STATE_CHANGE:
-      handleStateChange(lastMessage, data, store, { replay });
+      handleStateChange(lastMessage, data, store);
       break;
     case PACKET_TYPES.DEGRADED:
-      handleDegraded(lastMessage, data, store, { replay });
+      handleDegraded(lastMessage, data, store);
       break;
     case PACKET_TYPES.PROGRESS:
-      handleProgress(lastMessage, data, store, { replay });
+      handleProgress(lastMessage, data, store);
       break;
     case PACKET_TYPES.TURN_COMPLETE:
-      handleTurnComplete(lastMessage, data, store, { replay });
+      handleTurnComplete(lastMessage, data, store);
       break;
     case PACKET_TYPES.ERROR:
-      handleError(lastMessage, data, store, { replay });
+      handleError(lastMessage, data, store);
       break;
     case PACKET_TYPES.SYSTEM_NOTICE:
-      handleSystemNotice(lastMessage, data, store, { replay });
+      handleSystemNotice(lastMessage, data, store);
       break;
     case PACKET_TYPES.TOKEN_METRICS:
-      handleTokenMetrics(lastMessage, data, store, { replay });
+      handleTokenMetrics(lastMessage, data, store);
       break;
     case PACKET_TYPES.HITL_APPROVAL_REQUIRED:
-      handleHitlApproval(lastMessage, data, store, { replay });
+      handleHitlApproval(lastMessage, data, store);
       break;
     case PACKET_TYPES.MISSION_COMPLETED:
-      handleMissionCompleted(lastMessage, data, store, { replay });
-      break;
-    case PACKET_TYPES.REPLAY_DONE:
-      handleReplayDone(lastMessage, data, store, { replay });
+      handleMissionCompleted(lastMessage, data, store);
       break;
     default:
-      handleDefault(lastMessage, data, store, { replay });
+      handleDefault(lastMessage, data, store);
   }
 
   const nextMsgs = [...currentMsgs];

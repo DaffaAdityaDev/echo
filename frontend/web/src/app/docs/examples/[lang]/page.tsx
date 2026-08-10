@@ -71,11 +71,11 @@ class EchoClient:
                             headers=self.headers)
         return resp.json().get("messages", [])
 
-    def approve_hitl(self, mission_id, approval_id, reason=None):
+    def approve_hitl(self, session_id, approval_id, reason=None):
         payload = {"approvalId": approval_id, "decision": "approve"}
         if reason:
             payload["reason"] = reason
-        return requests.post(f"{BASE}/missions/{mission_id}/approve",
+        return requests.post(f"{BASE}/sessions/{session_id}/approve",
                              headers=self.headers, json=payload)
 
 # Usage
@@ -248,7 +248,7 @@ for await (const event of client.chatStream("Hello!")) {
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">4. Approve HITL Mission</h3>
           <CodeBlock
             language="bash"
-            code={`curl -X POST http://localhost:8080/api/v1/missions/{id}/approve \\
+            code={`curl -X POST http://localhost:8080/api/v1/sessions/{id}/approve \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
   -d '{"approvalId": "appr_id", "decision": "approve"}'`}

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Headless HaaS
   Service   : Shared / Architecture
-  Version   : 1.1
-  Updated   : 2026-07-31 (planned: strategy lifecycle + lifecycle worker)
+  Version   : 1.2
+  Updated   : 2026-08-07 (chat request trimmed to {message, sessionId}; config resolved server-side)
 ================================================================================
 
 ## Description
@@ -166,13 +166,13 @@ agent → backend for memory persistence (internal).
 ┌────────────┐              ┌──────────────────┐              ┌──────────────────────┐
 │  Frontend  │  POST /chat  │    Go (Fiber)    │  POST /api/   │    Hono Agent        │
 │            │  { message,  │                  │  generate-   │                      │
-│            │    model,    │                  │  mission     │  MissionCtrl         │
-│            │    features, │                  │  { prompt,   │                      │
-│            │    mode,     │                  │    features, │  ┌────────────────┐   │
-│            │    missionId,│                  │    provider_ │  │ features [] →  │   │
-│            │    history } │                  │    config,   │  │ resolveTools() │   │
-│            │─────────────►│  Validate        │    history,  │  │ features undef │   │
-│            │              │  features vs tier│    missionId }│  │ → skills'pref  │   │
+│            │    sessionId }│                  │  mission     │  MissionCtrl         │
+│            │─────────────►│                  │  { prompt,   │                      │
+│            │              │                  │    features, │  ┌────────────────┐   │
+│            │              │                  │    provider_ │  │ features [] →  │   │
+│            │              │                  │    config,   │  │ resolveTools() │   │
+│            │              │  Validate        │    history,  │  │ features undef │   │
+│            │              │  features vs tier│    session_id}│  │ → skills'pref  │   │
 │            │              │                  │─────────────►│  │ neither →      │   │
 │            │              │  Resolve model   │              │  │ ToolRetriever  │   │
 │            │              │  -> provider     │              │  └────────┬───────┘   │
@@ -183,9 +183,9 @@ agent → backend for memory persistence (internal).
 │            │              │    tools"        │              │  │ runMission() │    │
 │            │              │                  │              │  │ explicitTools│    │
 │            │              │  Set SSE headers │              │  │ !== undefined│    │
-│            │              │                  │              │  │ → use as-is  │    │
-│            │              │                  │              │  │ undefined →  │    │
-│            │              │                  │              │  │ ToolRetriever│    │
+│            │              │  Set X-Session-  │              │  │ → use as-is  │    │
+│            │              │  ID response     │              │  │ undefined →  │    │
+│            │              │  header          │              │  │ ToolRetriever│    │
 │            │              │                  │              │  └──────┬───────┘    │
 │            │              │  Proxy           │   SSE Chunks │         │            │
 │            │  SSE Stream  │  w.Write         │◄─────────────│  Packet Stream      │
@@ -217,10 +217,10 @@ backend to persist episodic, semantic, and procedural memory:
 Client Request
      │
      ▼
-{ message: "...", features: ["web_search", "code_execute"] }
+{ message: "...", sessionId: "..." }
      │
      ▼
-Go Gateway: Validate features[] vs user tier
+Go Gateway: Resolve features[] from user_preferences, validate vs user tier
      │  (if free user requests pro feature -> 403)
      │  Features ALWAYS forwarded (even empty [])
      ▼
@@ -435,22 +435,19 @@ Anthropic (Claude):
    → Applies correct cache_control flags per provider spec
 ```
 
-## SSE Streaming Architecture (Dual Mode)
+## SSE Streaming Architecture
 
-                   SaaS Mode (Redis Pub/Sub)
-                   ──────────────────────────
-                   Hono pushes -> Redis PUB "stream:{missionId}"
-                                       │
-                   Go subscribes ◄─────┘
-                   -> forwards SSE to client
-
-                   Local Mode (Reverse Proxy)
-                   ──────────────────────────
+                   Single live channel
+                   ────────────────────
                    Hono in-memory SSE stream
+                       │  HttpStreamTransport.writeSSE()
                        │
-                   Go GET /api/v1/missions/{id}/stream
-                       │  bufio copy
+                   Go HandleChat relay
+                       │  bufio copy + DB flush (2s)
                    -> forwards SSE to client
+
+                   Disconnect: mission cancelled (token safety);
+                   DB snapshot is the single source of truth.
 
 ## Entry Points & Exports
 

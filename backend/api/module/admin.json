@@ -5,22 +5,27 @@
             "type": "object",
             "properties": {
                 "created_at": {
+                    "description": "Key creation time",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
+                    "description": "Unique API key ID",
                     "type": "string",
                     "example": "key_a1b2c3d4e5f6"
                 },
                 "name": {
+                    "description": "Display name for the API key",
                     "type": "string",
                     "example": "Production API Key"
                 },
                 "prefix": {
+                    "description": "Prefix of the full key, shown for display purposes",
                     "type": "string",
                     "example": "sk_a1b2c3d4"
                 },
                 "scopes": {
+                    "description": "Optional permission scopes",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -32,23 +37,60 @@
                     ]
                 },
                 "status": {
+                    "description": "Key status (e.g. active, revoked)",
                     "type": "string",
                     "example": "active"
                 },
                 "user_id": {
+                    "description": "ID of the user who owns the key",
                     "type": "string",
                     "example": "1"
                 }
             }
         },
-        "internal_handler_admin.createAPIKeyRequest": {
+        "internal_handler_admin.AdminStatsResponse": {
             "type": "object",
             "properties": {
+                "active_keys": {
+                    "description": "Number of active API keys",
+                    "type": "integer"
+                },
+                "total_keys": {
+                    "description": "Total number of API keys",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handler_admin.CreateAPIKeyResponse": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "description": "Stored API key record",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
+                        }
+                    ]
+                },
+                "key": {
+                    "description": "Full secret key shown only once",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_admin.createAPIKeyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
                 "name": {
+                    "description": "Display name for the API key",
                     "type": "string",
                     "example": "Production Key"
                 },
                 "scopes": {
+                    "description": "Optional permission scopes",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -88,7 +130,7 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "All API keys",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -135,10 +177,9 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "New API key",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_admin.CreateAPIKeyResponse"
                         }
                     },
                     "400": {
@@ -152,6 +193,15 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -191,7 +241,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Key revoked\\\"}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -210,6 +260,15 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -239,10 +298,9 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "API key statistics",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_admin.AdminStatsResponse"
                         }
                     },
                     "500": {
@@ -273,7 +331,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

@@ -58,11 +58,13 @@ Applied in `HandleChat` after session ownership check:
 
 1. If `sessions.strategy_version != ''` → **use the pinned version**
    (backward compatibility for active sessions — never migrate mid-session).
-2. Else if the client sent `strategy_version` and it is active → use it.
-3. Else → resolve from rollout config (deterministic fraction for canary),
+2. Else → resolve from rollout config (deterministic fraction for canary),
    then **write the pin** to `sessions.strategy_version`.
-4. Deprecated versions are excluded from steps 2-3 (but still honored by
+3. Deprecated versions are excluded from step 2 (but still honored by
    step 1).
+
+Clients never send `strategy_version` in the chat request — resolution is
+server-side only.
 
 The resolved version is forwarded to the agent as `strategy_version` in the
 `POST /api/generate-mission` payload.

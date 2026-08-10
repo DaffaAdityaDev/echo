@@ -103,15 +103,13 @@ internal/bot/handler.go:16-21
 
 ```go
 type ChatRequest struct {
-    Message   string `json:"message"`
-    Model     string `json:"model"`
-    Mode      string `json:"mode"`
-    MissionID string `json:"missionId"`
+    Message string `json:"message"`
+    Model   string `json:"model"`
+    Mode    string `json:"mode"`
 }
 ```
 
 - Sent as JSON body to `POST /api/v1/chat`
-- `MissionID` is set to the Discord channel ID
 
 ### 4. Stream Packet (two copies)
 

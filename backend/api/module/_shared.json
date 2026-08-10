@@ -1,5 +1,54 @@
 {
     "basePath": "/",
+    "definitions": {
+        "echo-backend_internal_models_llmops.PromptVersion": {
+            "type": "object",
+            "properties": {
+                "bound_tools": {
+                    "description": "BoundTools are the tools the prompt is allowed to call.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "description": "CreatedAt is when the version was created.",
+                    "type": "string"
+                },
+                "created_by": {
+                    "description": "CreatedBy is the actor who created the version.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID is the unique identifier of the version.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is the lifecycle status of the version (draft|production).",
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "description": "SystemPrompt is the full system prompt text.",
+                    "type": "string"
+                },
+                "template_id": {
+                    "description": "TemplateID is the template this version belongs to.",
+                    "type": "string"
+                },
+                "variables": {
+                    "description": "Variables are the template variables used by the prompt.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "version": {
+                    "description": "Version is the version number, incrementing within a template.",
+                    "type": "integer"
+                }
+            }
+        }
+    },
     "host": "localhost:8080",
     "info": {
         "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
@@ -22,6 +71,12 @@
             "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
             "type": "apiKey",
             "name": "Authorization",
+            "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
             "in": "header"
         }
     },

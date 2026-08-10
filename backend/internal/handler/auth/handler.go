@@ -31,14 +31,20 @@ func NewHandler(cfg *cfgmodel.Config, authSvc Service) *Handler {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" example:"jane@example.com"`
-	Password string `json:"password" example:"P@ssw0rd!23"`
+	Email    string `json:"email" binding:"required" example:"jane@example.com"` // User email address
+	Password string `json:"password" binding:"required" example:"P@ssw0rd!23"`   // User password
 }
 
 type registerRequest struct {
-	Email    string `json:"email" example:"jane@example.com"`
-	Password string `json:"password" example:"P@ssw0rd!23"`
-	Name     string `json:"name" example:"Jane Doe"`
+	Email    string `json:"email" binding:"required" example:"jane@example.com"` // User email address
+	Password string `json:"password" binding:"required" example:"P@ssw0rd!23"`   // User password
+	Name     string `json:"name" binding:"required" example:"Jane Doe"`          // User display name
+}
+
+// LoginResponse is the payload returned after successful login or registration.
+type LoginResponse struct {
+	Token string          `json:"token"` // JWT access token (also set as an HTTP-only cookie)
+	User  *authmodel.User `json:"user"`  // Authenticated user profile
 }
 
 // HandleRegister godoc
@@ -48,7 +54,7 @@ type registerRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body registerRequest true "Registration payload"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} LoginResponse "Token and user profile"
 // @Failure 400 {object} map[string]string
 // @Failure 409 {object} map[string]string
 // @Router /api/v1/auth/register [post]
@@ -82,7 +88,7 @@ func (h *Handler) HandleRegister(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param request body loginRequest true "Login payload"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} LoginResponse "Token and user profile"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Router /api/v1/auth/login [post]
@@ -118,6 +124,7 @@ func (h *Handler) HandleLogin(c fiber.Ctx) error {
 // @Success 200 {object} authmodel.User
 // @Failure 401 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/auth/me [get]
 func (h *Handler) HandleMe(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -142,7 +149,7 @@ func (h *Handler) HandleMe(c fiber.Ctx) error {
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string]string "Confirmation: {\"status\":\"success\",\"message\":\"Logged out\"}"
 // @Router /api/v1/auth/logout [post]
 func (h *Handler) HandleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{

@@ -361,11 +361,11 @@
             "description": "Billing organization partition",
             "example": "org_engineering"
           },
-          "missionId": {
+          "sessionId": {
             "type": "string",
             "nullable": true,
-            "description": "Optional mission ID for resuming existing missions",
-            "example": "mission_a1b2c3d4"
+            "description": "Session ID for run continuity; omitted = a new run id is generated",
+            "example": "session_a1b2c3d4"
           },
           "model": {
             "type": "string",
@@ -1700,7 +1700,7 @@
         }
       }
     },
-    "/api/v1/missions/{id}/approve": {
+    "/api/v1/sessions/{id}/approve": {
       "post": {
         "summary": "Approve pending HITL tool call and resume mission",
         "description": "Approves a tool execution that was paused by the HITL Guard. If the approvalId is expired or not found, returns 404. On success, resumes the mission execution loop via SSE stream.",
@@ -1723,7 +1723,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Mission ID"
+            "description": "Session ID"
           }
         ],
         "requestBody": {
@@ -1782,7 +1782,7 @@
         }
       }
     },
-    "/api/v1/missions/{id}/deny": {
+    "/api/v1/sessions/{id}/deny": {
       "post": {
         "summary": "Deny pending HITL tool call and resume mission",
         "description": "Denies a tool execution paused by the HITL Guard. The agent is informed of the denial and asked to find an alternative solution. Resumes the mission execution loop via SSE stream.",
@@ -1805,7 +1805,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Mission ID"
+            "description": "Session ID"
           }
         ],
         "requestBody": {

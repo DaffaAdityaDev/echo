@@ -34,8 +34,20 @@ func NewHandler(cfg *cfgmodel.Config, apiKeyRepo APIKeyRepo) *Handler {
 }
 
 type createAPIKeyRequest struct {
-	Name   string   `json:"name" example:"Production Key"`
-	Scopes []string `json:"scopes" example:"read,write"`
+	Name   string   `json:"name" binding:"required" example:"Production Key"` // Display name for the API key
+	Scopes []string `json:"scopes" example:"read,write"`   // Optional permission scopes
+}
+
+// AdminStatsResponse is the payload returned by the stats endpoint.
+type AdminStatsResponse struct {
+	TotalKeys  int64 `json:"total_keys"`  // Total number of API keys
+	ActiveKeys int64 `json:"active_keys"` // Number of active API keys
+}
+
+// CreateAPIKeyResponse is the payload returned after creating a new API key.
+type CreateAPIKeyResponse struct {
+	Key    string            `json:"key"`     // Full secret key shown only once
+	APIKey *authmodel.ApiKey `json:"api_key"` // Stored API key record
 }
 
 func generateAPIKey() (fullKey, prefix, hash string, err error) {
@@ -57,7 +69,7 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 // @Tags Admin
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} authmodel.ApiKey
+// @Success 200 {array} authmodel.ApiKey "All API keys"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/api-keys [get]
 func (h *Handler) HandleListKeys(c fiber.Ctx) error {
@@ -76,9 +88,10 @@ func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param request body createAPIKeyRequest true "API key payload"
-// @Success 201 {object} map[string]interface{}
+// @Success 201 {object} CreateAPIKeyResponse "New API key"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/api-keys [post]
 func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	var req createAPIKeyRequest
@@ -116,9 +129,9 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store key")
 	}
 
-	return handlerutil.RespondCreated(c, fiber.Map{
-		"key":     fullKey,
-		"api_key": ak,
+	return handlerutil.RespondCreated(c, CreateAPIKeyResponse{
+		Key:    fullKey,
+		APIKey: &ak,
 	})
 }
 
@@ -129,9 +142,10 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "API key ID"
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string]string "Confirmation: {\"status\":\"success\",\"message\":\"Key revoked\"}"
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/api-keys/{id} [delete]
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
@@ -160,7 +174,7 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 // @Tags Admin
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} AdminStatsResponse "API key statistics"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/stats [get]
 func (h *Handler) HandleStats(c fiber.Ctx) error {
@@ -177,8 +191,8 @@ func (h *Handler) HandleStats(c fiber.Ctx) error {
 		}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{
-		"total_keys":  total,
-		"active_keys": active,
+	return handlerutil.RespondSuccess(c, AdminStatsResponse{
+		TotalKeys:  total,
+		ActiveKeys: active,
 	})
 }

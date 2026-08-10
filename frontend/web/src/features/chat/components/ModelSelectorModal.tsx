@@ -3,10 +3,11 @@
 import { Bot, Check, Cloud, Cpu, Image, Search, Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { settingsApi } from "@/features/settings/services/settings-api";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
 import { useModels } from "../hooks/useModels";
-import { useChatStore } from "../stores/chatStore";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -25,8 +26,17 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const [selectedProvider, setSelectedProvider] = useState<string>("All");
 
   const { models } = useModels();
-  const selectedModel = useChatStore((s) => s.selectedModel);
-  const setSelectedModel = useChatStore((s) => s.setSelectedModel);
+  const defaultModel = useSettingsStore((s) => s.config.defaultModel);
+
+  const persistDefaultModel = async (modelId: string) => {
+    const merged = { ...useSettingsStore.getState().config, defaultModel: modelId };
+    useSettingsStore.getState().setConfig({ defaultModel: modelId });
+    try {
+      await settingsApi.update(merged);
+    } catch (err) {
+      console.warn("[Settings] Failed to persist default model:", err);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -55,6 +65,12 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
     }
     return tags;
   };
+
+  const isDefaultModel = (m: Model) =>
+    m.id === defaultModel ||
+    m.name === defaultModel ||
+    (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
+    defaultModel?.endsWith(`/${m.name}`);
 
   const getContextWindow = (_m: Model) => "—";
 
@@ -136,7 +152,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
             <div className="text-center py-10 text-xs text-zinc-400">No models match your search query.</div>
           ) : (
             filteredModels.map((m) => {
-              const isSelected = selectedModel === m.id;
+              const isSelected = isDefaultModel(m);
               const ProviderIcon = providerIcons[m.provider_name] || Cpu;
               const tags = getModelTags(m);
               const contextInfo = getContextWindow(m);
@@ -146,7 +162,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                   key={m.id}
                   type="button"
                   onClick={() => {
-                    setSelectedModel(m.id);
+                    void persistDefaultModel(m.id);
                     onClose();
                   }}
                   className={cn(

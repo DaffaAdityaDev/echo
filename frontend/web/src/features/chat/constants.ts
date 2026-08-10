@@ -37,12 +37,18 @@ export const PACKET_TYPES = {
   TOKEN_METRICS: "token_metrics",
   HITL_APPROVAL_REQUIRED: "hitl_approval_required",
   MISSION_COMPLETED: "mission_completed",
-  REPLAY_DONE: "replay_done",
 } as const;
 
 export const CHAT_ENDPOINTS = {
   STREAM: "/chat/stream",
 } as const;
+
+// Keep in sync with the agent's CANCELLED_MESSAGE
+// (agent/src/adapter/inbound/api/missions/mission.constants.ts): the error
+// packet a cancelled mission records. Matched in the stream handlers to
+// surface disconnect-cancelled turns as interrupted instead of completed
+// errors.
+export const CANCELLED_MESSAGE = "Mission cancelled by client disconnect";
 
 export const SESSION_ENDPOINTS = {
   LIST: "/sessions",

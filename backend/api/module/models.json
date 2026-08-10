@@ -1,6 +1,68 @@
 {
     "basePath": "/",
-    "definitions": {},
+    "definitions": {
+        "echo-backend_internal_models_ai.ModelInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the model ID used in requests.",
+                    "type": "string",
+                    "example": "gpt-4o"
+                },
+                "name": {
+                    "description": "Name is the display name.",
+                    "type": "string",
+                    "example": "GPT-4o"
+                },
+                "provider_name": {
+                    "description": "ProviderName is the provider display name.",
+                    "type": "string",
+                    "example": "OpenAI"
+                },
+                "provider_type": {
+                    "description": "ProviderType is the LLM provider.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_ai.ProviderType"
+                        }
+                    ],
+                    "example": "openai"
+                },
+                "supports_multimodal": {
+                    "description": "SupportsMultimodal reports whether the model accepts image inputs.",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "echo-backend_internal_models_ai.ProviderType": {
+            "type": "string",
+            "enum": [
+                "openai",
+                "anthropic",
+                "lm-studio",
+                "opencode-go"
+            ],
+            "x-enum-varnames": [
+                "ProviderOpenAI",
+                "ProviderAnthropic",
+                "ProviderLMStudio",
+                "ProviderOpenCode"
+            ]
+        },
+        "internal_handler_aimodel.ModelsResponse": {
+            "type": "object",
+            "properties": {
+                "models": {
+                    "description": "Models lists the available AI models.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_ai.ModelInfo"
+                    }
+                }
+            }
+        }
+    },
     "host": "localhost:8080",
     "info": {
         "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
@@ -28,14 +90,22 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Model catalog",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_aimodel.ModelsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -62,7 +132,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

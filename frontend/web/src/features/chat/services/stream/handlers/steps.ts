@@ -1,25 +1,16 @@
 import { PACKET_TYPES } from "../../../constants";
 import type { Message, StreamPacket, ThoughtStep } from "../../../types";
-import type { StreamHandlerOptions, StreamStore, SubagentPacket } from "./types";
+import type { StreamStore, SubagentPacket } from "./types";
 
-// Replayed history is already represented in the message rebuilt from the DB
-// (which persists steps), so step packets are skipped during replay. During the
-// live phase every packet is pushed — deduplicating here would collapse
-// distinct tool calls (same tool, different inputs), subagent delegations, and
-// repeated todo snapshots into a single step.
-function pushStep(message: Message, step: ThoughtStep, replay: boolean): boolean {
-  if (replay) return false;
+function pushStep(message: Message, step: ThoughtStep): void {
   message.steps.push(step);
-  return true;
 }
 
 export function handleReasoning(
   lastMessage: Message,
   data: StreamPacket & { type: "reasoning" },
   _store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  if (opts.replay) return;
   const reasoningText = data.content || "";
   if (reasoningText) {
     const lastStep = lastMessage.steps[lastMessage.steps.length - 1];
@@ -38,69 +29,42 @@ export function handleToolCall(
   lastMessage: Message,
   data: StreamPacket & { type: "tool_call" },
   _store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  pushStep(
-    lastMessage,
-    { type: PACKET_TYPES.TOOL_CALL, toolName: data.toolName, toolInput: data.toolInput },
-    opts.replay,
-  );
+  pushStep(lastMessage, { type: PACKET_TYPES.TOOL_CALL, toolName: data.toolName, toolInput: data.toolInput });
 }
 
 export function handleToolResult(
   lastMessage: Message,
   data: StreamPacket & { type: "tool_result" },
   _store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  pushStep(
-    lastMessage,
-    { type: PACKET_TYPES.TOOL_RESULT, toolName: data.toolName, content: data.content },
-    opts.replay,
-  );
+  pushStep(lastMessage, { type: PACKET_TYPES.TOOL_RESULT, toolName: data.toolName, content: data.content });
 }
 
-export function handleTodo(
-  lastMessage: Message,
-  data: StreamPacket & { type: "todo" },
-  _store: StreamStore,
-  opts: StreamHandlerOptions,
-): void {
-  pushStep(lastMessage, { type: PACKET_TYPES.TODO, todos: data.todos }, opts.replay);
+export function handleTodo(lastMessage: Message, data: StreamPacket & { type: "todo" }, _store: StreamStore): void {
+  pushStep(lastMessage, { type: PACKET_TYPES.TODO, todos: data.todos });
 }
 
-export function handleSubagentCall(
-  lastMessage: Message,
-  data: SubagentPacket,
-  _store: StreamStore,
-  opts: StreamHandlerOptions,
-): void {
-  pushStep(lastMessage, { type: PACKET_TYPES.SUBAGENT_CALL, subagent: data.subagent }, opts.replay);
+export function handleSubagentCall(lastMessage: Message, data: SubagentPacket, _store: StreamStore): void {
+  pushStep(lastMessage, { type: PACKET_TYPES.SUBAGENT_CALL, subagent: data.subagent });
 }
 
-export function handleSubagentResult(
-  lastMessage: Message,
-  data: SubagentPacket,
-  _store: StreamStore,
-  opts: StreamHandlerOptions,
-): void {
-  pushStep(lastMessage, { type: PACKET_TYPES.SUBAGENT_RESULT, subagent: data.subagent }, opts.replay);
+export function handleSubagentResult(lastMessage: Message, data: SubagentPacket, _store: StreamStore): void {
+  pushStep(lastMessage, { type: PACKET_TYPES.SUBAGENT_RESULT, subagent: data.subagent });
 }
 
 export function handleFileOperation(
   lastMessage: Message,
   data: StreamPacket & { type: "file_operation" },
   _store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  pushStep(lastMessage, { type: PACKET_TYPES.FILE_OPERATION, fileOp: data.fileOp }, opts.replay);
+  pushStep(lastMessage, { type: PACKET_TYPES.FILE_OPERATION, fileOp: data.fileOp });
 }
 
 export function handleSwarmStatus(
   lastMessage: Message,
   data: StreamPacket & { type: "swarm_status" },
   store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
   if (data.swarm) {
     store.setAgentProgress((prev) => {
@@ -166,28 +130,26 @@ export function handleSwarmStatus(
       };
     });
   }
-  pushStep(lastMessage, { type: PACKET_TYPES.SWARM_STATUS, swarm: data.swarm }, opts.replay);
+  pushStep(lastMessage, { type: PACKET_TYPES.SWARM_STATUS, swarm: data.swarm });
 }
 
 export function handleToolSkip(
   lastMessage: Message,
   data: StreamPacket & { type: "tool_skip" },
   _store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  pushStep(lastMessage, { type: "tool_skip", toolName: data.toolName, content: "Skipped (circuit open)" }, opts.replay);
+  pushStep(lastMessage, { type: "tool_skip", toolName: data.toolName, content: "Skipped (circuit open)" });
 }
 
 export function handleStateChange(
   lastMessage: Message,
   data: StreamPacket & { type: "state_change" },
   store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
   const nextState = (data.to || data.agentStatus?.state) as string | undefined;
   if (nextState) {
     store.setAgentState(nextState as never);
-    pushStep(lastMessage, { type: "state_change", content: `State changed to ${nextState}` }, opts.replay);
+    pushStep(lastMessage, { type: "state_change", content: `State changed to ${nextState}` });
   }
 }
 
@@ -195,8 +157,7 @@ export function handleDegraded(
   lastMessage: Message,
   data: StreamPacket & { type: "degraded" },
   store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
   store.setAgentState("degraded");
-  pushStep(lastMessage, { type: "state_change", content: data.reason || "Agent is in degraded state" }, opts.replay);
+  pushStep(lastMessage, { type: "state_change", content: data.reason || "Agent is in degraded state" });
 }

@@ -128,12 +128,12 @@ const (
 	QueryUpdateMessageContent = `
 		UPDATE messages
 		SET content = $2, steps = COALESCE($3, steps), token_count = $4
-		WHERE id = $1
+		WHERE id = $1 AND status != 'complete'
 	`
 	QueryUpdateMessageStatus = `
 		UPDATE messages
 		SET status = $2
-		WHERE id = $1
+		WHERE id = $1 AND status != 'complete'
 	`
 	QueryMarkSessionStreamingInterrupted = `
 		UPDATE messages
@@ -149,13 +149,6 @@ const (
 		SELECT COALESCE(MAX(turn_number), 0)
 		FROM messages
 		WHERE session_id = $1
-	`
-	QueryGetLatestAssistantMessageID = `
-		SELECT id
-		FROM messages
-		WHERE session_id = $1 AND role = 'assistant' AND status IN ('streaming', 'interrupted')
-		ORDER BY turn_number DESC, id DESC
-		LIMIT 1
 	`
 	QueryDeleteMessagesUpToTurn = `
 		DELETE FROM messages

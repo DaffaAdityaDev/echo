@@ -137,9 +137,6 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	// Feature routes
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
-	api.Get("/missions/:missionId/stream", middleware.AuthRequired(cfg.JWTSecret), chatHandler.StreamMissionLogs)
-	api.Post("/missions/:id/approve", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleApproveTool)
-	api.Post("/missions/:id/deny", middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleDenyTool)
 	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
 	api.Get(routes.V1PathFeatures, featuresHandler.HandleGetFeatures)
 	api.Get(routes.V1PathStrategies, middleware.AuthRequired(cfg.JWTSecret), strategyHandler.HandleGetStrategies)
@@ -158,6 +155,8 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	sessionsGroup.Get("/:id/messages", sessionHandler.HandleGetSessionMessages)
 	sessionsGroup.Delete("/:id", sessionHandler.HandleDeleteSession)
 	sessionsGroup.Post("/:id/generate-title", sessionHandler.HandleGenerateTitle)
+	sessionsGroup.Post("/:id/approve", chatHandler.HandleApproveTool)
+	sessionsGroup.Post("/:id/deny", chatHandler.HandleDenyTool)
 
 	// Admin routes (user JWT or API key required)
 	adminGroup := api.Group(routes.V1AdminGroup, middleware.AuthOrAPIKeyRequired(cfg, apiKeyRepo))

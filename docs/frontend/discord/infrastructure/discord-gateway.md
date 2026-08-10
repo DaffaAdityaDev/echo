@@ -26,8 +26,8 @@ internal/
 ```
 ┌──────────────────┐       HTTP POST /api/v1/chat       ┌──────────────────┐
 │                  │  ──────────────────────────────────→ │                  │
-│  Discord Bot     │   { message, model, mode,           │  Echo Backend    │
-│  (port :8081)    │     missionId }                     │  (port :8080)    │
+│  Discord Bot     │   { message, model, mode }           │  Echo Backend    │
+│  (port :8081)    │                                      │  (port :8080)    │
 │                  │  ←────────────────────────────────── │                  │
 │  Handler         │   SSE stream: data: {...}           │  Fiber API       │
 │  processChat()   │                                     │                  │
@@ -92,7 +92,7 @@ client := &http.Client{}
 resp, err := client.Do(req)
 ```
 
-- Payload: `{ message, model, mode, missionId }`
+- Payload: `{ message, model, mode }`
 - Response: SSE stream (`text/event-stream`)
 
 ### 3. Models API Call

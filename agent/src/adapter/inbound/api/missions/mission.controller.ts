@@ -22,15 +22,10 @@ import {
   VALIDATION_MESSAGES,
 } from "./mission.constants";
 import { createMissionSchema } from "./mission.schema";
+import { streamHarnessExecution } from "./mission-execution";
 import { handleHitlDecision } from "./mission-resume";
-import {
-  __setEmptyStreamIdleMsForTest,
-  __setPartialHistoryIdleMsForTest,
-  streamHarnessExecution,
-  streamMissionLogs,
-} from "./mission-stream";
 
-export { __setEmptyStreamIdleMsForTest, __setPartialHistoryIdleMsForTest, handleHitlDecision, streamMissionLogs };
+export { handleHitlDecision };
 
 function toRestToolConfig(restTool: {
   name: string;
@@ -79,7 +74,7 @@ export async function createMission(c: Context) {
     }
 
     const validatedData = parseResult.data;
-    const missionId = validatedData.missionId || randomUUID();
+    const missionId = validatedData.sessionId || randomUUID();
 
     const payload: MissionPayload = {
       missionId,
@@ -205,6 +200,9 @@ export async function createMission(c: Context) {
       behaviorPrompt,
     });
 
+    // The agent's live SSE stream is the only delivery channel: no Redis
+    // event store is recorded for this turn (mission cancellation on
+    // disconnect is final — there is no replay).
     return streamHarnessExecution(c, {
       missionId,
       state,

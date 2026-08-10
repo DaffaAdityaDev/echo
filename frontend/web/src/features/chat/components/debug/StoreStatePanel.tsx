@@ -2,14 +2,12 @@
 
 import { Database } from "lucide-react";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { useChatStore } from "../../stores/chatStore";
 
 export function StoreStatePanel() {
   const agentState = useChatStore((s) => s.agentState);
   const agentProgress = useChatStore((s) => s.agentProgress);
-  const selectedModel = useChatStore((s) => s.selectedModel);
-  const mode = useChatStore((s) => s.mode);
-  const selectedFeatures = useChatStore((s) => s.selectedFeatures);
   const messages = useChatStore((s) => s.messages);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const sessions = useChatStore((s) => s.sessions);
@@ -18,6 +16,7 @@ export function StoreStatePanel() {
   const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
   const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
   const setMaxPacketLogSize = useChatStore((s) => s.setMaxPacketLogSize);
+  const { defaultModel, defaultMode, defaultFeatures } = useSettingsStore((s) => s.config);
 
   const storeSnapshot = JSON.stringify(
     {
@@ -30,9 +29,9 @@ export function StoreStatePanel() {
             statusMessage: agentProgress.statusMessage,
           }
         : null,
-      selectedModel,
-      mode,
-      selectedFeatures,
+      defaultModel,
+      defaultMode,
+      defaultFeatures,
       messagesCount: messages.length,
       activeSessionId,
       sessionsCount: sessions.length,

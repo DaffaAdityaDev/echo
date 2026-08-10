@@ -29,10 +29,9 @@ type DiscordHandler struct {
 }
 
 type ChatRequest struct {
-	Message   string `json:"message"`
-	Model     string `json:"model"`
-	Mode      string `json:"mode"`
-	MissionID string `json:"missionId"`
+	Message string `json:"message"`
+	Model   string `json:"model"`
+	Mode    string `json:"mode"`
 }
 
 type StreamPacket struct {
@@ -258,10 +257,9 @@ func (h *DiscordHandler) processChat(s *discordgo.Session, m *discordgo.MessageC
 	}
 
 	reqBody := ChatRequest{
-		Message:   m.Content,
-		Model:     activeModel,
-		Mode:      activeMode,
-		MissionID: m.ChannelID,
+		Message: m.Content,
+		Model:   activeModel,
+		Mode:    activeMode,
 	}
 
 	jsonData, err := json.Marshal(reqBody)

@@ -1,12 +1,11 @@
 import { PACKET_TYPES } from "../../../constants";
 import type { Message, MissionMeta, StreamPacket, SystemNotice } from "../../../types";
-import type { StreamHandlerOptions, StreamStore } from "./types";
+import type { StreamStore } from "./types";
 
 export function handleMetadata(
   lastMessage: Message,
   data: StreamPacket & { type: "metadata" },
   store: StreamStore,
-  _opts: StreamHandlerOptions,
 ): void {
   const meta: MissionMeta = data.meta || {
     strategy: data.strategy,
@@ -19,12 +18,7 @@ export function handleMetadata(
   store.setMissionMeta(meta);
 }
 
-export function handleDebug(
-  _lastMessage: Message,
-  data: StreamPacket & { type: "debug" },
-  store: StreamStore,
-  _opts: StreamHandlerOptions,
-): void {
+export function handleDebug(_lastMessage: Message, data: StreamPacket & { type: "debug" }, store: StreamStore): void {
   store.appendDebugInfo({
     systemPrompt: data.rawSystemPrompt,
     historyLength: data.currentHistoryLength,
@@ -38,7 +32,6 @@ export function handleSystemNotice(
   _lastMessage: Message,
   data: StreamPacket & { type: "system_notice" },
   store: StreamStore,
-  _opts: StreamHandlerOptions,
 ): void {
   const notice: SystemNotice = {
     id: crypto.randomUUID(),
@@ -54,36 +47,19 @@ export function handleHitlApproval(
   _lastMessage: Message,
   data: StreamPacket & { type: "hitl_approval_required" },
   store: StreamStore,
-  opts: StreamHandlerOptions,
 ): void {
-  const expiresAt = data.payload.expiresAt;
-  if (opts.replay && expiresAt && Date.now() > expiresAt) return;
   store.setHitlPendingApproval({
     approvalId: data.payload.approvalId,
     toolName: data.payload.toolName,
     args: data.payload.args,
     riskLevel: data.payload.riskLevel,
-    expiresAt,
-    missionId: data.missionId,
+    expiresAt: data.payload.expiresAt,
+    // The agent's run id in the packet is the session id at the top level.
+    sessionId: data.missionId,
   });
 }
 
-export function handleReplayDone(
-  _lastMessage: Message,
-  _data: StreamPacket,
-  _store: StreamStore,
-  _opts: StreamHandlerOptions,
-): void {
-  // Replay marker is handled by the caller before this point; nothing to apply.
-}
-
-export function handleDefault(
-  lastMessage: Message,
-  data: StreamPacket,
-  _store: StreamStore,
-  opts: StreamHandlerOptions,
-): void {
-  if (opts.replay) return;
+export function handleDefault(lastMessage: Message, data: StreamPacket, _store: StreamStore): void {
   const streamRecord = data as unknown as {
     choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
     content?: string;

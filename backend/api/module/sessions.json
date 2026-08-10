@@ -1,50 +1,113 @@
 {
     "basePath": "/",
     "definitions": {
+        "echo-backend_internal_models_chat.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Message content text",
+                    "type": "string",
+                    "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."
+                },
+                "created_at": {
+                    "description": "Timestamp of message creation",
+                    "type": "string",
+                    "example": "2026-01-15T10:35:00Z"
+                },
+                "id": {
+                    "description": "Unique message identifier",
+                    "type": "integer",
+                    "example": 42
+                },
+                "role": {
+                    "description": "Message role: \"user\", \"assistant\", \"system\", or \"tool\"",
+                    "type": "string",
+                    "example": "assistant"
+                },
+                "session_id": {
+                    "description": "ID of the session the message belongs to",
+                    "type": "string",
+                    "example": "sess_abc123"
+                },
+                "status": {
+                    "description": "Message status: \"streaming\", \"complete\", or \"interrupted\"",
+                    "type": "string",
+                    "example": "complete"
+                },
+                "steps": {
+                    "description": "JSON array of agent thought steps",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "token_count": {
+                    "description": "Approximate token count of the message",
+                    "type": "integer",
+                    "example": 156
+                },
+                "turn_number": {
+                    "description": "Turn number of the message within the session",
+                    "type": "integer",
+                    "example": 3
+                }
+            }
+        },
         "echo-backend_internal_models_chat.Session": {
             "type": "object",
             "properties": {
                 "context_summary": {
+                    "description": "Summarized context of the conversation",
                     "type": "string",
                     "example": "User is building a REST API for a todo app using Express and Prisma"
                 },
                 "created_at": {
+                    "description": "Timestamp of session creation",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
+                    "description": "Unique session identifier",
                     "type": "string",
                     "example": "sess_abc123"
                 },
                 "last_accessed_at": {
+                    "description": "Timestamp of the last access",
                     "type": "string",
                     "example": "2026-01-15T11:45:00Z"
                 },
                 "message_count": {
+                    "description": "Number of messages in the session",
                     "type": "integer",
                     "example": 12
                 },
                 "status": {
+                    "description": "Session status: \"active\" or \"deleted\"",
                     "type": "string",
                     "example": "active"
                 },
                 "strategy_version": {
+                    "description": "Strategy version from the catalog, e.g. nlah:v1",
                     "type": "string",
                     "example": "nlah:v1"
                 },
                 "title": {
+                    "description": "Session title",
                     "type": "string",
                     "example": "Build a REST API with Express"
                 },
                 "token_count": {
+                    "description": "Approximate token count of the session",
                     "type": "integer",
                     "example": 3421
                 },
                 "updated_at": {
+                    "description": "Timestamp of the last update",
                     "type": "string",
                     "example": "2026-01-15T11:45:00Z"
                 },
                 "user_id": {
+                    "description": "ID of the session owner",
                     "type": "integer",
                     "example": 1
                 }
@@ -54,10 +117,12 @@
             "type": "object",
             "properties": {
                 "strategyVersion": {
+                    "description": "Strategy version from the catalog, e.g. nlah:v1; validated against catalog",
                     "type": "string",
                     "example": "nlah:v1"
                 },
                 "title": {
+                    "description": "Session title; defaults to 'New Chat' when empty",
                     "type": "string",
                     "example": "Build a REST API with Express"
                 }
@@ -67,7 +132,95 @@
             "type": "object",
             "properties": {
                 "model": {
+                    "description": "Model is the model ID used for generation; falls back to the configured default when empty.",
                     "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.GenerateTitleResponse": {
+            "type": "object",
+            "properties": {
+                "cached": {
+                    "description": "Cached is true when the response was served from the existing session metadata.",
+                    "type": "boolean"
+                },
+                "summary": {
+                    "description": "Summary is a one-sentence summary of the session conversation.",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Title is the generated session title.",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.GetMessagesResponse": {
+            "type": "object",
+            "properties": {
+                "messages": {
+                    "description": "List of session messages",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_chat.Message"
+                    }
+                },
+                "pagination": {
+                    "description": "Pagination metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+                        }
+                    ]
+                }
+            }
+        },
+        "internal_handler_session.ListSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "description": "Pagination metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+                        }
+                    ]
+                },
+                "sessions": {
+                    "description": "List of active sessions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+                    }
+                }
+            }
+        },
+        "internal_handler_session.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Human-readable result message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Always \"success\"",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "description": "Maximum number of items to return (0 = no limit)",
+                    "type": "integer"
+                },
+                "offset": {
+                    "description": "Number of items to skip before returning results",
+                    "type": "integer"
+                },
+                "total": {
+                    "description": "Total number of available items",
+                    "type": "integer"
                 }
             }
         },
@@ -75,6 +228,7 @@
             "type": "object",
             "properties": {
                 "provider_config": {
+                    "description": "Provider configuration used for consolidation",
                     "type": "object",
                     "additionalProperties": true
                 }
@@ -125,12 +279,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
                         }
                     },
                     "400": {
@@ -168,17 +319,38 @@
                 ],
                 "summary": "List user sessions",
                 "description": "Returns all active sessions for the authenticated user",
-                "parameters": null,
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of sessions to return (0 = no limit)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of sessions to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of sessions with pagination",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_session.ListSessionsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -216,7 +388,7 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created session",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
@@ -232,6 +404,15 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -271,9 +452,18 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Session details",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
@@ -296,6 +486,15 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -331,7 +530,13 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -348,8 +553,26 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -396,10 +619,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Generated title and summary",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_session.GenerateTitleResponse"
                         }
                     },
                     "400": {
@@ -420,8 +642,35 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -457,14 +706,34 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of messages to return (0 = no limit)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of messages to skip",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Messages with pagination",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.GetMessagesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
@@ -493,6 +762,15 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -513,7 +791,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

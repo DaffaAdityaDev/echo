@@ -16,14 +16,21 @@ func NewHandler(modelSvc *aimodel.Service) *Handler {
 	return &Handler{ModelSvc: modelSvc}
 }
 
+// ModelsResponse is the AI model catalog payload.
+type ModelsResponse struct {
+	// Models lists the available AI models.
+	Models []aitype.ModelInfo `json:"models"`
+}
+
 // HandleGetModels godoc
 // @Summary List available AI models
 // @Description Returns the AI model catalog available to the authenticated user
 // @Tags Models
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} ModelsResponse "Model catalog"
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/models [get]
 func (h *Handler) HandleGetModels(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -38,5 +45,5 @@ func (h *Handler) HandleGetModels(c fiber.Ctx) error {
 	if modelsList == nil {
 		modelsList = []aitype.ModelInfo{}
 	}
-	return handlerutil.RespondSuccess(c, fiber.Map{"models": modelsList})
+	return handlerutil.RespondSuccess(c, ModelsResponse{Models: modelsList})
 }

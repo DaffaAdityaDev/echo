@@ -7,7 +7,9 @@ import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function MissionsGuide() {
   const { spec } = useSpec();
-  const missionEndpoints = spec?.tags.flatMap((t) => t.endpoints).filter((ep) => ep.path.includes("/missions/"));
+  const missionEndpoints = spec?.tags
+    .flatMap((t) => t.endpoints)
+    .filter((ep) => ep.path.endsWith("/approve") || ep.path.endsWith("/deny") || ep.path.endsWith("/stream"));
 
   return (
     <div className="space-y-12 max-w-4xl font-mono">
@@ -85,7 +87,7 @@ export default function MissionsGuide() {
         </p>
         <CodeBlock
           language="bash"
-          code={`curl -X POST http://localhost:8080/api/v1/missions/{missionId}/approve \\
+          code={`curl -X POST http://localhost:8080/api/v1/sessions/{sessionId}/approve \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
   -d '{"approvalId": "appr_a1b2c3d4", "decision": "approve", "reason": "Looks safe"}'`}

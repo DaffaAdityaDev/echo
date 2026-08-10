@@ -112,6 +112,7 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
           <input
             id="api-key-input"
             type="password"
+            autoComplete="new-password"
             value={config.apiKey}
             onChange={(e) => setConfig({ apiKey: e.target.value })}
             placeholder={config.hasApiKey ? "Enter new key to change" : "Enter your API key"}

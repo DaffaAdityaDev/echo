@@ -25,7 +25,7 @@ history holder and the Agent stores internal state per missionId.
 
 ```
 Frontend (Zustand) ← canonical history
-  │  POST { message, model, history[], missionId? }
+  │  POST { message, model, history[], sessionId }
   ▼
 Go (proxy only — no history storage)
   │  POST { message, history, provider_config }

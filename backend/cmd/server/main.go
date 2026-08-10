@@ -20,6 +20,11 @@ package main
 // @name Authorization
 // @description Bearer token authorization header (Format: Bearer <JWT>).
 
+// @securityDefinitions.apikey InternalAuth
+// @in header
+// @name X-Internal-Token
+// @description Internal service JWT token (Format: Bearer <service JWT>).
+
 import (
 	"bufio"
 	"echo-backend/internal/config"

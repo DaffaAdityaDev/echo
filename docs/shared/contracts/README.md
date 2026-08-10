@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Contracts
   Service   : Shared / Contracts
-  Version   : 1.1
-  Updated   : 2026-07-31 (active: strategy lifecycle contracts)
+   Version   : 1.2
+   Updated   : 2026-08-07 (mission→session collapse: single sessionId on the wire)
 ================================================================================
 
 ## Overview

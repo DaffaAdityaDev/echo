@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = await req.json();
 
-  const upstream = await fetch(`${BASE_URL}/missions/${id}/approve`, {
+  const upstream = await fetch(`${BASE_URL}/sessions/${id}/deny`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

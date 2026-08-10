@@ -13,10 +13,22 @@ import (
 )
 
 type proceduralStoreRequest struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	Content  string                 `json:"content"`
+	// ID is the procedural memory identifier (required).
+	ID string `json:"id" binding:"required" example:"proc_123"`
+	// Name is the procedural memory name (required).
+	Name string `json:"name" binding:"required" example:"checkout_flow"`
+	// Content is the procedural memory content (required).
+	Content string `json:"content"`
+	// Metadata is optional free-form metadata attached to the entry.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// ProceduralStoreResponse is the response returned when a procedural memory entry is stored.
+type ProceduralStoreResponse struct {
+	// ID is the generated memory entry ID.
+	ID string `json:"id"`
+	// Status is always "recorded".
+	Status string `json:"status"`
 }
 
 // HandleStoreProcedural godoc
@@ -25,17 +37,19 @@ type proceduralStoreRequest struct {
 // @Tags Memory
 // @Accept json
 // @Produce json
+// @Security InternalAuth
 // @Param request body proceduralStoreRequest true "Procedural memory payload"
-// @Success 201 {object} map[string]interface{}
+// @Success 201 {object} ProceduralStoreResponse "Recorded entry"
 // @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/procedural/store [post]
 func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 	var req proceduralStoreRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid request"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.ID == "" || req.Name == "" || req.Content == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "id, name, and content are required"})
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id, name, and content are required")
 	}
 
 	metadataJSON := []byte("{}")
@@ -43,7 +57,7 @@ func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 		var err error
 		metadataJSON, err = json.Marshal(req.Metadata)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation_error", "message": "Invalid metadata"})
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
 		}
 	}
 
@@ -55,18 +69,36 @@ func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 		SET name = $2, content = $3, metadata = $4, updated_at = NOW()
 	`, req.ID, req.Name, req.Content, metadataJSON)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "internal_error", "message": "Failed to store procedural memory"})
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store procedural memory")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"id":     generateID("mem_pr_"),
-		"status": "recorded",
+	return handlerutil.RespondCreated(c, ProceduralStoreResponse{
+		ID:     generateID("mem_pr_"),
+		Status: "recorded",
 	})
 }
 
 type proceduralGetRequest struct {
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	// ID is the procedural memory identifier; at least one of ID or Name is required.
+	ID string `json:"id,omitempty" example:"proc_123"`
+	// Name is the procedural memory name; at least one of ID or Name is required.
+	Name string `json:"name,omitempty" example:"checkout_flow"`
+}
+
+// ProceduralGetResponse is the response returned when a procedural memory entry is retrieved.
+type ProceduralGetResponse struct {
+	// ID is the procedural memory identifier.
+	ID string `json:"id"`
+	// Name is the procedural memory name.
+	Name string `json:"name"`
+	// Content is the procedural memory content.
+	Content string `json:"content"`
+	// Metadata is the free-form metadata attached to the entry.
+	Metadata interface{} `json:"metadata"`
+	// CreatedAt is when the entry was created.
+	CreatedAt time.Time `json:"created_at"`
+	// UpdatedAt is when the entry was last updated.
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // HandleGetProcedural godoc
@@ -75,9 +107,12 @@ type proceduralGetRequest struct {
 // @Tags Memory
 // @Accept json
 // @Produce json
+// @Security InternalAuth
 // @Param request body proceduralGetRequest true "Procedural recall payload"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} ProceduralGetResponse "Procedural memory entry"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/procedural/get [post]
 func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	var req proceduralGetRequest
@@ -118,12 +153,12 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	var metadata interface{}
 	json.Unmarshal(metadataBytes, &metadata)
 
-	return handlerutil.RespondSuccess(c, fiber.Map{
-		"id":         id,
-		"name":       name,
-		"content":    content,
-		"metadata":   metadata,
-		"created_at": createdAt,
-		"updated_at": updatedAt,
+	return handlerutil.RespondSuccess(c, ProceduralGetResponse{
+		ID:        id,
+		Name:      name,
+		Content:   content,
+		Metadata:  metadata,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
 	})
 }

@@ -16,6 +16,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "^1.16.0",
     "clsx": "^2.1.1",
+    "framer-motion": "^13.0.0",
     "katex": "^0.16.45",
     "lucide-react": "^1.14.0",
     "next": "16.2.6",

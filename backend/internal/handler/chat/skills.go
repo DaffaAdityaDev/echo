@@ -64,13 +64,34 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 	return skills, nil
 }
 
+// SkillModifiers describes optional tuning parameters applied when a skill runs.
+type SkillModifiers struct {
+	// Temperature is the sampling temperature for the skill's model calls.
+	Temperature float64 `json:"temperature"`
+	// MaxTokens is the maximum number of tokens the skill may generate.
+	MaxTokens int `json:"maxTokens"`
+	// Compression indicates whether the skill compresses its context.
+	Compression bool `json:"compression"`
+}
+
+// SkillResponse describes a single entry in the agent skill catalog.
+type SkillResponse struct {
+	// Name is the unique identifier of the skill.
+	Name string `json:"name"`
+	// Description is a human-readable summary of what the skill does.
+	Description string `json:"description"`
+	// PreferredTools lists tools the skill prefers to use, if any.
+	PreferredTools []string `json:"preferredTools,omitempty"`
+	// Modifiers are optional tuning parameters applied when the skill runs.
+	Modifiers *SkillModifiers `json:"modifiers,omitempty"`
+}
+
 // HandleGetSkills godoc
 // @Summary List available agent skills
 // @Description Returns the catalog of skills available to agents
 // @Tags Chat
 // @Produce json
-// @Security BearerAuth
-// @Success 200 {array} map[string]interface{}
+// @Success 200 {array} SkillResponse "Agent skill catalog"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/skills [get]
 func (h *Handler) HandleGetSkills(c fiber.Ctx) error {

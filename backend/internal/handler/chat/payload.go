@@ -11,11 +11,9 @@ func buildChatAgentPayload(args payloadArgs) map[string]interface{} {
 		"history":          args.history,
 		"provider_config":  args.providerConfig,
 		"strategy_version": args.strategyVersion,
+		"session_id":       args.sessionID,
 	}
 
-	if args.missionID != "" {
-		payload["missionId"] = args.missionID
-	}
 	if args.features == nil {
 		payload["features"] = []string{}
 	} else {
@@ -42,7 +40,7 @@ type payloadArgs struct {
 	history            []HistoryMessage
 	providerConfig     map[string]interface{}
 	strategyVersion    string
-	missionID          string
+	sessionID          string
 	features           []string
 	skills             []string
 	config             map[string]interface{}

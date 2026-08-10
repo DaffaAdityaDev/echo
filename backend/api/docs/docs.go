@@ -41,7 +41,7 @@ const docTemplate = `{
                 "summary": "List API keys",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "All API keys",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -90,10 +90,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "New API key",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_admin.CreateAPIKeyResponse"
                         }
                     },
                     "400": {
@@ -107,6 +106,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -143,7 +151,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Key revoked\\\"}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -162,6 +170,15 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -189,10 +206,9 @@ const docTemplate = `{
                 "summary": "Get API key statistics",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "API key statistics",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_admin.AdminStatsResponse"
                         }
                     },
                     "500": {
@@ -233,10 +249,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Token and user profile",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_auth.LoginResponse"
                         }
                     },
                     "400": {
@@ -277,7 +292,7 @@ const docTemplate = `{
                 "summary": "Logout",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Logged out\\\"}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -327,6 +342,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -357,10 +381,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Token and user profile",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_auth.LoginResponse"
                         }
                     },
                     "400": {
@@ -391,12 +414,12 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Forwards a user message to the agent for processing",
+                "description": "Forwards a user message to the agent and streams the agent's progress as Server-Sent Events (SSE).\nThe stream starts with an X-Session-ID response header set to the session ID (new or existing).\nEach line is ` + "`" + `data: \u003cjson\u003e` + "`" + ` where the JSON is a StreamPacket: { \"type\": \"...\", \"missionId\": \"...\", \"step\": number, \"seq\": number, \"timestamp\": number }.\nPacket types: metadata, reasoning, content, tool_call, tool_result, tool_skip, todo, subagent_call, subagent_result, usage, progress, heartbeat, state_change, degraded, turn_complete, debug, error, system_notice, token_metrics, hitl_approval_required, mission_completed.\nTerminal packets: turn_complete, mission_completed, error.\nIf the connection drops mid-run, the mission is cancelled (token safety) and the turn is finalized as interrupted — send a new message to continue.\nSee docs/shared/contracts/json-api-contract.md §SSE Event Format for the full schema.",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "text/event-stream"
                 ],
                 "tags": [
                     "Chat"
@@ -415,10 +438,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SSE stream of StreamPacket JSON lines (text/event-stream)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -438,17 +460,39 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
         "/api/v1/features": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Returns the catalog of agent features with tier-based locking",
                 "produces": [
                     "application/json"
@@ -457,9 +501,17 @@ const docTemplate = `{
                     "Chat"
                 ],
                 "summary": "List available agent features",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User tier, default pro",
+                        "name": "X-User-Tier",
+                        "in": "header"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Catalog of agent features for the user's tier",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -481,6 +533,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/episodic/recall": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Recalls episodic memory entries for a session (internal)",
                 "consumes": [
                     "application/json"
@@ -505,14 +562,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Recalled episodic memory entries",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.EpisodicRecallResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -525,6 +590,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/episodic/store": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Stores an episodic memory entry for a session (internal)",
                 "consumes": [
                     "application/json"
@@ -549,14 +619,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Stored entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.StoreEpisodicResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -569,6 +647,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/procedural/get": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Retrieves procedural memory entries by ID or name (internal)",
                 "consumes": [
                     "application/json"
@@ -593,14 +676,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Procedural memory entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.ProceduralGetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -613,6 +713,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/procedural/store": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Stores a procedural memory entry (internal)",
                 "consumes": [
                     "application/json"
@@ -637,14 +742,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Recorded entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.ProceduralStoreResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -657,6 +770,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/semantic/search": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Searches semantic memory by query text (internal)",
                 "consumes": [
                     "application/json"
@@ -681,14 +799,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Search results",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.SemanticSearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -701,6 +827,11 @@ const docTemplate = `{
         },
         "/api/v1/internal/memory/semantic/store": {
             "post": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
                 "description": "Stores a semantic memory entry with an optional embedding (internal)",
                 "consumes": [
                     "application/json"
@@ -725,14 +856,74 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Indexed entry",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_memory.SemanticStoreResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/internal/prompts/active": {
+            "get": {
+                "security": [
+                    {
+                        "InternalAuth": []
+                    }
+                ],
+                "description": "Returns the active production prompt version for the agent (service-to-service)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get active prompt for the agent (internal)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Template name",
+                        "name": "template",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active production prompt version",
+                        "schema": {
+                            "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -776,12 +967,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
                         }
                     },
                     "400": {
@@ -795,141 +983,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/missions/{id}/approve": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Approves a human-in-the-loop tool approval request for a mission",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Approve a pending tool call",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/missions/{id}/deny": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Denies a human-in-the-loop tool approval request for a mission",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Deny a pending tool call",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/missions/{missionId}/stream": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Streams real-time mission execution logs as Server-Sent Events",
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Stream mission logs",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Mission ID",
-                        "name": "missionId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Event stream",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -957,14 +1010,22 @@ const docTemplate = `{
                 "summary": "List available AI models",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Model catalog",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_aimodel.ModelsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -990,16 +1051,38 @@ const docTemplate = `{
                     "Sessions"
                 ],
                 "summary": "List user sessions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of sessions to return (0 = no limit)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of sessions to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of sessions with pagination",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_session.ListSessionsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1039,7 +1122,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created session",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
                         }
@@ -1055,6 +1138,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1091,9 +1183,18 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Session details",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
@@ -1116,6 +1217,15 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1150,7 +1260,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Confirmation",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1167,8 +1283,26 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1209,8 +1343,87 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/internal_handler_session.UpdateSessionRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Confirmation",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approves a human-in-the-loop tool approval request for a session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Approve a pending tool call",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise).",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1234,6 +1447,88 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions/{id}/deny": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Denies a human-in-the-loop tool approval request for a session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Deny a pending tool call",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise).",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1291,10 +1586,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Generated title and summary",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_session.GenerateTitleResponse"
                         }
                     },
                     "400": {
@@ -1315,8 +1609,35 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1349,14 +1670,34 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of messages to return (0 = no limit)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of messages to skip",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Messages with pagination",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_session.GetMessagesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
@@ -1385,6 +1726,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -1406,13 +1756,22 @@ const docTemplate = `{
                 "summary": "Get user settings",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "The user's preferences with defaults applied",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1452,7 +1811,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "The user's preferences with defaults applied",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
@@ -1468,6 +1827,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1490,10 +1858,9 @@ const docTemplate = `{
                 "summary": "Get default settings",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Platform-wide default preferences",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     }
                 }
@@ -1501,11 +1868,6 @@ const docTemplate = `{
         },
         "/api/v1/skills": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Returns the catalog of skills available to agents",
                 "produces": [
                     "application/json"
@@ -1516,12 +1878,11 @@ const docTemplate = `{
                 "summary": "List available agent skills",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Agent skill catalog",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                                "$ref": "#/definitions/internal_handler_chat.SkillResponse"
                             }
                         }
                     },
@@ -1539,6 +1900,11 @@ const docTemplate = `{
         },
         "/api/v1/strategies": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the strategy catalog merged with gateway rollout percentages",
                 "produces": [
                     "application/json"
@@ -1549,10 +1915,9 @@ const docTemplate = `{
                 "summary": "List strategy catalog",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Strategy catalog with rollout percentages",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/echo-backend_internal_service_strategy.CatalogResponse"
                         }
                     },
                     "500": {
@@ -1569,6 +1934,11 @@ const docTemplate = `{
         },
         "/api/v1/studio/prompts": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns all prompt templates (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1579,15 +1949,28 @@ const docTemplate = `{
                 "summary": "List prompt templates",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of prompt templates",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromptTemplatesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Creates a new prompt template (LLMOps Studio)",
                 "consumes": [
                     "application/json"
@@ -1612,7 +1995,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created template",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptTemplate"
                         }
@@ -1625,12 +2008,26 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
         "/api/v1/studio/prompts/active": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the active production version of a prompt template (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1650,7 +2047,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Active production prompt version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -1678,6 +2075,11 @@ const docTemplate = `{
         },
         "/api/v1/studio/prompts/{id}/promote/{version}": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Promotes a version to production (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1704,10 +2106,18 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Promotion result",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromoteResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1715,6 +2125,11 @@ const docTemplate = `{
         },
         "/api/v1/studio/prompts/{id}/rollback/{version}": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Rolls back the production version of a prompt template (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1741,14 +2156,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Rollback result",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_llmops.RollbackResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1761,6 +2184,11 @@ const docTemplate = `{
         },
         "/api/v1/studio/prompts/{id}/versions": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the version history of a prompt template (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1780,15 +2208,28 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Version history",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromptVersionsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Creates a new version of a prompt template (LLMOps Studio)",
                 "consumes": [
                     "application/json"
@@ -1820,7 +2261,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -1833,12 +2274,26 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
         "/api/v1/studio/prompts/{id}/versions/{v}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns a specific version of a prompt template (LLMOps Studio)",
                 "produces": [
                     "application/json"
@@ -1865,7 +2320,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Prompt template version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -1890,52 +2345,83 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/health": {
-            "get": {
-                "description": "Returns the health status of the backend API",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
+        "echo-backend_internal_models_ai.ModelInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the model ID used in requests.",
+                    "type": "string",
+                    "example": "gpt-4o"
+                },
+                "name": {
+                    "description": "Name is the display name.",
+                    "type": "string",
+                    "example": "GPT-4o"
+                },
+                "provider_name": {
+                    "description": "ProviderName is the provider display name.",
+                    "type": "string",
+                    "example": "OpenAI"
+                },
+                "provider_type": {
+                    "description": "ProviderType is the LLM provider.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_ai.ProviderType"
+                        }
+                    ],
+                    "example": "openai"
+                },
+                "supports_multimodal": {
+                    "description": "SupportsMultimodal reports whether the model accepts image inputs.",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "echo-backend_internal_models_ai.ProviderType": {
+            "type": "string",
+            "enum": [
+                "openai",
+                "anthropic",
+                "lm-studio",
+                "opencode-go"
+            ],
+            "x-enum-varnames": [
+                "ProviderOpenAI",
+                "ProviderAnthropic",
+                "ProviderLMStudio",
+                "ProviderOpenCode"
+            ]
+        },
         "echo-backend_internal_models_auth.ApiKey": {
             "type": "object",
             "properties": {
                 "created_at": {
+                    "description": "Key creation time",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
+                    "description": "Unique API key ID",
                     "type": "string",
                     "example": "key_a1b2c3d4e5f6"
                 },
                 "name": {
+                    "description": "Display name for the API key",
                     "type": "string",
                     "example": "Production API Key"
                 },
                 "prefix": {
+                    "description": "Prefix of the full key, shown for display purposes",
                     "type": "string",
                     "example": "sk_a1b2c3d4"
                 },
                 "scopes": {
+                    "description": "Optional permission scopes",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1947,10 +2433,12 @@ const docTemplate = `{
                     ]
                 },
                 "status": {
+                    "description": "Key status (e.g. active, revoked)",
                     "type": "string",
                     "example": "active"
                 },
                 "user_id": {
+                    "description": "ID of the user who owns the key",
                     "type": "string",
                     "example": "1"
                 }
@@ -1960,28 +2448,86 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
+                    "description": "User creation time",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
                 },
                 "email": {
+                    "description": "User email address",
                     "type": "string",
                     "example": "jane@example.com"
                 },
                 "id": {
+                    "description": "Unique user ID",
                     "type": "integer",
                     "example": 1
                 },
                 "name": {
+                    "description": "User display name",
                     "type": "string",
                     "example": "Jane Doe"
                 },
                 "role": {
+                    "description": "User role (e.g. user, admin)",
                     "type": "string",
                     "example": "user"
                 },
                 "updated_at": {
+                    "description": "Time of the last update",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
+                }
+            }
+        },
+        "echo-backend_internal_models_chat.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Message content text",
+                    "type": "string",
+                    "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."
+                },
+                "created_at": {
+                    "description": "Timestamp of message creation",
+                    "type": "string",
+                    "example": "2026-01-15T10:35:00Z"
+                },
+                "id": {
+                    "description": "Unique message identifier",
+                    "type": "integer",
+                    "example": 42
+                },
+                "role": {
+                    "description": "Message role: \"user\", \"assistant\", \"system\", or \"tool\"",
+                    "type": "string",
+                    "example": "assistant"
+                },
+                "session_id": {
+                    "description": "ID of the session the message belongs to",
+                    "type": "string",
+                    "example": "sess_abc123"
+                },
+                "status": {
+                    "description": "Message status: \"streaming\", \"complete\", or \"interrupted\"",
+                    "type": "string",
+                    "example": "complete"
+                },
+                "steps": {
+                    "description": "JSON array of agent thought steps",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "token_count": {
+                    "description": "Approximate token count of the message",
+                    "type": "integer",
+                    "example": 156
+                },
+                "turn_number": {
+                    "description": "Turn number of the message within the session",
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },
@@ -1989,46 +2535,57 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "context_summary": {
+                    "description": "Summarized context of the conversation",
                     "type": "string",
                     "example": "User is building a REST API for a todo app using Express and Prisma"
                 },
                 "created_at": {
+                    "description": "Timestamp of session creation",
                     "type": "string",
                     "example": "2026-01-15T10:30:00Z"
                 },
                 "id": {
+                    "description": "Unique session identifier",
                     "type": "string",
                     "example": "sess_abc123"
                 },
                 "last_accessed_at": {
+                    "description": "Timestamp of the last access",
                     "type": "string",
                     "example": "2026-01-15T11:45:00Z"
                 },
                 "message_count": {
+                    "description": "Number of messages in the session",
                     "type": "integer",
                     "example": 12
                 },
                 "status": {
+                    "description": "Session status: \"active\" or \"deleted\"",
                     "type": "string",
                     "example": "active"
                 },
                 "strategy_version": {
+                    "description": "Strategy version from the catalog, e.g. nlah:v1",
                     "type": "string",
                     "example": "nlah:v1"
                 },
                 "title": {
+                    "description": "Session title",
                     "type": "string",
                     "example": "Build a REST API with Express"
                 },
                 "token_count": {
+                    "description": "Approximate token count of the session",
                     "type": "integer",
                     "example": 3421
                 },
                 "updated_at": {
+                    "description": "Timestamp of the last update",
                     "type": "string",
                     "example": "2026-01-15T11:45:00Z"
                 },
                 "user_id": {
+                    "description": "ID of the session owner",
                     "type": "integer",
                     "example": 1
                 }
@@ -2038,24 +2595,31 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active_version": {
+                    "description": "ActiveVersion is the version currently promoted to production.",
                     "type": "integer"
                 },
                 "created_at": {
+                    "description": "CreatedAt is when the template was created.",
                     "type": "string"
                 },
                 "description": {
+                    "description": "Description is a human-readable description of the template.",
                     "type": "string"
                 },
                 "id": {
+                    "description": "ID is the unique identifier of the template.",
                     "type": "string"
                 },
                 "name": {
+                    "description": "Name is the display name of the template.",
                     "type": "string"
                 },
                 "tenant_id": {
+                    "description": "TenantID is the tenant that owns the template.",
                     "type": "string"
                 },
                 "updated_at": {
+                    "description": "UpdatedAt is when the template was last updated.",
                     "type": "string"
                 }
             }
@@ -2064,36 +2628,45 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "bound_tools": {
+                    "description": "BoundTools are the tools the prompt is allowed to call.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "created_at": {
+                    "description": "CreatedAt is when the version was created.",
                     "type": "string"
                 },
                 "created_by": {
+                    "description": "CreatedBy is the actor who created the version.",
                     "type": "string"
                 },
                 "id": {
+                    "description": "ID is the unique identifier of the version.",
                     "type": "string"
                 },
                 "status": {
+                    "description": "Status is the lifecycle status of the version (draft|production).",
                     "type": "string"
                 },
                 "system_prompt": {
+                    "description": "SystemPrompt is the full system prompt text.",
                     "type": "string"
                 },
                 "template_id": {
+                    "description": "TemplateID is the template this version belongs to.",
                     "type": "string"
                 },
                 "variables": {
+                    "description": "Variables are the template variables used by the prompt.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "version": {
+                    "description": "Version is the version number, incrementing within a template.",
                     "type": "integer"
                 }
             }
@@ -2102,24 +2675,31 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "enabled": {
+                    "description": "Enabled turns budget monitoring on or off.",
                     "type": "boolean"
                 },
                 "enforceCostCap": {
+                    "description": "EnforceCostCap enforces the maximum spend.",
                     "type": "boolean"
                 },
                 "enforceMaxSteps": {
+                    "description": "EnforceMaxSteps enforces the maximum number of agent steps.",
                     "type": "boolean"
                 },
                 "enforceTimeout": {
+                    "description": "EnforceTimeout enforces the maximum run duration.",
                     "type": "boolean"
                 },
                 "maxCostUsd": {
+                    "description": "MaxCostUsd is the maximum spend in USD.",
                     "type": "number"
                 },
                 "maxDurationMs": {
+                    "description": "MaxDurationMs is the maximum run duration in milliseconds.",
                     "type": "integer"
                 },
                 "maxSteps": {
+                    "description": "MaxSteps is the maximum number of agent steps allowed.",
                     "type": "integer"
                 }
             }
@@ -2128,18 +2708,23 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "compactionThresholdRatio": {
+                    "description": "CompactionThresholdRatio is the usage ratio that triggers compaction.",
                     "type": "number"
                 },
                 "enableAutoCompaction": {
+                    "description": "EnableAutoCompaction automatically compacts context when it grows.",
                     "type": "boolean"
                 },
                 "enablePrefixCachingLayout": {
+                    "description": "EnablePrefixCachingLayout optimizes message layout for prefix caching.",
                     "type": "boolean"
                 },
                 "enabled": {
+                    "description": "Enabled turns context optimization on or off.",
                     "type": "boolean"
                 },
                 "keepLastTurnsCount": {
+                    "description": "KeepLastTurnsCount is the number of recent turns kept after compaction.",
                     "type": "integer"
                 }
             }
@@ -2148,19 +2733,44 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "budgetMonitor": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.BudgetMonitorConfig"
+                    "description": "BudgetMonitor enables enforcement of step, duration, and cost budgets.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.BudgetMonitorConfig"
+                        }
+                    ]
                 },
                 "contextOptimization": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.ContextOptimizationConfig"
+                    "description": "ContextOptimization enables context window optimization.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.ContextOptimizationConfig"
+                        }
+                    ]
                 },
                 "hitlGuard": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.HitlGuardConfig"
+                    "description": "HitlGuard enables requiring human approval for protected tools.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HitlGuardConfig"
+                        }
+                    ]
                 },
                 "loopDetection": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.LoopDetectionConfig"
+                    "description": "LoopDetection enables detection of repeated identical agent calls.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.LoopDetectionConfig"
+                        }
+                    ]
                 },
                 "systemNotices": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.SystemNoticesConfig"
+                    "description": "SystemNotices enables emitting warnings as system notices.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.SystemNoticesConfig"
+                        }
+                    ]
                 }
             }
         },
@@ -2168,15 +2778,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "enabled": {
+                    "description": "Enabled turns the hitl guard on or off.",
                     "type": "boolean"
                 },
                 "protectedTools": {
+                    "description": "ProtectedTools lists tools requiring human approval.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "ttlMinutes": {
+                    "description": "TtlMinutes is how long an approval stays valid, in minutes.",
                     "type": "integer"
                 }
             }
@@ -2185,21 +2798,27 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "enableCosineSimilarity": {
+                    "description": "EnableCosineSimilarity matches repeated calls by cosine similarity.",
                     "type": "boolean"
                 },
                 "enableExactMatch": {
+                    "description": "EnableExactMatch matches repeated identical calls exactly.",
                     "type": "boolean"
                 },
                 "enabled": {
+                    "description": "Enabled turns loop detection on or off.",
                     "type": "boolean"
                 },
                 "maxConsecutiveIdenticalCalls": {
+                    "description": "MaxConsecutiveIdenticalCalls caps consecutive identical calls before warning.",
                     "type": "integer"
                 },
                 "similarityThreshold": {
+                    "description": "SimilarityThreshold is the 0-1 similarity score that counts as a match.",
                     "type": "number"
                 },
                 "windowSize": {
+                    "description": "WindowSize is the number of recent calls examined for loops.",
                     "type": "integer"
                 }
             }
@@ -2208,18 +2827,23 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "emitBudgetWarnings": {
+                    "description": "EmitBudgetWarnings emits budget limit warnings as notices.",
                     "type": "boolean"
                 },
                 "emitCompactionNotices": {
+                    "description": "EmitCompactionNotices emits context compaction notices.",
                     "type": "boolean"
                 },
                 "emitLoopWarnings": {
+                    "description": "EmitLoopWarnings emits loop detection warnings as notices.",
                     "type": "boolean"
                 },
                 "emitPacingWarnings": {
+                    "description": "EmitPacingWarnings emits pacing throttling warnings as notices.",
                     "type": "boolean"
                 },
                 "enabled": {
+                    "description": "Enabled turns system notices on or off.",
                     "type": "boolean"
                 }
             }
@@ -2228,14 +2852,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "api_key": {
+                    "description": "APIKey is the stored provider API key; always empty on read.",
                     "type": "string",
                     "example": ""
                 },
                 "base_url": {
+                    "description": "BaseURL is a custom provider base URL.",
                     "type": "string",
                     "example": "https://opencode.ai/zen/go/v1"
                 },
                 "default_features": {
+                    "description": "DefaultFeatures lists the enabled agent features.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -2246,14 +2873,17 @@ const docTemplate = `{
                     ]
                 },
                 "default_mode": {
+                    "description": "DefaultMode is the preferred chat mode: standard|agent.",
                     "type": "string",
                     "example": "agent"
                 },
                 "default_model": {
+                    "description": "DefaultModel is the preferred model ID or name.",
                     "type": "string",
                     "example": "gpt-4o"
                 },
                 "default_skills": {
+                    "description": "DefaultSkills lists the enabled agent skills.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -2264,16 +2894,24 @@ const docTemplate = `{
                     ]
                 },
                 "harness_toggles": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                    "description": "HarnessToggles holds agent harness feature toggles.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                        }
+                    ]
                 },
                 "has_api_key": {
+                    "description": "HasAPIKey reports whether a provider API key is stored.",
                     "type": "boolean"
                 },
                 "provider_type": {
+                    "description": "ProviderType is the LLM provider type, e.g. opencode-go.",
                     "type": "string",
                     "example": "opencode-go"
                 },
                 "user_id": {
+                    "description": "UserID is the owning user's ID; 0 when these are platform defaults.",
                     "type": "integer",
                     "example": 1
                 }
@@ -2283,27 +2921,118 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "description": "Description is the feature description.",
                     "type": "string"
                 },
                 "id": {
+                    "description": "ID is the feature identifier.",
                     "type": "string"
                 },
                 "locked": {
+                    "description": "Locked is true when the user's tier cannot access the feature.",
                     "type": "boolean"
                 },
                 "name": {
+                    "description": "Name is the display name.",
+                    "type": "string"
+                }
+            }
+        },
+        "echo-backend_internal_service_strategy.CatalogResponse": {
+            "type": "object",
+            "properties": {
+                "strategies": {
+                    "description": "Strategies lists the strategy catalog entries.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyRegistryEntry"
+                    }
+                }
+            }
+        },
+        "echo-backend_internal_service_strategy.StrategyRegistryEntry": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Name is the strategy name.",
+                    "type": "string"
+                },
+                "versions": {
+                    "description": "Versions lists the available versions of the strategy.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyVersionInfo"
+                    }
+                }
+            }
+        },
+        "echo-backend_internal_service_strategy.StrategyVersionInfo": {
+            "type": "object",
+            "properties": {
+                "aliases": {
+                    "description": "Aliases lists alternative version names.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rollout": {
+                    "description": "Rollout is the gateway rollout percentage 0-100, omitted when unconfigured.",
+                    "type": "number"
+                },
+                "status": {
+                    "description": "Status is the version lifecycle state: active|deprecated.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Version is the strategy version identifier, e.g. nlah:v1.",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_admin.AdminStatsResponse": {
+            "type": "object",
+            "properties": {
+                "active_keys": {
+                    "description": "Number of active API keys",
+                    "type": "integer"
+                },
+                "total_keys": {
+                    "description": "Total number of API keys",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handler_admin.CreateAPIKeyResponse": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "description": "Stored API key record",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
+                        }
+                    ]
+                },
+                "key": {
+                    "description": "Full secret key shown only once",
                     "type": "string"
                 }
             }
         },
         "internal_handler_admin.createAPIKeyRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "name": {
+                    "description": "Display name for the API key",
                     "type": "string",
                     "example": "Production Key"
                 },
                 "scopes": {
+                    "description": "Optional permission scopes",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -2315,14 +3044,49 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler_auth.loginRequest": {
+        "internal_handler_aimodel.ModelsResponse": {
             "type": "object",
             "properties": {
+                "models": {
+                    "description": "Models lists the available AI models.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_ai.ModelInfo"
+                    }
+                }
+            }
+        },
+        "internal_handler_auth.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "description": "JWT access token (also set as an HTTP-only cookie)",
+                    "type": "string"
+                },
+                "user": {
+                    "description": "Authenticated user profile",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_auth.User"
+                        }
+                    ]
+                }
+            }
+        },
+        "internal_handler_auth.loginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
                 "email": {
+                    "description": "User email address",
                     "type": "string",
                     "example": "jane@example.com"
                 },
                 "password": {
+                    "description": "User password",
                     "type": "string",
                     "example": "P@ssw0rd!23"
                 }
@@ -2330,16 +3094,24 @@ const docTemplate = `{
         },
         "internal_handler_auth.registerRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
             "properties": {
                 "email": {
+                    "description": "User email address",
                     "type": "string",
                     "example": "jane@example.com"
                 },
                 "name": {
+                    "description": "User display name",
                     "type": "string",
                     "example": "Jane Doe"
                 },
                 "password": {
+                    "description": "User password",
                     "type": "string",
                     "example": "P@ssw0rd!23"
                 }
@@ -2347,56 +3119,123 @@ const docTemplate = `{
         },
         "internal_handler_chat.ChatRequest": {
             "type": "object",
+            "required": [
+                "message"
+            ],
             "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "features": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "history": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handler_chat.HistoryMessage"
-                    }
-                },
                 "message": {
-                    "type": "string"
-                },
-                "missionId": {
-                    "type": "string"
+                    "description": "Message is the user's chat message. First message in a session.",
+                    "type": "string",
+                    "example": "Build a REST API with Express"
                 },
                 "mode": {
-                    "type": "string"
+                    "description": "Mode is an optional agent mode override. When set, it takes precedence\nover the user's default mode.",
+                    "type": "string",
+                    "example": "agent"
                 },
                 "model": {
-                    "type": "string"
+                    "description": "Model is an optional model override. When set, it takes precedence over\nthe user's default model. Clients without user identity (e.g. the Discord\nbot's per-channel selection) use this.",
+                    "type": "string",
+                    "example": "nvidia/nemotron-3-nano-4b"
                 },
                 "sessionId": {
+                    "description": "SessionID is an optional session ID. Omit to start a new session (the\nbackend creates it and returns its ID in the X-Session-ID response\nheader). Include to continue an existing session.",
+                    "type": "string",
+                    "example": "sess_abc123"
+                }
+            }
+        },
+        "internal_handler_chat.SkillModifiers": {
+            "type": "object",
+            "properties": {
+                "compression": {
+                    "description": "Compression indicates whether the skill compresses its context.",
+                    "type": "boolean"
+                },
+                "maxTokens": {
+                    "description": "MaxTokens is the maximum number of tokens the skill may generate.",
+                    "type": "integer"
+                },
+                "temperature": {
+                    "description": "Temperature is the sampling temperature for the skill's model calls.",
+                    "type": "number"
+                }
+            }
+        },
+        "internal_handler_chat.SkillResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Description is a human-readable summary of what the skill does.",
                     "type": "string"
                 },
-                "skills": {
+                "modifiers": {
+                    "description": "Modifiers are optional tuning parameters applied when the skill runs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_chat.SkillModifiers"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "Name is the unique identifier of the skill.",
+                    "type": "string"
+                },
+                "preferredTools": {
+                    "description": "PreferredTools lists tools the skill prefers to use, if any.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "internal_handler_llmops.PromoteResponse": {
+            "type": "object",
+            "properties": {
+                "promoted_version": {
+                    "description": "PromotedVersion is the version promoted to production.",
+                    "type": "integer"
                 },
-                "strategyVersion": {
+                "status": {
+                    "description": "Status is the outcome of the promotion.",
                     "type": "string"
                 }
             }
         },
-        "internal_handler_chat.HistoryMessage": {
+        "internal_handler_llmops.PromptTemplatesResponse": {
             "type": "object",
             "properties": {
-                "content": {
-                    "type": "string"
+                "templates": {
+                    "description": "Templates are the prompt templates of the tenant.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptTemplate"
+                    }
+                }
+            }
+        },
+        "internal_handler_llmops.PromptVersionsResponse": {
+            "type": "object",
+            "properties": {
+                "versions": {
+                    "description": "Versions is the version history of the template.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                    }
+                }
+            }
+        },
+        "internal_handler_llmops.RollbackResponse": {
+            "type": "object",
+            "properties": {
+                "rolled_back_to": {
+                    "description": "RolledBackTo is the version the template was rolled back to.",
+                    "type": "integer"
                 },
-                "role": {
+                "status": {
+                    "description": "Status is the outcome of the rollback.",
                     "type": "string"
                 }
             }
@@ -2405,9 +3244,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "description": "Description is a human-readable description of the new template.",
                     "type": "string"
                 },
                 "name": {
+                    "description": "Name is the display name of the new template.",
                     "type": "string"
                 }
             }
@@ -2416,15 +3257,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "bound_tools": {
+                    "description": "BoundTools are the tools the prompt is allowed to call.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "system_prompt": {
+                    "description": "SystemPrompt is the full system prompt text.",
                     "type": "string"
                 },
                 "variables": {
+                    "description": "Variables are the template variables used by the prompt.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -2432,30 +3276,168 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler_memory.episodicRecallRequest": {
+        "internal_handler_memory.EpisodicRecallResponse": {
             "type": "object",
             "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
+                "entries": {
+                    "description": "Entries are the stored entry contents (free-form JSON, may be strings).",
+                    "type": "array",
+                    "items": {}
                 },
                 "session_id": {
+                    "description": "SessionID is the session the entries were recalled for.",
                     "type": "string"
+                },
+                "total": {
+                    "description": "Total is the total number of entries stored for the session.",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handler_memory.ProceduralGetResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Content is the procedural memory content.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "CreatedAt is when the entry was created.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID is the procedural memory identifier.",
+                    "type": "string"
+                },
+                "metadata": {
+                    "description": "Metadata is the free-form metadata attached to the entry."
+                },
+                "name": {
+                    "description": "Name is the procedural memory name.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "UpdatedAt is when the entry was last updated.",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.ProceduralStoreResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the generated memory entry ID.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is always \"recorded\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.SemanticSearchResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "description": "Results are the matching semantic memory entries.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handler_memory.SemanticSearchResult"
+                    }
+                }
+            }
+        },
+        "internal_handler_memory.SemanticSearchResult": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Content is the semantic memory content.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "CreatedAt is when the entry was created.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID is the semantic memory identifier.",
+                    "type": "string"
+                },
+                "metadata": {
+                    "description": "Metadata is the free-form metadata attached to the entry."
+                }
+            }
+        },
+        "internal_handler_memory.SemanticStoreResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the generated memory entry ID.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is always \"indexed\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.StoreEpisodicResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the generated memory entry ID.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is always \"stored\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_memory.episodicRecallRequest": {
+            "type": "object",
+            "required": [
+                "session_id"
+            ],
+            "properties": {
+                "limit": {
+                    "description": "Limit is the maximum number of entries to return (default 50).",
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "description": "Offset is the number of entries to skip (default 0).",
+                    "type": "integer",
+                    "example": 0
+                },
+                "session_id": {
+                    "description": "SessionID is the session identifier to recall entries for.",
+                    "type": "string",
+                    "example": "sess_abc123"
                 }
             }
         },
         "internal_handler_memory.episodicStoreRequest": {
             "type": "object",
+            "required": [
+                "content",
+                "session_id"
+            ],
             "properties": {
-                "content": {},
-                "metadata": {},
+                "content": {
+                    "description": "Content is the free-form episodic memory content."
+                },
+                "metadata": {
+                    "description": "Metadata is optional free-form metadata attached to the entry."
+                },
                 "session_id": {
-                    "type": "string"
+                    "description": "SessionID is the session identifier the entry is stored under.",
+                    "type": "string",
+                    "example": "sess_abc123"
                 },
                 "ttl_seconds": {
-                    "type": "integer"
+                    "description": "TTL is the optional time-to-live in seconds for the entry list (default 24 hours).",
+                    "type": "integer",
+                    "example": 86400
                 }
             }
         },
@@ -2463,67 +3445,100 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "type": "string"
+                    "description": "ID is the procedural memory identifier; at least one of ID or Name is required.",
+                    "type": "string",
+                    "example": "proc_123"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Name is the procedural memory name; at least one of ID or Name is required.",
+                    "type": "string",
+                    "example": "checkout_flow"
                 }
             }
         },
         "internal_handler_memory.proceduralStoreRequest": {
             "type": "object",
+            "required": [
+                "id",
+                "name"
+            ],
             "properties": {
                 "content": {
+                    "description": "Content is the procedural memory content (required).",
                     "type": "string"
                 },
                 "id": {
-                    "type": "string"
+                    "description": "ID is the procedural memory identifier (required).",
+                    "type": "string",
+                    "example": "proc_123"
                 },
                 "metadata": {
+                    "description": "Metadata is optional free-form metadata attached to the entry.",
                     "type": "object",
                     "additionalProperties": true
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Name is the procedural memory name (required).",
+                    "type": "string",
+                    "example": "checkout_flow"
                 }
             }
         },
         "internal_handler_memory.semanticSearchRequest": {
             "type": "object",
+            "required": [
+                "query"
+            ],
             "properties": {
                 "embedding": {
+                    "description": "Embedding is the optional vector embedding used for the search.",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "limit": {
-                    "type": "integer"
+                    "description": "Limit is the maximum number of results to return (default 10).",
+                    "type": "integer",
+                    "example": 10
                 },
                 "query": {
-                    "type": "string"
+                    "description": "Query is the search text (required).",
+                    "type": "string",
+                    "example": "how to reset password"
                 },
                 "threshold": {
-                    "type": "number"
+                    "description": "Threshold is the optional similarity threshold for the search.",
+                    "type": "number",
+                    "example": 0.5
                 }
             }
         },
         "internal_handler_memory.semanticStoreRequest": {
             "type": "object",
+            "required": [
+                "content",
+                "id"
+            ],
             "properties": {
                 "content": {
+                    "description": "Content is the semantic memory content (required).",
                     "type": "string"
                 },
                 "embedding": {
+                    "description": "Embedding is the optional vector embedding of the content.",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "id": {
-                    "type": "string"
+                    "description": "ID is the semantic memory identifier (required).",
+                    "type": "string",
+                    "example": "sem_123"
                 },
                 "metadata": {
+                    "description": "Metadata is optional free-form metadata attached to the entry.",
                     "type": "object",
                     "additionalProperties": true
                 }
@@ -2533,10 +3548,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "strategyVersion": {
+                    "description": "Strategy version from the catalog, e.g. nlah:v1; validated against catalog",
                     "type": "string",
                     "example": "nlah:v1"
                 },
                 "title": {
+                    "description": "Session title; defaults to 'New Chat' when empty",
                     "type": "string",
                     "example": "Build a REST API with Express"
                 }
@@ -2546,7 +3563,95 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "model": {
+                    "description": "Model is the model ID used for generation; falls back to the configured default when empty.",
                     "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.GenerateTitleResponse": {
+            "type": "object",
+            "properties": {
+                "cached": {
+                    "description": "Cached is true when the response was served from the existing session metadata.",
+                    "type": "boolean"
+                },
+                "summary": {
+                    "description": "Summary is a one-sentence summary of the session conversation.",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Title is the generated session title.",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.GetMessagesResponse": {
+            "type": "object",
+            "properties": {
+                "messages": {
+                    "description": "List of session messages",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_chat.Message"
+                    }
+                },
+                "pagination": {
+                    "description": "Pagination metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+                        }
+                    ]
+                }
+            }
+        },
+        "internal_handler_session.ListSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "description": "Pagination metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+                        }
+                    ]
+                },
+                "sessions": {
+                    "description": "List of active sessions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+                    }
+                }
+            }
+        },
+        "internal_handler_session.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Human-readable result message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Always \"success\"",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_session.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "description": "Maximum number of items to return (0 = no limit)",
+                    "type": "integer"
+                },
+                "offset": {
+                    "description": "Number of items to skip before returning results",
+                    "type": "integer"
+                },
+                "total": {
+                    "description": "Total number of available items",
+                    "type": "integer"
                 }
             }
         },
@@ -2554,8 +3659,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "provider_config": {
+                    "description": "Provider configuration used for consolidation",
                     "type": "object",
                     "additionalProperties": true
+                }
+            }
+        },
+        "internal_handler_session.UpdateSessionRequest": {
+            "type": "object",
+            "properties": {
+                "summary": {
+                    "description": "New session summary; optional, at least one of title or summary is required",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "New session title; optional, at least one of title or summary is required",
+                    "type": "string"
                 }
             }
         },
@@ -2563,36 +3682,49 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "api_key": {
+                    "description": "APIKey is a new API key to store; ignored if keep_api_key is true.",
                     "type": "string"
                 },
                 "base_url": {
+                    "description": "BaseURL is a custom provider base URL.",
                     "type": "string"
                 },
                 "default_features": {
+                    "description": "DefaultFeatures lists the enabled agent features.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "default_mode": {
+                    "description": "DefaultMode is the preferred chat mode: standard|agent.",
                     "type": "string"
                 },
                 "default_model": {
+                    "description": "DefaultModel is the preferred model ID or name.",
                     "type": "string"
                 },
                 "default_skills": {
+                    "description": "DefaultSkills lists the enabled agent skills.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "harness_toggles": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                    "description": "HarnessToggles holds agent harness feature toggles.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                        }
+                    ]
                 },
                 "keep_api_key": {
+                    "description": "KeepAPIKey keeps the existing API key instead of replacing it.",
                     "type": "boolean"
                 },
                 "provider_type": {
+                    "description": "ProviderType is the LLM provider type, e.g. opencode-go.",
                     "type": "string"
                 }
             }
@@ -2603,6 +3735,12 @@ const docTemplate = `{
             "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
             "type": "apiKey",
             "name": "Authorization",
+            "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
             "in": "header"
         }
     }

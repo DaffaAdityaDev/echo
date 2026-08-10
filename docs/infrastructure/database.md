@@ -114,7 +114,7 @@ ephemeral agent/mission state. Both are defined in `docker-compose.yml`
 | Port             | 6379                                                       |
 | Connection       | redis://echo-redis:6379                                    |
 | Usage            | Features/skills cache (10m TTL), episodic memory (24h      |
-|                  |   TTL), Pub/Sub streaming (SaaS mode)                      |
+|                  |   TTL), prompt cache, session lock        |
 +------------------+------------------------------------------------------------+
 
 ### ChromaDB `[Planned — not deployed]`

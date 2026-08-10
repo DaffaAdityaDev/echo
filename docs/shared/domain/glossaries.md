@@ -373,9 +373,9 @@ and produces final answer. Max 2 sentences per thought. No fluff.
 *Source: `agent/src/core/agent/strategies/prompts.ts:5-24`*
 
 **Redis**
-In-memory data store used for: feature catalog cache (10m TTL), mission state
-storage (saas mode), Pub/Sub for mission log streaming (saas mode).
-*Source: `backend/internal/handler/chat/handler.go:343-393`*
+In-memory data store used for: feature/skill catalog cache (10m TTL), prompt
+template caching (agent), and the gateway's cross-instance session turn lock.
+*Source: `backend/internal/handler/chat/handler.go`*
 
 ### S
 

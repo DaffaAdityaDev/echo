@@ -20,7 +20,8 @@ func NewHandler(strategySvc *stratSvc.Service) *Handler {
 // @Description Returns the strategy catalog merged with gateway rollout percentages
 // @Tags Strategies
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Success 200 {object} stratSvc.CatalogResponse "Strategy catalog with rollout percentages"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/strategies [get]
 func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
@@ -47,5 +48,5 @@ func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
 		}
 	}
 
-	return handlerutil.RespondSuccess(c, fiber.Map{"strategies": catalog})
+	return handlerutil.RespondSuccess(c, stratSvc.CatalogResponse{Strategies: catalog})
 }

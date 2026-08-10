@@ -200,8 +200,8 @@ LANGFUSE_BASE_URL=http://localhost:3000
 ENABLE_MCP=false             # when true + MCP_SERVER_URL set: index.ts connects the MCP client (connectMCPServer)
 ENABLE_REST_TOOLS=false      # RESERVED — schema-only; per-session REST tools are wired via config.restTools in mission.controller.ts
 
-# Redis mission event store (Active — powers GET /api/v1/missions/:id/stream replay + live tail)
-# If unreachable, mission stream endpoints return 503; chat still works.
+# Redis (optional — prompt template caching in the agent; the gateway uses it
+# for skill-catalog caching and the cross-instance session turn lock)
 REDIS_URL=redis://localhost:6379
 ```
 
@@ -218,7 +218,7 @@ DEBUG_PROMPT:            z.coerce.boolean().default(false)
 INTERNAL_AUTH_TOKEN:     z.string()              // REQUIRED (no default)
 SERVICE_JWT_SECRET:      z.string().min(32).default("change-this-to...")
 BACKEND_URL:             z.string().default("http://localhost:8080")
-REDIS_URL:               z.string().url().default("redis://localhost:6379")  // Mission event store (Active)
+REDIS_URL:               z.string().url().default("redis://localhost:6379")  // Prompt cache + gateway session lock (optional)
 MCP_SERVER_URL:          z.string().optional()   // MCP SSE endpoint — consumed at startup when ENABLE_MCP
 ENABLE_MCP:              z.coerce.boolean().default(false)
 ENABLE_REST_TOOLS:       z.coerce.boolean().default(false)  // RESERVED — schema-only, never read at runtime
@@ -301,7 +301,7 @@ SERVICE_JWT_SECRET=change-this-to-a-secure-service-jwt-secret-min32chars
 BACKEND_URL=http://echo-backend:8080
 STATE_BACKEND=backend
 LLM_MODEL_API_URL=http://host.docker.internal:1234/v1   # read by agent /api/models proxy
-REDIS_URL=redis://echo-redis:6379                        # mission event store (Active)
+REDIS_URL=redis://echo-redis:6379                        # session event store (Active)
 
 # Provider API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENCODE_GO_API_KEY,
 # LM_STUDIO_BASE_URL, LM_STUDIO_API_KEY, CORS_ORIGIN) were removed from the

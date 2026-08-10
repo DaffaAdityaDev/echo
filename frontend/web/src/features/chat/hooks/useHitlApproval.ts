@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { missionApi } from "../services/chat-api";
+import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 
 export function useHitlApproval() {
@@ -10,8 +10,8 @@ export function useHitlApproval() {
     if (!pending) return;
     const controller = new AbortController();
     try {
-      await missionApi.approve(
-        pending.missionId,
+      await sessionApi.approve(
+        pending.sessionId,
         { approvalId: pending.approvalId, decision: "approve" },
         () => {},
         controller.signal,
@@ -28,8 +28,8 @@ export function useHitlApproval() {
       if (!pending) return;
       const controller = new AbortController();
       try {
-        await missionApi.deny(
-          pending.missionId,
+        await sessionApi.deny(
+          pending.sessionId,
           { approvalId: pending.approvalId, decision: "deny", reason },
           () => {},
           controller.signal,

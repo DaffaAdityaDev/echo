@@ -217,11 +217,11 @@
             "description": "Billing organization partition",
             "example": "org_engineering"
           },
-          "missionId": {
+          "sessionId": {
             "type": "string",
             "nullable": true,
-            "description": "Optional mission ID for resuming existing missions",
-            "example": "mission_a1b2c3d4"
+            "description": "Session ID for run continuity; omitted = a new run id is generated",
+            "example": "session_a1b2c3d4"
           },
           "model": {
             "type": "string",

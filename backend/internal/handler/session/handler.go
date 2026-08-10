@@ -69,22 +69,45 @@ func NewHandler(cfg *cfgmodel.Config, sessionRepo SessionRepo, consolidationSvc 
 }
 
 type CreateSessionRequest struct {
-	Title           string `json:"title" example:"Build a REST API with Express"`
+	// Session title; defaults to 'New Chat' when empty
+	Title string `json:"title" example:"Build a REST API with Express"`
+	// Strategy version from the catalog, e.g. nlah:v1; validated against catalog
 	StrategyVersion string `json:"strategyVersion,omitempty" example:"nlah:v1"`
 }
 
 type PaginationMeta struct {
-	Limit  int `json:"limit"`
+	// Maximum number of items to return (0 = no limit)
+	Limit int `json:"limit"`
+	// Number of items to skip before returning results
 	Offset int `json:"offset"`
-	Total  int `json:"total"`
+	// Total number of available items
+	Total int `json:"total"`
 }
 
 type ListSessionsResponse struct {
-	Sessions   []*chatmodel.Session `json:"sessions"`
-	Pagination PaginationMeta       `json:"pagination"`
+	// List of active sessions
+	Sessions []*chatmodel.Session `json:"sessions"`
+	// Pagination metadata
+	Pagination PaginationMeta `json:"pagination"`
 }
 
 type GetMessagesResponse struct {
-	Messages   []*chatmodel.Message `json:"messages"`
-	Pagination PaginationMeta       `json:"pagination"`
+	// List of session messages
+	Messages []*chatmodel.Message `json:"messages"`
+	// Pagination metadata
+	Pagination PaginationMeta `json:"pagination"`
+}
+
+type UpdateSessionRequest struct {
+	// New session title; optional, at least one of title or summary is required
+	Title string `json:"title"`
+	// New session summary; optional, at least one of title or summary is required
+	Summary string `json:"summary"`
+}
+
+type MessageResponse struct {
+	// Always "success"
+	Status string `json:"status"`
+	// Human-readable result message
+	Message string `json:"message"`
 }

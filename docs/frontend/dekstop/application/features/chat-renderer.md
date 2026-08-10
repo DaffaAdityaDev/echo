@@ -97,7 +97,7 @@ src/renderer/src/components/Chat.tsx:49
 src/renderer/src/components/Chat.tsx:56
 ```
 
-- Mutation function: `POST /chat` with `{ message, model }` payload
+- Mutation function: `POST /chat` with `{ message, sessionId }` payload (no sessionId = new session)
 - On success: appends the agent's reply to the message list
 - On error: appends an error card with the error message
 - **Console logging** — `console.log("Fetching models...")` di awal fetch (`Chat.tsx:36`), `console.error` saat error (`Chat.tsx:41`) untuk debugging

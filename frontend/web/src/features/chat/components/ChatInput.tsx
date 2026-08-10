@@ -3,6 +3,9 @@
 import { Globe, Loader2, Paperclip, Send, Sliders, Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
+import { settingsApi } from "@/features/settings/services/settings-api";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
+import type { AgentConfig } from "@/features/settings/types";
 import { cn } from "@/utils/cn";
 import { CHAT_MODES } from "../constants";
 import { useChatStore } from "../stores/chatStore";
@@ -19,19 +22,31 @@ export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps)
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const mode = useChatStore((s) => s.mode);
-  const setMode = useChatStore((s) => s.setMode);
-  const selectedFeatures = useChatStore((s) => s.selectedFeatures);
-  const setSelectedFeatures = useChatStore((s) => s.setSelectedFeatures);
+  const mode = useSettingsStore((s) => s.config.defaultMode);
+  const selectedFeatures = useSettingsStore((s) => s.config.defaultFeatures);
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
 
   const isWebSearchActive = selectedFeatures.includes("web_search");
 
-  const toggleWebSearch = () => {
-    if (isWebSearchActive) {
-      setSelectedFeatures(selectedFeatures.filter((f) => f !== "web_search"));
-    } else {
-      setSelectedFeatures([...selectedFeatures, "web_search"]);
+  const persistConfig = async (partial: Partial<AgentConfig>) => {
+    const merged = { ...useSettingsStore.getState().config, ...partial };
+    useSettingsStore.getState().setConfig(partial);
+    try {
+      await settingsApi.update(merged);
+    } catch (err) {
+      console.warn("[Settings] Failed to persist config change:", err);
     }
+  };
+
+  const toggleMode = () => {
+    void persistConfig({ defaultMode: mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT });
+  };
+
+  const toggleWebSearch = () => {
+    const nextFeatures = isWebSearchActive
+      ? selectedFeatures.filter((f) => f !== "web_search")
+      : [...selectedFeatures, "web_search"];
+    void persistConfig({ defaultFeatures: nextFeatures });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,9 +134,10 @@ export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps)
             {/* Mode Toggle Pill */}
             <button
               type="button"
-              onClick={() => setMode(mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT)}
+              onClick={toggleMode}
+              disabled={!activeSessionId}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed",
                 mode === CHAT_MODES.AGENT
                   ? "bg-blue-50 border-gb-bright-blue text-gb-blue shadow-xs"
                   : "bg-slate-50 border-border text-slate-600 hover:text-foreground hover:bg-surface-hover",
@@ -135,8 +151,9 @@ export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps)
             <button
               type="button"
               onClick={toggleWebSearch}
+              disabled={!activeSessionId}
               className={cn(
-                "p-1.5 rounded-lg transition-colors border cursor-pointer",
+                "p-1.5 rounded-lg transition-colors border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                 isWebSearchActive
                   ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
                   : "bg-transparent border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",

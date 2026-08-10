@@ -85,7 +85,7 @@ Request Parsing
   }
 
   // Path parameters
-  missionID := c.Params("missionId")
+  sessionID := c.Params("id")
 
   // Query parameters (via mode, etc.)
 

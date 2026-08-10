@@ -28,6 +28,7 @@ export interface SchemaObject {
   enum?: string[];
   additionalProperties?: unknown;
   $ref?: string;
+  allOf?: unknown[];
 }
 
 export interface Parameter {
@@ -55,6 +56,7 @@ export interface Endpoint {
   requestBodySchema: SchemaObject | null;
   responses: Response[];
   security: Record<string, string[]>[];
+  produces?: string[];
 }
 
 export interface TagGroup {

@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Streaming
   Service   : backend
-  Version   : 1.3
-  Updated   : 2026-08-06
+  Version   : 1.4
+  Updated   : 2026-08-07 (chat request trimmed to {message, sessionId}; config resolved from user_preferences)
 ================================================================================
 
 Overview
@@ -16,14 +16,10 @@ proxy/relay: it receives chat requests from the client, forwards them to the
 agent with resolved provider configuration, and returns responses as a
 Server-Sent Events (SSE) stream.
 
-Two streaming modes are available:
-  - Local mode : Reverse-proxy directly to the Hono SSE stream
-                 (`GET {agent}/api/v1/missions/{id}/stream`, with `after`
-                 cursor pass-through). The agent reads the Redis-backed
-                 mission event store.
-  - SaaS mode  : Read the Redis Stream `mission:events:{missionId}`
-                 directly (XRANGE replay from the `after` cursor, then
-                 XREAD BLOCK live tail) — no agent round-trip.
+Single streaming mode: the gateway relays the agent's live SSE stream. There
+is no Redis session event store and no replay — a disconnected client's
+mission is cancelled (token safety), and the DB snapshot is the recovery
+path.
 
 File Structure
 --------------
@@ -31,7 +27,7 @@ File Structure
 +------------------------------------------+--------------------------------------------+
 | Path                                     | Description                                |
 +------------------------------------------+--------------------------------------------+
-| internal/handler/chat/handler.go         | ChatHandler - HandleChat, StreamMissionLogs|
+| internal/handler/chat/handler.go         | ChatHandler - HandleChat                   |
 |                                          | HandleGetFeatures, HandleGetSkills         |
 | internal/service/aimodel/service.go        | ModelService - resolve model to config     |
 | internal/service/consolidation/service.go| ConsolidationService - token threshold &   |
@@ -51,10 +47,10 @@ Flow Diagram - Chat Stream
    │  Client  │       │ Go Backend(Fiber)│       │ Agent(Hono)  │       │ LLM Provider │
    └────┬─────┘       └────────┬─────────┘       └──────┬───────┘       └──────┬───────┘
         │ POST /api/v1/chat    │                        │                      │
-        │ {message,model,      │                        │                      │
-        │  sessionId,missionId,│                        │                      │
-        │  history,features,   │                        │                      │
-        │  skills}             │                        │                      │
+        │ {message, sessionId} │                        │                      │
+        │  (sessionId opt)     │                        │                      │
+        │                      │                        │                      │
+        │                      │                        │                      │
         │─────────────────────►│                        │                      │
         │                      │  Validate skills vs    │                      │
         │                      │  catalog (Redis/Hono)  │                      │
@@ -74,7 +70,7 @@ Flow Diagram - Chat Stream
         │                      │  mission?mode=...      │                      │
         │                      │  {message,history,     │                      │
         │                      │   provider_config,     │                      │
-        │                      │   missionId,features,  │                      │
+        │                      │   session_id,features, │                      │
         │                      │   skills,traceparent}  │                      │
         │                      │───────────────────────►│                      │
         │                      │                        │  LLM call            │
@@ -86,6 +82,10 @@ Flow Diagram - Chat Stream
         │  (chunked transfer)  │                        │                      │
          │                      │  Before stream:        │                      │
          │                      │    Auto-create session │                      │
+         │                      │    Set X-Session-ID    │                      │
+         │                      │      response header   │                      │
+         │                      │      (always — session │                      │
+         │                      │      id in use)        │                      │
          │                      │    Save user msg (PG)  │                      │
          │                      │    Insert assistant    │                      │
          │                      │      placeholder       │                      │
@@ -108,8 +108,7 @@ Message Flow - HandleChat
 
    POST /api/v1/chat
      │
-     ├─ Parse JSON body -> ChatRequest{Message, Model, Mode, SessionID,
-     │     MissionID, History, Features, Skills, StrategyVersion}
+     ├─ Parse JSON body -> ChatRequest{Message, SessionID}
      │
      ├─ Parse "traceparent" header for distributed tracing
      │     └─ If valid: inject remote span context
@@ -122,17 +121,19 @@ Message Flow - HandleChat
      │
      ├─ Read X-User-Tier header (default: "pro")
      │
-     ├─ Feature gating via FeaturesSvc.ValidateRequest (when features present):
+     ├─ Feature gating via FeaturesSvc.ValidateRequest (features resolved
+     │      from user_preferences — never from the request):
      │      Fetch catalog from Redis cache -> Hono fallback
      │      Build catalog map[ID]Feature
      │      For each requested feature ID:
      │        If user tier is "free" and feature requires "pro":
      │          403 { "error": "Feature 'X' requires a Pro subscription." }
      │
-     ├─ Resolve model -> ProviderConfig via ModelService (LOCAL, no network)
+     ├─ Resolve model (user_preferences) -> ProviderConfig via ModelService
+     │     (LOCAL, no network)
      │     └─ On failure: 400 { "error": "Provider config error: ..." }
      │
-     ├─ Validate skills (when len(req.Skills) > 0):
+     ├─ Validate skills (when user_preferences list skills):
      │      Fetch skill catalog via GetSkills (Redis cache -> Hono fallback)
      │      Build map[string]bool from catalog names
      │      For each requested skill:
@@ -157,17 +158,18 @@ Message Flow - HandleChat
      │        Strip thought, tool_call, tool_result roles
      │
       │
-      ├─ Auto-create session (when req.SessionID == ""):
-      │     CreateSession(ctx, userID, "New Chat")
-      │     Set req.SessionID = session.ID
-      │
-      ├─ Strategy resolution [Active] — AFTER session load/auto-create:
-      │     ResolveVersion(pinnedVersion, req.StrategyVersion, userID)
-      │     If pinned version set -> use it (backward compatibility)
-      │     Else -> resolve via rollout config (settings table)
-      │     Pin written to session when empty
-      │     Deprecated versions excluded from new-session resolution.
-      │     See docs/shared/patterns/strategy-lifecycle.md
+       ├─ Auto-create session (when req.SessionID == ""):
+       │     CreateSession(ctx, userID, "New Chat")
+       │     Set req.SessionID = session.ID
+       │     X-Session-ID response header = req.SessionID
+       │
+       ├─ Strategy resolution [Active] — AFTER session load/auto-create:
+       │     ResolveVersion(pinnedVersion, userID)
+       │     If pinned version set -> use it (backward compatibility)
+       │     Else -> resolve via rollout config (settings table)
+       │     Pin written to session when empty
+       │     Deprecated versions excluded from new-session resolution.
+       │     See docs/shared/patterns/strategy-lifecycle.md
       │
       ├─ Acquire per-session lock (serializes concurrent turns)
       │     nextTurn = GetMaxTurnNumber(sessionID) + 1  (inside the lock)
@@ -179,12 +181,12 @@ Message Flow - HandleChat
       │     Returns assistantMsgID for later updates
       │
        └─ Build agent payload:
-      │      user_id, message, model, history, provider_config, missionId,
+      │      user_id, message, model, history, provider_config, session_id,
       │      features (ALWAYS included, guaranteed [] not null),
       │      skills (only when non-empty),
       │      strategy_version (resolved version string, e.g. "nlah:v1")
      │
-     ├─ POST to agent /api/generate-mission?mode=<Mode>
+     ├─ POST to agent /api/generate-mission?mode=<Mode (from preferences)>
      │      Headers: Content-Type, X-Internal-Token, traceparent
      │
      │   ┌─ Error: 500 { "error": "Agent service unreachable" }
@@ -277,7 +279,8 @@ Skill Catalog — HandleGetSkills
               │
               └─ Store in Redis with 10 min TTL -> return
 
-  Used by HandleChat to validate req.Skills against known skill names.
+  Used by HandleChat to validate the user's skills (from user_preferences)
+  against known skill names.
 
   Route registration (router.go:144): api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 
@@ -347,44 +350,17 @@ streaming, ensuring data survival on page refresh or disconnect.
     - No stale 'streaming' messages (marked 'interrupted' before new turn)
     - Flush goroutine is joined before the final write (no race condition)
 
-Mission Log Streaming - StreamMissionLogs
------------------------------------------
+Disconnect Handling
+-------------------
 
-  GET /api/v1/missions/:missionId/stream
-    │
-    ├─ Resolve user from JWT; load session by missionId (session id)
-    │      nil/deleted -> 404, ownership mismatch -> 403
-    │
-    ├─ Read AGENT_RUNTIME_MODE env var
-    │      Default: "local"
-    │
-    ├─ Set SSE headers (same as HandleChat)
-    │
-    ├─ if mode == "saas":
-    │      XRANGE mission:events:<missionId> from "(-after" or "-"
-    │        (terminal packet -> persistRecoveredMission -> return)
-    │      If stream tail is terminal -> persistRecoveredMission -> return
-    │      Write replay_done marker (end of replayed history segment)
-    │      Loop: XREAD BLOCK 5s -> write "data: <payload>\n\n" -> flush
-    │        On terminal -> persistRecoveredMission -> return
-    │      Heartbeat every 15s -> ": heartbeat\n\n"
-    │      Idle close (stream has no terminal marker):
-    │        empty history   -> 5s single-shot, cancelled on first live event
-    │        partial history -> 60s sliding, reset on each live event
-    │
-    └─ if mode == "local" (default):
-          GET <HonoAPIURL>/api/v1/missions/<missionId>/stream?after=<after>
-          Reverse-proxy: read line -> write line -> flush
-          (store-only: no DB writes)
-
-Recovery persistence: when the SaaS relay observes a terminal packet it calls
-`persistRecoveredMission` (mission_replay.go). It XRANGEs the FULL stream,
-rebuilds content/steps/token count via `replayAccumulator`, resolves the
-session's latest streaming/interrupted assistant message via
-`SessionRepo.GetLatestAssistantMessageID`, and calls `CompleteTurn` with status
-`complete` (on `mission_completed`) or `interrupted` (on `error`). This
-finalizes missions whose SSE connection dropped before they finished instead of
-leaving the message `interrupted` forever. Local mode stays store-only.
+Missions are cancelled when the client disconnects (token safety): the agent's
+`CancellationManager` fires on stream abort and the harness throws
+`STREAM_CONSTANTS.CANCELLED_MESSAGE`, emitted as an `error` packet. The
+gateway's relay loop keeps flushing partial content to the DB (every 2s) and
+finalizes the turn with `CompleteTurn` — `complete` on `turn_complete`,
+`interrupted` otherwise. There is no replay: after a refresh, messages rebuild
+from the DB snapshot (`GET /sessions/:id/messages`), and a disconnect-cancelled
+turn shows as interrupted in the UI ("send a reply to continue").
 
 Feature Catalog - GetFeatures / HandleGetFeatures
 --------------------------------------------------
@@ -418,7 +394,6 @@ Entry Points & Exports
 |   sessionRepo, consolidationSvc,           |            |                            |
 |   strategySvc, featuresSvc)                |            |                            |
 | HandleChat(c)                              | Method     | chat/handler.go:148        |
-| StreamMissionLogs(c)                       | Method     | chat/handler.go:558        |
 | HandleGetSkills(c)                         | Method     | chat/handler.go:802        |
 | GetSkills(ctx)                             | Method     | chat/handler.go:743        |
 | HandleApproveTool(c)                       | Method     | chat/handler.go:668        |
@@ -438,10 +413,7 @@ Entry Points & Exports
 |   steps, tokenCount)                       |            |                            |
 | UpdateMessageStatus(ctx, msgID, status)    | Method     | session/repository.go      |
 | MarkStreamingAsInterrupted(ctx, sessionID) | Method     | session/repository.go      |
-| GetLatestAssistantMessageID(ctx, sessionID)| Method     | session/repository.go      |
 | UpdateSessionTimestamp(ctx, sessionID)     | Method     | session/repository.go      |
-| persistRecoveredMission(ctx, missionID)    | Method     | chat/mission_replay.go      |
-| scanMissionStream(entries)                 | Function   | chat/mission_replay.go      |
 +--------------------------------------------+------------+----------------------------+
 
 Dependencies

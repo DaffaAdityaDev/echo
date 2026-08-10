@@ -11,7 +11,8 @@
 
 Arsitektur frontend dibagi menjadi 3 layer ketat dengan tanggung jawab terpisah.
 NLAH is an internal execution harness, not a user-facing mode — the frontend
-sends `mode: "agent"` which internally maps to NLAH strategy.
+never sends a mode in the chat request; the backend resolves the strategy from
+the user's `default_mode` preference (`"agent"` maps internally to NLAH).
 
 1. **Custom Hooks Layer** — logic, state, data fetching (zustand + react-query)
 2. **Page Layer** — orchestrator: route + wiring hooks → components

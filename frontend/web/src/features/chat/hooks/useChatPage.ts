@@ -1,16 +1,14 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { QUERY_STANDARD } from "@/lib/query-standard";
-import { CHAT_MODES, CHAT_QUERY_KEYS } from "../constants";
+import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
 import { useChatStore } from "../stores/chatStore";
 import type { DbMessage, Message, ThoughtStep } from "../types";
 import { useChatStream } from "./useChatStream";
-import { useModels } from "./useModels";
 import { useSessions } from "./useSessions";
 
 function groupMessagesByTurn(messages: DbMessage[]): Message[] {
@@ -85,16 +83,11 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
 
 export function useChatPage() {
   const { createSession, deleteSession, selectSession } = useSessions();
-  const { models } = useModels();
   const { isAuthenticated } = useAuth();
-  const settingsConfig = useSettingsStore((s) => s.config);
   const isLoading = useChatStore((s) => s.isLoading);
   const setMessages = useChatStore((s) => s.setMessages);
-  const setSelectedModel = useChatStore((s) => s.setSelectedModel);
-  const setMode = useChatStore((s) => s.setMode);
-  const setSelectedFeatures = useChatStore((s) => s.setSelectedFeatures);
 
-  const { sendMessage, stopStream, clearMessages, recoverMission } = useChatStream();
+  const { sendMessage, stopStream, clearMessages } = useChatStream();
 
   const activeSessionId = useChatStore((s) => s.activeSessionId);
 
@@ -125,33 +118,12 @@ export function useChatPage() {
     [messagesData],
   );
 
-  // While a recovered session's DB snapshot is still stale (status interrupted
-  // — local mode, or saas before the relay persists), the store holds the
-  // recovered content and must not be clobbered by the snapshot rebuild.
-  // Cleared once the snapshot catches up or the session changes.
-  const recoveredSessionId = useRef<string | null>(null);
-
+  // The DB snapshot is authoritative: rebuild the store whenever it changes.
+  // Keep the store's last-message identity when the snapshot matches it, so
+  // the streaming -> complete transition does not remount MessageItem and
+  // replay the token blur-in.
   useEffect(() => {
     if (isLoading) return;
-
-    const sid = useChatStore.getState().activeSessionId;
-
-    // Switching sessions clears the store; the suppression only applies to the
-    // session that actually recovered. A new active session always rebuilds.
-    if (recoveredSessionId.current !== sid) {
-      recoveredSessionId.current = null;
-    }
-
-    const snapshotHasIncompleteAssistant = flattenedMessages.some(
-      (m) => m.role === "assistant" && (m.status === "streaming" || m.status === "interrupted"),
-    );
-
-    if (recoveredSessionId.current === sid && snapshotHasIncompleteAssistant) {
-      return;
-    }
-    if (recoveredSessionId.current === sid) {
-      recoveredSessionId.current = null;
-    }
 
     const sorted = [...flattenedMessages].sort((a, b) => {
       if (a.turn_number !== b.turn_number) {
@@ -162,10 +134,6 @@ export function useChatPage() {
 
     const rebuilt = groupMessagesByTurn(sorted);
 
-    // Keep the store's last-message identity when the DB snapshot matches it,
-    // so the streaming -> complete transition does not remount MessageItem and
-    // replay the token blur-in. Only applies when content, steps, and status
-    // are identical, so stale snapshots still rebuild normally.
     const storeMessages = useChatStore.getState().messages;
     if (rebuilt.length > 0 && storeMessages.length > 0) {
       const lastStore = storeMessages[storeMessages.length - 1];
@@ -183,46 +151,6 @@ export function useChatPage() {
 
     setMessages(rebuilt);
   }, [flattenedMessages, isLoading, setMessages]);
-
-  // Re-attach to an in-flight mission after page refresh: the gateway treats
-  // missionId as the session id, so recovery replays missed packets from the
-  // Redis-backed mission stream (cursor = last seen stream id in localStorage).
-  const recoveryTriggered = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (flattenedMessages.length === 0 || isLoading) return;
-    const sid = useChatStore.getState().activeSessionId;
-    if (!sid) return;
-
-    const hasIncompleteAssistant = flattenedMessages.some(
-      (m) => m.role === "assistant" && (m.status === "streaming" || m.status === "interrupted"),
-    );
-    if (!hasIncompleteAssistant) return;
-    if (recoveryTriggered.current === sid) return;
-
-    recoveryTriggered.current = sid;
-    recoveredSessionId.current = sid;
-    recoverMission(sid);
-  }, [flattenedMessages, isLoading, recoverMission]);
-
-  useEffect(() => {
-    const defaultModel = settingsConfig.defaultModel;
-    const matchedModel = models.find(
-      (m) =>
-        m.id === defaultModel ||
-        m.name === defaultModel ||
-        (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
-        defaultModel?.endsWith(`/${m.name}`),
-    );
-
-    const initialModel = matchedModel ? matchedModel.id : models.length > 0 ? models[0].id : defaultModel || "";
-
-    if (initialModel) {
-      setSelectedModel(initialModel);
-    }
-    setMode(settingsConfig.defaultMode || CHAT_MODES.STANDARD);
-    setSelectedFeatures(settingsConfig.defaultFeatures);
-  }, [settingsConfig, models, setSelectedModel, setMode, setSelectedFeatures]);
 
   const handleSelectSession = async (id: string) => {
     stopStream();

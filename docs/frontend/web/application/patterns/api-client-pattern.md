@@ -3,8 +3,8 @@
 ==============================================================================
   Module    : API Client Pattern
   Service   : Web
-  Version   : 2.0
-  Updated   : 2026-07-09
+  Version   : 2.1
+  Updated   : 2026-08-07 (onResponse callback for reading X-Session-ID from SSE responses)
 ==============================================================================
 
 ## Deskripsi
@@ -124,8 +124,36 @@ src/lib/
 > describes the design intent; the code uses the simpler hardcoded approach.
 >
 > **Note:** The `x-agent-session-id` header is injected by the fetch interceptor
-> when the request config or body contains a `missionId` or `sessionId` field.
+> when the request config or body contains a `sessionId` field.
 > A 401 response triggers a redirect to `/login`.
+
+### Reading Response Headers from SSE (`onResponse`)
+
+`api.stream()` accepts an optional `onResponse` callback in `opts` — it fires
+with the native `Response` as soon as the fetch promise resolves, BEFORE any
+chunk is processed. This is the only way to read response headers from a
+streaming request (a `Response.headers` object is not readable after the body
+has been consumed).
+
+```typescript
+api.stream(
+  CHAT_ENDPOINTS.STREAM,
+  { message, sessionId },          // minimal payload — no model/mode/features
+  onChunk,
+  {
+    signal,
+    onResponse: (res) => {
+      const id = res.headers.get("X-Session-ID");
+      if (id) store.setActiveSession(id);   // new-session id learned here
+    },
+  },
+);
+```
+
+The gateway ALWAYS sets `X-Session-ID` on `POST /api/v1/chat` responses with
+the session id in use. When the request omits `sessionId` (New Chat), the
+gateway creates the session server-side and the frontend reads the new id from
+this header.
 
 ## API Client Export (`api-client.ts`)
 
@@ -152,9 +180,11 @@ type ApiRequestOptions = AxiosRequestConfig & {
 | api.delete | api.delete<T>(url, opts?) => Promise<T>      | DELETE request via axios                   |
 +----------+------------------------------------------------+--------------------------------------------+
 | api.stream | api.stream(endpoint, body, onChunk, opts?)  | SSE streaming POST (native fetch)          |
-|          | => Promise<void>                               |                                            |
+|          | => Promise<void>                               | opts.onResponse fires with the native     |
+|          |                                                | Response for header reads (e.g.            |
+|          |                                                | X-Session-ID)                              |
 +----------+------------------------------------------------+--------------------------------------------+
-| api.streamGet | api.streamGet(endpoint, onChunk, opts?) => Promise<void> | SSE streaming GET (native fetch) — used for mission log replay (`/v1/missions/{id}/stream`) |
+| api.streamGet | api.streamGet(endpoint, onChunk, opts?) => Promise<void> | SSE streaming GET (native fetch) — used for session log replay (`/sessions/{id}/stream`) |
 +----------+------------------------------------------------+--------------------------------------------+
 
 ### Axios Instance Configuration
@@ -168,7 +198,7 @@ type ApiRequestOptions = AxiosRequestConfig & {
 ### Request Interceptor
 
 Injects `traceparent` from `generateTraceContext()` and conditionally adds
-`x-agent-session-id` from `config.data.missionId` or `config.data.sessionId`.
+`x-agent-session-id` from `config.data.sessionId`.
 
 ### Response Interceptor
 
@@ -241,8 +271,8 @@ a callback-based approach for real-time chunks.
 ```typescript
 // src/features/chat/services/chat-api.ts
 export const chatApi = {
-  sendMessage: async (message: string, model: string, onChunk: (data: StreamPacket) => void) => {
-    return api.stream<StreamPacket>(CHAT_ENDPOINTS.STREAM, { message, model }, onChunk);
+  sendMessage: async (message: string, sessionId?: string, onChunk: (data: StreamPacket) => void) => {
+    return api.stream<StreamPacket>(CHAT_ENDPOINTS.STREAM, { message, sessionId }, onChunk);
   },
   getHistory: async (): Promise<Message[]> => {
     return api.get(CHAT_ENDPOINTS.HISTORY);

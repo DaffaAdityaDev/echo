@@ -1,20 +1,12 @@
 import { Hono } from "hono";
-import type Redis from "ioredis";
 import { z } from "zod";
 import { cancellationManager } from "../../../../../core/agent/harness";
 import { stateStorage } from "../../../../../core/agent/storage";
 import { toolRegistry } from "../../../../../core/agent/tools";
-import { __setRedisClientForTest } from "../../../../../infrastructure/cache/redis";
 import { ProviderFactory } from "../../../../../infrastructure/providers/factory";
 import type { ToolDefinition } from "../../../../../shared/types";
 import { MISSION_ERROR_MESSAGES } from "../mission.constants";
-import {
-  __setEmptyStreamIdleMsForTest,
-  __setPartialHistoryIdleMsForTest,
-  createMission,
-  handleHitlDecision,
-  streamMissionLogs,
-} from "../mission.controller";
+import { createMission, handleHitlDecision } from "../mission.controller";
 
 const mocks = vi.hoisted(() => {
   const runMission = vi.fn();
@@ -84,9 +76,8 @@ vi.mock("../../../../../shared/utils/logger", () => ({
 function buildApp() {
   const app = new Hono();
   app.post("/missions/generate-mission", createMission);
-  app.post("/v1/missions/:id/approve", handleHitlDecision);
-  app.post("/v1/missions/:id/deny", handleHitlDecision);
-  app.get("/v1/missions/:id/stream", streamMissionLogs);
+  app.post("/v1/sessions/:id/approve", handleHitlDecision);
+  app.post("/v1/sessions/:id/deny", handleHitlDecision);
   return app;
 }
 
@@ -99,7 +90,7 @@ function postJson(body: unknown) {
 }
 
 const VALID_BODY = {
-  missionId: "mission-123",
+  sessionId: "mission-123",
   prompt: "Write a plan",
   provider_config: {
     type: "openai",
@@ -242,7 +233,7 @@ describe("handleHitlDecision", () => {
 
   test("returns 400 for an invalid decision body", async () => {
     const app = buildApp();
-    const res = await app.request("/v1/missions/mission-123/approve", postJson({}));
+    const res = await app.request("/v1/sessions/mission-123/approve", postJson({}));
 
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; details?: unknown };
@@ -253,7 +244,7 @@ describe("handleHitlDecision", () => {
   test("returns 404 when the approval has expired or is not found", async () => {
     const app = buildApp();
     const res = await app.request(
-      "/v1/missions/mission-123/approve",
+      "/v1/sessions/mission-123/approve",
       postJson({ approvalId: "approval-1", decision: "approve" }),
     );
 
@@ -284,7 +275,7 @@ describe("handleHitlDecision", () => {
 
     const app = buildApp();
     const res = await app.request(
-      "/v1/missions/mission-123/approve",
+      "/v1/sessions/mission-123/approve",
       postJson({ approvalId: "approval-1", decision: "approve" }),
     );
 
@@ -304,7 +295,7 @@ describe("handleHitlDecision", () => {
 
     const app = buildApp();
     const res = await app.request(
-      "/v1/missions/mission-123/deny",
+      "/v1/sessions/mission-123/deny",
       postJson({ approvalId: "approval-1", decision: "deny", reason: "not allowed" }),
     );
 
@@ -315,152 +306,5 @@ describe("handleHitlDecision", () => {
     // Both approve and deny resumes restore the pre-pause tool allowlist
     // (strict allowlist: resumed harness must not fall back to retriever tools).
     expect(toolRegistry.resolveToolsMap).toHaveBeenCalledWith(["web_search"]);
-  });
-});
-
-describe("streamMissionLogs", () => {
-  type FakeRedis = Pick<Redis, "xrange" | "xrevrange" | "xread">;
-
-  function fakeRedis(overrides: Partial<FakeRedis>): FakeRedis {
-    return {
-      xrange: vi.fn().mockResolvedValue([]),
-      xrevrange: vi.fn().mockResolvedValue([]),
-      xread: vi.fn().mockResolvedValue(null),
-      ...overrides,
-    } as unknown as FakeRedis;
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    __setRedisClientForTest(null, false);
-    __setEmptyStreamIdleMsForTest(null);
-  });
-
-  test("replays history and closes the stream when a live terminal packet arrives", async () => {
-    const historySid = "1699999999999-0";
-    const redis = fakeRedis({
-      xrange: vi.fn().mockResolvedValue([[historySid, ["p", '{"type":"content","content":"a"}']]]),
-      xrevrange: vi.fn().mockResolvedValue([]),
-      xread: vi
-        .fn()
-        .mockResolvedValueOnce([
-          ["mission:events:m-1", [["1699999999999-2", ["p", '{"type":"mission_completed","missionId":"m-1"}']]]],
-        ])
-        .mockResolvedValue(null),
-    });
-    __setRedisClientForTest(redis as unknown as Redis, true);
-
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain('"type":"content"');
-    expect(text).toContain('"type":"mission_completed"');
-    // The replay_done marker must separate the replayed history from the
-    // live terminal packet so the recovery client can switch to live mode.
-    expect(text.indexOf('"type":"replay_done"')).toBeGreaterThan(text.indexOf('"type":"content"'));
-    expect(text.indexOf('"type":"replay_done"')).toBeLessThan(text.indexOf('"type":"mission_completed"'));
-
-    // Subscribe resumes from the last replayed entry, not from the tail, so
-    // events recorded between the history read and the first XREAD are not lost.
-    expect(redis.xread).toHaveBeenCalledWith("COUNT", 100, "BLOCK", 5000, "STREAMS", "mission:events:m-1", historySid);
-  });
-
-  test("closes immediately when the terminal marker is already in history", async () => {
-    const redis = fakeRedis({
-      xrange: vi.fn().mockResolvedValue([["1699999999999-0", ["p", '{"type":"mission_completed","missionId":"m-1"}']]]),
-      xrevrange: vi
-        .fn()
-        .mockResolvedValue([["1699999999999-0", ["p", '{"type":"mission_completed","missionId":"m-1"}']]]),
-    });
-    __setRedisClientForTest(redis as unknown as Redis, true);
-
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain('"type":"mission_completed"');
-    expect(redis.xread).not.toHaveBeenCalled();
-  });
-
-  test("closes after an idle window when the mission stream is empty (expired TTL)", async () => {
-    const redis = fakeRedis({});
-    __setRedisClientForTest(redis as unknown as Redis, true);
-    __setEmptyStreamIdleMsForTest(20);
-
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    // The empty stream still signals the end of replay before closing on the
-    // idle timer; no live packets are present.
-    expect(text).toContain('"type":"replay_done"');
-    expect(text).not.toContain('"type":"content"');
-  });
-
-  test("cancels the idle close when the first live event arrives", async () => {
-    const terminal = [
-      ["mission:events:m-1", [["1699999999999-6", ["p", '{"type":"mission_completed","missionId":"m-1"}']]]],
-    ];
-    const redis = fakeRedis({
-      xrange: vi.fn().mockResolvedValue([]),
-      xrevrange: vi.fn().mockResolvedValue([]),
-      // First live event arrives immediately; the terminal arrives only after
-      // the idle window would have fired. If the idle timer is not cancelled on
-      // the first event, the stream closes early and the terminal is lost.
-      xread: vi
-        .fn()
-        .mockResolvedValueOnce([
-          ["mission:events:m-1", [["1699999999999-5", ["p", '{"type":"content","content":"b"}']]]],
-        ])
-        .mockReturnValueOnce(new Promise((resolve) => setTimeout(() => resolve(terminal), 40))),
-    });
-    __setRedisClientForTest(redis as unknown as Redis, true);
-    __setEmptyStreamIdleMsForTest(20);
-
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-
-    const text = await res.text();
-    expect(text).toContain('"type":"content"');
-    expect(text).toContain('"type":"mission_completed"');
-  });
-
-  test("closes a partial-history stream when the agent died mid-run (sliding idle window)", async () => {
-    __setEmptyStreamIdleMsForTest(null);
-    const redis = fakeRedis({
-      // Some events recorded, but no terminal marker — e.g. the agent crashed.
-      xrange: vi.fn().mockResolvedValue([["1699999999999-0", ["p", '{"type":"content","content":"a"}']]]),
-      xrevrange: vi.fn().mockResolvedValue([]),
-      // No further live events ever arrive.
-      xread: vi.fn().mockResolvedValue(null),
-    });
-    __setRedisClientForTest(redis as unknown as Redis, true);
-    __setPartialHistoryIdleMsForTest(20);
-
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-
-    const text = await res.text();
-    // History replayed, then the stream closes on the idle window instead of
-    // blocking forever on XREAD.
-    expect(text).toContain('"type":"content"');
-    expect(text).toContain('"type":"replay_done"');
-  });
-
-  test("returns 503 when redis is unavailable", async () => {
-    __setRedisClientForTest(null, false);
-    const app = buildApp();
-    const res = await app.request("/v1/missions/m-1/stream");
-    expect(res.status).toBe(503);
-    expect((await res.json()) as { error: string }).toMatchObject({
-      error: MISSION_ERROR_MESSAGES.STREAM_UNAVAILABLE,
-    });
   });
 });

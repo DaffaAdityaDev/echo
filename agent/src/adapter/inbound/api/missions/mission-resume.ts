@@ -12,7 +12,7 @@ import type { Observation, PausedMissionState, ToolDefinition } from "../../../.
 import { logger } from "../../../../shared/utils/logger";
 import { HITL_DECISIONS, MISSION_ERROR_MESSAGES, STREAM_LOG_MESSAGES } from "./mission.constants";
 import { hitlDecisionSchema } from "./mission.schema";
-import { streamHarnessExecution } from "./mission-stream";
+import { streamHarnessExecution } from "./mission-execution";
 
 export async function handleHitlDecision(c: Context) {
   const missionId = c.req.param("id") as string;

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getStorageJSON, removeStorage, setStorageJSON } from "@/utils/storage";
+import { settingsApi } from "../services/settings-api";
 import { type AgentConfig, DEFAULT_AGENT_CONFIG } from "../types";
 
 const STORAGE_KEY = "echo_agent_config";
@@ -12,21 +13,44 @@ function loadConfig(): AgentConfig {
 interface SettingsState {
   config: AgentConfig;
   loaded: boolean;
+  mutations: number;
   setConfig: (partial: Partial<AgentConfig>) => void;
   resetConfig: () => void;
+  hydrate: () => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   config: loadConfig(),
   loaded: true,
+  mutations: 0,
   setConfig: (partial) =>
     set((state) => {
       const next = { ...state.config, ...partial };
       setStorageJSON(STORAGE_KEY, next);
-      return { config: next };
+      return { config: next, mutations: state.mutations + 1 };
     }),
   resetConfig: () => {
     removeStorage(STORAGE_KEY);
     set({ config: DEFAULT_AGENT_CONFIG });
   },
+  hydrate: async () => {
+    try {
+      const mutationsBefore = get().mutations;
+      const serverConfig = await settingsApi.get();
+      // Skip if the user changed config while the request was in flight —
+      // the server response may predate the newer local mutation.
+      if (get().mutations === mutationsBefore) {
+        get().setConfig(serverConfig);
+      }
+    } catch (err) {
+      console.warn("[Settings] Failed to hydrate config from server:", err);
+    }
+  },
 }));
+
+// The server (user_preferences) is authoritative: re-hydrate once at app load so
+// the synchronous localStorage bootstrap is overridden. Guarded to the browser —
+// during SSR this module executes server-side, where no fetch must fire.
+if (typeof window !== "undefined") {
+  void useSettingsStore.getState().hydrate();
+}

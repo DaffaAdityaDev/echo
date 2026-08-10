@@ -4,6 +4,7 @@ import { Bug, Coins, Database, FileText, Terminal, X } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Kbd } from "@/components/ui/Kbd";
+import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { cn } from "@/utils/cn";
 import { useChatStore } from "../../stores/chatStore";
 import { PacketLogsPanel } from "./PacketLogsPanel";
@@ -31,9 +32,8 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
   const packetLogs = useChatStore((s) => s.packetLogs);
   const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
   const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
-  const selectedModel = useChatStore((s) => s.selectedModel);
-  const mode = useChatStore((s) => s.mode);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const { defaultModel, defaultMode } = useSettingsStore((s) => s.config);
 
   if (!isOpen) return null;
 
@@ -41,8 +41,8 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
     {
       debugHistory: debugPacketHistory,
       storeState: {
-        selectedModel,
-        mode,
+        defaultModel,
+        defaultMode,
         activeSessionId,
         cumulativeUsage,
       },

@@ -286,11 +286,9 @@ constants.ts:
 ```
 features/chat/hooks/useChatStream.ts:
   - Parses agentStatus from all packets (live via POST /chat/stream)
-  - recoverMission(): re-attaches to GET /api/v1/missions/:id/stream after
-    page refresh using a localStorage cursor (echo:mission-cursor:{missionId})
 
-features/chat/services/applyStreamPacket.ts:
-  - Shared packet dispatcher (live + idempotent replay mode)
+features/chat/services/stream/index.ts:
+  - Shared packet dispatcher (live packets only; no replay mode)
 
 features/chat/components/AgentStatusBadge.tsx:
   - Renders badge + progress bar
@@ -307,12 +305,10 @@ state machine lives entirely in the harness
 
 ### Terminal Marker
 
-Every mission run records a final `mission_completed` packet into the
-Redis mission event store (`mission:events:{missionId}`) in the
-`finally` block of `streamHarnessExecution` — so replay consumers know the
-stream is over and can close. On execution errors, the `error` packet is also
-recorded and treated as terminal by the stream endpoint
-(`mission-stream.ts isTerminalPacket`).
+The live stream carries the terminal packets: `turn_complete` (harness
+completion) and `error` (execution failure / disconnect cancellation). There
+is no Redis event store — a disconnected client's mission is cancelled, and
+the DB snapshot (`GET /sessions/:id/messages`) is the recovery path.
 
 ---
 

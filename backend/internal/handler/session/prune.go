@@ -7,6 +7,7 @@ import (
 )
 
 type PruneRequest struct {
+	// Provider configuration used for consolidation
 	ProviderConfig map[string]interface{} `json:"provider_config"`
 }
 
@@ -18,7 +19,7 @@ type PruneRequest struct {
 // @Produce json
 // @Param id path string true "Session ID"
 // @Param request body PruneRequest true "Provider configuration"
-// @Success 200 {object} map[string]string
+// @Success 200 {object} MessageResponse "Confirmation"
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/sessions/{id}/prune [post]

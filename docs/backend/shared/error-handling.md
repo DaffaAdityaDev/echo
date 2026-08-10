@@ -53,7 +53,7 @@ HTTP Status Code Mapping
 +-------+------------------------------------------+----------------------------+
 | 400   | Invalid JSON request body                | chat/handler.go:95         |
 |       | Unknown model ID                         | chat/handler.go:146        |
-|       | Missing required param (missionId)       | chat/handler.go:239        |
+|       | Missing required param (sessionId)       | chat/stream.go:31         |
 | 401   | Missing JWT token                        | middleware/auth.go:26-29   |
 |       | Invalid/expired JWT token                | middleware/auth.go:36-40   |
 | 403   | Feature requires Pro subscription        | chat/handler.go:129        |

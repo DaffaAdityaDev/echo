@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"encoding/json"
 	"strings"
 	"sync"
 	"time"
@@ -19,16 +18,44 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var sessionLocks sync.Map
+// Per-session in-process mutexes serialize chat turns on the same session.
+// Refcounted so a lock entry is deleted once no goroutine uses it anymore:
+// the old sync.Map grew unboundedly (one entry per session ever used), and a
+// naive delete-after-unlock races with a goroutine that already fetched the
+// mutex and is queued on Lock.
+type sessionLockEntry struct {
+	mu   sync.Mutex
+	refs int
+}
+
+var (
+	sessionLocksMu sync.Mutex
+	sessionLocks   = make(map[string]*sessionLockEntry)
+)
 
 func acquireSessionLock(sessionID string) func() {
 	if sessionID == "" {
 		return func() {}
 	}
-	actual, _ := sessionLocks.LoadOrStore(sessionID, &sync.Mutex{})
-	mu := actual.(*sync.Mutex)
-	mu.Lock()
-	return func() { mu.Unlock() }
+	sessionLocksMu.Lock()
+	entry := sessionLocks[sessionID]
+	if entry == nil {
+		entry = &sessionLockEntry{}
+		sessionLocks[sessionID] = entry
+	}
+	entry.refs++
+	sessionLocksMu.Unlock()
+
+	entry.mu.Lock()
+	return func() {
+		entry.mu.Unlock()
+		sessionLocksMu.Lock()
+		entry.refs--
+		if entry.refs == 0 {
+			delete(sessionLocks, sessionID)
+		}
+		sessionLocksMu.Unlock()
+	}
 }
 
 func retryDBOperation(attempts int, delay time.Duration, fn func() error) error {
@@ -44,30 +71,6 @@ func retryDBOperation(attempts int, delay time.Duration, fn func() error) error 
 	}
 	return err
 }
-
-func terminalPacket(raw string) bool {
-	var p struct {
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		return false
-	}
-	return p.Type == "mission_completed" || p.Type == "error"
-}
-
-// Synthetic packet the stream emits after the replayed history segment, before
-// the first live event. The recovery client switches from replay to live mode
-// on it.
-const replayDonePacket = `{"type":"replay_done"}`
-
-// A stream with no recorded events after this window is treated as expired:
-// no terminal packet will ever arrive, so close instead of blocking forever.
-// Cancelled as soon as the first live event is received.
-const missionStreamIdleTimeout = 5 * time.Second
-
-// For a stream with recorded history but no terminal (agent died mid-run), a
-// sliding window reset on each live event closes it after this much silence.
-const missionStreamPartialIdleTimeout = 60 * time.Second
 
 type Handler struct {
 	Cfg              *cfgmodel.Config
@@ -109,17 +112,21 @@ type HistoryMessage struct {
 	Content string `json:"content"`
 }
 
+// ChatRequest is the payload for a single chat turn.
 type ChatRequest struct {
-	Message         string                 `json:"message"`
-	Model           string                 `json:"model"`
-	Mode            string                 `json:"mode"`
-	StrategyVersion string                 `json:"strategyVersion,omitempty"`
-	SessionID       string                 `json:"sessionId"`
-	MissionID       string                 `json:"missionId"`
-	History         []HistoryMessage       `json:"history"`
-	Features        []string               `json:"features"`
-	Skills          []string               `json:"skills"`
-	Config          map[string]interface{} `json:"config,omitempty"`
+	// Message is the user's chat message. First message in a session.
+	Message string `json:"message" binding:"required" example:"Build a REST API with Express"`
+	// SessionID is an optional session ID. Omit to start a new session (the
+	// backend creates it and returns its ID in the X-Session-ID response
+	// header). Include to continue an existing session.
+	SessionID string `json:"sessionId" example:"sess_abc123"`
+	// Model is an optional model override. When set, it takes precedence over
+	// the user's default model. Clients without user identity (e.g. the Discord
+	// bot's per-channel selection) use this.
+	Model string `json:"model" example:"nvidia/nemotron-3-nano-4b"`
+	// Mode is an optional agent mode override. When set, it takes precedence
+	// over the user's default mode.
+	Mode string `json:"mode" example:"agent"`
 }
 
 func parseTraceparent(tp string) (trace.SpanContext, bool) {

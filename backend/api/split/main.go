@@ -19,6 +19,7 @@ func main() {
 	tagGroups := groupByTag(spec)
 	sharedDefs := findShared(spec, tagGroups)
 	moduleDefs := findModuleSpecific(spec, tagGroups, sharedDefs)
+	includeNestedDefinitions(spec, tagGroups, sharedDefs, moduleDefs)
 
 	writeShared(filepath.Join(moduleDir, "_shared.json"), spec, sharedDefs)
 	writeModules(moduleDir, spec, tagGroups, moduleDefs, sharedDefs)
@@ -34,6 +35,65 @@ func main() {
 		fmt.Printf("  %s: %d paths\n", k, len(tagGroups[k]))
 	}
 	fmt.Printf("Shared definitions: %d\n", len(sharedDefs))
+}
+
+// includeNestedDefinitions assigns definitions that are referenced only from
+// other definitions (not directly from any operation) to the module that owns
+// the referencing definition. Definitions referenced by more than one module
+// become shared. Runs until fixpoint so deep reference chains are covered.
+func includeNestedDefinitions(spec *Spec, tagGroups map[string][]string, sharedDefs map[string]bool, moduleDefs map[string][]string) {
+	moduleHas := func(tag, def string) bool {
+		for _, d := range moduleDefs[tag] {
+			if d == def {
+				return true
+			}
+		}
+		return false
+	}
+	for {
+		added := false
+		refByModule := map[string]map[string]bool{}
+		for def := range spec.Defs {
+			if sharedDefs[def] {
+				continue
+			}
+			var v any
+			json.Unmarshal(spec.Defs[def], &v)
+			for _, ref := range collectRefs(v) {
+				if sharedDefs[ref] {
+					continue
+				}
+				for tag := range tagGroups {
+					if moduleHas(tag, def) {
+						if refByModule[ref] == nil {
+							refByModule[ref] = map[string]bool{}
+						}
+						refByModule[ref][tag] = true
+					}
+				}
+			}
+		}
+		for ref, tags := range refByModule {
+			if sharedDefs[ref] {
+				continue
+			}
+			if len(tags) > 1 {
+				sharedDefs[ref] = true
+				added = true
+			} else if len(tags) == 1 {
+				for tag := range tags {
+					if !moduleHas(tag, ref) {
+						fmt.Printf("  nested def %s -> module %s\n", ref, tag)
+						moduleDefs[tag] = append(moduleDefs[tag], ref)
+						added = true
+					}
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
 }
 
 type Spec struct {

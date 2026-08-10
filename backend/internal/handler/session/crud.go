@@ -16,9 +16,10 @@ import (
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateSessionRequest true "Session payload"
-// @Success 201 {object} chatmodel.Session
+// @Success 201 {object} chatmodel.Session "Created session"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions [post]
 func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -54,8 +55,11 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 // @Tags Sessions
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{}
+// @Param limit query int false "Maximum number of sessions to return (0 = no limit)"
+// @Param offset query int false "Number of sessions to skip"
+// @Success 200 {object} ListSessionsResponse "List of sessions with pagination"
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions [get]
 func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -97,10 +101,12 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Session ID"
-// @Success 200 {object} chatmodel.Session
+// @Success 200 {object} chatmodel.Session "Session details"
+// @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions/{id} [get]
 func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -136,10 +142,14 @@ func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Session ID"
-// @Success 200 {object} map[string]interface{}
+// @Param limit query int false "Maximum number of messages to return (0 = no limit)"
+// @Param offset query int false "Number of messages to skip"
+// @Success 200 {object} GetMessagesResponse "Messages with pagination"
+// @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions/{id}/messages [get]
 func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -198,11 +208,13 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Session ID"
-// @Param request body object true "Title and/or summary"
-// @Success 200 {object} map[string]string
+// @Param request body UpdateSessionRequest true "Title and/or summary"
+// @Success 200 {object} MessageResponse "Confirmation"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions/{id} [patch]
 func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -226,10 +238,7 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
-	var req struct {
-		Title   string `json:"title"`
-		Summary string `json:"summary"`
-	}
+	var req UpdateSessionRequest
 	if err := c.Bind().JSON(&req); err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
@@ -252,9 +261,12 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Session ID"
-// @Success 200 {object} map[string]string
+// @Success 200 {object} MessageResponse "Confirmation"
+// @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/sessions/{id} [delete]
 func (h *Handler) HandleDeleteSession(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)

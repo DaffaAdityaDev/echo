@@ -94,7 +94,7 @@ usage quotas below follow the same sketch.
 ## What Implementation Would Require (List — Not Built)
 
 1. **Usage table(s)**: e.g. `usage_records` (user_id, tier_at_time,
-   mission_id, provider, prompt/completion tokens, cost_usd, created_at) +
+   session_id, provider, prompt/completion tokens, cost_usd, created_at) +
    optional aggregate `usage_daily`.
 2. **Internal handler + service**: `POST /api/v1/internal/usage/report` on
    the backend (Service JWT middleware, base path `/api/v1/internal`).

@@ -77,7 +77,7 @@ export function SchemaViewer({ schema, title, definitions, maxDepth = 2 }: Schem
   return <SchemaTable fields={fields} title={title} definitions={definitions} depth={0} maxDepth={maxDepth} />;
 }
 
-function SchemaTable({
+export function SchemaTable({
   fields,
   title,
   definitions,

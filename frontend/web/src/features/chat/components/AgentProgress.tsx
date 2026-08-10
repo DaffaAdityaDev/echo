@@ -198,13 +198,13 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 function SmoothTextReveal({ text, className }: { text: string; className?: string }) {
   const words = text.split(" ");
   return (
-    <span key={text} className={cn("inline-flex flex-wrap gap-x-1 items-center", className)}>
+    <span className={cn("inline-flex flex-wrap gap-x-1.5 items-center", className)}>
       {words.map((word, index) => (
         <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: composite word-index key keeps duplicates stable in streaming reveal
-          key={`${word}-${index}`}
+          // biome-ignore lint/suspicious/noArrayIndexKey: composite word-index key keeps words stable
+          key={`word-${index}-${word}`}
           className="inline-block animate-in fade-in slide-in-from-bottom-1 fill-mode-forwards duration-200"
-          style={{ animationDelay: `${index * 30}ms` }}
+          style={{ animationDelay: `${Math.min(index * 25, 150)}ms` }}
         >
           {word}
         </span>

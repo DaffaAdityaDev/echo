@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Chat Feature
   Service   : Web
-  Version   : 1.3
-  Updated   : 2026-08-07 (session list cache standard — no state loss on modal open)
+  Version   : 1.4
+  Updated   : 2026-08-07 (minimal {message, sessionId} payload; session id via X-Session-ID; config via global settings)
 ================================================================================
 
 ## Deskripsi
@@ -160,10 +160,11 @@ src/features/chat/
 │              ┌───────────────┴───────────────┐                              │
 │              v                               v                              │
 │   ┌──────────────────────┐   ┌──────────────────────────────────┐           │
-│   │ push userMessage +   │   │ api.stream<StreamPacket>(        │           │
-│   │ empty assistantMsg   │   │   POST /chat/stream, payload,    │           │
-│   │ to store              │   │   onChunk, { signal }           │           │
-│   └──────────────────────┘   └────────────────┬─────────────────┘           │
+ │   │ push userMessage +   │   │ api.stream<StreamPacket>(        │           │
+ │   │ empty assistantMsg   │   │   POST /chat/stream,             │           │
+ │   │ to store              │   │   { message, sessionId },        │           │
+ │   │                       │   │   onChunk, { signal }           │           │
+ │   └──────────────────────┘   └────────────────┬─────────────────┘           │
 │                                               v                              │
 │                               ┌──────────────────────────────────┐           │
 │                               │     for each SSE line:           │           │
@@ -219,28 +220,43 @@ src/features/chat/
 > todo snapshots and sub-agent delegations are never collapsed. The replay
 > phase skips step packets entirely, since the DB message already carries them.
 
-### Mission Recovery After Refresh (`recoverMission`)
+### Chat Request Payload & Session Semantics
 
-When a session with assistant content loads, `useChatPage` calls
-`recoverMission(activeSessionId)` (the gateway treats `missionId` as the
-session id). It opens `GET /api/v1/missions/{id}/stream` through the
-`/api/missions/[id]/stream` route handler:
+`sendMessage` posts a minimal payload — no model, mode, features, skills,
+config, history, or strategyVersion fields:
 
-- Cursor (`echo:mission-cursor:{missionId}` in localStorage, last Redis
-  stream id) → replay missed packets after the cursor, then live tail.
-- No cursor → live tail only (no full replay, avoiding duplication with
-  content already restored from the database).
-- Replay skips `content`/`reasoning` and step packets (already persisted in
-  the DB message); an unexpired `hitl_approval_required` re-opens the HITL
-  modal; the `replay_done` marker switches the client to live application;
-  terminal packets close the stream and clear the cursor.
-- On completion `recoverMission` invalidates the messages query so the
-  snapshot reflects the persisted completion (the Go SaaS relay finalizes the
-  DB message on a terminal packet). While the snapshot is still stale
-  (`status: interrupted` — local mode, or before the relay persists),
-  `useChatPage` suppresses the snapshot rebuild so the recovered store content
-  is not clobbered; the suppression clears when the snapshot catches up or the
-  active session changes.
+```json
+{ "message": "string (required)", "sessionId": "string (optional)" }
+```
+
+- No `sessionId` → the gateway creates a new session (this message is
+  turn 1); the new session id is read from the **`X-Session-ID`** response
+  header of the SSE stream response. **New Chat is lazy** — the frontend
+  never pre-creates sessions; the backend creates them on first message.
+- With `sessionId` → the message appends to that session (append-only,
+  never replace). History is always loaded server-side from the session's
+  DB messages.
+- All config (model, mode, features, skills, harness toggles) is resolved
+  server-side per request from the user's global settings
+  (`user_preferences`, GET/PUT `/api/v1/settings`). The chat store no
+  longer holds model/mode/features — the model selector, mode toggle, and
+  web_search toggle now read and write the global settings (PUT
+  `/api/v1/settings`).
+- Agent SSE packets still carry `missionId` — the mission id remains the
+  internal run id, unrelated to the session id.
+
+### Session Recovery After Refresh
+
+A refresh mid-run never resumes the mission: the agent cancels missions on
+disconnect (token safety). The DB snapshot is the recovery path — messages
+rebuild from `GET /sessions/{id}/messages`:
+
+- Partial content is preserved (the gateway flushes content to the DB every
+  2s during streaming and finalizes the turn — `complete` on `turn_complete`,
+  `interrupted` otherwise).
+- An `error` packet carrying "Mission cancelled by client disconnect" is
+  surfaced as an **interrupted** turn (badge "send a reply to continue"), not
+  as a completed error — continue the conversation with a new message.
 
 ## Session List & Cache Behavior (Standard)
 
@@ -384,24 +400,26 @@ Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
 +--------------+---------------------------+---------------------------------------------------+
 | Export       | File                      | Purpose                                           |
 +--------------+---------------------------+---------------------------------------------------+
-| useChatStream | hooks/useChatStream.ts   | Core SSE stream hook — signature:                 |
-|              |                           | { isLoading, sendMessage, stopStream,             |
-|              |                           |   recoverMission(missionId), clearMessages }      |
-|              |                           | Manages messages state via Zustand store, SSE     |
-|              |                           | streaming, agent progress tracking,               |
-|              |                           | AbortController per request, history includes     |
-|              |                           | current message. Dispatches via                   |
-|              |                           | services/stream/index.ts. recoverMission |
-|              |                           | re-attaches to the Redis mission log stream       |
-|              |                           | (cursor-based replay + live tail).                |
+| useChatStream | hooks/useChatStream.ts   | Core SSE stream hook — signature:              |
+|              |                           | { isLoading, sendMessage, stopStream,          |
+|              |                           |   clearMessages }                              |
+|              |                           | Manages messages state via Zustand store, SSE  |
+|              |                           | streaming, agent progress tracking,            |
+|              |                           | AbortController per request. Payload is        |
+|              |                           | { message, sessionId } — history is loaded     |
+|              |                           | server-side; a new session's id is read from   |
+|              |                           | the X-Session-ID response header. Dispatches   |
+|              |                           | via services/stream/index.ts.                  |
 +--------------+---------------------------+---------------------------------------------------+
 | useChatPage  | hooks/useChatPage.ts      | Orchestrator hook that composes useChatStore,     |
-|              |                           | useSessions, useModels, useFeatures, useAuth,     |
-|              |                           | useSettingsStore, and useChatStream.              |
-|              |                           | Returns aggregated state + actions for ChatPage.  |
-|              |                           | Initializes default model/mode/features from      |
-|              |                           | settings, loads sessions on auth, wires up        |
-|              |                           | sendMessage/clearMessages from useChatStream.     |
+|              |                           | useSessions, useModels, useFeatures, useAuth,    |
+|              |                           | useSettingsStore, and useChatStream.             |
+|              |                           | Returns aggregated state + actions for ChatPage. |
+|              |                           | Reads model/mode/features from global settings   |
+|              |                           | (GET /settings); selector/toggle changes write   |
+|              |                           | back via PUT /settings, loads sessions on auth,  |
+|              |                           | wires up sendMessage/clearMessages from          |
+|              |                           | useChatStream.                                   |
 +--------------+---------------------------+---------------------------------------------------+
 | useFeatures  | hooks/useFeatures.ts      | Fetches available agent capabilities via          |
 |              |                           | TanStack Query from /features endpoint.           |
@@ -482,14 +500,14 @@ Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
 |                | totalIterations, currentTool?,            | AgentProgress component            |
 |                | statusMessage?, swarm?                   |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
-| StreamPacket   | type, missionId, step, seq, timestamp,    | Raw SSE packet (19 types)          |
+| StreamPacket   | type, missionId, step, seq, timestamp,    | Raw SSE packet (18 types)          |
 |                | agentStatus?, content?, toolName?,        | Discriminated union — shape         |
 |                | toolInput?, toolResult?, todos?,          | varies by type (flat, no meta).     |
-|                | subagent?, swarm?, usage?, from?, to?,   | Includes `replay_done`, a synthetic |
-|                | reason?, phase?, completed?,              | marker emitted by the stream (not   |
-|                | totalIterations?, totalCost?             | by the harness)                     |
+|                | subagent?, swarm?, usage?, from?, to?,   |                                    |
+|                | reason?, phase?, completed?,              |                                    |
+|                | totalIterations?, totalCost?             |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
-| MissionMeta    | missionId?, strategy?, historyDepth?,     | Mission metadata from metadata     |
+| MissionMeta    | strategy?, historyDepth?,                 | Mission metadata from metadata     |
 |                | toolsAvailable?, objective?,              | packet (flat fields)               |
 |                | maxIterations?                           |                                    |
 +----------------+-------------------------------------------+-----------------------------------+
@@ -514,11 +532,10 @@ Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
 +----------------+---------------------------------------------------------------------+
 | CHAT_MODES     | { STANDARD: "standard", AGENT: "agent" }                            |
 +----------------+---------------------------------------------------------------------+
-| PACKET_TYPES   | 19 types: metadata, usage, content, reasoning, tool_call,           |
+| PACKET_TYPES   | 18 types: metadata, usage, content, reasoning, tool_call,           |
 |                | tool_result, todo, subagent_call, subagent_result,                  |
 |                | file_operation, swarm_status, tool_skip, heartbeat,                 |
-|                | state_change, degraded, progress, turn_complete, error,             |
-|                | replay_done (synthetic stream marker, never emitted by the harness) |
+|                | state_change, degraded, progress, turn_complete, error              |
 +----------------+---------------------------------------------------------------------+
 | CHAT_ENDPOINTS | { STREAM: "/chat/stream" }                                          |
 +----------------+---------------------------------------------------------------------+

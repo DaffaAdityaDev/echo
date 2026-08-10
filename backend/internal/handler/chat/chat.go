@@ -28,15 +28,24 @@ import (
 
 // HandleChat godoc
 // @Summary Send a chat message
-// @Description Forwards a user message to the agent for processing
+// @Description Forwards a user message to the agent and streams the agent's progress as Server-Sent Events (SSE).
+// @Description The stream starts with an X-Session-ID response header set to the session ID (new or existing).
+// @Description Each line is `data: <json>` where the JSON is a StreamPacket: { "type": "...", "missionId": "...", "step": number, "seq": number, "timestamp": number }.
+// @Description Packet types: metadata, reasoning, content, tool_call, tool_result, tool_skip, todo, subagent_call, subagent_result, usage, progress, heartbeat, state_change, degraded, turn_complete, debug, error, system_notice, token_metrics, hitl_approval_required, mission_completed.
+// @Description Terminal packets: turn_complete, mission_completed, error.
+// @Description If the connection drops mid-run, the mission is cancelled (token safety) and the turn is finalized as interrupted — send a new message to continue.
+// @Description See docs/shared/contracts/json-api-contract.md §SSE Event Format for the full schema.
 // @Tags Chat
 // @Accept json
-// @Produce json
+// @Produce text/event-stream
 // @Security BearerAuth
 // @Param request body ChatRequest true "Chat payload"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {string} string "SSE stream of StreamPacket JSON lines (text/event-stream)"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/chat [post]
 func (h *Handler) HandleChat(c fiber.Ctx) error {
 	var req ChatRequest
@@ -60,7 +69,34 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		userTier = "pro"
 	}
 
-	if err := h.FeaturesSvc.ValidateRequest(ctx, req.Features, userTier); err != nil {
+	prefs, err := h.SettingsSvc.GetSettings(ctx, userID)
+	if err != nil {
+		log.Printf("[CHAT] Failed to load settings for user %d, falling back to defaults: %v", userID, err)
+		prefs = h.SettingsSvc.GetDefaults()
+	}
+
+	modelID := prefs.DefaultModel
+	if modelID == "" {
+		modelID = h.Cfg.DefaultModel
+	}
+	mode := prefs.DefaultMode
+	if mode == "" {
+		mode = "standard"
+	}
+	if req.Model != "" {
+		modelID = req.Model
+	}
+	if req.Mode != "" {
+		mode = req.Mode
+	}
+	features := prefs.DefaultFeatures
+	skills := prefs.DefaultSkills
+	var config map[string]interface{}
+	if prefs.HarnessToggles != nil {
+		config = map[string]interface{}{"featureToggles": prefs.HarnessToggles}
+	}
+
+	if err := h.FeaturesSvc.ValidateRequest(ctx, features, userTier); err != nil {
 		var unknownErr featuresvc.ErrUnknownFeature
 		if errors.As(err, &unknownErr) {
 			return handlerutil.RespondError(c, fiber.StatusBadRequest, unknownErr.Error())
@@ -72,30 +108,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Feature validation failed")
 	}
 
-	modelID := req.Model
-	if modelID == "" {
-		modelID = h.Cfg.DefaultModel
-	}
 	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Provider config error: %s", err.Error()))
-	}
-
-	if len(req.Skills) > 0 {
-		skillsCatalog, err := h.GetSkills(ctx)
-		if err == nil {
-			skillMap := make(map[string]bool)
-			for _, s := range skillsCatalog {
-				if name, ok := s["name"].(string); ok {
-					skillMap[name] = true
-				}
-			}
-			for _, skillName := range req.Skills {
-				if !skillMap[skillName] {
-					return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Unknown skill '%s'", skillName))
-				}
-			}
-		}
 	}
 
 	providerMap := map[string]interface{}{
@@ -107,8 +122,29 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		providerMap["api_key"] = providerCfg.APIKey
 	}
 
-	var history []HistoryMessage
+	// Token counting is an HTTP round-trip to the agent; it must not hold the
+	// session lock, which would serialize every message in the session on it.
+	userTokenCount := h.countTokensViaAgent(c.Context(), req.Message)
+
+	if len(skills) > 0 {
+		skillsCatalog, err := h.GetSkills(ctx)
+		if err == nil {
+			skillMap := make(map[string]bool)
+			for _, s := range skillsCatalog {
+				if name, ok := s["name"].(string); ok {
+					skillMap[name] = true
+				}
+			}
+			for _, skillName := range skills {
+				if !skillMap[skillName] {
+					return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Unknown skill '%s'", skillName))
+				}
+			}
+		}
+	}
+
 	var currentSession *chatmodel.Session
+	var currentPinnedVersion string
 
 	if req.SessionID != "" {
 		sess, err := h.SessionRepo.GetByID(ctx, req.SessionID)
@@ -122,7 +158,38 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 		}
 		currentSession = sess
+		currentPinnedVersion = sess.StrategyVersion
+	} else {
+		resolvedVersion, err := h.StrategySvc.ResolveVersion(ctx, "", "", userID)
+		if err != nil {
+			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
+		}
+		createdSess, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle, resolvedVersion)
+		if err != nil {
+			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create session")
+		}
+		currentSession = createdSess
+		req.SessionID = currentSession.ID
+		currentPinnedVersion = currentSession.StrategyVersion
+	}
 
+	// The per-session lock is held from here to the end of the streamed turn
+	// (consolidation, history build, turn prep and the agent run included).
+	unlock := acquireSessionLock(req.SessionID)
+	defer unlock()
+
+	// Cross-process counterpart: serializes turns on the same session across
+	// gateway instances when Redis is present. No-op unlock when unavailable.
+	redisLockToken, releaseRedisLock, err := acquireRedisSessionLock(ctx, h.RedisClient, req.SessionID)
+	if err != nil {
+		log.Printf("[CHAT] Distributed session lock unavailable for %s: %v", req.SessionID, err)
+	}
+	defer releaseRedisLock()
+
+	// Consolidation must run under the lock: two rapid turns could otherwise
+	// both cross the token threshold and compact the same session twice, and
+	// a concurrent turn would build history from a stale context summary.
+	if req.SessionID != "" {
 		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
 		if err == nil && isThresholdCrossed {
 			log.Printf("[CONSOLIDATION] Token threshold reached. Compacting session %s...", req.SessionID)
@@ -133,70 +200,42 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 				currentSession, _ = h.SessionRepo.GetByID(ctx, req.SessionID)
 			}
 		}
-
-		dbMessages, err := h.buildCappedHistory(ctx, req.SessionID)
-		if err != nil {
-			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
-		}
-
-		if currentSession != nil && currentSession.ContextSummary != "" {
-			history = append(history, HistoryMessage{
-				Role:    "system",
-				Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", currentSession.ContextSummary),
-			})
-		}
-
-		for _, dbMsg := range dbMessages {
-			if dbMsg.Role == "thought" || dbMsg.Role == "tool_call" || dbMsg.Role == "tool_result" {
-				continue
-			}
-			history = append(history, HistoryMessage{
-				Role:    dbMsg.Role,
-				Content: dbMsg.Content,
-			})
-		}
-	} else {
-		history = req.History
 	}
 
-	var currentPinnedVersion string
-	if currentSession != nil {
-		currentPinnedVersion = currentSession.StrategyVersion
-	}
-
-	if req.SessionID == "" {
-		resolvedVersion, err := h.StrategySvc.ResolveVersion(ctx, "", req.StrategyVersion, userID)
+	resolvedStrategyVersion := currentPinnedVersion
+	if resolvedStrategyVersion == "" {
+		resolvedStrategyVersion, err = h.StrategySvc.ResolveVersion(ctx, "", "", userID)
 		if err != nil {
 			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
 		}
-		createdSess, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle, resolvedVersion)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create session")
-		}
-		currentSession = createdSess
-		req.SessionID = currentSession.ID
-		req.MissionID = currentSession.ID
-		currentPinnedVersion = currentSession.StrategyVersion
 	}
-
-	resolvedStrategyVersion, err := h.StrategySvc.ResolveVersion(ctx, currentPinnedVersion, req.StrategyVersion, userID)
-	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
-	}
-	if req.SessionID != "" && currentPinnedVersion == "" && resolvedStrategyVersion != "" {
+	if currentPinnedVersion == "" {
 		_ = h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion)
 	}
+	_ = h.SessionRepo.TouchSession(ctx, req.SessionID)
 
-	if req.SessionID != "" {
-		_ = h.SessionRepo.TouchSession(ctx, req.SessionID)
+	dbMessages, err := h.buildCappedHistory(ctx, req.SessionID)
+	if err != nil {
+		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
 	}
 
-	// Token counting is an HTTP round-trip to the agent; it must not hold the
-	// session lock, which would serialize every message in the session on it.
-	userTokenCount := h.countTokensViaAgent(c.Context(), req.Message)
+	var history []HistoryMessage
+	if currentSession != nil && currentSession.ContextSummary != "" {
+		history = append(history, HistoryMessage{
+			Role:    "system",
+			Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", currentSession.ContextSummary),
+		})
+	}
 
-	unlock := acquireSessionLock(req.SessionID)
-	defer unlock()
+	for _, dbMsg := range dbMessages {
+		if dbMsg.Role == "thought" || dbMsg.Role == "tool_call" || dbMsg.Role == "tool_result" {
+			continue
+		}
+		history = append(history, HistoryMessage{
+			Role:    dbMsg.Role,
+			Content: dbMsg.Content,
+		})
+	}
 
 	maxTurn, err := h.SessionRepo.GetMaxTurnNumber(ctx, req.SessionID)
 	if err != nil {
@@ -210,12 +249,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to prepare chat turn", err.Error())
 	}
 
-	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, req.Mode)
+	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, mode)
 
-	missionIDToUse := req.SessionID
-	if missionIDToUse == "" {
-		missionIDToUse = req.MissionID
-	}
+	sessionIDToUse := req.SessionID
 
 	tenantID := c.Get("X-Tenant-ID", "local")
 	promptTemplateName, err := h.SettingsSvc.ResolvePromptTemplateNameForTenant(ctx, tenantID)
@@ -230,10 +266,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		history:            history,
 		providerConfig:     providerMap,
 		strategyVersion:    resolvedStrategyVersion,
-		missionID:          missionIDToUse,
-		features:           req.Features,
-		skills:             req.Skills,
-		config:             req.Config,
+		sessionID:          sessionIDToUse,
+		features:           features,
+		skills:             skills,
+		config:             config,
 		tenantID:           tenantID,
 		promptTemplateName: promptTemplateName,
 	})
@@ -263,6 +299,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}
 
+	c.Response().Header.Set("X-Session-ID", req.SessionID)
 	c.Response().Header.Set("Content-Type", "text/event-stream")
 	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
 	c.Response().Header.Set("Connection", "keep-alive")
@@ -324,6 +361,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 				case <-flushCtx.Done():
 					return
 				case <-ticker.C:
+					renewRedisSessionLock(context.Background(), h.RedisClient, req.SessionID, redisLockToken)
 					sc.mu.RLock()
 					content := sc.content.String()
 					completionTokens := sc.completionTokens

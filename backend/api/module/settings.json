@@ -1,18 +1,198 @@
 {
     "basePath": "/",
     "definitions": {
+        "echo-backend_internal_models_user.BudgetMonitorConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enabled turns budget monitoring on or off.",
+                    "type": "boolean"
+                },
+                "enforceCostCap": {
+                    "description": "EnforceCostCap enforces the maximum spend.",
+                    "type": "boolean"
+                },
+                "enforceMaxSteps": {
+                    "description": "EnforceMaxSteps enforces the maximum number of agent steps.",
+                    "type": "boolean"
+                },
+                "enforceTimeout": {
+                    "description": "EnforceTimeout enforces the maximum run duration.",
+                    "type": "boolean"
+                },
+                "maxCostUsd": {
+                    "description": "MaxCostUsd is the maximum spend in USD.",
+                    "type": "number"
+                },
+                "maxDurationMs": {
+                    "description": "MaxDurationMs is the maximum run duration in milliseconds.",
+                    "type": "integer"
+                },
+                "maxSteps": {
+                    "description": "MaxSteps is the maximum number of agent steps allowed.",
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.ContextOptimizationConfig": {
+            "type": "object",
+            "properties": {
+                "compactionThresholdRatio": {
+                    "description": "CompactionThresholdRatio is the usage ratio that triggers compaction.",
+                    "type": "number"
+                },
+                "enableAutoCompaction": {
+                    "description": "EnableAutoCompaction automatically compacts context when it grows.",
+                    "type": "boolean"
+                },
+                "enablePrefixCachingLayout": {
+                    "description": "EnablePrefixCachingLayout optimizes message layout for prefix caching.",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "description": "Enabled turns context optimization on or off.",
+                    "type": "boolean"
+                },
+                "keepLastTurnsCount": {
+                    "description": "KeepLastTurnsCount is the number of recent turns kept after compaction.",
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.HarnessFeatureToggles": {
+            "type": "object",
+            "properties": {
+                "budgetMonitor": {
+                    "description": "BudgetMonitor enables enforcement of step, duration, and cost budgets.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.BudgetMonitorConfig"
+                        }
+                    ]
+                },
+                "contextOptimization": {
+                    "description": "ContextOptimization enables context window optimization.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.ContextOptimizationConfig"
+                        }
+                    ]
+                },
+                "hitlGuard": {
+                    "description": "HitlGuard enables requiring human approval for protected tools.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HitlGuardConfig"
+                        }
+                    ]
+                },
+                "loopDetection": {
+                    "description": "LoopDetection enables detection of repeated identical agent calls.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.LoopDetectionConfig"
+                        }
+                    ]
+                },
+                "systemNotices": {
+                    "description": "SystemNotices enables emitting warnings as system notices.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.SystemNoticesConfig"
+                        }
+                    ]
+                }
+            }
+        },
+        "echo-backend_internal_models_user.HitlGuardConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enabled turns the hitl guard on or off.",
+                    "type": "boolean"
+                },
+                "protectedTools": {
+                    "description": "ProtectedTools lists tools requiring human approval.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ttlMinutes": {
+                    "description": "TtlMinutes is how long an approval stays valid, in minutes.",
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.LoopDetectionConfig": {
+            "type": "object",
+            "properties": {
+                "enableCosineSimilarity": {
+                    "description": "EnableCosineSimilarity matches repeated calls by cosine similarity.",
+                    "type": "boolean"
+                },
+                "enableExactMatch": {
+                    "description": "EnableExactMatch matches repeated identical calls exactly.",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "description": "Enabled turns loop detection on or off.",
+                    "type": "boolean"
+                },
+                "maxConsecutiveIdenticalCalls": {
+                    "description": "MaxConsecutiveIdenticalCalls caps consecutive identical calls before warning.",
+                    "type": "integer"
+                },
+                "similarityThreshold": {
+                    "description": "SimilarityThreshold is the 0-1 similarity score that counts as a match.",
+                    "type": "number"
+                },
+                "windowSize": {
+                    "description": "WindowSize is the number of recent calls examined for loops.",
+                    "type": "integer"
+                }
+            }
+        },
+        "echo-backend_internal_models_user.SystemNoticesConfig": {
+            "type": "object",
+            "properties": {
+                "emitBudgetWarnings": {
+                    "description": "EmitBudgetWarnings emits budget limit warnings as notices.",
+                    "type": "boolean"
+                },
+                "emitCompactionNotices": {
+                    "description": "EmitCompactionNotices emits context compaction notices.",
+                    "type": "boolean"
+                },
+                "emitLoopWarnings": {
+                    "description": "EmitLoopWarnings emits loop detection warnings as notices.",
+                    "type": "boolean"
+                },
+                "emitPacingWarnings": {
+                    "description": "EmitPacingWarnings emits pacing throttling warnings as notices.",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "description": "Enabled turns system notices on or off.",
+                    "type": "boolean"
+                }
+            }
+        },
         "echo-backend_internal_models_user.UserPreferences": {
             "type": "object",
             "properties": {
                 "api_key": {
+                    "description": "APIKey is the stored provider API key; always empty on read.",
                     "type": "string",
                     "example": ""
                 },
                 "base_url": {
+                    "description": "BaseURL is a custom provider base URL.",
                     "type": "string",
                     "example": "https://opencode.ai/zen/go/v1"
                 },
                 "default_features": {
+                    "description": "DefaultFeatures lists the enabled agent features.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -23,14 +203,17 @@
                     ]
                 },
                 "default_mode": {
+                    "description": "DefaultMode is the preferred chat mode: standard|agent.",
                     "type": "string",
                     "example": "agent"
                 },
                 "default_model": {
+                    "description": "DefaultModel is the preferred model ID or name.",
                     "type": "string",
                     "example": "gpt-4o"
                 },
                 "default_skills": {
+                    "description": "DefaultSkills lists the enabled agent skills.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -41,16 +224,24 @@
                     ]
                 },
                 "harness_toggles": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                    "description": "HarnessToggles holds agent harness feature toggles.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                        }
+                    ]
                 },
                 "has_api_key": {
+                    "description": "HasAPIKey reports whether a provider API key is stored.",
                     "type": "boolean"
                 },
                 "provider_type": {
+                    "description": "ProviderType is the LLM provider type, e.g. opencode-go.",
                     "type": "string",
                     "example": "opencode-go"
                 },
                 "user_id": {
+                    "description": "UserID is the owning user's ID; 0 when these are platform defaults.",
                     "type": "integer",
                     "example": 1
                 }
@@ -60,36 +251,49 @@
             "type": "object",
             "properties": {
                 "api_key": {
+                    "description": "APIKey is a new API key to store; ignored if keep_api_key is true.",
                     "type": "string"
                 },
                 "base_url": {
+                    "description": "BaseURL is a custom provider base URL.",
                     "type": "string"
                 },
                 "default_features": {
+                    "description": "DefaultFeatures lists the enabled agent features.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "default_mode": {
+                    "description": "DefaultMode is the preferred chat mode: standard|agent.",
                     "type": "string"
                 },
                 "default_model": {
+                    "description": "DefaultModel is the preferred model ID or name.",
                     "type": "string"
                 },
                 "default_skills": {
+                    "description": "DefaultSkills lists the enabled agent skills.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "harness_toggles": {
-                    "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                    "description": "HarnessToggles holds agent harness feature toggles.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/echo-backend_internal_models_user.HarnessFeatureToggles"
+                        }
+                    ]
                 },
                 "keep_api_key": {
+                    "description": "KeepAPIKey keeps the existing API key instead of replacing it.",
                     "type": "boolean"
                 },
                 "provider_type": {
+                    "description": "ProviderType is the LLM provider type, e.g. opencode-go.",
                     "type": "string"
                 }
             }
@@ -122,13 +326,22 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "The user's preferences with defaults applied",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -166,7 +379,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "The user's preferences with defaults applied",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
@@ -182,6 +395,15 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -213,10 +435,9 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Platform-wide default preferences",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/echo-backend_internal_models_user.UserPreferences"
                         }
                     }
                 },
@@ -234,7 +455,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

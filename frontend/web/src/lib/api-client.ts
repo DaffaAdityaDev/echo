@@ -10,8 +10,7 @@ function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?:
 
   if (body && typeof body === "object") {
     const rec = body as Record<string, unknown>;
-    const sid =
-      typeof rec.sessionId === "string" ? rec.sessionId : typeof rec.missionId === "string" ? rec.missionId : undefined;
+    const sid = typeof rec.sessionId === "string" ? rec.sessionId : undefined;
     if (sid) {
       headers.set("x-agent-session-id", sid);
     }
@@ -48,6 +47,7 @@ client.interceptors.response.use(
 
 export type ApiRequestOptions = AxiosRequestConfig & {
   params?: Record<string, string>;
+  onResponse?: (response: Response) => void;
 };
 
 async function request<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -82,20 +82,9 @@ async function stream<T = unknown>(
     signal: signal as AbortSignal,
   });
 
-  await readStream(response, onChunk, signal as AbortSignal);
-}
-
-async function streamGet<T = unknown>(endpoint: string, onChunk: (data: T) => void, options: ApiRequestOptions = {}) {
-  const { signal } = options;
-
-  const headers = new Headers();
-  setAuthHeaders(headers, undefined);
-
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method: "GET",
-    headers,
-    signal: signal as AbortSignal,
-  });
+  if (response.ok && options.onResponse) {
+    options.onResponse(response);
+  }
 
   await readStream(response, onChunk, signal as AbortSignal);
 }
@@ -169,5 +158,4 @@ export const api = {
     request<T>(url, { ...opts, method: "PATCH", data: body }),
   delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "DELETE" }),
   stream,
-  streamGet,
 };

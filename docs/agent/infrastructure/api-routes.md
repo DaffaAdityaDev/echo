@@ -3,8 +3,8 @@
 ================================================================================
   Module    : API Routes
   Service   : agent
-  Version   : 1.4
-  Updated   : 2026-08-05 (prompt_template added; Feature Pod Convention applied)
+   Version   : 1.5
+   Updated   : 2026-08-07 (mission→session collapse: /v1/sessions/:id routes, sessionId wire field)
 ================================================================================
 
 ## Description
@@ -26,11 +26,11 @@ src/adapter/inbound/
   api/
     routes.ts                     # Route aggregator
     missions/
-      mission.routes.ts           # POST /generate-mission, /v1/missions/:id/approve|deny|stream
-      mission.controller.ts       # handler functions: createMission, handleHitlDecision, streamMissionLogs
+      mission.routes.ts           # POST /generate-mission, /v1/sessions/:id/approve|deny
+      mission.controller.ts       # handler functions: createMission, handleHitlDecision
       mission.schema.ts           # Zod input validation
       mission.constants.ts        # Route paths & messages
-      mission-stream.ts           # Redis-backed mission event store (recordEvent, getHistory, subscribe)
+      mission-execution.ts        # streamHarnessExecution (run mission + SSE stream)
       stream.transport.ts         # SSE packet serialization
     models/
       model.routes.ts             # GET /models
@@ -87,19 +87,16 @@ src/adapter/inbound/
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                   Route Aggregator (routes.ts)                            │
 │                                                                           │
-│  ┌─ /api/generate-mission  ──→  createMission                            │
-│  │                            ├─ Zod schema validation                   │
-│  │                            ├─ ProviderFactory.fromConfig (provider)   │
-│  │                            ├─ strategyRegistry.resolve(strategyKey)   │
-│  │                            ├─ toolRegistry.resolveTools(features)     │
-│  │                            ├─ NlahHarness.runMission(state, onPacket) │
-│  │                            └─ SSE stream (HttpStreamTransport)        │
-│  │                                                                        │
-│  ┌─ /api/v1/missions/:id/stream    ──→  streamMissionLogs                │
-│  │                            └─ SSE replay of recorded mission packets  │
-│  │                                                                        │
-│  ┌─ /api/v1/missions/:id/approve   ──→  handleHitlDecision (approve)     │
-│  ┌─ /api/v1/missions/:id/deny      ──→  handleHitlDecision (deny)        │
+  │  ┌─ /api/generate-mission  ──→  createMission                            │
+  │  │                            ├─ Zod schema validation                   │
+  │  │                            ├─ ProviderFactory.fromConfig (provider)   │
+  │  │                            ├─ strategyRegistry.resolve(strategyKey)   │
+  │  │                            ├─ toolRegistry.resolveTools(features)     │
+  │  │                            ├─ NlahHarness.runMission(state, onPacket) │
+  │  │                            └─ SSE stream (HttpStreamTransport)        │
+  │  │                                                                        │
+  │  ┌─ /api/v1/sessions/:id/approve   ──→  handleHitlDecision (approve)     │
+  │  ┌─ /api/v1/sessions/:id/deny      ──→  handleHitlDecision (deny)        │
 │  │                                                                        │
 │  ┌─ /api/models             ──→  listModels                             │
 │  │                            └─ Proxy to LLM provider /v1/models       │
@@ -130,7 +127,7 @@ src/adapter/inbound/
 | Export                           | Source                               | Description                                      |
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 | `default router`                 | `adapter/inbound/api/routes.ts`                     | Hono router mounting mission, model, feature, skill, strategy, internal, docs sub-routers |
-| `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` + `/v1/missions/:id/approve|deny|stream` handlers |
+| `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` + `/v1/sessions/:id/approve|deny|stream` handlers |
 | `modelRouter`                    | `adapter/inbound/api/models/model.routes.ts`            | `GET /models` handler                            |
 | `featuresRouter`                 | `adapter/inbound/api/features/features.routes.ts`       | `GET /features` handler                          |
 | `skillsRouter`                   | `adapter/inbound/api/skills/skills.routes.ts`           | `GET /skills` handler                            |
@@ -139,7 +136,6 @@ src/adapter/inbound/
 
 | `createMission`                  | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
 | `handleHitlDecision`             | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
-| `streamMissionLogs`              | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
 | `listModels`                     | `adapter/inbound/api/models/model.controller.ts`        | Module-level handler function                    |
 | `getFeatures`                    | `adapter/inbound/api/features/features.controller.ts`   | Module-level handler function                    |
 | `listSkills`                     | `adapter/inbound/api/skills/skills.controller.ts`       | Module-level handler function                    |
@@ -161,7 +157,7 @@ src/adapter/inbound/
   tenantId: string;
   userId: string;
   orgId: string;
-  missionId?: string;
+  sessionId?: string;        // session id from the gateway; omitted = new run id generated
   model?: string;
   prompt_template?: string;    // behavior prompt template name; resolved from backend
                                // (PromptAdapter) — missing/unknown falls back to default behavior
@@ -182,30 +178,6 @@ src/adapter/inbound/
 // 5s during streaming; the mission-log stream endpoint uses a 15s
 // `: heartbeat\n\n` comment interval.
 ```
-
-### Mission Log Stream - GET /api/v1/missions/:id/stream  [Active]
-
-Redis-backed replay + live tail of mission events (key `mission:events:{id}`,
-`XADD`/`XRANGE`/`XREAD BLOCK`, MAXLEN ~2000, TTL 24h).
-
-```
-// Query
-GET /api/v1/missions/:id/stream?after=<stream-id>
-  after:      exclusive cursor (Redis stream ID). Omitted = replay full history.
-  Header      `Last-Event-ID: <stream-id>` also accepted as cursor.
-
-// Response 200 -> SSE. Each frame is a packet JSON enriched with `sid`
-// (the Redis stream ID). Stream closes after a terminal packet
-// (`mission_completed` or `error`).
-data: {"type":"content","content":"...","sid":"1699...-0", ...}
-
-// Errors
-503 { "error": "Mission stream unavailable: Redis is offline" }
-```
-
-> If Redis is unavailable the endpoint returns 503 — the agent keeps serving
-> chat; only stream replay/recovery is degraded. Events are recorded
-> fire-and-forget: a Redis write failure never breaks the primary SSE stream.
 
 ### Models Endpoint - GET /api/models
 
@@ -300,10 +272,9 @@ Errors: `400` invalid body (missing `text`), `500` tokenization failure.
 | `src/index.ts`                   | 57-59                       | Global middleware registration (CORS, monitor, auth) |
 | `src/index.ts`                   | 67                          | `app.onError(errorHandler)`                       |
 | `src/adapter/inbound/api/routes.ts` | 1-20                    | Route aggregator, sub-router mounting             |
-| `adapter/inbound/api/missions/mission.routes.ts` | 7-10 | `POST /generate-mission`, `/v1/missions/:id/approve|deny|stream` |
+| `adapter/inbound/api/missions/mission.routes.ts` | 7-9 | `POST /generate-mission`, `/v1/sessions/:id/approve|deny` |
 | `adapter/inbound/api/missions/mission.controller.ts` | 36-201 | `createMission()` orchestrates flow         |
 | `adapter/inbound/api/missions/mission.controller.ts` | 203-273 | `handleHitlDecision()` — approve/deny resume |
-| `adapter/inbound/api/missions/mission.controller.ts` | 328-380 | `streamMissionLogs()` — SSE log replay   |
 | `adapter/inbound/api/missions/mission.schema.ts` | 223-290 | Zod `createMissionSchema` (preprocess + validation) |
 | `adapter/inbound/api/missions/mission.schema.ts` | 295-299 | Zod `hitlDecisionSchema`                  |
 | `adapter/inbound/api/missions/mission.constants.ts` | 32-37 | `MISSION_ROUTES` path constants             |

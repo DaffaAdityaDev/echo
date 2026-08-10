@@ -5,63 +5,82 @@
             "type": "object",
             "properties": {
                 "active_version": {
+                    "description": "ActiveVersion is the version currently promoted to production.",
                     "type": "integer"
                 },
                 "created_at": {
+                    "description": "CreatedAt is when the template was created.",
                     "type": "string"
                 },
                 "description": {
+                    "description": "Description is a human-readable description of the template.",
                     "type": "string"
                 },
                 "id": {
+                    "description": "ID is the unique identifier of the template.",
                     "type": "string"
                 },
                 "name": {
+                    "description": "Name is the display name of the template.",
                     "type": "string"
                 },
                 "tenant_id": {
+                    "description": "TenantID is the tenant that owns the template.",
                     "type": "string"
                 },
                 "updated_at": {
+                    "description": "UpdatedAt is when the template was last updated.",
                     "type": "string"
                 }
             }
         },
-        "echo-backend_internal_models_llmops.PromptVersion": {
+        "internal_handler_llmops.PromoteResponse": {
             "type": "object",
             "properties": {
-                "bound_tools": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
+                "promoted_version": {
+                    "description": "PromotedVersion is the version promoted to production.",
+                    "type": "integer"
                 },
                 "status": {
+                    "description": "Status is the outcome of the promotion.",
                     "type": "string"
-                },
-                "system_prompt": {
-                    "type": "string"
-                },
-                "template_id": {
-                    "type": "string"
-                },
-                "variables": {
+                }
+            }
+        },
+        "internal_handler_llmops.PromptTemplatesResponse": {
+            "type": "object",
+            "properties": {
+                "templates": {
+                    "description": "Templates are the prompt templates of the tenant.",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptTemplate"
                     }
-                },
-                "version": {
+                }
+            }
+        },
+        "internal_handler_llmops.PromptVersionsResponse": {
+            "type": "object",
+            "properties": {
+                "versions": {
+                    "description": "Versions is the version history of the template.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
+                    }
+                }
+            }
+        },
+        "internal_handler_llmops.RollbackResponse": {
+            "type": "object",
+            "properties": {
+                "rolled_back_to": {
+                    "description": "RolledBackTo is the version the template was rolled back to.",
                     "type": "integer"
+                },
+                "status": {
+                    "description": "Status is the outcome of the rollback.",
+                    "type": "string"
                 }
             }
         },
@@ -69,9 +88,11 @@
             "type": "object",
             "properties": {
                 "description": {
+                    "description": "Description is a human-readable description of the new template.",
                     "type": "string"
                 },
                 "name": {
+                    "description": "Name is the display name of the new template.",
                     "type": "string"
                 }
             }
@@ -80,15 +101,18 @@
             "type": "object",
             "properties": {
                 "bound_tools": {
+                    "description": "BoundTools are the tools the prompt is allowed to call.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "system_prompt": {
+                    "description": "SystemPrompt is the full system prompt text.",
                     "type": "string"
                 },
                 "variables": {
+                    "description": "Variables are the template variables used by the prompt.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -124,14 +148,26 @@
                 "parameters": null,
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of prompt templates",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromptTemplatesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -156,7 +192,7 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created template",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptTemplate"
                         }
@@ -169,9 +205,22 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -198,7 +247,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Active production prompt version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -222,7 +271,11 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -254,14 +307,26 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Promotion result",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromoteResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -293,10 +358,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Rollback result",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_handler_llmops.RollbackResponse"
                         }
                     },
                     "400": {
@@ -307,9 +371,22 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -334,14 +411,26 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Version history",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_llmops.PromptVersionsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -373,7 +462,7 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Created version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -386,9 +475,22 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -422,7 +524,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Prompt template version",
                         "schema": {
                             "$ref": "#/definitions/echo-backend_internal_models_llmops.PromptVersion"
                         }
@@ -446,7 +548,11 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -460,7 +566,16 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "InternalAuth": {
+            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+            "type": "apiKey",
+            "name": "X-Internal-Token",
+            "in": "header"
         }
     },
-    "swagger": "2.0"
+    "swagger": "2.0",
+    "x-shared-definitions": [
+        "echo-backend_internal_models_llmops.PromptVersion"
+    ]
 }

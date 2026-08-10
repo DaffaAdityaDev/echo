@@ -15,19 +15,29 @@ import (
 
 const DefaultStrategyVersion = "nlah:v1"
 
+// StrategyVersionInfo describes a single strategy version.
 type StrategyVersionInfo struct {
-	Version string   `json:"version"`
-	Status  string   `json:"status"`
+	// Version is the strategy version identifier, e.g. nlah:v1.
+	Version string `json:"version"`
+	// Status is the version lifecycle state: active|deprecated.
+	Status string `json:"status"`
+	// Aliases lists alternative version names.
 	Aliases []string `json:"aliases"`
+	// Rollout is the gateway rollout percentage 0-100, omitted when unconfigured.
 	Rollout *float64 `json:"rollout,omitempty"`
 }
 
+// StrategyRegistryEntry describes one strategy and its available versions.
 type StrategyRegistryEntry struct {
-	Name     string                `json:"name"`
+	// Name is the strategy name.
+	Name string `json:"name"`
+	// Versions lists the available versions of the strategy.
 	Versions []StrategyVersionInfo `json:"versions"`
 }
 
+// CatalogResponse is the strategy catalog payload.
 type CatalogResponse struct {
+	// Strategies lists the strategy catalog entries.
 	Strategies []StrategyRegistryEntry `json:"strategies"`
 }
 

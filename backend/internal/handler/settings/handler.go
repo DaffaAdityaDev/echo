@@ -22,16 +22,26 @@ func NewHandler(cfg *cfgmodel.Config, settingsSvc *settings.Service) *Handler {
 	}
 }
 
+// UpdateSettingsRequest is the payload for updating user preferences.
 type UpdateSettingsRequest struct {
-	DefaultMode     string                           `json:"default_mode"`
-	DefaultModel    string                           `json:"default_model"`
-	DefaultFeatures []string                         `json:"default_features"`
-	DefaultSkills   []string                         `json:"default_skills"`
-	ProviderType    string                           `json:"provider_type"`
-	APIKey          *string                          `json:"api_key"`
-	KeepAPIKey      bool                             `json:"keep_api_key"`
-	BaseURL         string                           `json:"base_url"`
-	HarnessToggles  *usermodel.HarnessFeatureToggles `json:"harness_toggles"`
+	// DefaultMode is the preferred chat mode: standard|agent.
+	DefaultMode string `json:"default_mode"`
+	// DefaultModel is the preferred model ID or name.
+	DefaultModel string `json:"default_model"`
+	// DefaultFeatures lists the enabled agent features.
+	DefaultFeatures []string `json:"default_features"`
+	// DefaultSkills lists the enabled agent skills.
+	DefaultSkills []string `json:"default_skills"`
+	// ProviderType is the LLM provider type, e.g. opencode-go.
+	ProviderType string `json:"provider_type"`
+	// APIKey is a new API key to store; ignored if keep_api_key is true.
+	APIKey *string `json:"api_key"`
+	// KeepAPIKey keeps the existing API key instead of replacing it.
+	KeepAPIKey bool `json:"keep_api_key"`
+	// BaseURL is a custom provider base URL.
+	BaseURL string `json:"base_url"`
+	// HarnessToggles holds agent harness feature toggles.
+	HarnessToggles *usermodel.HarnessFeatureToggles `json:"harness_toggles"`
 }
 
 // HandleGetSettings godoc
@@ -40,8 +50,9 @@ type UpdateSettingsRequest struct {
 // @Tags Settings
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} usermodel.UserPreferences
+// @Success 200 {object} usermodel.UserPreferences "The user's preferences with defaults applied"
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/settings [get]
 func (h *Handler) HandleGetSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -65,9 +76,10 @@ func (h *Handler) HandleGetSettings(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param request body UpdateSettingsRequest true "Settings payload"
-// @Success 200 {object} usermodel.UserPreferences
+// @Success 200 {object} usermodel.UserPreferences "The user's preferences with defaults applied"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/v1/settings [put]
 func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 	userID, err := handlerutil.GetUserID(c)
@@ -110,7 +122,7 @@ func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 // @Description Returns platform-wide default settings
 // @Tags Settings
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} usermodel.UserPreferences "Platform-wide default preferences"
 // @Router /api/v1/settings/defaults [get]
 func (h *Handler) HandleGetDefaults(c fiber.Ctx) error {
 	defaults := h.SettingsSvc.GetDefaults()

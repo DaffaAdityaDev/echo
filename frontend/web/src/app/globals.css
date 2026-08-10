@@ -324,22 +324,21 @@
   }
 }
 
-/* FlowToken Blur-in Animation */
-@keyframes streamBlurIn {
-  0% {
+/* Magic UI / Streamdown AI Pure Mount Cursor Reveal */
+@keyframes cursorReveal {
+  from {
+    filter: blur(5px);
     opacity: 0;
-    filter: blur(4px);
-    transform: translateY(3px);
+    transform: translateY(2px);
   }
-  100% {
+  to {
+    filter: blur(0px);
     opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
+    transform: translateY(0px);
   }
 }
 
-.stream-token {
-  display: inline-block;
-  white-space: pre-wrap;
-  animation: streamBlurIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-cursor-reveal {
+  animation: cursorReveal 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: filter, opacity, transform;
 }

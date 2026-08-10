@@ -10,9 +10,9 @@
 ## Description
 
 End-to-end Server-Sent Events flow from the Hono Agent Engine through the Go
-Gateway relay to the Next.js frontend. Supports two runtime modes (local
-reverse-proxy and SaaS direct Redis Streams read) with a Redis-backed mission
-event store for replay-after-cursor recovery and event type taxonomy.
+Gateway relay to the Next.js frontend. One live delivery channel (the agent's
+SSE stream, relayed by the gateway); missions are cancelled on disconnect
+(token safety) and are not replayed.
 
 ## File Structure
 
@@ -21,20 +21,18 @@ event store for replay-after-cursor recovery and event type taxonomy.
 +-------------------------------------+---------------------------------------------+
 | agent/src/adapter/inbound/api/missions/         |                                             |
 |   mission.controller.ts             | SSE stream creation                         |
+|   mission-execution.ts              | streamHarnessExecution (run + SSE stream)   |
 |   stream.transport.ts               | HttpStreamTransport packet writer           |
 | agent/src/core/agent/harness/       |                                             |
 |   cancel_manager.ts                 | Abort signal per mission                    |
 | backend/internal/handler/           |                                             |
-|   chat/handler.go                   | HandleChat SSE proxy, StreamMissionLogs     |
+|   chat/handler.go                   | HandleChat SSE proxy                        |
 | backend/internal/router/router.go   | Route wiring                                |
 | frontend/web/src/features/chat/     |                                             |
-|   hooks/useChatStream.ts            | SSE packet dispatch + recovery              |
-|   services/applyStreamPacket.ts     | Shared packet dispatcher (live + replay)    |
-|   services/mission-cursor.ts        | localStorage replay cursor (per mission)    |
-| frontend/web/src/lib/api-client.ts  | ReadableStream SSE parser (stream/streamGet)|
-| frontend/web/src/app/api/missions/  | Next route handlers (stream/approve/deny)   |
-| agent/src/adapter/inbound/api/missions/         |                                             |
-|   mission-stream.ts                 | Redis event store (XADD/XRANGE/XREAD BLOCK) |
+|   hooks/useChatStream.ts            | SSE packet dispatch                         |
+|   services/stream/index.ts          | Shared packet dispatcher                    |
+| frontend/web/src/lib/api-client.ts  | ReadableStream SSE parser (stream)          |
+| frontend/web/src/app/api/chat/      | Next route handlers (chat stream)           |
 | frontend/web/src/features/chat/     |                                             |
 |   types/index.ts                    | StreamPacket type                           |
 +-------------------------------------+---------------------------------------------+
@@ -78,44 +76,6 @@ event store for replay-after-cursor recovery and event type taxonomy.
   │                      │     │    no                 │     │                      │
   └──────────────────────┘     └──────────────────────┘     └──────────────────────┘
 
-
-                         DUAL MODE: MISSION LOG STREAMING
-                         ─────────────────────────────────
-
-  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-  │   Frontend   │     │   Go Gateway     │     │     Redis        │     │   Hono Agent     │
-  └──────┬───────┘     └──────┬───────────┘     └──────┬───────────┘     └──────┬───────────┘
-         │                    │                         │                       │
-         │                    │   LOCAL MODE            │                       │
-         │  GET /v1/missions  │  (AGENT_RUNTIME_        │                       │
-         │  /:id/stream       │   MODE=local)           │                       │
-         │───────────────────►│                         │                       │
-         │                    │  GET /api/v1/missions/   │                       │
-         │                    │  :id/stream              │──────────────────────►│
-         │                    │                         │                       │
-         │                    │  bufio copy line-by-line │    SSE: data: {...}   │
-         │                    │  from Hono               │◄──────────────────────│
-         │  SSE: data: {...}  │                         │                       │
-         │◄───────────────────│                         │                       │
-         │                    │                         │                       │
-         │                    │   SAAS MODE             │                       │
-         │  GET /v1/missions  │  (AGENT_RUNTIME_        │                       │
-         │  /:id/stream       │   MODE=saas)            │                       │
-         │───────────────────►│                         │                       │
-         │                    │  SUBSCRIBE              │                       │
-         │                    │  stream:{missionId}     │────────────────────►  │
-         │                    │                         │                       │
-         │                    │                         │   Agent PUBLISHES     │
-         │                    │                         │   to stream:id        │
-         │                    │                         │◄──────────────────────│
-         │                    │  CHANNEL message        │                       │
-         │                    │◄────────────────────────│                       │
-          │  SSE: data: {...}  │                         │                       │
-          │◄───────────────────│                         │                       │
-          │                    │  15s heartbeat:         │                       │
-          │                    │  ": heartbeat\n\n"      │                       │
-          │◄───────────────────│                         │                       │
-
 ## Event Types
 
 ### Packet Type Taxonomy
@@ -143,20 +103,10 @@ type AgentPacketType =
   | 'token_metrics'   // Token usage metrics payload
   | 'hitl_approval_required' // Human-in-the-loop approval request
   | 'mission_completed'     // Mission finished payload
-  | 'replay_done'           // Synthetic marker: replayed history segment is over
 ```
 
 `checkpoint` and `swarm_status` are NOT emitted by the harness — they are
 legacy types retained in some client type unions.
-
-`replay_done` is emitted by the mission-stream endpoints (agent
-`streamMissionLogs` and the Go gateway saas path) only — it is written
-directly to the SSE connection and never recorded to the Redis event store.
-It separates the replayed history segment from the live phase: the recovery
-client (useChatStream) switches from `replay: true` (skip content/reasoning,
-which the DB message already carries) to live application of content deltas
-on it. A completed mission whose terminal marker is already in history does
-not emit `replay_done`.
 
 ## Stream Packet Enrichment
 
@@ -248,112 +198,41 @@ handlePacket(data: StreamPacket) {
 }
 ```
 
-## Reconnection Strategy
+## Disconnect Handling
 
-Two layers, both Redis-backed:
+Missions are cancelled when the client disconnects — there is no replay or
+cursor recovery.
 
-### 1. Page refresh recovery (`recoverMission` in useChatStream)
+### Server side
 
-On session load the chat page re-attaches to the mission log stream
-(`GET /api/v1/missions/:missionId/stream`) when the session contains assistant
-content. The last seen Redis stream ID (`sid`) is persisted per mission in
-localStorage (`echo:mission-cursor:{missionId}`):
+The agent's `CancellationManager` ties to the SSE stream lifecycle: on abort
+(client disconnected, gateway died) the mission's signal fires and the harness
+throws `STREAM_CONSTANTS.CANCELLED_MESSAGE`, which the stream emits as an
+`error` packet. The gateway's relay loop (`HandleChat`) keeps flushing
+partial content to the DB every 2s and finalizes the turn with
+`CompleteTurn` — status `complete` (on `turn_complete`) or `interrupted`
+(otherwise). The DB snapshot is the single source of truth after a
+disconnect: refresh → messages rebuild from `GET /sessions/:id/messages`.
 
-- Cursor present → server replays only events after the cursor
-  (`XRANGE (after +`), then tails live via `XREAD BLOCK`.
-- No cursor → live tail only (`after=$`), avoiding duplication with content
-  already restored from the database.
-- Replay skips `content`/`reasoning` deltas and step packets — the DB message
-  already carries them (content is persisted incrementally, steps on
-  completion) — and an unexpired `hitl_approval_required` re-opens the HITL
-  approval modal. The `replay_done` marker ends the replay segment and switches
-  the client to live application of content/step deltas.
-- A terminal packet (`mission_completed` / `error`) closes the stream and
-  clears the cursor.
+### Client side
 
-### 2. Live stream failure
-
-If `POST /chat/stream` fails mid-mission, the same cursor-based recovery path
-can be invoked for the active `missionId` (session id) to catch up and resume
-live updates.
-
-The gateway accepts the cursor via query param `?after=<sid>` or the SSE
-`Last-Event-ID` header and passes it through in local mode / applies it to
-`XRANGE` in SaaS mode.
-
-### Idle-close and recovery persistence
-
-A stream whose history has no terminal marker may never produce one (Redis
-stream expired after the 24h TTL, or the agent died mid-run). Both stream
-endpoints (agent `streamMissionLogs`, Go gateway SaaS path) therefore close
-after an idle window instead of blocking forever:
-
-- **Empty history** — a single-shot 5s window covering the expired/TTL case.
-  The first live event proves the mission is genuinely running and cancels the
-  timer; a live mission is never cut off on silence.
-- **Partial history (no terminal)** — a sliding 60s window reset on every live
-  event, so a mission whose agent died mid-run closes instead of hanging.
-
-On a terminal packet the Go gateway's SaaS relay also finalizes the database
-message: it reads the FULL `mission:events:{missionId}` stream (independent of
-the client's cursor), rebuilds content/steps/token count
-(`persistRecoveredMission`, `mission_replay.go`), and calls `CompleteTurn` with
-status `complete` (on `mission_completed`) or `interrupted` (on `error`). This
-closes the gap where a mission that finished after its SSE connection dropped
-stayed `interrupted` forever. Local mode remains store-only — the relay proxies
-the agent's stream without DB writes.
-
-On the frontend, `recoverMission` invalidates the messages query on completion
-so the rebuilt snapshot reflects the persisted completion. While the snapshot
-is still stale (status `interrupted` — local mode, or before the relay
-persists), `useChatPage` suppresses the snapshot rebuild so the recovered
-content in the store is not clobbered.
-
-## Cancellation
-
-### Server Side (Agent)
-
-The `CancellationManager` in the agent ties to client disconnect:
-
-```typescript
-// agent/src/core/agent/harness/cancel_manager.ts
-const signal = cancellationManager.register(missionId);
-
-// On client disconnect -> Hono context done -> abort signal
-// Harness checks signal.aborted between each packet send
-```
-
-### Client Side (Frontend)
-
-An `AbortController` is created per `sendMessage()` call and passed to
-`api.stream()` as the 4th argument. The controller is aborted when:
-
-- The user clicks "Clear messages" during an active stream
-- The component unmounts (future enhancement: effect cleanup)
-
-```typescript
-// frontend/web/src/features/chat/api/useChatStream.ts
-abortRef.current = new AbortController();
-await api.stream(..., { signal: abortRef.current.signal });
-
-// On clear:
-const clearMessages = () => {
-  abortRef.current?.abort();
-  setMessages([]);
-};
-```
-
-The stream's catch block silently ignores `AbortError` to prevent
-console noise on intentional cancellation.
+- An `AbortController` is created per `sendMessage()` call and passed to
+  `api.stream()`. The controller is aborted when the user stops the stream.
+- An `error` packet carrying `CANCELLED_MESSAGE` ("Mission cancelled by
+  client disconnect") is surfaced as an **interrupted** turn (badge: "send a
+  reply to continue") instead of a completed error — the partial content
+  stays and the conversation continues with a new message.
+- The stream's catch block silently ignores `AbortError` to prevent console
+  noise on intentional cancellation.
 
 ## Entry Points & Exports
 
 - **Agent stream writer**: `stream.transport.ts` -> `HttpStreamTransport.send()`
 - **Agent mission controller**: `mission.controller.ts` -> `createMission()`
   wraps SSE stream
+- **Agent stream executor**: `mission-execution.ts` -> `streamHarnessExecution()`
 - **Go SSE proxy**: `chat/handler.go` -> `HandleChat()` streams from agent to
   client
-- **Go mission log stream**: `chat/handler.go` -> `StreamMissionLogs()` dual-mode
 - **Frontend SSE consumer**: `useChatStream.ts` -> `sendMessage()` calls
   `api.stream()`
 - **Frontend API streaming**: `api-client.ts` -> `stream()` ReadableStream
@@ -365,11 +244,11 @@ console noise on intentional cancellation.
 | File                                                  | Lines | Role                                  |
 +-------------------------------------------------------+-------+---------------------------------------+
 | agent/src/adapter/inbound/api/missions/mission.controller.ts      | 152-158| SSE stream creation                   |
+| agent/src/adapter/inbound/api/missions/mission-execution.ts      | 1-70  | streamHarnessExecution (run + stream) |
 | agent/src/adapter/inbound/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
 | agent/src/core/agent/harness/cancel_manager.ts        | 1-40  | Abort signal per mission              |
 | backend/internal/handler/chat/handler.go              | 148-540| HandleChat SSE proxy                  |
-| backend/internal/handler/chat/handler.go              | 552-650| StreamMissionLogs dual mode           |
-| frontend/web/src/features/chat/api/useChatStream.ts   | 38-270| SSE packet dispatch, AbortController   |
+| frontend/web/src/features/chat/hooks/useChatStream.ts | 38-270| SSE packet dispatch, AbortController   |
 | frontend/web/src/lib/api-client.ts                    | 56-121| ReadableStream SSE parser             |
 | frontend/web/src/features/chat/types/index.ts         | 130-243| StreamPacket type                     |
 +-------------------------------------------------------+-------+---------------------------------------+

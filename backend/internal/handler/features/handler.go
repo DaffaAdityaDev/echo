@@ -20,8 +20,8 @@ func NewHandler(featuresSvc *featuresvc.Service) *Handler {
 // @Description Returns the catalog of agent features with tier-based locking
 // @Tags Chat
 // @Produce json
-// @Security BearerAuth
-// @Success 200 {array} featuresvc.FeatureResponse
+// @Param X-User-Tier header string false "User tier, default pro"
+// @Success 200 {array} featuresvc.FeatureResponse "Catalog of agent features for the user's tier"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/features [get]
 func (h *Handler) HandleGetFeatures(c fiber.Ctx) error {
