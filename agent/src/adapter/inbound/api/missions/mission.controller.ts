@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { HumanMessage } from "@langchain/core/messages";
 import type { Context } from "hono";
 import { StandardContextAnchor } from "../../../../core/agent/anchors";
-import { NlahHarness } from "../../../../core/agent/harness";
+import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import { type BehaviorPrompt, resolveBehaviorPrompt } from "../../../../core/agent/prompts";
 import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
 import { SkillRegistry } from "../../../../core/agent/skills";
@@ -26,6 +26,13 @@ import { streamHarnessExecution } from "./mission-execution";
 import { handleHitlDecision } from "./mission-resume";
 
 export { handleHitlDecision };
+
+export async function handleCancelMission(c: Context) {
+  const missionId = c.req.param("id") as string;
+  cancellationManager.cancelLocal(missionId);
+  logger.info(`[handleCancelMission] Cancelled mission ${missionId}`);
+  return c.json({ status: "cancelled", missionId });
+}
 
 function toRestToolConfig(restTool: {
   name: string;
@@ -75,6 +82,10 @@ export async function createMission(c: Context) {
 
     const validatedData = parseResult.data;
     const missionId = validatedData.sessionId || randomUUID();
+    // A new turn on the same session starts fresh: drop any cancellation mark
+    // left by an earlier interrupted run so HITL approvals cannot be resumed
+    // into the new mission.
+    cancellationManager.clearCancelled(missionId);
 
     const payload: MissionPayload = {
       missionId,

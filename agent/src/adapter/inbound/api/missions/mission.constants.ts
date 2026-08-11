@@ -1,3 +1,5 @@
+import { CANCELLED_MESSAGE } from "../../../../shared/constants/errors";
+
 export const MISSION_STRATEGIES = ["standard", "agent"] as const;
 
 export const DEFAULT_MISSION_VALUES = {
@@ -21,6 +23,7 @@ export const MISSION_ROUTES = {
   GENERATE_MISSION: "/generate-mission",
   APPROVE: "/v1/sessions/:id/approve",
   DENY: "/v1/sessions/:id/deny",
+  CANCEL: "/v1/sessions/:id/cancel",
 } as const;
 
 export const HITL_DECISIONS = {
@@ -34,7 +37,7 @@ export const MISSION_LOG_MESSAGES = {
 } as const;
 
 export const STREAM_CONSTANTS = {
-  CANCELLED_MESSAGE: "Mission cancelled by client disconnect",
+  CANCELLED_MESSAGE: CANCELLED_MESSAGE,
   ERROR_CODE: "STREAM_EXECUTION_ERROR",
   ERROR_STEP: 0,
 } as const;
@@ -50,5 +53,6 @@ export const MISSION_ERROR_MESSAGES = {
   UNKNOWN_FEATURE: (id: string) => `Unknown feature '${id}'`,
   PROVIDER_UNREACHABLE: "Provider unreachable",
   APPROVAL_EXPIRED_OR_NOT_FOUND: "APPROVAL_EXPIRED_OR_NOT_FOUND",
+  MISSION_CANCELLED: "MISSION_CANCELLED",
   INVALID_DECISION: "Invalid decision payload",
 } as const;

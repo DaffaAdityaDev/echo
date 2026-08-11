@@ -1,6 +1,6 @@
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import type { Context } from "hono";
-import { NlahHarness } from "../../../../core/agent/harness";
+import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
 import { stateStorage } from "../../../../core/agent/storage";
 import { StrategyFactory } from "../../../../core/agent/strategies";
@@ -30,6 +30,14 @@ export async function handleHitlDecision(c: Context) {
   const pausedState = (await stateStorage.get(`paused:${body.approvalId}`)) as unknown as PausedMissionState | null;
   if (!pausedState) {
     return c.json({ error: MISSION_ERROR_MESSAGES.APPROVAL_EXPIRED_OR_NOT_FOUND }, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // A cancelled mission must not be resumable: the run was stopped (user
+  // interrupt or disconnect), so a late approval would otherwise resurrect a
+  // dead execution on a fresh harness.
+  if (cancellationManager.isCancelled(missionId)) {
+    await stateStorage.delete(`paused:${body.approvalId}`);
+    return c.json({ error: MISSION_ERROR_MESSAGES.MISSION_CANCELLED }, HTTP_STATUS.CONFLICT);
   }
 
   await stateStorage.delete(`paused:${body.approvalId}`);

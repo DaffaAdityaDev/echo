@@ -7,6 +7,7 @@ import { ChatInput } from "../ChatInput";
 interface WelcomeHeroProps {
   userName: string;
   onSend: (message: string) => void;
+  onStop: () => void;
   isLoading: boolean;
   onOpenHelp: () => void;
   onOpenSettings: () => void;
@@ -33,7 +34,7 @@ const promptSuggestions = [
   },
 ];
 
-export function WelcomeHero({ userName, onSend, isLoading, onOpenHelp, onOpenSettings }: WelcomeHeroProps) {
+export function WelcomeHero({ userName, onSend, onStop, isLoading, onOpenHelp, onOpenSettings }: WelcomeHeroProps) {
   const { showToast } = useToast();
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-10 flex flex-col justify-between items-center text-center">
@@ -76,7 +77,7 @@ export function WelcomeHero({ userName, onSend, isLoading, onOpenHelp, onOpenSet
 
         {/* Floating Input Box */}
         <div className="w-full pt-2">
-          <ChatInput onSend={onSend} isLoading={isLoading} onOpenSettings={onOpenSettings} />
+          <ChatInput onSend={onSend} onStop={onStop} isLoading={isLoading} onOpenSettings={onOpenSettings} />
         </div>
 
         {/* Prompt Suggestion Cards (3-Column Grid) */}

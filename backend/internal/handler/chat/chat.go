@@ -277,7 +277,56 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	jsonPayload, _ := json.Marshal(payload)
 
-	agentReq, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
+	// Register the in-flight run up front so a cancel request arriving during
+	// the agent request window still interrupts the mission (the watcher aborts
+	// the in-flight agent request via cancelAgentReq).
+	run := &activeRun{cancelCh: make(chan struct{})}
+	activeRunsMu.Lock()
+	activeRuns[req.SessionID] = run
+	activeRunsMu.Unlock()
+	defer func() {
+		activeRunsMu.Lock()
+		delete(activeRuns, req.SessionID)
+		activeRunsMu.Unlock()
+	}()
+
+	agentReqCtx, cancelAgentReq := context.WithCancel(ctx)
+	defer cancelAgentReq()
+
+	// Watcher for an explicit interrupt (POST /sessions/:id/cancel closes
+	// run.cancelCh). The agent cancel endpoint is the fast path (it aborts the
+	// in-flight LLM stream); cancelling the agent request context covers the
+	// window where the agent has not started streaming yet; closing the agent
+	// connection afterwards guarantees the agent's onAbort fires even if the
+	// cancel call failed.
+	interruptStop := make(chan struct{})
+	defer close(interruptStop)
+	go func() {
+		select {
+		case <-run.cancelCh:
+			log.Printf("[CHAT] Interrupt requested for session %s; notifying agent", req.SessionID)
+			cancelAgentReq()
+			// Guard against stale interrupts: if a new turn has already claimed
+			// the session (user stopped then immediately sent a new message),
+			// the old watcher must not abort the new turn's mission.
+			activeRunsMu.Lock()
+			stillCurrent := activeRuns[req.SessionID] == run
+			activeRunsMu.Unlock()
+			if stillCurrent {
+				agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer agentCancel()
+				if err := cancelAgentMission(agentCtx, h.Cfg, req.SessionID); err != nil {
+					log.Printf("[CHAT] Agent cancel call failed for session %s: %v", req.SessionID, err)
+				}
+			} else {
+				log.Printf("[CHAT] Stale interrupt for session %s (new turn active); skipping agent cancel", req.SessionID)
+			}
+			run.closeBody()
+		case <-interruptStop:
+		}
+	}()
+
+	agentReq, err := http.NewRequestWithContext(agentReqCtx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
@@ -292,6 +341,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
+	run.setBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()

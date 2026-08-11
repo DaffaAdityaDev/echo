@@ -1,13 +1,15 @@
 "use client";
 
-import { Activity, BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, X } from "lucide-react";
+import { Activity, BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, Square, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/utils/cn";
+import { useChatStream } from "../hooks/useChatStream";
 import { useSessions } from "../hooks/useSessions";
 import { useSessionsInfinite } from "../hooks/useSessionsInfinite";
+import { useChatStore } from "../stores/chatStore";
 import { SessionList } from "./sidebar/SessionList";
 
 interface SessionSidebarProps {
@@ -37,6 +39,8 @@ export function SessionSidebar({
     deleteSession: storeDeleteSession,
     selectSession: storeSelectSession,
   } = useSessions();
+  const { stopStream } = useChatStream();
+  const isLoading = useChatStore((s) => s.isLoading);
   const { user, logout } = useAuth();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const hasNextPageRef = useRef(hasNextPage);
@@ -144,7 +148,7 @@ export function SessionSidebar({
         </div>
 
         {/* Primary Action Button: + New chat */}
-        <div className="px-4 mb-3">
+        <div className="px-4 mb-3 space-y-2">
           <button
             type="button"
             onClick={handleCreateSession}
@@ -153,6 +157,17 @@ export function SessionSidebar({
             <Plus className="h-4 w-4" />
             <span>New chat</span>
           </button>
+
+          {isLoading && (
+            <button
+              type="button"
+              onClick={stopStream}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-rose-600 text-white hover:bg-rose-500 transition-all text-xs font-semibold shadow-md active:scale-98 cursor-pointer"
+            >
+              <Square className="h-4 w-4 fill-current" />
+              <span>Stop</span>
+            </button>
+          )}
         </div>
 
         {/* Search Input Box */}

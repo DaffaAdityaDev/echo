@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Loader2, Paperclip, Send, Sliders, Sparkles, X } from "lucide-react";
+import { Globe, Paperclip, Send, Sliders, Sparkles, Square, X } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
 import { settingsApi } from "@/features/settings/services/settings-api";
@@ -12,11 +12,12 @@ import { useChatStore } from "../stores/chatStore";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop: () => void;
   isLoading: boolean;
   onOpenSettings: () => void;
 }
 
-export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -183,18 +184,30 @@ export function ChatInput({ onSend, isLoading, onOpenSettings }: ChatInputProps)
               <span>Attach file</span>
             </button>
 
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className={cn(
-                "p-2 rounded-full transition-all shrink-0 cursor-pointer",
-                input.trim() && !isLoading
-                  ? "bg-purple-600 text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
-                  : "bg-purple-600/20 text-purple-400/50 cursor-not-allowed",
-              )}
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={onStop}
+                title="Stop generating"
+                aria-label="Stop generating"
+                className="p-2 rounded-full transition-all shrink-0 cursor-pointer bg-rose-600 text-white hover:bg-rose-500 shadow-md shadow-rose-600/20"
+              >
+                <Square className="h-4 w-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className={cn(
+                  "p-2 rounded-full transition-all shrink-0 cursor-pointer",
+                  input.trim()
+                    ? "bg-purple-600 text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
+                    : "bg-purple-600/20 text-purple-400/50 cursor-not-allowed",
+                )}
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </form>

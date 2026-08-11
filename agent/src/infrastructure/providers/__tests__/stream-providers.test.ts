@@ -148,6 +148,7 @@ describe("OpenCodeGoProvider", () => {
         stream: true,
         stream_options: { include_usage: true },
       }),
+      undefined,
     );
   });
 
@@ -196,6 +197,7 @@ describe("OpenCodeGoProvider", () => {
           { role: "tool", tool_call_id: "call_1", content: "sunny" },
         ],
       }),
+      undefined,
     );
   });
 
@@ -218,6 +220,7 @@ describe("OpenCodeGoProvider", () => {
           },
         ],
       }),
+      undefined,
     );
   });
 });

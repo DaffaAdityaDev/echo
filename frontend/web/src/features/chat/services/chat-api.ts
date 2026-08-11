@@ -79,6 +79,9 @@ export const sessionApi = {
   delete: async (id: string): Promise<void> => {
     return api.delete(SESSION_ENDPOINTS.DELETE(id));
   },
+  cancel: async (id: string, signal?: AbortSignal): Promise<void> => {
+    await api.post(SESSION_ENDPOINTS.CANCEL(id), {}, { signal });
+  },
   approve: (
     sessionId: string,
     body: Record<string, unknown>,

@@ -138,7 +138,15 @@ export function useChatPage() {
     if (rebuilt.length > 0 && storeMessages.length > 0) {
       const lastStore = storeMessages[storeMessages.length - 1];
       const lastRebuilt = rebuilt[rebuilt.length - 1];
-      if (
+      const interruptedBeforeDbCaughtUp =
+        lastStore.role === "assistant" &&
+        lastRebuilt.role === "assistant" &&
+        lastStore.status === "interrupted" &&
+        lastRebuilt.status === "streaming" &&
+        lastStore.content === lastRebuilt.content;
+      if (interruptedBeforeDbCaughtUp) {
+        rebuilt[rebuilt.length - 1] = { ...lastRebuilt, id: lastStore.id, status: "interrupted" as const };
+      } else if (
         lastStore.role === "assistant" &&
         lastRebuilt.role === "assistant" &&
         lastStore.status === lastRebuilt.status &&
@@ -165,6 +173,7 @@ export function useChatPage() {
 
   return {
     sendMessage,
+    stopStream,
     clearMessages,
     createSession: handleCreateSession,
     deleteSession,

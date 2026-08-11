@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,38 @@ func acquireSessionLock(sessionID string) func() {
 		sessionLocksMu.Unlock()
 	}
 }
+
+// Active in-flight chat runs keyed by session ID. A run is registered before
+// the agent request is issued and removed once the run ends. HandleInterrupt
+// closes the cancel channel to signal the run's watcher goroutine.
+type activeRun struct {
+	cancelCh chan struct{}
+
+	// resp is the agent response body once the agent request has completed.
+	// Guarded by respMu so the watcher can close it while the handler is still
+	// issuing the request.
+	respMu sync.Mutex
+	resp   *http.Response
+}
+
+func (r *activeRun) setBody(resp *http.Response) {
+	r.respMu.Lock()
+	r.resp = resp
+	r.respMu.Unlock()
+}
+
+func (r *activeRun) closeBody() {
+	r.respMu.Lock()
+	defer r.respMu.Unlock()
+	if r.resp != nil {
+		_ = r.resp.Body.Close()
+	}
+}
+
+var (
+	activeRunsMu sync.Mutex
+	activeRuns   = make(map[string]*activeRun)
+)
 
 func retryDBOperation(attempts int, delay time.Duration, fn func() error) error {
 	var err error

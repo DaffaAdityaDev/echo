@@ -43,6 +43,7 @@ const SettingsModal = dynamic(
 export function ChatPage() {
   const {
     sendMessage,
+    stopStream,
     createSession,
     fetchNextPage,
     hasNextPage,
@@ -167,6 +168,8 @@ export function ChatPage() {
         <ChatHeader
           activeModelName={activeModelName}
           packetCount={packetLogs.length}
+          isLoading={isLoading}
+          onStop={stopStream}
           onOpenWorkspace={() => setIsWorkspaceModalOpen(true)}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
           onToggleDebug={() => setIsDebugDrawerOpen((v) => !v)}
@@ -195,6 +198,7 @@ export function ChatPage() {
             <WelcomeHero
               userName={userName}
               onSend={sendMessage}
+              onStop={stopStream}
               isLoading={isLoading}
               onOpenHelp={() => setIsHelpModalOpen(true)}
               onOpenSettings={() => setIsSettingsModalOpen(true)}
@@ -246,6 +250,7 @@ export function ChatPage() {
             <div className="p-4">
               <ChatInput
                 onSend={sendMessage}
+                onStop={stopStream}
                 isLoading={isLoading}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
               />

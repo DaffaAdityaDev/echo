@@ -28,7 +28,12 @@ export class AnthropicProvider implements LLMProvider {
     this.maxContextTokens = 200000;
   }
 
-  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(
+    messages: BaseMessage[],
+    tools: ToolDefinition[],
+    systemPrompt: string,
+    signal?: AbortSignal,
+  ): AsyncIterable<ProviderEvent> {
     const systemParts = [systemPrompt];
     const nonSystemMessages = messages.filter((m: BaseMessage) => {
       if (m._getType() === "system") {
@@ -56,7 +61,10 @@ export class AnthropicProvider implements LLMProvider {
     }));
     const chatWithTools = this.chat.bindTools(lcTools as unknown as Parameters<typeof this.chat.bindTools>[0]);
     const callbacks = await getLangChainCallbacks();
-    const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
+    const langchainStream = await chatWithTools.stream(fullMessages, {
+      callbacks,
+      ...(signal ? { signal } : {}),
+    });
 
     const sentReasoningMap = new Map<string, string>();
     let accumulatedChunk: AIMessageChunk | null = null;

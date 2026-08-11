@@ -44,6 +44,7 @@ export interface Trace {
 interface TraceState {
   traces: Trace[];
   addOrUpdateTraceFromPacket: (packet: StreamPacket) => void;
+  finalizeInterruptedForSession: (sessionId: string) => void;
   clearTraces: () => void;
 }
 
@@ -92,6 +93,33 @@ export const useTraceStore = create<TraceState>((set) => ({
   clearTraces: () => {
     set({ traces: [] });
     saveStoredTraces([]);
+  },
+  finalizeInterruptedForSession: (sessionId) => {
+    set((state) => {
+      const timestamp = Date.now();
+      const nextTraces = state.traces.map((t) => {
+        if (t.status !== "streaming" || t.sessionId !== sessionId) return t;
+        return {
+          ...t,
+          status: "interrupted" as const,
+          endTime: timestamp,
+          durationMs: Math.max(0, timestamp - t.startTime),
+          spans: t.spans.map((s) =>
+            s.status === "streaming"
+              ? {
+                  ...s,
+                  status: "complete" as const,
+                  endTime: timestamp,
+                  durationMs: Math.max(0, timestamp - s.startTime),
+                }
+              : s,
+          ),
+        };
+      });
+      const changed = nextTraces.some((t, i) => t !== state.traces[i]);
+      if (changed) saveStoredTraces(nextTraces);
+      return { traces: nextTraces };
+    });
   },
   addOrUpdateTraceFromPacket: (packet) => {
     if (!packet.missionId) return;

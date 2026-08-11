@@ -304,6 +304,23 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 > `docs/shared/patterns/strategy-lifecycle.md`) and forwards it in the
 > generate-mission payload — clients never supply it on the chat request.
 
+### Session Interrupt
+
+**POST /api/v1/sessions/{id}/cancel** (Go -> proxied to Agent)
+
+```json
+// Request: empty body
+// Response 200: { "status": "ok" }
+```
+
+> Cancels the in-flight mission for a session. Idempotent: a session with no
+> active run returns success without side effects. The gateway signals the
+> agent's cancel endpoint (`POST /api/v1/sessions/{id}/cancel` internally),
+> which aborts the in-flight LLM provider stream, and the turn is finalized as
+> `interrupted` when the stream ends. A cancelled mission cannot be resumed:
+> a late HITL approval for it is rejected (`409 MISSION_CANCELLED`), and
+> sending a new message starts a fresh turn on the same session.
+
 ### Agent Internal: Generate Mission
 
 **POST /api/generate-mission?mode=...** (Agent internal)

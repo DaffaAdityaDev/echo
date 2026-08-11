@@ -4,6 +4,7 @@ import { context, trace as otelTrace } from "@opentelemetry/api";
 import { ENV } from "../../../config/env";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
+import { CANCELLED_MESSAGE } from "../../../shared/constants/errors";
 import type { AgentState, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
 import { getCosineSimilarity } from "../../../shared/utils/harness";
 import { langfuseStorage, startAgentTrace } from "../../../shared/utils/langfuse";
@@ -193,7 +194,10 @@ export class NlahHarness {
   }
 
   private async checkCancellation(iteration: number, onPacket: (p: HarnessEvent) => Promise<void>): Promise<boolean> {
-    if (cancellationManager.isAborted(this.missionId)) {
+    // isCancelled covers cancels that landed before this mission registered its
+    // AbortController (the createMission window), so the run stops before the
+    // first LLM call instead of burning tokens.
+    if (cancellationManager.isAborted(this.missionId) || cancellationManager.isCancelled(this.missionId)) {
       logger.info(`NlahHarness: Mission ${this.missionId} cancelled, aborting harness run.`);
       await this.emitter.emitMetadata(onPacket, iteration, { content: `Mission execution cancelled.` });
       return true;
@@ -289,30 +293,46 @@ export class NlahHarness {
       previousThought: "",
     };
 
-    while (!runtime.isComplete && iteration < maxIterations) {
-      if (await this.checkCancellation(iteration, onPacket)) break;
-      iteration++;
+    try {
+      while (!runtime.isComplete && iteration < maxIterations) {
+        if (await this.checkCancellation(iteration, onPacket)) break;
+        iteration++;
 
-      let span: LangfuseSpan | null = null;
-      if (trace) {
-        span = trace.startObservation(
-          `turn-${iteration}`,
-          {
-            input: { messagesCount: state.messages.length },
-          },
-          { asType: "span" },
-        );
-      }
+        let span: LangfuseSpan | null = null;
+        if (trace) {
+          span = trace.startObservation(
+            `turn-${iteration}`,
+            {
+              input: { messagesCount: state.messages.length },
+            },
+            { asType: "span" },
+          );
+        }
 
-      logger.info(`Agent iteration ${iteration}`, {
-        missionId: state.missionId,
-        traceId: trace?.traceId,
-        spanId: span?.id,
-      });
+        logger.info(`Agent iteration ${iteration}`, {
+          missionId: state.missionId,
+          traceId: trace?.traceId,
+          spanId: span?.id,
+        });
 
-      if (span?.otelSpan) {
-        await context.with(otelTrace.setSpan(context.active(), span.otelSpan), () =>
-          this.runTurn(
+        if (span?.otelSpan) {
+          await context.with(otelTrace.setSpan(context.active(), span.otelSpan), () =>
+            this.runTurn(
+              state,
+              onPacket,
+              iteration,
+              trace,
+              span,
+              circuit,
+              degradation,
+              budgetMonitor,
+              tools,
+              maxContextTokens ?? 0,
+              runtime,
+            ),
+          );
+        } else {
+          await this.runTurn(
             state,
             onPacket,
             iteration,
@@ -324,54 +344,45 @@ export class NlahHarness {
             tools,
             maxContextTokens ?? 0,
             runtime,
-          ),
-        );
-      } else {
-        await this.runTurn(
-          state,
-          onPacket,
-          iteration,
-          trace,
-          span,
-          circuit,
-          degradation,
-          budgetMonitor,
-          tools,
-          maxContextTokens ?? 0,
-          runtime,
-        );
+          );
+        }
       }
-    }
 
-    if (iteration >= maxIterations) {
-      logger.warn(`Max iterations reached`, { missionId: state.missionId });
-      await this.emitter.updateStatus(onPacket, { state: "aborted" }, iteration);
-    } else if (runtime.isComplete) {
-      await this.emitter.updateStatus(onPacket, { state: "completed" }, iteration);
-    }
+      if (iteration >= maxIterations) {
+        logger.warn(`Max iterations reached`, { missionId: state.missionId });
+        await this.emitter.updateStatus(onPacket, { state: "aborted" }, iteration);
+      } else if (runtime.isComplete) {
+        await this.emitter.updateStatus(onPacket, { state: "completed" }, iteration);
+      }
 
-    await this.emitter.emitTurnComplete(onPacket, iteration, runtime.isComplete, iteration, this.totalCostUsd);
+      await this.emitter.emitTurnComplete(onPacket, iteration, runtime.isComplete, iteration, this.totalCostUsd);
 
-    await stateStorage.set(state.missionId, state, 600);
+      await stateStorage.set(state.missionId, state, 600);
 
-    if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
-      queuePromptDebug({
-        state,
-        iteration,
-        strategyName: this.strategyRef.current.name,
-        systemPrompt,
-      });
-    }
-
-    if (trace) {
-      trace.update({
-        output: {
-          completed: runtime.isComplete,
-          totalIterations: iteration,
-        },
-      });
-      trace.end();
-      logger.info("Langfuse trace ended successfully.");
+      if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
+        queuePromptDebug({
+          state,
+          iteration,
+          strategyName: this.strategyRef.current.name,
+          systemPrompt,
+        });
+      }
+    } finally {
+      // Finalize the trace on every exit path: a mid-turn abort rethrows out of
+      // runTurn, so without the finally the trace would stay open in Langfuse.
+      if (trace) {
+        const cancelled =
+          cancellationManager.isCancelled(this.missionId) || cancellationManager.isAborted(this.missionId);
+        trace.update({
+          output: {
+            completed: runtime.isComplete,
+            totalIterations: iteration,
+            ...(cancelled ? { status: "interrupted" } : {}),
+          },
+        });
+        trace.end();
+        logger.info("Langfuse trace ended successfully.");
+      }
     }
   }
 
@@ -468,7 +479,12 @@ export class NlahHarness {
           dynamicEnvContext,
           state.messages,
         );
-        const eventStream = this.provider.stream(preparedMessages, activeTools, runtime.currentSystemPrompt);
+        const eventStream = this.provider.stream(
+          preparedMessages,
+          activeTools,
+          runtime.currentSystemPrompt,
+          cancellationManager.getSignal(this.missionId),
+        );
 
         const { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage } =
           await processStreamEvents({
@@ -664,6 +680,14 @@ export class NlahHarness {
         }
         await stateStorage.set(state.missionId, state, 600);
       } catch (err: unknown) {
+        if (cancellationManager.isAborted(this.missionId) || cancellationManager.isCancelled(this.missionId)) {
+          logger.info(`NlahHarness: Mission ${this.missionId} aborted mid-turn, surfacing as cancellation.`);
+          if (span) {
+            span.update({ output: { status: "interrupted", reason: CANCELLED_MESSAGE } });
+            span.end();
+          }
+          throw new Error(CANCELLED_MESSAGE);
+        }
         const turnError = err as { message?: string; stack?: string };
         logger.langfuse("ERROR", `Turn execution failed: ${turnError.message}`, {
           error: turnError.stack || turnError.message,

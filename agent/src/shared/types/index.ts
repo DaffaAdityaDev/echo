@@ -330,7 +330,12 @@ export interface LLMProvider {
   baseURL?: string;
   maxContextTokens?: number;
   supportsMultimodal?: boolean;
-  stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent>;
+  stream(
+    messages: BaseMessage[],
+    tools: ToolDefinition[],
+    systemPrompt: string,
+    signal?: AbortSignal,
+  ): AsyncIterable<ProviderEvent>;
   cleanupReasoning?(): Promise<void>;
   /**
    * Optional pre-flight connectivity check.

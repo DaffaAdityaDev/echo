@@ -28,6 +28,12 @@ describe("CancellationManager", () => {
     expect(() => manager.cancelLocal("cm-nonexistent")).not.toThrow();
   });
 
+  it("cancelLocal on unregistered mission still marks it cancelled (pre-register window)", () => {
+    manager.cancelLocal("cm-unregistered-mark");
+    expect(manager.isCancelled("cm-unregistered-mark")).toBe(true);
+    manager.clearCancelled("cm-unregistered-mark");
+  });
+
   it("unregister removes controller from tracking", () => {
     manager.register("cm-unregister-test");
     manager.unregister("cm-unregister-test");
@@ -36,5 +42,28 @@ describe("CancellationManager", () => {
 
   it("isAborted returns false for unknown mission", () => {
     expect(manager.isAborted("cm-unknown")).toBe(false);
+  });
+
+  it("getSignal returns the live signal while registered", () => {
+    const signal = manager.register("cm-signal-test");
+    expect(manager.getSignal("cm-signal-test")).toBe(signal);
+    manager.unregister("cm-signal-test");
+    expect(manager.getSignal("cm-signal-test")).toBeUndefined();
+  });
+
+  it("cancelLocal marks the mission cancelled and getSignal goes away", () => {
+    manager.register("cm-cancelled-test");
+    manager.cancelLocal("cm-cancelled-test");
+    expect(manager.isCancelled("cm-cancelled-test")).toBe(true);
+    expect(manager.getSignal("cm-cancelled-test")).toBeUndefined();
+  });
+
+  it("clearCancelled resets the cancelled mark (new turn on same session)", () => {
+    manager.register("cm-clear-test");
+    manager.cancelLocal("cm-clear-test");
+    expect(manager.isCancelled("cm-clear-test")).toBe(true);
+    manager.clearCancelled("cm-clear-test");
+    expect(manager.isCancelled("cm-clear-test")).toBe(false);
+    manager.unregister("cm-clear-test");
   });
 });

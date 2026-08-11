@@ -157,6 +157,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	sessionsGroup.Post("/:id/generate-title", sessionHandler.HandleGenerateTitle)
 	sessionsGroup.Post("/:id/approve", chatHandler.HandleApproveTool)
 	sessionsGroup.Post("/:id/deny", chatHandler.HandleDenyTool)
+	sessionsGroup.Post("/:id/cancel", chatHandler.HandleInterrupt)
 
 	// Admin routes (user JWT or API key required)
 	adminGroup := api.Group(routes.V1AdminGroup, middleware.AuthOrAPIKeyRequired(cfg, apiKeyRepo))

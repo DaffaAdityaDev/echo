@@ -44,11 +44,10 @@ export const CHAT_ENDPOINTS = {
 } as const;
 
 // Keep in sync with the agent's CANCELLED_MESSAGE
-// (agent/src/adapter/inbound/api/missions/mission.constants.ts): the error
-// packet a cancelled mission records. Matched in the stream handlers to
-// surface disconnect-cancelled turns as interrupted instead of completed
-// errors.
-export const CANCELLED_MESSAGE = "Mission cancelled by client disconnect";
+// (agent/src/shared/constants/errors.ts): the error packet a cancelled mission
+// records. Matched in the stream handlers to surface cancelled turns as
+// interrupted instead of completed errors.
+export const CANCELLED_MESSAGE = "Mission cancelled";
 
 export const SESSION_ENDPOINTS = {
   LIST: "/sessions",
@@ -57,4 +56,5 @@ export const SESSION_ENDPOINTS = {
   UPDATE: (id: string) => `/sessions/${id}`,
   MESSAGES: (id: string) => `/sessions/${id}/messages`,
   DELETE: (id: string) => `/sessions/${id}`,
+  CANCEL: (id: string) => `/sessions/${id}/cancel`,
 } as const;

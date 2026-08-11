@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { extractErrorMessage } from "@/utils/error";
 import { CHAT_QUERY_KEYS, CHAT_ROLES } from "../constants";
@@ -31,6 +31,43 @@ async function generateSessionTitle(sid: string): Promise<void> {
   }
 }
 
+// Module-scoped stream control shared across hook instances: the AbortController
+// lives here so any mounted component (chat input, header, sidebar) can stop
+// the active stream — not just the hook instance that started it.
+let activeAbort: AbortController | null = null;
+let interruptedTurn = false;
+
+function stopStreaming() {
+  if (!activeAbort) return;
+  interruptedTurn = true;
+  activeAbort.abort();
+  activeAbort = null;
+
+  const sid = useChatStore.getState().activeSessionId;
+  if (sid) {
+    // Finalize any streaming trace for this session immediately, and tell
+    // the backend to interrupt the mission (aborts the in-flight LLM
+    // stream). Fire-and-forget: the fetch abort alone already stops the
+    // stream; the cancel request makes the stop prompt across the chain.
+    useTraceStore.getState().finalizeInterruptedForSession(sid);
+    const cancelController = new AbortController();
+    const cancelTimeout = setTimeout(() => cancelController.abort(), 5000);
+    sessionApi
+      .cancel(sid, cancelController.signal)
+      .catch((err: unknown) => {
+        // The 5s timeout aborts the request via the controller; not a failure.
+        if ((err as { code?: string } | null)?.code !== "ERR_CANCELED") {
+          console.warn("[Chat] Failed to cancel mission:", err);
+        }
+      })
+      .finally(() => clearTimeout(cancelTimeout));
+  }
+
+  useChatStore.getState().setIsLoading(false);
+  useChatStore.getState().setAgentProgress(null);
+  useChatStore.getState().setAgentState("aborted");
+}
+
 export function useChatStream() {
   const isLoading = useChatStore((s) => s.isLoading);
   const setMessages = useChatStore((s) => s.setMessages);
@@ -41,11 +78,10 @@ export function useChatStream() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const abortRef = useRef<AbortController | null>(null);
-
   const sendMessage = async (input: string) => {
     if (!input.trim() || isLoading) return;
 
+    interruptedTurn = false;
     const userMessage: Message = {
       role: CHAT_ROLES.USER,
       content: input,
@@ -70,7 +106,7 @@ export function useChatStream() {
         totalIterations: 0,
       });
 
-      abortRef.current = new AbortController();
+      activeAbort = new AbortController();
 
       const payload: Record<string, unknown> = { message: input };
       const activeSessionId = useChatStore.getState().activeSessionId;
@@ -83,7 +119,7 @@ export function useChatStream() {
         (data: StreamPacket) => {
           applyStreamPacket(data);
         },
-        abortRef.current.signal,
+        activeAbort.signal,
         (response: Response) => {
           const sessionId = response.headers.get("X-Session-ID");
           if (sessionId && useChatStore.getState().activeSessionId === null) {
@@ -117,7 +153,10 @@ export function useChatStream() {
         const lastIdx = currentMsgs.length - 1;
         if (currentMsgs[lastIdx].role === CHAT_ROLES.ASSISTANT && currentMsgs[lastIdx].status === "streaming") {
           const updated = [...currentMsgs];
-          updated[lastIdx] = { ...updated[lastIdx], status: "complete" };
+          updated[lastIdx] = {
+            ...updated[lastIdx],
+            status: interruptedTurn ? ("interrupted" as const) : ("complete" as const),
+          };
           store.setMessages(updated);
         }
       }
@@ -147,13 +186,7 @@ export function useChatStream() {
   };
 
   const stopStream = () => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-      setIsLoading(false);
-      setAgentProgress(null);
-      useChatStore.getState().setAgentState("aborted");
-    }
+    stopStreaming();
   };
 
   const handleClearMessages = () => {

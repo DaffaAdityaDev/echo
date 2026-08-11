@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => {
       register: vi.fn(() => new AbortController().signal),
       unregister: vi.fn(),
       cancelLocal: vi.fn(),
+      clearCancelled: vi.fn(),
+      isCancelled: vi.fn(() => false),
     },
     stateStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     toolRegistry: { resolveTools: vi.fn(), resolveToolsMap: vi.fn(), addRestTool: vi.fn() },

@@ -8,6 +8,8 @@ export const ERROR_TYPES = {
 
 export const ERROR_STATUS = "error";
 
+export const CANCELLED_MESSAGE = "Mission cancelled";
+
 export const ERROR_MESSAGES = {
   RATE_LIMIT: "Upstream LLM Provider API rate limit exceeded. Please retry shortly.",
   TIMEOUT: "Upstream LLM Provider query timed out. Please retry.",

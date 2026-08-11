@@ -1,12 +1,14 @@
 "use client";
 
-import { Bug, ChevronDown, Cpu, Download, Menu, Plus, Settings, Share2 } from "lucide-react";
+import { Bug, ChevronDown, Cpu, Download, Menu, Plus, Settings, Share2, Square } from "lucide-react";
 import { useSidebar } from "@/lib/sidebar-context";
 import { AgentStatusBadge } from "../AgentStatusBadge";
 
 interface ChatHeaderProps {
   activeModelName: string;
   packetCount: number;
+  isLoading: boolean;
+  onStop: () => void;
   onOpenWorkspace: () => void;
   onOpenSettings: () => void;
   onToggleDebug: () => void;
@@ -18,6 +20,8 @@ interface ChatHeaderProps {
 export function ChatHeader({
   activeModelName,
   packetCount,
+  isLoading,
+  onStop,
   onOpenWorkspace,
   onOpenSettings,
   onToggleDebug,
@@ -57,6 +61,19 @@ export function ChatHeader({
 
       {/* Header Right Actions */}
       <div className="flex items-center gap-2">
+        {/* Stop Generating Button */}
+        {isLoading && (
+          <button
+            type="button"
+            onClick={onStop}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-500/20 transition-all cursor-pointer"
+            title="Stop generating"
+          >
+            <Square className="h-3.5 w-3.5 fill-current" />
+            <span className="hidden sm:inline">Stop</span>
+          </button>
+        )}
+
         {/* Debug Drawer Toggle Button */}
         <button
           type="button"

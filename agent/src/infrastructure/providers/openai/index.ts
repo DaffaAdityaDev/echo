@@ -28,7 +28,12 @@ export class OpenAIProvider implements LLMProvider {
     });
   }
 
-  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(
+    messages: BaseMessage[],
+    tools: ToolDefinition[],
+    systemPrompt: string,
+    signal?: AbortSignal,
+  ): AsyncIterable<ProviderEvent> {
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({
@@ -39,7 +44,10 @@ export class OpenAIProvider implements LLMProvider {
 
     const chatWithTools = this.chat.bindTools(lcTools);
     const callbacks = await getLangChainCallbacks();
-    const langchainStream = await chatWithTools.stream(fullMessages, { callbacks });
+    const langchainStream = await chatWithTools.stream(fullMessages, {
+      callbacks,
+      ...(signal ? { signal } : {}),
+    });
 
     const sentReasoningMap = new Map<string, string>();
     let accumulatedChunk: AIMessageChunk | null = null;

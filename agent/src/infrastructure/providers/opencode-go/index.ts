@@ -84,7 +84,12 @@ export class OpenCodeGoProvider implements LLMProvider {
     return result;
   }
 
-  async *stream(messages: BaseMessage[], tools: ToolDefinition[], systemPrompt: string): AsyncIterable<ProviderEvent> {
+  async *stream(
+    messages: BaseMessage[],
+    tools: ToolDefinition[],
+    systemPrompt: string,
+    signal?: AbortSignal,
+  ): AsyncIterable<ProviderEvent> {
     const apiMessages = this.serializeMessages(messages, systemPrompt);
     const apiTools =
       tools.length > 0
@@ -135,13 +140,16 @@ export class OpenCodeGoProvider implements LLMProvider {
         logger.info(
           `[OpenCodeGoProvider.stream] Calling API: model=${targetModel} messages=${apiMessages.length} tools=${apiTools?.length ?? 0}`,
         );
-        responseStream = await this.client.chat.completions.create({
-          model: targetModel,
-          messages: apiMessages,
-          tools: apiTools,
-          stream: true,
-          stream_options: { include_usage: true },
-        });
+        responseStream = await this.client.chat.completions.create(
+          {
+            model: targetModel,
+            messages: apiMessages,
+            tools: apiTools,
+            stream: true,
+            stream_options: { include_usage: true },
+          },
+          signal ? { signal } : undefined,
+        );
       } catch (err: unknown) {
         const e =
           err instanceof Error
