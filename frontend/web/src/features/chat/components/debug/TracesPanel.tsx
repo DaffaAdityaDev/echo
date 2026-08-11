@@ -4,6 +4,7 @@ import {
   Activity,
   AlertCircle,
   ArrowLeft,
+  Bot,
   Brain,
   CheckSquare,
   ChevronDown,
@@ -15,6 +16,8 @@ import {
   Filter,
   Info,
   Network,
+  Play,
+  RefreshCw,
   Search,
   Terminal,
   Trash2,
@@ -151,8 +154,18 @@ export function TracesPanel() {
   };
 
   // Icon Helper
-  const getSpanIcon = (type: Span["type"]) => {
-    switch (type) {
+  const getSpanIcon = (span: Span) => {
+    if (span.name === "Agent Response") {
+      return <Bot className="h-3.5 w-3.5" />;
+    }
+    if (span.name === "Mission Initiated") {
+      return <Play className="h-3.5 w-3.5" />;
+    }
+    if (span.name.startsWith("State Transition")) {
+      return <RefreshCw className="h-3.5 w-3.5" />;
+    }
+
+    switch (span.type) {
       case "thought":
         return <Brain className="h-3.5 w-3.5" />;
       case "tool":
@@ -179,6 +192,16 @@ export function TracesPanel() {
     if (span.status === "skipped")
       return "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
     if (span.status === "streaming") return "bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400";
+
+    if (span.name === "Agent Response") {
+      return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
+    }
+    if (span.name === "Mission Initiated") {
+      return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
+    }
+    if (span.name.startsWith("State Transition")) {
+      return "bg-zinc-100/60 text-zinc-500 border-zinc-200/50 dark:bg-zinc-900/60 dark:text-zinc-400 dark:border-zinc-800/50";
+    }
 
     switch (span.type) {
       case "thought":
@@ -393,7 +416,7 @@ export function TracesPanel() {
                       getSpanColorClass(node.span),
                     )}
                   >
-                    {getSpanIcon(node.span.type)}
+                    {getSpanIcon(node.span)}
                   </div>
 
                   <span className="truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
