@@ -1,15 +1,17 @@
 "use client";
 
-import { Bug, Coins, Database, FileText, Terminal, X } from "lucide-react";
+import { Activity, Bug, Coins, Database, FileText, Terminal, X } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Kbd } from "@/components/ui/Kbd";
+import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { cn } from "@/utils/cn";
 import { useChatStore } from "../../stores/chatStore";
 import { PacketLogsPanel } from "./PacketLogsPanel";
 import { PromptInspectorPanel } from "./PromptInspectorPanel";
 import { StoreStatePanel } from "./StoreStatePanel";
+import { TracesPanel } from "./TracesPanel";
 import { UsageMetricsPanel } from "./UsageMetricsPanel";
 
 interface DebugDrawerProps {
@@ -18,6 +20,7 @@ interface DebugDrawerProps {
 }
 
 const tabs = [
+  { id: "traces", label: "Traces", icon: Activity, count: "tracesCount" },
   { id: "packets", label: "Packets", icon: Terminal, count: "count" },
   { id: "prompt", label: "Prompt & Harness", icon: FileText, badge: "promptBadge" },
   { id: "usage", label: "Metrics & Cache", icon: Coins, badge: "usageBadge" },
@@ -27,18 +30,20 @@ const tabs = [
 type TabId = (typeof tabs)[number]["id"];
 
 export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("packets");
+  const [activeTab, setActiveTab] = useState<TabId>("traces");
 
   const packetLogs = useChatStore((s) => s.packetLogs);
   const debugPacketHistory = useChatStore((s) => s.debugPacketHistory);
   const cumulativeUsage = useChatStore((s) => s.cumulativeUsage);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const traces = useTraceStore((s) => s.traces);
   const { defaultModel, defaultMode } = useSettingsStore((s) => s.config);
 
   if (!isOpen) return null;
 
   const telemetryDump = JSON.stringify(
     {
+      traces,
       debugHistory: debugPacketHistory,
       storeState: {
         defaultModel,
@@ -53,6 +58,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
   );
 
   const tabData = {
+    tracesCount: traces.length,
     count: packetLogs.length,
     promptBadge: debugPacketHistory.length > 0 ? `${debugPacketHistory.length}` : undefined,
     usageBadge: cumulativeUsage ? `${cumulativeUsage.totalTokens}t` : undefined,
@@ -85,7 +91,7 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
           <CopyButton
             text={telemetryDump}
             label="Copy Dump"
-            className="px-2.5 py-1 rounded-lg text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200/80 dark:border-zinc-700/60"
+            className="px-2.5 py-1 rounded-lg text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200/80 dark:border-zinc-700/60"
             title="Copy full telemetry dump"
           />
           <button
@@ -103,8 +109,8 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
-          const count = "count" in tab ? tabData[tab.count] : undefined;
-          const badge = "badge" in tab ? tabData[tab.badge] : undefined;
+          const count = "count" in tab ? tabData[tab.count as keyof typeof tabData] : undefined;
+          const badge = "badge" in tab ? tabData[tab.badge as keyof typeof tabData] : undefined;
           return (
             <button
               key={tab.id}
@@ -136,7 +142,9 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 bg-white/40 dark:bg-zinc-950/60">
-        {activeTab === "packets" ? (
+        {activeTab === "traces" ? (
+          <TracesPanel />
+        ) : activeTab === "packets" ? (
           <PacketLogsPanel />
         ) : activeTab === "prompt" ? (
           <PromptInspectorPanel />

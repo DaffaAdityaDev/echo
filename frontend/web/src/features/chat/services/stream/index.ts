@@ -1,3 +1,4 @@
+import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { PACKET_TYPES } from "../../constants";
 import { useChatStore } from "../../stores/chatStore";
 import type { Message, StreamPacket } from "../../types";
@@ -25,6 +26,9 @@ import {
 } from "./handlers/steps";
 
 export function applyStreamPacket(data: StreamPacket): void {
+  // Capture trace
+  useTraceStore.getState().addOrUpdateTraceFromPacket(data);
+
   const store = useChatStore.getState();
 
   store.appendPacketLog(data);

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, X } from "lucide-react";
+import { Activity, BookOpen, Layers, LogOut, MessageSquare, Plus, ScrollText, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -98,6 +98,7 @@ export function SessionSidebar({
 
   const navItems = [
     { label: "Chat", icon: MessageSquare, href: "/" },
+    { label: "Traces", icon: Activity, href: "/traces" },
     { label: "AI Maturity", icon: Layers, href: "/maturity" },
     { label: "Prompts", icon: ScrollText, href: "/prompts" },
     { label: "Docs", icon: BookOpen, href: "/docs" },

@@ -105,7 +105,7 @@ export function PacketLogsPanel() {
 
             return (
               <div
-                key={`${pkt.type}-${pkt.timestamp}`}
+                key={`${pkt.missionId || "m"}-${pkt.step || 0}-${pkt.seq || idx}-${pkt.type}-${pkt.timestamp}`}
                 className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40 overflow-hidden transition-all hover:border-zinc-300 dark:hover:border-zinc-700/80"
               >
                 <button
