@@ -18,13 +18,15 @@ func AuthRequired(secret string) fiber.Handler {
 			}
 			token, err := jwt.Parse(s, func(token *jwt.Token) (interface{}, error) {
 				return []byte(secret), nil
-			})
+			}, jwt.WithValidMethods([]string{"HS256"}))
 			if err != nil || !token.Valid {
 				return false
 			}
 			claims := token.Claims.(jwt.MapClaims)
 			c.Locals("user_id", claims["sub"])
 			c.Locals("user_role", claims["role"])
+			c.Locals(LocalsKeyUserTier, TierFromClaims(claims))
+			c.Locals(LocalsKeyUserEmail, EmailFromClaims(claims))
 			return true
 		}
 

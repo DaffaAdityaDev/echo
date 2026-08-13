@@ -18,6 +18,15 @@ const implementedCacheKey = "agent:features"
 
 const implementedCacheTTL = 10 * time.Minute
 
+// normalizeTier maps any non-pro tier (including empty and unknown values)
+// to "free" so callers can never accidentally grant pro access.
+func normalizeTier(tier string) string {
+	if tier == "pro" {
+		return "pro"
+	}
+	return "free"
+}
+
 type ImplementedFeature struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -94,7 +103,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch implemented features from agent: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -121,6 +130,8 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 }
 
 func (s *Service) ResolvePublicCatalog(ctx context.Context, userTier string) ([]FeatureResponse, error) {
+	userTier = normalizeTier(userTier)
+
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load active features: %w", err)
@@ -160,6 +171,7 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 	if len(featureIDs) == 0 {
 		return nil
 	}
+	userTier = normalizeTier(userTier)
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {

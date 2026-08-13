@@ -77,10 +77,12 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*authmodel.User, err
 
 func generateToken(cfg *cfgmodel.Config, user *authmodel.User) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":  strconv.Itoa(user.ID),
-		"role": user.Role,
-		"exp":  time.Now().Add(72 * time.Hour).Unix(),
-		"iat":  time.Now().Unix(),
+		"sub":   strconv.Itoa(user.ID),
+		"role":  user.Role,
+		"email": user.Email,
+		"tier":  cfg.DefaultUserTier,
+		"exp":   time.Now().Add(72 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(cfg.JWTSecret))
