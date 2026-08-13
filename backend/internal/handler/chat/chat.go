@@ -275,7 +275,12 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	})
 	log.Printf("[CHAT] tenant=%s prompt_template=%q features=%v", tenantID, payload["prompt_template"], payload["features"])
 
-	jsonPayload, _ := json.Marshal(payload)
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[CHAT] Failed to marshal agent payload for session %s: %v", req.SessionID, err)
+		h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
+	}
 
 	// Register the in-flight run up front so a cancel request arriving during
 	// the agent request window still interrupts the mission (the watcher aborts
@@ -328,6 +333,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	agentReq, err := http.NewRequestWithContext(agentReqCtx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
+		log.Printf("[CHAT] Failed to create agent request for session %s: %v", req.SessionID, err)
+		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
+			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
 	agentReq.Header.Set("Content-Type", "application/json")
@@ -339,13 +348,23 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
+		log.Printf("[CHAT] Agent service unreachable for session %s: %v", req.SessionID, err)
+		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
+			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
 	run.setBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			log.Printf("[CHAT] Failed to read agent error response for session %s: %v", req.SessionID, readErr)
+		}
+		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
+			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+		}
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}
 
@@ -530,15 +549,25 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			assistantTokens = h.countTokensViaAgent(context.Background(), finalContent)
 		}
 
-		err = retryDBOperation(3, 100*time.Millisecond, func() error {
-			dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer dbCancel()
-			return h.SessionRepo.CompleteTurn(dbCtx, assistantMsgID, req.SessionID, finalContent, steps, assistantTokens, status)
-		})
-		if err != nil {
-			log.Printf("[CHAT] Error executing CompleteTurn transaction for msg %d: %v", assistantMsgID, err)
+		if err := h.finalizeTurn(assistantMsgID, req.SessionID, finalContent, steps, assistantTokens, status); err != nil {
+			log.Printf("[CHAT] Error finalizing turn for msg %d: %v", assistantMsgID, err)
 		}
 
 		log.Printf("[CHAT] Completed turn %d for session %s (status=%s, content_len=%d)", nextTurn, req.SessionID, status, len(finalContent))
 	})
+}
+
+// finalizeTurn persists the assistant message's final state once a turn ends.
+// Called on every path after PrepareTurn — including agent request failures —
+// so the streaming placeholder is never left stuck in 'streaming'.
+func (h *Handler) finalizeTurn(assistantMsgID int64, sessionID, content string, steps json.RawMessage, tokenCount int, status string) error {
+	err := retryDBOperation(3, 100*time.Millisecond, func() error {
+		dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer dbCancel()
+		return h.SessionRepo.CompleteTurn(dbCtx, assistantMsgID, sessionID, content, steps, tokenCount, status)
+	})
+	if err != nil {
+		return fmt.Errorf("complete turn for msg %d: %w", assistantMsgID, err)
+	}
+	return nil
 }
