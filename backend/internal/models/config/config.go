@@ -20,6 +20,7 @@ type Config struct {
 	EncryptionKey           string
 	StrategyRolloutDefault  float64
 	PromptTemplateName      string
+	DefaultUserTier         string
 	WorkerInterval          string
 	DecayDeprecateAfter     int
 	DecayArchiveAfter       int
