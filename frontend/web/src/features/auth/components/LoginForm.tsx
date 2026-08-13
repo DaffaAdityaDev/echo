@@ -13,6 +13,16 @@ export interface LoginFormProps {
   loginError: Error | null;
 }
 
+const INTERNAL_REDIRECT_ROUTES = ["/traces", "/session", "/prompts", "/maturity", "/docs"];
+
+function isSafeRedirect(redirect: string): boolean {
+  return (
+    redirect.startsWith("/") &&
+    !redirect.startsWith("//") &&
+    (redirect === "/" || INTERNAL_REDIRECT_ROUTES.some((route) => redirect.startsWith(route)))
+  );
+}
+
 export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,13 +50,9 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
     e.preventDefault();
     if (!validate()) return;
 
-    try {
-      await loginAsync({ email, password });
-      const redirect = searchParams.get("redirect") || "/";
-      router.push(redirect);
-    } catch {
-      // error is captured by loginError from the hook
-    }
+    await loginAsync({ email, password });
+    const redirect = searchParams.get("redirect") || "/";
+    router.push(isSafeRedirect(redirect) ? redirect : "/");
   };
 
   return (
