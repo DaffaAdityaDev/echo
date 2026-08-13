@@ -3,13 +3,22 @@ import { CHAT_ENDPOINTS, SESSION_ENDPOINTS } from "../constants";
 import type { DbMessage, Session, StreamPacket } from "../types";
 
 function mapSession(s: Record<string, unknown>): Session {
+  const asString = (snake: string, camel: string): string | undefined => {
+    const value = s[snake] ?? s[camel];
+    return typeof value === "string" ? value : undefined;
+  };
+  const asNumber = (snake: string, camel: string): number | undefined => {
+    const value = s[snake] ?? s[camel];
+    return typeof value === "number" ? value : undefined;
+  };
+
   return {
-    id: s.id as string,
-    title: s.title as string,
-    createdAt: (s.created_at || s.createdAt) as string,
-    updatedAt: (s.updated_at || s.updatedAt) as string,
-    messageCount: (s.message_count ?? s.messageCount) as number,
-    contextSummary: (s.context_summary || s.contextSummary) as string | undefined,
+    id: typeof s.id === "string" ? s.id : "",
+    title: typeof s.title === "string" ? s.title : "",
+    createdAt: asString("created_at", "createdAt") ?? "",
+    updatedAt: asString("updated_at", "updatedAt") ?? "",
+    messageCount: asNumber("message_count", "messageCount") ?? 0,
+    contextSummary: asString("context_summary", "contextSummary"),
   };
 }
 export interface PaginationMeta {
