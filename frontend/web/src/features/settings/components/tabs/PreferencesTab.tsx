@@ -153,20 +153,20 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
         >
           {config.providerType === "opencode-go" && (
             <>
-              API Key OpenCode Go <span className="font-semibold">wajib diisi</span> untuk menggunakan provider ini.
+              API Key for OpenCode Go <span className="font-semibold">is required</span> to use this provider.
             </>
           )}
           {config.providerType === "lm-studio" && (
             <>
-              Gunakan <span className="font-semibold">IP lokal</span> (contoh: http://192.168.1.10:1234/v1) jika backend
-              di server cloud.
+              Use a <span className="font-semibold">local IP</span> (e.g. http://192.168.1.10:1234/v1) if the backend
+              runs on a cloud server.
             </>
           )}
           {config.providerType === "openai" && (
-            <>Kosongkan untuk menggunakan API Key server. Key akan dienkripsi (AES-256-GCM).</>
+            <>Leave empty to use the server API key. The key is encrypted (AES-256-GCM).</>
           )}
           {config.providerType === "anthropic" && (
-            <>Kosongkan untuk menggunakan API Key server. Key akan dienkripsi (AES-256-GCM).</>
+            <>Leave empty to use the server API key. The key is encrypted (AES-256-GCM).</>
           )}
         </div>
       </div>

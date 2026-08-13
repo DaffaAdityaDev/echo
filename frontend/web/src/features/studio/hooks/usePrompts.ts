@@ -38,7 +38,7 @@ export function usePromptVersions(templateId: string | null) {
     enabled: !!templateId,
     ...QUERY_STANDARD,
     staleTime: 5 * 60_000,
-    // Hanya reuse data saat masih di template yang sama; ganti template = clean slate.
+    // Only reuse previous data while still on the same template; switching templates = clean slate.
     placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[2] === templateId ? prev : undefined),
   });
 }
