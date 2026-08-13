@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
+import { estimateCharTokens } from "../../../../shared/utils/harness";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 import { SUMMARIZE_ERROR_MESSAGES, SUMMARIZE_LOG_PREFIX } from "./internal.constants";
@@ -52,7 +53,7 @@ Do NOT include any pleasantries, conversational filler, or formatting other than
     }
 
     if (compTokens === 0) {
-      compTokens = Math.ceil(summary.length / 4);
+      compTokens = estimateCharTokens(summary);
     }
 
     logger.info(
