@@ -113,7 +113,7 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
-      {/* Settings Overlay Modal (lazy: chunk + data fetch hanya saat dibuka) */}
+      {/* Settings Overlay Modal (lazy: chunk + data fetched only when opened) */}
       {isSettingsModalOpen && (
         <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
       )}

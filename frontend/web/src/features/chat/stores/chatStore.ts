@@ -108,7 +108,7 @@ export const useChatStore = create<ChatState>((set) => ({
   // Ring Buffer & Debug Actions
   appendPacketLog: (packet) =>
     set((state) => {
-      const logged: LoggedPacket = { ...packet, timestamp: Date.now() };
+      const logged: LoggedPacket = { ...packet, timestamp: packet.timestamp ?? Date.now() };
       const nextLogs = [...state.packetLogs, logged];
       if (nextLogs.length > state.maxPacketLogSize) {
         nextLogs.splice(0, nextLogs.length - state.maxPacketLogSize);

@@ -123,7 +123,7 @@ export function useChatPage() {
     enabled: !!activeSessionId && isAuthenticated,
     staleTime: 30_000,
     ...QUERY_STANDARD,
-    // Hanya reuse data saat masih di session yang sama; pindah session = clean slate.
+    // Reuse previous page data only while the session is unchanged; switching sessions is a clean slate.
     placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[1] === activeSessionId ? prev : undefined),
   });
 
