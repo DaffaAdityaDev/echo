@@ -10,6 +10,18 @@ type MetadataPacket = Extract<StreamPacket, { type: "metadata" }>;
 type SubagentPacket = Extract<StreamPacket, { type: "subagent_call" | "subagent_result" }>;
 type StatePacket = Extract<StreamPacket, { type: "state_change" | "degraded" }>;
 
+function addSpanIfMissing(trace: Trace, spanId: string, create: () => Omit<Span, "id" | "traceId">): void {
+  if (trace.spans.some((s) => s.id === spanId)) return;
+  trace.spans.push({ id: spanId, traceId: trace.id, ...create() });
+}
+
+function updateSpanIfExists(trace: Trace, spanId: string, update: (existing: Span) => Span): void {
+  const index = trace.spans.findIndex((s) => s.id === spanId);
+  if (index > -1) {
+    trace.spans[index] = update(trace.spans[index]);
+  }
+}
+
 function upsertSpan(
   trace: Trace,
   spanId: string,
@@ -53,28 +65,22 @@ function reduceMetadata(trace: Trace, packet: MetadataPacket, ctx: TraceReducerC
   }
   if (packet.title) trace.name = packet.title;
 
-  upsertSpan(
-    trace,
-    `${trace.id}-metadata-${packet.step}-${packet.seq}`,
-    ctx,
-    () => ({
-      parentId: ctx.getActiveParentSpanId(trace.spans),
-      name: "Mission Initiated",
-      type: "info",
-      status: "complete",
-      startTime: ctx.timestamp,
-      endTime: ctx.timestamp,
-      durationMs: 0,
-      input: packet.objective || "",
-      metadata: {
-        strategy: packet.strategy,
-        historyDepth: packet.historyDepth,
-        toolsAvailable: packet.toolsAvailable,
-        maxIterations: packet.maxIterations,
-      },
-    }),
-    (existing) => existing,
-  );
+  addSpanIfMissing(trace, `${trace.id}-metadata-${packet.step}-${packet.seq}`, () => ({
+    parentId: ctx.getActiveParentSpanId(trace.spans),
+    name: "Mission Initiated",
+    type: "info",
+    status: "complete",
+    startTime: ctx.timestamp,
+    endTime: ctx.timestamp,
+    durationMs: 0,
+    input: packet.objective || "",
+    metadata: {
+      strategy: packet.strategy,
+      historyDepth: packet.historyDepth,
+      toolsAvailable: packet.toolsAvailable,
+      maxIterations: packet.maxIterations,
+    },
+  }));
 }
 
 function reduceReasoning(
@@ -139,21 +145,15 @@ function reduceToolCall(
   packet: Extract<StreamPacket, { type: "tool_call" }>,
   ctx: TraceReducerContext,
 ): void {
-  upsertSpan(
-    trace,
-    `${trace.id}-tool-${packet.toolName}-${packet.step}`,
-    ctx,
-    () => ({
-      parentId: ctx.getActiveParentSpanId(trace.spans),
-      name: `Tool: ${packet.toolName}`,
-      type: "tool",
-      status: "streaming",
-      startTime: ctx.timestamp,
-      durationMs: 0,
-      input: packet.toolInput,
-    }),
-    (existing) => existing,
-  );
+  addSpanIfMissing(trace, `${trace.id}-tool-${packet.toolName}-${packet.step}`, () => ({
+    parentId: ctx.getActiveParentSpanId(trace.spans),
+    name: `Tool: ${packet.toolName}`,
+    type: "tool",
+    status: "streaming",
+    startTime: ctx.timestamp,
+    durationMs: 0,
+    input: packet.toolInput,
+  }));
 }
 
 function reduceToolResult(
@@ -161,19 +161,13 @@ function reduceToolResult(
   packet: Extract<StreamPacket, { type: "tool_result" }>,
   ctx: TraceReducerContext,
 ): void {
-  upsertSpan(
-    trace,
-    `${trace.id}-tool-${packet.toolName}-${packet.step}`,
-    ctx,
-    () => ({ parentId: null, name: "", type: "info", status: "complete", startTime: 0, durationMs: 0 }),
-    (span, timestamp) => ({
-      ...span,
-      status: "complete",
-      output: packet.toolResult !== undefined ? packet.toolResult : packet.content,
-      endTime: timestamp,
-      durationMs: Math.max(0, timestamp - span.startTime),
-    }),
-  );
+  updateSpanIfExists(trace, `${trace.id}-tool-${packet.toolName}-${packet.step}`, (span) => ({
+    ...span,
+    status: "complete",
+    output: packet.toolResult !== undefined ? packet.toolResult : packet.content,
+    endTime: ctx.timestamp,
+    durationMs: Math.max(0, ctx.timestamp - span.startTime),
+  }));
 }
 
 function reduceToolSkip(
@@ -227,36 +221,24 @@ function reduceTodo(trace: Trace, packet: Extract<StreamPacket, { type: "todo" }
 function reduceSubagent(trace: Trace, packet: SubagentPacket, ctx: TraceReducerContext): void {
   const spanId = `${trace.id}-subagent-${packet.subagent.name}-${packet.step}`;
   if (packet.type === "subagent_call") {
-    upsertSpan(
-      trace,
-      spanId,
-      ctx,
-      () => ({
-        parentId: ctx.getActiveParentSpanId(trace.spans),
-        name: `Subagent: ${packet.subagent.name}`,
-        type: "subagent",
-        status: "streaming",
-        startTime: ctx.timestamp,
-        durationMs: 0,
-        input: packet.subagent.instruction,
-      }),
-      (existing) => existing,
-    );
+    addSpanIfMissing(trace, spanId, () => ({
+      parentId: ctx.getActiveParentSpanId(trace.spans),
+      name: `Subagent: ${packet.subagent.name}`,
+      type: "subagent",
+      status: "streaming",
+      startTime: ctx.timestamp,
+      durationMs: 0,
+      input: packet.subagent.instruction,
+    }));
     return;
   }
-  upsertSpan(
-    trace,
-    spanId,
-    ctx,
-    () => ({ parentId: null, name: "", type: "info", status: "complete", startTime: 0, durationMs: 0 }),
-    (span, timestamp) => ({
-      ...span,
-      status: packet.subagent.status === "completed" ? "complete" : "failed",
-      output: packet.subagent.result,
-      endTime: timestamp,
-      durationMs: Math.max(0, timestamp - span.startTime),
-    }),
-  );
+  updateSpanIfExists(trace, spanId, (span) => ({
+    ...span,
+    status: packet.subagent.status === "completed" ? "complete" : "failed",
+    output: packet.subagent.result,
+    endTime: ctx.timestamp,
+    durationMs: Math.max(0, ctx.timestamp - span.startTime),
+  }));
 }
 
 function reduceFileOperation(
