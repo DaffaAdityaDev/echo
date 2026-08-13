@@ -110,7 +110,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
               msg={msg}
               context={{
                 isStreaming:
-                  msg.role === CHAT_ROLES.ASSISTANT && (msg.status === "streaming" || (idx === messages.length - 1 && isLoading)),
+                  msg.role === CHAT_ROLES.ASSISTANT &&
+                  (msg.status === "streaming" || (idx === messages.length - 1 && isLoading)),
                 isLast: idx === messages.length - 1,
               }}
             />

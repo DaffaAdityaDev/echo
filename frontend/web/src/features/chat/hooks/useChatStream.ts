@@ -9,8 +9,8 @@ import { extractErrorMessage } from "@/utils/error";
 import { CHAT_QUERY_KEYS, CHAT_ROLES } from "../constants";
 import { chatApi, sessionApi } from "../services/chat-api";
 import { applyStreamPacket } from "../services/stream";
-import { useChatStore } from "../stores/chatStore";
 import { notifySystem } from "../services/system-notice";
+import { useChatStore } from "../stores/chatStore";
 import type { Message, StreamPacket } from "../types";
 
 async function generateSessionTitle(sid: string): Promise<void> {
@@ -28,7 +28,7 @@ async function generateSessionTitle(sid: string): Promise<void> {
     store.setSessions(
       store.sessions.map((s) => (s.id === sid ? { ...s, title, contextSummary: summary || s.contextSummary } : s)),
     );
-  } catch (err) {
+  } catch {
     notifySystem("warning", "TITLE_GENERATION_FAILED", "Failed to auto-generate the session title.");
   }
 }
@@ -85,8 +85,8 @@ export function useChatStream() {
   const sendMessage = async (input: string) => {
     if (!input.trim() || isLoading) return;
 
-      interruptedTurnRef.current = false;
-      const userMessage: Message = {
+    interruptedTurnRef.current = false;
+    const userMessage: Message = {
       role: CHAT_ROLES.USER,
       content: input,
       steps: [],
