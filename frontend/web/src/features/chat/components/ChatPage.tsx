@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useToast } from "@/hooks/useToast";
 import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
@@ -63,6 +64,7 @@ export function ChatPage() {
   const messageListRef = useRef<MessageListHandle>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const { showToast } = useToast();
+  const { copy } = useCopyToClipboard();
 
   // Modals & Drawers State
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
@@ -97,18 +99,13 @@ export function ChatPage() {
 
   const activeSessionId = useChatStore((s) => s.activeSessionId);
 
-  const handleShareSession = async () => {
+  const handleShareSession = () => {
     if (!activeSessionId) {
       showToast("No active session selected.", "info");
       return;
     }
-    const shareUrl = `${window.location.origin}/session/${activeSessionId}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast("Session URL copied to clipboard!", "success");
-    } catch {
-      showToast("Failed to copy session URL.", "error");
-    }
+    void copy(`${window.location.origin}/session/${activeSessionId}`);
+    showToast("Session URL copied to clipboard!", "success");
   };
 
   const activeModelName =

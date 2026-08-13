@@ -114,7 +114,7 @@ export function useChatPage() {
     refetch: refetchMessages,
   } = useInfiniteQuery({
     queryKey: CHAT_QUERY_KEYS.messages(activeSessionId as string),
-    queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId as string, 10, pageParam as number),
+    queryFn: ({ pageParam = 0 }) => sessionApi.getMessages(activeSessionId as string, 10, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;

@@ -26,7 +26,7 @@ export function useSessionsInfinite() {
     refetch,
   } = useInfiniteQuery({
     queryKey: CHAT_QUERY_KEYS.sessions,
-    queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam as number),
+    queryFn: ({ pageParam = 0 }) => sessionApi.list(10, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
@@ -57,7 +57,7 @@ export function useSessionsInfinite() {
     const store = useChatStore.getState();
     if (store.newChatPending) return;
     const currentId = store.activeSessionId;
-    const urlSessionMatch = pathname.match(/^\/(?:session|c)\/([^/]+)/);
+    const urlSessionMatch = pathname.match(/^\/session\/([^/]+)/);
     if (urlSessionMatch) return;
     if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
       setActiveSession(flattenedSessions[0].id);
