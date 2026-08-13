@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertCircle, ArrowLeft, Clock, Coins, Cpu, Filter, Search, Trash2 } from "lucide-react";
+import { Activity, ArrowLeft, Clock, Coins, Cpu, Filter, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { SpanTree } from "@/features/debug/components/SpanTree";
