@@ -17,6 +17,7 @@ import (
 
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/middleware"
 	agentmodel "echo-backend/internal/models/agent"
 	chatmodel "echo-backend/internal/models/chat"
 
@@ -64,10 +65,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	userTier := c.Get("X-User-Tier")
-	if userTier == "" {
-		userTier = "pro"
-	}
+	userTier := middleware.UserTier(c)
 
 	prefs, err := h.SettingsSvc.GetSettings(ctx, userID)
 	if err != nil {
