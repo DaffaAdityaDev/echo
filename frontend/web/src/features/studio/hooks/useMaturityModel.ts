@@ -76,9 +76,7 @@ export function useMaturityModel() {
     observability: "L1",
     documentation: "L1",
   });
-  const [clientEvidences, setClientEvidences] = useState<Record<MaturityDimensionKey, string>>(
-    DEFAULT_CLIENT_EVIDENCE,
-  );
+  const [clientEvidences, setClientEvidences] = useState<Record<MaturityDimensionKey, string>>(DEFAULT_CLIENT_EVIDENCE);
 
   const [roadmap, setRoadmap] = useState<RoadmapItem[]>(
     ECHO_SELF_ASSESSMENT_ROADMAP.map((item) => ({ ...item })) as RoadmapItem[],
@@ -102,17 +100,19 @@ export function useMaturityModel() {
 
   // Calculate internal assessment using Weakest Link Rule
   const echoAssessment = useMemo<SystemMaturityAssessment>(() => {
-    const scores = Object.fromEntries(
-      MATURITY_DIMENSIONS.map((dim) => [dim.key, dim.currentLevel]),
-    ) as Record<MaturityDimensionKey, MaturityLevel>;
+    const scores = Object.fromEntries(MATURITY_DIMENSIONS.map((dim) => [dim.key, dim.currentLevel])) as Record<
+      MaturityDimensionKey,
+      MaturityLevel
+    >;
     const { minWeight, weakest } = findWeakestLink(scores);
 
     return {
       overallLevel: WEIGHT_TO_LEVEL[minWeight] || "L2",
       weakestDimension: weakest,
-      dimensions: Object.fromEntries(
-        MATURITY_DIMENSIONS.map((dim) => [dim.key, { ...dim }]),
-      ) as Record<MaturityDimensionKey, MaturityDimension>,
+      dimensions: Object.fromEntries(MATURITY_DIMENSIONS.map((dim) => [dim.key, { ...dim }])) as Record<
+        MaturityDimensionKey,
+        MaturityDimension
+      >,
       lastAssessedAt: today(),
     };
   }, []);
