@@ -597,7 +597,7 @@ export class NlahHarness {
                 pausedAt: new Date().toISOString(),
                 expiresAt: approval.expiresAt,
               },
-            } as unknown as AgentState,
+            },
             300,
           );
           await onPacket({

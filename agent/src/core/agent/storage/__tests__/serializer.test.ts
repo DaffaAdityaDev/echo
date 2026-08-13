@@ -88,11 +88,12 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state.messages).toHaveLength(2);
-    expect(state.messages[0]).toBeInstanceOf(HumanMessage);
-    expect(state.messages[0].content).toBe("Hello");
-    expect(state.messages[1]).toBeInstanceOf(AIMessage);
-    expect(state.messages[1].content).toBe("Hi there");
+    expect(state).not.toBeNull();
+    expect(state!.messages).toHaveLength(2);
+    expect(state!.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(state!.messages[0].content).toBe("Hello");
+    expect(state!.messages[1]).toBeInstanceOf(AIMessage);
+    expect(state!.messages[1].content).toBe("Hi there");
   });
 
   test("deserializes all message types correctly", () => {
@@ -110,11 +111,12 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state.messages[0]).toBeInstanceOf(SystemMessage);
-    expect(state.messages[1]).toBeInstanceOf(HumanMessage);
-    expect(state.messages[2]).toBeInstanceOf(AIMessage);
-    expect(state.messages[3]).toBeInstanceOf(ToolMessage);
-    expect((state.messages[3] as ToolMessage).tool_call_id).toBe("c1");
+    expect(state).not.toBeNull();
+    expect(state!.messages[0]).toBeInstanceOf(SystemMessage);
+    expect(state!.messages[1]).toBeInstanceOf(HumanMessage);
+    expect(state!.messages[2]).toBeInstanceOf(AIMessage);
+    expect(state!.messages[3]).toBeInstanceOf(ToolMessage);
+    expect((state!.messages[3] as ToolMessage).tool_call_id).toBe("c1");
   });
 
   test("handles unknown message type by defaulting to HumanMessage", () => {
@@ -127,19 +129,67 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state.messages[0]).toBeInstanceOf(HumanMessage);
-    expect(state.messages[0].content).toBe("fallback");
+    expect(state).not.toBeNull();
+    expect(state!.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(state!.messages[0].content).toBe("fallback");
   });
 
-  test("returns the value as-is when serialized is null/undefined", () => {
+  test("returns null when serialized is null/undefined", () => {
     expect(deserializeAgentState(null)).toBeNull();
-    expect(deserializeAgentState(undefined)).toBeUndefined();
+    expect(deserializeAgentState(undefined)).toBeNull();
+  });
+
+  test("returns null for malformed shapes instead of casting", () => {
+    expect(deserializeAgentState("not an object")).toBeNull();
+    expect(deserializeAgentState({ missionId: "m1" })).toBeNull();
+    expect(
+      deserializeAgentState({
+        missionId: "m1",
+        objective: "O1",
+        tasks: [],
+        memory: {},
+        messages: [{ notType: true }],
+      }),
+    ).toBeNull();
+  });
+
+  test("restores the nested agent state embedded in a paused-state payload", () => {
+    const paused = {
+      approvalId: "appr_1",
+      missionId: "m1",
+      sessionId: "m1",
+      pendingToolCall: { id: "call-1", name: "fake_tool", args: {} },
+      state: {
+        missionId: "m1",
+        objective: "O1",
+        tasks: [{ id: "t1", description: "Task", status: "pending" }],
+        memory: {},
+        messages: [
+          { type: "human", content: "hello" },
+          { type: "ai", content: "reply", tool_calls: [{ name: "fake_tool", args: {}, id: "call-1" }] },
+          { type: "tool", content: "result", tool_call_id: "call-1" },
+        ],
+      },
+      harnessSnapshot: { strategyName: "nlah", toolNames: [], delegationDepth: 0, providerConfig: {} },
+      metadata: { totalCostUsd: 0, loopDetectorHistory: [], pausedAt: "", expiresAt: 0 },
+    };
+
+    const restored = deserializeAgentState(paused);
+    expect(restored).not.toBeNull();
+    const nested = (restored as unknown as { state: AgentState }).state;
+    expect(nested.messages).toHaveLength(3);
+    expect(nested.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(nested.messages[1]).toBeInstanceOf(AIMessage);
+    expect((nested.messages[1] as AIMessage).tool_calls).toHaveLength(1);
+    expect(nested.messages[2]).toBeInstanceOf(ToolMessage);
+    expect((nested.messages[2] as ToolMessage).tool_call_id).toBe("call-1");
   });
 
   test("handles empty messages array", () => {
     const serialized = { missionId: "m1", objective: "O1", tasks: [], memory: {}, messages: [] };
     const state = deserializeAgentState(serialized);
-    expect(state.messages).toEqual([]);
+    expect(state).not.toBeNull();
+    expect(state!.messages).toEqual([]);
   });
 });
 
@@ -168,18 +218,20 @@ describe("round-trip", () => {
 
     const serialized = serializeAgentState(original);
     const deserialized = deserializeAgentState(serialized);
+    expect(deserialized).not.toBeNull();
+    const state = deserialized!;
 
-    expect(deserialized.missionId).toBe(original.missionId);
-    expect(deserialized.objective).toBe(original.objective);
-    expect(deserialized.tasks).toEqual(original.tasks);
-    expect(deserialized.memory).toEqual(original.memory);
-    expect(deserialized.currentTaskId).toBe(original.currentTaskId);
-    expect(deserialized.messages).toHaveLength(original.messages.length);
-    expect(deserialized.messages[0]).toBeInstanceOf(SystemMessage);
-    expect(deserialized.messages[1]).toBeInstanceOf(HumanMessage);
-    expect(deserialized.messages[2]).toBeInstanceOf(AIMessage);
-    expect(deserialized.messages[3]).toBeInstanceOf(ToolMessage);
-    expect(deserialized.messages[2].content).toBe("Hello!");
-    expect((deserialized.messages[2] as AIMessage).tool_calls).toHaveLength(1);
+    expect(state.missionId).toBe(original.missionId);
+    expect(state.objective).toBe(original.objective);
+    expect(state.tasks).toEqual(original.tasks);
+    expect(state.memory).toEqual(original.memory);
+    expect(state.currentTaskId).toBe(original.currentTaskId);
+    expect(state.messages).toHaveLength(original.messages.length);
+    expect(state.messages[0]).toBeInstanceOf(SystemMessage);
+    expect(state.messages[1]).toBeInstanceOf(HumanMessage);
+    expect(state.messages[2]).toBeInstanceOf(AIMessage);
+    expect(state.messages[3]).toBeInstanceOf(ToolMessage);
+    expect(state.messages[2].content).toBe("Hello!");
+    expect((state.messages[2] as AIMessage).tool_calls).toHaveLength(1);
   });
 });
