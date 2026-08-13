@@ -3,7 +3,9 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"echo-backend/internal/handler/handlerutil"
 	cfgmodel "echo-backend/internal/models/config"
@@ -58,6 +60,37 @@ func (h *Handler) HandleInterrupt(c fiber.Ctx) error {
 	}
 
 	return handlerutil.RespondSuccess(c, fiber.Map{"status": "ok"})
+}
+
+// watchForInterrupt waits for an explicit interrupt (POST /sessions/:id/cancel
+// closes run.cancelCh). The agent cancel endpoint is the fast path (it aborts
+// the in-flight LLM stream); cancelling the agent request context covers the
+// window where the agent has not started streaming yet; closing the agent
+// connection afterwards guarantees the agent's onAbort fires even if the
+// cancel call failed. Stops when interruptStop closes at the end of the turn.
+func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{}, sessionID string, cancelAgentReq context.CancelFunc) {
+	select {
+	case <-run.cancelCh:
+		log.Printf("[CHAT] Interrupt requested for session %s; notifying agent", sessionID)
+		cancelAgentReq()
+		// Guard against stale interrupts: if a new turn has already claimed
+		// the session (user stopped then immediately sent a new message),
+		// the old watcher must not abort the new turn's mission.
+		activeRunsMu.Lock()
+		stillCurrent := activeRuns[sessionID] == run
+		activeRunsMu.Unlock()
+		if stillCurrent {
+			agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer agentCancel()
+			if err := cancelAgentMission(agentCtx, h.Cfg, sessionID); err != nil {
+				log.Printf("[CHAT] Agent cancel call failed for session %s: %v", sessionID, err)
+			}
+		} else {
+			log.Printf("[CHAT] Stale interrupt for session %s (new turn active); skipping agent cancel", sessionID)
+		}
+		run.closeBody()
+	case <-interruptStop:
+	}
 }
 
 // cancelAgentMission asks the agent to cancel the mission for a session. The

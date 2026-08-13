@@ -2,7 +2,6 @@ package chat
 
 import (
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	stratSvc "echo-backend/internal/service/strategy"
 
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // Per-session in-process mutexes serialize chat turns on the same session.
@@ -160,28 +158,4 @@ type ChatRequest struct {
 	// Mode is an optional agent mode override. When set, it takes precedence
 	// over the user's default mode.
 	Mode string `json:"mode" example:"agent"`
-}
-
-func parseTraceparent(tp string) (trace.SpanContext, bool) {
-	if !strings.HasPrefix(tp, "00-") {
-		return trace.SpanContext{}, false
-	}
-	parts := strings.Split(tp, "-")
-	if len(parts) < 3 {
-		return trace.SpanContext{}, false
-	}
-	traceID, err := trace.TraceIDFromHex(parts[1])
-	if err != nil {
-		return trace.SpanContext{}, false
-	}
-	spanID, err := trace.SpanIDFromHex(parts[2])
-	if err != nil {
-		return trace.SpanContext{}, false
-	}
-	return trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID:    traceID,
-		SpanID:     spanID,
-		TraceFlags: trace.FlagsSampled,
-		Remote:     true,
-	}), true
 }

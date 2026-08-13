@@ -5,23 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
-	"sync"
-	"time"
 
-	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/middleware"
-	agentmodel "echo-backend/internal/models/agent"
-	chatmodel "echo-backend/internal/models/chat"
-
-	featuresvc "echo-backend/internal/service/features"
 
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel/trace"
@@ -49,61 +40,22 @@ import (
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/chat [post]
 func (h *Handler) HandleChat(c fiber.Ctx) error {
-	var req ChatRequest
-	if err := c.Bind().JSON(&req); err != nil {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
+	req, err := parseChatRequest(c)
+	if err != nil {
+		return err
 	}
 
-	ctx := c.Context()
-	tpHeader := c.Get("traceparent")
-	if sc, ok := parseTraceparent(tpHeader); ok {
-		ctx = trace.ContextWithRemoteSpanContext(ctx, sc)
-	}
+	ctx := withRemoteTraceContext(c.Context(), c)
 
 	userID, err := handlerutil.GetUserID(c)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
-
 	userTier := middleware.UserTier(c)
 
-	prefs, err := h.SettingsSvc.GetSettings(ctx, userID)
+	modelID, mode, features, skills, config, err := h.resolveTurnPreferences(ctx, c, userID, userTier, req)
 	if err != nil {
-		log.Printf("[CHAT] Failed to load settings for user %d, falling back to defaults: %v", userID, err)
-		prefs = h.SettingsSvc.GetDefaults()
-	}
-
-	modelID := prefs.DefaultModel
-	if modelID == "" {
-		modelID = h.Cfg.DefaultModel
-	}
-	mode := prefs.DefaultMode
-	if mode == "" {
-		mode = "standard"
-	}
-	if req.Model != "" {
-		modelID = req.Model
-	}
-	if req.Mode != "" {
-		mode = req.Mode
-	}
-	features := prefs.DefaultFeatures
-	skills := prefs.DefaultSkills
-	var config map[string]interface{}
-	if prefs.HarnessToggles != nil {
-		config = map[string]interface{}{"featureToggles": prefs.HarnessToggles}
-	}
-
-	if err := h.FeaturesSvc.ValidateRequest(ctx, features, userTier); err != nil {
-		var unknownErr featuresvc.ErrUnknownFeature
-		if errors.As(err, &unknownErr) {
-			return handlerutil.RespondError(c, fiber.StatusBadRequest, unknownErr.Error())
-		}
-		var lockedErr featuresvc.ErrFeatureLocked
-		if errors.As(err, &lockedErr) {
-			return handlerutil.RespondError(c, fiber.StatusForbidden, lockedErr.Error())
-		}
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Feature validation failed")
+		return err
 	}
 
 	providerCfg, err := h.ModelSvc.ResolveProviderConfig(ctx, userID, modelID)
@@ -124,52 +76,15 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	// session lock, which would serialize every message in the session on it.
 	userTokenCount := h.countTokensViaAgent(c.Context(), req.Message)
 
-	if len(skills) > 0 {
-		skillsCatalog, err := h.GetSkills(ctx)
-		if err == nil {
-			skillMap := make(map[string]bool)
-			for _, s := range skillsCatalog {
-				if name, ok := s["name"].(string); ok {
-					skillMap[name] = true
-				}
-			}
-			for _, skillName := range skills {
-				if !skillMap[skillName] {
-					return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Unknown skill '%s'", skillName))
-				}
-			}
-		}
+	if err := h.validateRequestedSkills(ctx, c, skills); err != nil {
+		return err
 	}
 
-	var currentSession *chatmodel.Session
-	var currentPinnedVersion string
-
-	if req.SessionID != "" {
-		sess, err := h.SessionRepo.GetByID(ctx, req.SessionID)
-		if err != nil {
-			return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session", err.Error())
-		}
-		if sess == nil || sess.Status == "deleted" {
-			return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-		}
-		if sess.UserID != userID {
-			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
-		}
-		currentSession = sess
-		currentPinnedVersion = sess.StrategyVersion
-	} else {
-		resolvedVersion, err := h.StrategySvc.ResolveVersion(ctx, "", "", userID)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
-		}
-		createdSess, err := h.SessionRepo.CreateSession(ctx, userID, db.DefaultSessionTitle, resolvedVersion)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create session")
-		}
-		currentSession = createdSess
-		req.SessionID = currentSession.ID
-		currentPinnedVersion = currentSession.StrategyVersion
+	currentSession, currentPinnedVersion, err := h.resolveOrCreateSession(ctx, c, userID, req.SessionID)
+	if err != nil {
+		return err
 	}
+	req.SessionID = currentSession.ID
 
 	// The per-session lock is held from here to the end of the streamed turn
 	// (consolidation, history build, turn prep and the agent run included).
@@ -184,74 +99,14 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	}
 	defer releaseRedisLock()
 
-	// Consolidation must run under the lock: two rapid turns could otherwise
-	// both cross the token threshold and compact the same session twice, and
-	// a concurrent turn would build history from a stale context summary.
-	if req.SessionID != "" {
-		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
-		if err == nil && isThresholdCrossed {
-			log.Printf("[CONSOLIDATION] Token threshold reached. Compacting session %s...", req.SessionID)
-			err = h.ConsolidationSvc.TriggerConsolidation(ctx, req.SessionID, providerMap)
-			if err != nil {
-				log.Printf("[CONSOLIDATION] Error during auto-consolidation: %v", err)
-			} else {
-				currentSession, err = h.SessionRepo.GetByID(ctx, req.SessionID)
-				if err != nil {
-					log.Printf("[CHAT] Failed to reload session %s after consolidation: %v", req.SessionID, err)
-				}
-			}
-		}
-	}
-
-	resolvedStrategyVersion := currentPinnedVersion
-	if resolvedStrategyVersion == "" {
-		resolvedStrategyVersion, err = h.StrategySvc.ResolveVersion(ctx, "", "", userID)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid or deprecated strategy version requested")
-		}
-	}
-	if currentPinnedVersion == "" {
-		if err := h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion); err != nil {
-			log.Printf("[CHAT] Failed to pin strategy version for session %s: %v", req.SessionID, err)
-		}
-	}
-	if err := h.SessionRepo.TouchSession(ctx, req.SessionID); err != nil {
-		log.Printf("[CHAT] Failed to touch session %s: %v", req.SessionID, err)
-	}
-
-	dbMessages, err := h.buildCappedHistory(ctx, req.SessionID)
+	currentSession, resolvedStrategyVersion, err := h.prepareTurnState(ctx, c, userID, req, currentSession, currentPinnedVersion, providerMap)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
+		return err
 	}
 
-	var history []HistoryMessage
-	if currentSession != nil && currentSession.ContextSummary != "" {
-		history = append(history, HistoryMessage{
-			Role:    "system",
-			Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", currentSession.ContextSummary),
-		})
-	}
-
-	for _, dbMsg := range dbMessages {
-		if dbMsg.Role == "thought" || dbMsg.Role == "tool_call" || dbMsg.Role == "tool_result" {
-			continue
-		}
-		history = append(history, HistoryMessage{
-			Role:    dbMsg.Role,
-			Content: dbMsg.Content,
-		})
-	}
-
-	maxTurn, err := h.SessionRepo.GetMaxTurnNumber(ctx, req.SessionID)
+	history, nextTurn, assistantMsgID, err := h.prepareChatTurn(ctx, c, req.SessionID, currentSession, req.Message, userTokenCount)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to compute next turn", err.Error())
-	}
-	nextTurn := maxTurn + 1
-
-	assistantMsgID, err := h.SessionRepo.PrepareTurn(ctx, req.SessionID, req.Message, userTokenCount, nextTurn)
-	if err != nil {
-		log.Printf("[CHAT] Failed to prepare turn for session %s: %v", req.SessionID, err)
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to prepare chat turn", err.Error())
+		return err
 	}
 
 	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, mode)
@@ -305,38 +160,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	agentReqCtx, cancelAgentReq := context.WithCancel(ctx)
 	defer cancelAgentReq()
 
-	// Watcher for an explicit interrupt (POST /sessions/:id/cancel closes
-	// run.cancelCh). The agent cancel endpoint is the fast path (it aborts the
-	// in-flight LLM stream); cancelling the agent request context covers the
-	// window where the agent has not started streaming yet; closing the agent
-	// connection afterwards guarantees the agent's onAbort fires even if the
-	// cancel call failed.
 	interruptStop := make(chan struct{})
 	defer close(interruptStop)
-	go func() {
-		select {
-		case <-run.cancelCh:
-			log.Printf("[CHAT] Interrupt requested for session %s; notifying agent", req.SessionID)
-			cancelAgentReq()
-			// Guard against stale interrupts: if a new turn has already claimed
-			// the session (user stopped then immediately sent a new message),
-			// the old watcher must not abort the new turn's mission.
-			activeRunsMu.Lock()
-			stillCurrent := activeRuns[req.SessionID] == run
-			activeRunsMu.Unlock()
-			if stillCurrent {
-				agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer agentCancel()
-				if err := cancelAgentMission(agentCtx, h.Cfg, req.SessionID); err != nil {
-					log.Printf("[CHAT] Agent cancel call failed for session %s: %v", req.SessionID, err)
-				}
-			} else {
-				log.Printf("[CHAT] Stale interrupt for session %s (new turn active); skipping agent cancel", req.SessionID)
-			}
-			run.closeBody()
-		case <-interruptStop:
-		}
-	}()
+	go h.watchForInterrupt(run, interruptStop, req.SessionID, cancelAgentReq)
 
 	agentReq, err := http.NewRequestWithContext(agentReqCtx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
@@ -383,198 +209,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	c.Response().Header.Set("X-Accel-Buffering", "no")
 
 	return c.SendStreamWriter(func(w *bufio.Writer) {
-		reader := bufio.NewReader(resp.Body)
-		defer func() { _ = resp.Body.Close() }()
-
-		type ToolCallResult struct {
-			ToolName string
-			Content  string
-		}
-		type ToolCallCapture struct {
-			ToolName  string
-			ToolInput json.RawMessage
-		}
-
-		type AgentUsage struct {
-			PromptTokens     int `json:"promptTokens"`
-			CompletionTokens int `json:"completionTokens"`
-			TotalTokens      int `json:"totalTokens"`
-		}
-
-		type AgentSSEPacket struct {
-			Type       string          `json:"type"`
-			Content    string          `json:"content"`
-			Title      string          `json:"title"`
-			Summary    string          `json:"summary"`
-			ToolName   string          `json:"toolName"`
-			ToolInput  json.RawMessage `json:"toolInput"`
-			ToolResult string          `json:"toolResult"`
-			Usage      *AgentUsage     `json:"usage"`
-		}
-
-		type streamContent struct {
-			mu               sync.RWMutex
-			content          strings.Builder
-			thinking         strings.Builder
-			toolCalls        []ToolCallCapture
-			toolResults      []ToolCallResult
-			completionTokens int
-			isComplete       bool
-		}
-
-		sc := &streamContent{}
-
-		flushCtx, flushCancel := context.WithCancel(context.Background())
-		defer flushCancel()
-		flushDone := make(chan struct{})
-
-		go func() {
-			defer close(flushDone)
-			ticker := time.NewTicker(2 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-flushCtx.Done():
-					return
-				case <-ticker.C:
-					renewRedisSessionLock(context.Background(), h.RedisClient, req.SessionID, redisLockToken)
-					sc.mu.RLock()
-					content := sc.content.String()
-					completionTokens := sc.completionTokens
-					sc.mu.RUnlock()
-					if content == "" {
-						continue
-					}
-					err := retryDBOperation(3, 50*time.Millisecond, func() error {
-						dbCtx, dbCancel := context.WithTimeout(context.Background(), 3*time.Second)
-						defer dbCancel()
-						return h.SessionRepo.UpdateMessageContent(dbCtx, assistantMsgID, content, nil, completionTokens)
-					})
-					if err != nil {
-						log.Printf("[CHAT] Flush error msg %d (after retries): %v", assistantMsgID, err)
-					}
-				}
-			}
-		}()
-
-		buildStepsJSON := func(thinking string, calls []ToolCallCapture, results []ToolCallResult) json.RawMessage {
-			var steps []agentmodel.ThoughtStep
-			if thinking != "" {
-				steps = append(steps, agentmodel.ThoughtStep{Type: "reasoning", Content: thinking})
-			}
-			for _, tc := range calls {
-				steps = append(steps, agentmodel.ThoughtStep{Type: "tool_call", ToolName: tc.ToolName, ToolInput: tc.ToolInput})
-			}
-			for _, tr := range results {
-				steps = append(steps, agentmodel.ThoughtStep{Type: "tool_result", ToolName: tr.ToolName, Content: tr.Content})
-			}
-			if len(steps) == 0 {
-				return nil
-			}
-			b, _ := json.Marshal(steps)
-			return b
-		}
-
-		for {
-			line, rErr := reader.ReadBytes('\n')
-			if len(line) > 0 {
-				if _, wErr := w.Write(line); wErr != nil {
-					break
-				}
-				if err := w.Flush(); err != nil {
-					break
-				}
-
-				lineStr := string(line)
-				if strings.HasPrefix(lineStr, "data: ") {
-					dataStr := strings.TrimPrefix(lineStr, "data: ")
-					dataStr = strings.TrimSpace(dataStr)
-
-					var packet AgentSSEPacket
-					if err := json.Unmarshal([]byte(dataStr), &packet); err == nil {
-						sc.mu.Lock()
-						switch packet.Type {
-						case "content":
-							sc.content.WriteString(packet.Content)
-						case "reasoning":
-							sc.thinking.WriteString(packet.Content)
-						case "tool_call":
-							sc.toolCalls = append(sc.toolCalls, ToolCallCapture{
-								ToolName:  packet.ToolName,
-								ToolInput: packet.ToolInput,
-							})
-						case "tool_result":
-							sc.toolResults = append(sc.toolResults, ToolCallResult{
-								ToolName: packet.ToolName,
-								Content:  packet.Content,
-							})
-						case "error":
-							if packet.Content != "" {
-								sc.content.WriteString(packet.Content)
-							}
-						case "usage":
-							if packet.Usage != nil && packet.Usage.CompletionTokens > 0 {
-								sc.completionTokens = packet.Usage.CompletionTokens
-							}
-						case "turn_complete":
-							sc.isComplete = true
-						}
-						sc.mu.Unlock()
-					}
-				}
-			}
-			if rErr != nil {
-				break
-			}
-		}
-
-		flushCancel()
-
-		select {
-		case <-flushDone:
-		case <-time.After(10 * time.Second):
-			log.Printf("[CHAT] Flush goroutine did not exit for msg %d; proceeding to finalize", assistantMsgID)
-		}
-
-		sc.mu.RLock()
-		finalContent := sc.content.String()
-		finalThinking := sc.thinking.String()
-		finalCalls := sc.toolCalls
-		finalResults := sc.toolResults
-		complete := sc.isComplete
-		sc.mu.RUnlock()
-
-		status := "interrupted"
-		if complete {
-			status = "complete"
-		}
-
-		steps := buildStepsJSON(finalThinking, finalCalls, finalResults)
-
-		assistantTokens := sc.completionTokens
-		if assistantTokens == 0 {
-			assistantTokens = h.countTokensViaAgent(context.Background(), finalContent)
-		}
-
-		if err := h.finalizeTurn(assistantMsgID, req.SessionID, finalContent, steps, assistantTokens, status); err != nil {
-			log.Printf("[CHAT] Error finalizing turn for msg %d: %v", assistantMsgID, err)
-		}
-
-		log.Printf("[CHAT] Completed turn %d for session %s (status=%s, content_len=%d)", nextTurn, req.SessionID, status, len(finalContent))
+		h.streamAgentResponse(w, resp, req.SessionID, assistantMsgID, nextTurn, redisLockToken)
 	})
-}
-
-// finalizeTurn persists the assistant message's final state once a turn ends.
-// Called on every path after PrepareTurn — including agent request failures —
-// so the streaming placeholder is never left stuck in 'streaming'.
-func (h *Handler) finalizeTurn(assistantMsgID int64, sessionID, content string, steps json.RawMessage, tokenCount int, status string) error {
-	err := retryDBOperation(3, 100*time.Millisecond, func() error {
-		dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer dbCancel()
-		return h.SessionRepo.CompleteTurn(dbCtx, assistantMsgID, sessionID, content, steps, tokenCount, status)
-	})
-	if err != nil {
-		return fmt.Errorf("complete turn for msg %d: %w", assistantMsgID, err)
-	}
-	return nil
 }
