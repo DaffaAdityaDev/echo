@@ -67,38 +67,3 @@ export function selectiveTruncateToolResults(messages: BaseMessage[], threshold:
     return msg;
   });
 }
-
-export function validateContent(filename: string, content: string): { valid: boolean; reason?: string } {
-  const placeholders = [
-    /\[Not available\]/i,
-    /\(need to extract\)/i,
-    /\(list if available\)/i,
-    /placeholder/i,
-    /insert here/i,
-    /\[The abstract text was not extracted\]/i,
-  ];
-  for (const pattern of placeholders) {
-    if (pattern.test(content)) {
-      return {
-        valid: false,
-        reason: `Content contains invalid placeholder: ${pattern.toString()}`,
-      };
-    }
-  }
-
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext === "json") {
-    try {
-      JSON.parse(content);
-    } catch (err: unknown) {
-      return { valid: false, reason: `Invalid JSON syntax: ${(err as Error).message}` };
-    }
-  } else if (ext === "ts" || ext === "js" || ext === "tsx" || ext === "jsx") {
-    try {
-      new Function(content);
-    } catch (err: unknown) {
-      return { valid: false, reason: `Syntax error: ${(err as Error).message}` };
-    }
-  }
-  return { valid: true };
-}

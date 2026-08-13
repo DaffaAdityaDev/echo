@@ -10,7 +10,6 @@ export interface ContextOptimizationConfig {
 
 export class ContextManager {
   private config: ContextOptimizationConfig;
-  private summaryAnchor: string | null = null;
 
   constructor(config?: Partial<ContextOptimizationConfig>) {
     this.config = {
@@ -34,36 +33,7 @@ export class ContextManager {
     return [
       new SystemMessage(staticSystemPrompt),
       new SystemMessage(`[ENVIRONMENT CONTEXT]\n${dynamicEnvContext}`),
-      ...(this.summaryAnchor ? [new SystemMessage(`[HISTORICAL SUMMARY ANCHOR]\n${this.summaryAnchor}`)] : []),
       ...canonicalMessages,
     ];
-  }
-
-  public shouldCompact(currentTokens: number, maxContextTokens: number): boolean {
-    if (!this.config.enabled || !this.config.enableAutoCompaction) {
-      return false;
-    }
-    return currentTokens >= maxContextTokens * this.config.compactionThresholdRatio;
-  }
-
-  public applyCompaction(stateMessages: BaseMessage[], newSummary: string): BaseMessage[] {
-    this.summaryAnchor = newSummary;
-    return stateMessages.slice(-this.config.keepLastTurnsCount);
-  }
-
-  public setSummaryAnchor(summary: string): void {
-    this.summaryAnchor = summary;
-  }
-
-  public getSummaryAnchor(): string | null {
-    return this.summaryAnchor;
-  }
-
-  public getConfig(): ContextOptimizationConfig {
-    return { ...this.config };
-  }
-
-  public estimateTokens(messages: BaseMessage[]): number {
-    return messages.reduce((acc, m) => acc + Math.ceil((m.content as string)?.length ?? 0 / 4), 0);
   }
 }

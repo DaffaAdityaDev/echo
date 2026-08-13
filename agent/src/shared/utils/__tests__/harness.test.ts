@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
-import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults, validateContent } from "../harness";
+import { getCosineSimilarity, getHistoryTokens, selectiveTruncateToolResults } from "../harness";
 
 describe("getCosineSimilarity", () => {
   test("identical strings return 1", () => {
@@ -76,37 +76,5 @@ describe("selectiveTruncateToolResults", () => {
 
     expect(humanResult).toBe(human);
     expect(aiResult).toBe(ai);
-  });
-});
-
-describe("validateContent", () => {
-  test("content with placeholder is invalid", () => {
-    const result = validateContent("a.txt", "some text with placeholder inside");
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("placeholder");
-  });
-
-  test("json file with valid JSON is valid", () => {
-    expect(validateContent("x.json", '{"a": 1}').valid).toBe(true);
-  });
-
-  test("json file with invalid JSON is invalid", () => {
-    const result = validateContent("x.json", "{not json}");
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("Invalid JSON");
-  });
-
-  test("ts file with a syntax error is invalid", () => {
-    const result = validateContent("x.ts", "const = ;");
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("Syntax error");
-  });
-
-  test("ts file with valid content is valid", () => {
-    expect(validateContent("x.ts", "const x = 1;").valid).toBe(true);
-  });
-
-  test("unknown extension is valid", () => {
-    expect(validateContent("notes.md", "whatever content").valid).toBe(true);
   });
 });
