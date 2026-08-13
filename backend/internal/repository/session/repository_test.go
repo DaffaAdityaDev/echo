@@ -3,7 +3,6 @@ package session
 import (
 	"bufio"
 	"context"
-	"echo-backend/internal/models/chat"
 	"fmt"
 	"os"
 	"strings"
@@ -19,7 +18,7 @@ func TestSessionRepository(t *testing.T) {
 	}
 
 	if f, err := os.Open("../../../.env"); err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
@@ -30,7 +29,7 @@ func TestSessionRepository(t *testing.T) {
 				key := strings.TrimSpace(parts[0])
 				val := strings.TrimSpace(parts[1])
 				if _, ok := os.LookupEnv(key); !ok {
-					os.Setenv(key, val)
+					_ = os.Setenv(key, val)
 				}
 			}
 		}
@@ -83,36 +82,21 @@ func TestSessionRepository(t *testing.T) {
 		t.Error("Expected generated session ID, got empty string")
 	}
 
-	userMsg := &chatmodel.Message{
-		Role:       "user",
-		Content:    "Hello agent!",
-		TokenCount: 3,
-		TurnNumber: 1,
-	}
-	assistantMsg := &chatmodel.Message{
-		Role:       "assistant",
-		Content:    "Hello user! How can I help you today?",
-		TokenCount: 10,
-		TurnNumber: 1,
-	}
-	toolResult := &chatmodel.Message{
-		Role:       "tool_result",
-		Content:    "search result: success",
-		TokenCount: 4,
-		TurnNumber: 1,
-	}
-
-	err = repo.SaveTurnMessages(ctx, session.ID, userMsg, assistantMsg, []*chatmodel.Message{toolResult})
+	assistantMsgID, err := repo.PrepareTurn(ctx, session.ID, "Hello agent!", 3, 1)
 	if err != nil {
-		t.Fatalf("Failed to save turn messages: %v", err)
+		t.Fatalf("Failed to prepare turn: %v", err)
+	}
+	err = repo.CompleteTurn(ctx, assistantMsgID, session.ID, "Hello user! How can I help you today?", nil, 10, "complete")
+	if err != nil {
+		t.Fatalf("Failed to complete turn: %v", err)
 	}
 
 	messages, err := repo.GetSessionMessages(ctx, session.ID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get session messages: %v", err)
 	}
-	if len(messages) != 3 {
-		t.Errorf("Expected 3 messages, got %d", len(messages))
+	if len(messages) != 2 {
+		t.Errorf("Expected 2 messages, got %d", len(messages))
 	}
 
 	maxTurn, err := repo.GetMaxTurnNumber(ctx, session.ID)
@@ -127,8 +111,8 @@ func TestSessionRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get token count: %v", err)
 	}
-	if tokenCount != 17 {
-		t.Errorf("Expected token count 17, got %d", tokenCount)
+	if tokenCount != 13 {
+		t.Errorf("Expected token count 13, got %d", tokenCount)
 	}
 
 	sessions, err := repo.ListByUser(ctx, testUserID, 0, 0)
@@ -139,11 +123,11 @@ func TestSessionRepository(t *testing.T) {
 	for _, s := range sessions {
 		if s.ID == session.ID {
 			found = true
-			if s.MessageCount != 3 {
-				t.Errorf("Expected s.MessageCount == 3, got %d", s.MessageCount)
+			if s.MessageCount != 2 {
+				t.Errorf("Expected s.MessageCount == 2, got %d", s.MessageCount)
 			}
-			if s.TokenCount != 17 {
-				t.Errorf("Expected s.TokenCount == 17, got %d", s.TokenCount)
+			if s.TokenCount != 13 {
+				t.Errorf("Expected s.TokenCount == 13, got %d", s.TokenCount)
 			}
 		}
 	}
@@ -156,7 +140,7 @@ func TestSessionRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create second session: %v", err)
 	}
-	defer repo.DeleteSession(ctx, session2.ID)
+	defer func() { _ = repo.DeleteSession(ctx, session2.ID) }()
 
 	sessionsLimit, err := repo.ListByUser(ctx, testUserID, 1, 0)
 	if err != nil {
@@ -167,16 +151,18 @@ func TestSessionRepository(t *testing.T) {
 	}
 
 	// Test Pagination for Messages
-	// Current messages in session: 3 messages (turn 1)
+	// Current messages in session: 2 messages (turn 1)
 	// Add 2 more messages (turn 2)
-	msg4 := &chatmodel.Message{Role: "user", Content: "Second turn user", TokenCount: 3, TurnNumber: 2}
-	msg5 := &chatmodel.Message{Role: "assistant", Content: "Second turn assistant", TokenCount: 5, TurnNumber: 2}
-	err = repo.SaveTurnMessages(ctx, session.ID, msg4, msg5, nil)
+	assistantMsgID2, err := repo.PrepareTurn(ctx, session.ID, "Second turn user", 3, 2)
 	if err != nil {
-		t.Fatalf("Failed to save second turn: %v", err)
+		t.Fatalf("Failed to prepare second turn: %v", err)
+	}
+	err = repo.CompleteTurn(ctx, assistantMsgID2, session.ID, "Second turn assistant", nil, 5, "complete")
+	if err != nil {
+		t.Fatalf("Failed to complete second turn: %v", err)
 	}
 
-	// Session now has 5 messages. Fetch latest 2 (should be turn 2 user & assistant)
+	// Session now has 4 messages. Fetch latest 2 (should be turn 2 user & assistant)
 	messagesLimit, err := repo.GetSessionMessages(ctx, session.ID, 2, 0)
 	if err != nil {
 		t.Fatalf("Failed to get session messages with limit: %v", err)
@@ -214,8 +200,8 @@ func TestSessionRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to count messages: %v", err)
 	}
-	if totalMessages != 5 {
-		t.Errorf("Expected 5 total messages, got %d", totalMessages)
+	if totalMessages != 4 {
+		t.Errorf("Expected 4 total messages, got %d", totalMessages)
 	}
 
 	err = repo.DeleteSession(ctx, session.ID)

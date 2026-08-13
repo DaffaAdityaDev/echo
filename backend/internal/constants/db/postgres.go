@@ -154,10 +154,6 @@ const (
 		DELETE FROM messages
 		WHERE session_id = $1 AND turn_number <= $2
 	`
-	QueryInsertMessage = `
-		INSERT INTO messages (session_id, role, content, token_count, turn_number, steps, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
-	`
 	QueryUpdateSessionUpdatedAt = `
 		UPDATE sessions
 		SET updated_at = NOW()

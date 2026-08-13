@@ -168,45 +168,6 @@ func (r *Repository) DeleteMessagesUpToTurn(ctx context.Context, sessionID strin
 	return nil
 }
 
-func stepsOrNull(m *chatmodel.Message) json.RawMessage {
-	if len(m.Steps) > 0 {
-		return m.Steps
-	}
-	return json.RawMessage("null")
-}
-
-func (r *Repository) SaveTurnMessages(ctx context.Context, sessionID string, userMsg *chatmodel.Message, assistantMsg *chatmodel.Message, toolResults []*chatmodel.Message) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, userMsg.Role, userMsg.Content, userMsg.TokenCount, userMsg.TurnNumber, stepsOrNull(userMsg))
-	if err != nil {
-		return fmt.Errorf("failed to insert user message: %w", err)
-	}
-
-	_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, assistantMsg.Role, assistantMsg.Content, assistantMsg.TokenCount, assistantMsg.TurnNumber, stepsOrNull(assistantMsg))
-	if err != nil {
-		return fmt.Errorf("failed to insert assistant message: %w", err)
-	}
-
-	for _, tr := range toolResults {
-		_, err = tx.Exec(ctx, db.QueryInsertMessage, sessionID, tr.Role, tr.Content, tr.TokenCount, tr.TurnNumber, stepsOrNull(tr))
-		if err != nil {
-			return fmt.Errorf("failed to insert tool result message: %w", err)
-		}
-	}
-
-	_, err = tx.Exec(ctx, db.QueryUpdateSessionUpdatedAt, sessionID)
-	if err != nil {
-		return fmt.Errorf("failed to update session timestamp: %w", err)
-	}
-
-	return tx.Commit(ctx)
-}
-
 func (r *Repository) UpdateMessageContent(ctx context.Context, msgID int64, content string, steps json.RawMessage, tokenCount int) error {
 	if steps == nil {
 		steps = json.RawMessage("null")
