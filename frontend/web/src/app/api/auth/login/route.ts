@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
     };
     response.cookies.set("auth_token", data.token, cookieOptions);
-    response.cookies.set("token", data.token, cookieOptions);
   }
 
   return response;

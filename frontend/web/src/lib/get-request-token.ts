@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 
 export async function getRequestToken(): Promise<string> {
   const cookieStore = await cookies();
-  const fromCookie = cookieStore.get("auth_token")?.value ?? cookieStore.get("token")?.value;
+  const fromCookie = cookieStore.get("auth_token")?.value;
   if (fromCookie) return fromCookie;
 
   const headersList = await headers();

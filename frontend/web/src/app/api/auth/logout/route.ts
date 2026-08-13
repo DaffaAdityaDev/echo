@@ -10,6 +10,5 @@ export async function POST() {
     maxAge: 0,
   };
   response.cookies.set("auth_token", "", cookieOptions);
-  response.cookies.set("token", "", cookieOptions);
   return response;
 }
