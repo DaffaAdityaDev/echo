@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
   "files": {
-    "includes": ["src/**", "api/**", "vitest.config.ts", "vitest.setup.ts"]
+    "includes": ["src/**", "api/**", "!api/openapi.json", "vitest.config.ts", "vitest.setup.ts"]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
