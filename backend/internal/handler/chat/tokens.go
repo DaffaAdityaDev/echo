@@ -36,7 +36,7 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 		log.Printf("[TOKENS] Agent tokenize unreachable, falling back to estimate: %v", err)
 		return estimateTokensFallback(text)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("[TOKENS] Agent tokenize failed (status %d), falling back to estimate", resp.StatusCode)

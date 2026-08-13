@@ -91,7 +91,7 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Agent unreachable")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

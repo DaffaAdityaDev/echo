@@ -184,7 +184,7 @@ func (r *Repository) PrepareTurn(ctx context.Context, sessionID string, userCont
 	if err != nil {
 		return 0, fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }() // no-op if committed
 
 	_, err = tx.Exec(ctx, db.QueryMarkSessionStreamingInterrupted, sessionID)
 	if err != nil {
@@ -214,7 +214,7 @@ func (r *Repository) CompleteTurn(ctx context.Context, assistantMsgID int64, ses
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }() // no-op if committed
 
 	if steps == nil {
 		steps = json.RawMessage("null")
@@ -245,7 +245,7 @@ func (r *Repository) PruneSession(ctx context.Context, sessionID string, newSumm
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }() // no-op if committed
 
 	_, err = tx.Exec(ctx, db.QueryUpdateContextSummary, sessionID, newSummary)
 	if err != nil {

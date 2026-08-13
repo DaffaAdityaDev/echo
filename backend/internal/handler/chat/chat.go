@@ -108,7 +108,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Feature validation failed")
 	}
 
-	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
+	providerCfg, err := h.ModelSvc.ResolveProviderConfig(ctx, userID, modelID)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, fmt.Sprintf("Provider config error: %s", err.Error()))
 	}
@@ -285,7 +285,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("[CHAT] Failed to marshal agent payload for session %s: %v", req.SessionID, err)
-		h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted")
+		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
+			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
 	}
 
@@ -384,7 +386,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		reader := bufio.NewReader(resp.Body)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		type ToolCallResult struct {
 			ToolName string

@@ -131,7 +131,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	if err != nil {
 		return fmt.Errorf("failed to contact agent for summarization: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("agent summarization failed with status: %d", resp.StatusCode)

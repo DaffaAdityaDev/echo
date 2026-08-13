@@ -104,7 +104,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 		modelID = h.Cfg.DefaultModel
 	}
 
-	providerCfg, err := h.ModelSvc.ResolveProviderConfig(userID, modelID)
+	providerCfg, err := h.ModelSvc.ResolveProviderConfig(c.Context(), userID, modelID)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -157,7 +157,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		log.Printf("[AUTO-TITLE] HTTP request failed for session %s: %v", sessionID, err)
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider request failed")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, err := io.ReadAll(resp.Body)
