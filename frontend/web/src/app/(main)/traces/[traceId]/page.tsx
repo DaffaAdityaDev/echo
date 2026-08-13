@@ -1,37 +1,19 @@
 "use client";
 
-import {
-  AlertCircle,
-  ArrowLeft,
-  Bot,
-  Brain,
-  CheckSquare,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Coins,
-  Cpu,
-  FileCode,
-  Info,
-  Network,
-  Play,
-  RefreshCw,
-  Terminal,
-  Users,
-  Wrench,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock, Coins, Cpu } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { type Span, useTraceStore } from "@/features/debug/stores/traceStore";
+import { SpanTree } from "@/features/debug/components/SpanTree";
+import {
+  formatCost,
+  formatDuration,
+  formatValue,
+  toggleSpanCollapse,
+} from "@/features/debug/components/span-tree-helpers";
+import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { cn } from "@/utils/cn";
-
-interface TreeSpanNode {
-  span: Span;
-  children: TreeSpanNode[];
-  depth: number;
-}
 
 export default function TraceDetailPage() {
   const params = useParams();
@@ -45,74 +27,6 @@ export default function TraceDetailPage() {
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
   const [collapsedSpans, setCollapsedSpans] = useState<Set<string>>(new Set());
 
-  // Build the nested span tree hierarchy
-  const spanTree = useMemo(() => {
-    if (!trace?.spans) return [];
-
-    const nodeMap = new Map<string, TreeSpanNode>();
-    const roots: TreeSpanNode[] = [];
-
-    // Initialize nodes
-    for (const span of trace.spans) {
-      nodeMap.set(span.id, { span, children: [], depth: 0 });
-    }
-
-    // Link parents to children
-    for (const span of trace.spans) {
-      const node = nodeMap.get(span.id);
-      if (!node) continue;
-      if (span.parentId && nodeMap.has(span.parentId)) {
-        const parentNode = nodeMap.get(span.parentId);
-        if (parentNode) {
-          parentNode.children.push(node);
-        }
-      } else {
-        roots.push(node);
-      }
-    }
-
-    // DFS compute depths
-    const computeDepth = (node: TreeSpanNode, depth: number) => {
-      node.depth = depth;
-      // Sort children by startTime to maintain sequential order
-      node.children.sort((a, b) => a.span.startTime - b.span.startTime);
-      for (const child of node.children) {
-        computeDepth(child, depth + 1);
-      }
-    };
-
-    for (const root of roots) {
-      computeDepth(root, 0);
-    }
-
-    // Sort roots by startTime
-    roots.sort((a, b) => a.span.startTime - b.span.startTime);
-    return roots;
-  }, [trace]);
-
-  // Flatten the tree for rendering, respecting collapse states
-  const visibleNodes = useMemo(() => {
-    const list: { node: TreeSpanNode; hasChildren: boolean }[] = [];
-
-    const traverse = (node: TreeSpanNode) => {
-      const hasChildren = node.children.length > 0;
-      list.push({ node, hasChildren });
-
-      const isCollapsed = collapsedSpans.has(node.span.id);
-      if (!isCollapsed) {
-        for (const child of node.children) {
-          traverse(child);
-        }
-      }
-    };
-
-    for (const root of spanTree) {
-      traverse(root);
-    }
-
-    return list;
-  }, [spanTree, collapsedSpans]);
-
   // Selected span detail query
   const selectedSpan = useMemo(() => {
     if (!trace) return null;
@@ -122,20 +36,6 @@ export default function TraceDetailPage() {
     // Default to the first span
     return trace.spans[0] || null;
   }, [trace, selectedSpanId]);
-
-  // Collapse/Expand toggles
-  const toggleCollapse = (spanId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCollapsedSpans((prev) => {
-      const next = new Set(prev);
-      if (next.has(spanId)) {
-        next.delete(spanId);
-      } else {
-        next.add(spanId);
-      }
-      return next;
-    });
-  };
 
   if (!trace) {
     return (
@@ -157,90 +57,6 @@ export default function TraceDetailPage() {
       </div>
     );
   }
-
-  // Icons per Type Helper
-  const getSpanIcon = (span: Span) => {
-    if (span.name === "Agent Response") {
-      return <Bot className="h-3.5 w-3.5" />;
-    }
-    if (span.name === "Mission Initiated") {
-      return <Play className="h-3.5 w-3.5" />;
-    }
-    if (span.name.startsWith("State Transition")) {
-      return <RefreshCw className="h-3.5 w-3.5" />;
-    }
-
-    switch (span.type) {
-      case "thought":
-        return <Brain className="h-3.5 w-3.5" />;
-      case "tool":
-        return <Wrench className="h-3.5 w-3.5" />;
-      case "subagent":
-        return <Users className="h-3.5 w-3.5" />;
-      case "file_operation":
-        return <FileCode className="h-3.5 w-3.5" />;
-      case "swarm_status":
-        return <Network className="h-3.5 w-3.5" />;
-      case "todo":
-        return <CheckSquare className="h-3.5 w-3.5" />;
-      case "error":
-        return <AlertCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />;
-      case "info":
-        return <Info className="h-3.5 w-3.5" />;
-      default:
-        return <Terminal className="h-3.5 w-3.5" />;
-    }
-  };
-
-  const getSpanColorClass = (span: Span) => {
-    if (span.status === "failed") return "bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400";
-    if (span.status === "skipped")
-      return "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
-    if (span.status === "streaming") return "bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400";
-
-    if (span.name === "Agent Response") {
-      return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
-    }
-    if (span.name === "Mission Initiated") {
-      return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
-    }
-    if (span.name.startsWith("State Transition")) {
-      return "bg-zinc-100/60 text-zinc-500 border-zinc-200/50 dark:bg-zinc-900/60 dark:text-zinc-400 dark:border-zinc-800/50";
-    }
-
-    // completed colors based on type
-    switch (span.type) {
-      case "thought":
-        return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400";
-      case "tool":
-        return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
-      case "subagent":
-        return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-400";
-      case "file_operation":
-        return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
-      case "swarm_status":
-        return "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400";
-      default:
-        return "bg-zinc-100 text-zinc-700 border-zinc-200/80 dark:bg-zinc-900/50 dark:text-zinc-300 dark:border-zinc-800/80";
-    }
-  };
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
-
-  const formatCost = (cost: number) => {
-    if (cost === 0) return "$0.00";
-    if (cost < 0.001) return `$${cost.toFixed(5)}`;
-    return `$${cost.toFixed(4)}`;
-  };
-
-  const formatValue = (val: unknown) => {
-    if (val === null || val === undefined) return "—";
-    if (typeof val === "string") return val;
-    return JSON.stringify(val, null, 2);
-  };
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12 font-sans select-none animate-in fade-in duration-300">
@@ -327,72 +143,14 @@ export default function TraceDetailPage() {
           </h3>
 
           <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[500px] min-h-0 font-mono text-[11px]">
-            {visibleNodes.length === 0 ? (
-              <div className="text-center py-20 text-xs text-zinc-400 dark:text-zinc-500">
-                No nested spans captured.
-              </div>
-            ) : (
-              visibleNodes.map(({ node, hasChildren }) => {
-                const isSelected = selectedSpan?.id === node.span.id;
-                const isCollapsed = collapsedSpans.has(node.span.id);
-
-                return (
-                  // biome-ignore lint/a11y/noStaticElementInteractions: Tree node navigation
-                  // biome-ignore lint/a11y/useKeyWithClickEvents: Tree node navigation
-                  <div
-                    key={node.span.id}
-                    onClick={() => setSelectedSpanId(node.span.id)}
-                    style={{ paddingLeft: `${node.depth * 14}px` }}
-                    className={cn(
-                      "flex items-center justify-between p-2 rounded-xl border border-transparent cursor-pointer transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/60 select-none group",
-                      isSelected
-                        ? "bg-purple-500/10 border-purple-500/20 text-purple-950 dark:text-purple-300 font-bold"
-                        : "text-zinc-700 dark:text-zinc-300",
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {/* Collapse toggle or placeholder spacer */}
-                      {hasChildren ? (
-                        <button
-                          type="button"
-                          onClick={(e) => toggleCollapse(node.span.id, e)}
-                          className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-800 dark:hover:text-white"
-                        >
-                          {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        </button>
-                      ) : (
-                        <div className="w-4" />
-                      )}
-
-                      {/* Icon */}
-                      <div
-                        className={cn(
-                          "p-1 rounded-lg border flex items-center justify-center shrink-0 shadow-sm",
-                          getSpanColorClass(node.span),
-                        )}
-                      >
-                        {getSpanIcon(node.span)}
-                      </div>
-
-                      {/* Name */}
-                      <span className="truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                        {node.span.name}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
-                      <span>{formatDuration(node.span.durationMs)}</span>
-                      {node.span.status === "streaming" && (
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            <SpanTree
+              spans={trace.spans}
+              selectedSpanId={selectedSpan?.id ?? null}
+              onSelectSpan={setSelectedSpanId}
+              collapsedSpans={collapsedSpans}
+              onToggleCollapse={(spanId) => setCollapsedSpans((prev) => toggleSpanCollapse(spanId, prev))}
+              emptyMessage="No nested spans captured."
+            />
           </div>
         </div>
 

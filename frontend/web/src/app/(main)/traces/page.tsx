@@ -3,6 +3,7 @@
 import { Activity, ArrowRight, Clock, Coins, Cpu, Filter, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { formatCost, formatDuration } from "@/features/debug/components/span-tree-helpers";
 import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { cn } from "@/utils/cn";
 
@@ -62,17 +63,6 @@ export default function TracesPage() {
       return matchesSearch && matchesStatus && matchesModel;
     });
   }, [traces, search, statusFilter, modelFilter]);
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
-
-  const formatCost = (cost: number) => {
-    if (cost === 0) return "$0.00";
-    if (cost < 0.001) return `$${cost.toFixed(5)}`;
-    return `$${cost.toFixed(4)}`;
-  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans select-none animate-in fade-in duration-300">
