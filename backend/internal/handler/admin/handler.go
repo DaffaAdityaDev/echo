@@ -73,7 +73,10 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/api-keys [get]
 func (h *Handler) HandleListKeys(c fiber.Ctx) error {
-	keys, err := h.APIKeyRepo.List(context.Background())
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	keys, err := h.APIKeyRepo.List(ctx)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to list keys")
 	}
@@ -125,7 +128,10 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 		CreatedAt: now,
 	}
 
-	if err := h.APIKeyRepo.Create(context.Background(), &ak); err != nil {
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := h.APIKeyRepo.Create(ctx, &ak); err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store key")
 	}
 
@@ -153,7 +159,10 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id is required")
 	}
 
-	existing, err := h.APIKeyRepo.GetByID(context.Background(), id)
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	existing, err := h.APIKeyRepo.GetByID(ctx, id)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to find key")
 	}
@@ -161,7 +170,7 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusNotFound, "Key not found")
 	}
 
-	if err := h.APIKeyRepo.Revoke(context.Background(), id); err != nil {
+	if err := h.APIKeyRepo.Revoke(ctx, id); err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to revoke key")
 	}
 
@@ -178,7 +187,10 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/admin/stats [get]
 func (h *Handler) HandleStats(c fiber.Ctx) error {
-	keys, err := h.APIKeyRepo.List(context.Background())
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	keys, err := h.APIKeyRepo.List(ctx)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get stats")
 	}

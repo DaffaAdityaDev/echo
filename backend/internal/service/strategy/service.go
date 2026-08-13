@@ -6,6 +6,7 @@ import (
 	"echo-backend/internal/repository/settings"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -83,7 +84,7 @@ func (s *Service) GetCatalog(ctx context.Context) ([]StrategyRegistryEntry, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch strategy catalog from agent: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("agent catalog status code: %d", res.StatusCode)
@@ -121,7 +122,9 @@ func (s *Service) GetRollout(ctx context.Context) (map[string]RolloutCfg, error)
 
 	rollouts := make(map[string]RolloutCfg)
 	if len(raw) > 0 {
-		_ = json.Unmarshal(raw, &rollouts)
+		if err := json.Unmarshal(raw, &rollouts); err != nil {
+			return nil, fmt.Errorf("failed to parse strategy_rollout app setting: %w", err)
+		}
 	}
 
 	if s.rdb != nil {
@@ -174,7 +177,11 @@ func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, re
 		return DefaultStrategyVersion, nil
 	}
 
-	rollouts, _ := s.GetRollout(ctx)
+	rollouts, err := s.GetRollout(ctx)
+	if err != nil {
+		log.Printf("[STRATEGY] Failed to load rollout percentages, resolving with defaults: %v", err)
+		rollouts = map[string]RolloutCfg{}
+	}
 
 	return resolveVersion(catalog, rollouts, s.GetDefaultRollout(), requestedVersion, userID)
 }

@@ -3,6 +3,7 @@ package strategy
 import (
 	"echo-backend/internal/handler/handlerutil"
 	stratSvc "echo-backend/internal/service/strategy"
+	"log"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -30,7 +31,11 @@ func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to retrieve strategy catalog", err.Error())
 	}
 
-	rollouts, _ := h.strategySvc.GetRollout(c.Context())
+	rollouts, err := h.strategySvc.GetRollout(c.Context())
+	if err != nil {
+		log.Printf("[STRATEGY] Failed to load rollout percentages, returning catalog without them: %v", err)
+		rollouts = map[string]stratSvc.RolloutCfg{}
+	}
 	defaultRollout := h.strategySvc.GetDefaultRollout()
 
 	for i := range catalog {
