@@ -1,3 +1,11 @@
+export interface SkillModifiers {
+  temperature?: number;
+  maxTokens?: number;
+  compression?: boolean;
+  pacing?: boolean;
+  loopDetection?: boolean;
+}
+
 export interface SkillDefinition {
   name: string;
   description: string;
@@ -5,11 +13,5 @@ export interface SkillDefinition {
   variables?: string[];
   preferredTools?: string[];
   allowedTools?: string[];
-  modifiers?: {
-    temperature?: number;
-    maxTokens?: number;
-    compression?: boolean;
-    pacing?: boolean;
-    loopDetection?: boolean;
-  };
+  modifiers?: SkillModifiers;
 }

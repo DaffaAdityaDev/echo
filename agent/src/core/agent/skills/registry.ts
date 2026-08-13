@@ -1,6 +1,6 @@
 import { SkillCompiler } from "./compiler";
 import { standardSkills } from "./library";
-import type { SkillDefinition } from "./types";
+import type { SkillDefinition, SkillModifiers } from "./types";
 
 export class SkillRegistry {
   private skills: Map<string, SkillDefinition>;
@@ -42,8 +42,8 @@ export class SkillRegistry {
     return parts.join("\n\n");
   }
 
-  compileModifiers(activeSkills: string[]): Record<string, unknown> {
-    const merged: Record<string, unknown> = {};
+  compileModifiers(activeSkills: string[]): SkillModifiers {
+    const merged: SkillModifiers = {};
     for (const name of activeSkills) {
       const skill = this.skills.get(name);
       if (skill?.modifiers) {
@@ -74,7 +74,4 @@ export class SkillRegistry {
     }
     return Array.from(intersection);
   }
-
-  // TODO: SkillDefinition.modifiers.temperature and maxTokens are ready for
-  // harness integration — consume them when constructing the LLM provider call.
 }
