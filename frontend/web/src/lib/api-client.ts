@@ -86,10 +86,10 @@ async function stream<T = unknown>(
     options.onResponse(response);
   }
 
-  await readStream(response, onChunk, signal as AbortSignal);
+  await readStream(response, (data) => onChunk(data as T), signal as AbortSignal);
 }
 
-async function readStream<T = unknown>(response: Response, onChunk: (data: T) => void, signal?: AbortSignal) {
+async function readStream(response: Response, onChunk: (data: unknown) => void, signal?: AbortSignal) {
   if (!response.ok) {
     const errorText = await response.text();
     let message = `Request failed with status ${response.status}`;
@@ -128,14 +128,9 @@ async function readStream<T = unknown>(response: Response, onChunk: (data: T) =>
 
       if (jsonStr === "[DONE]") continue;
 
-      try {
-        if (jsonStr.startsWith("{")) {
-          onChunk(JSON.parse(jsonStr));
-        } else {
-          onChunk({ content: jsonStr } as T);
-        }
-      } catch {
-        onChunk({ content: jsonStr } as T);
+      const packet = parseStreamLine(jsonStr);
+      if (packet !== undefined) {
+        onChunk(packet);
       }
     }
   }
@@ -146,6 +141,20 @@ async function readStream<T = unknown>(response: Response, onChunk: (data: T) =>
   if (!hasReceivedData) {
     throw new Error("Stream ended without receiving any data");
   }
+}
+
+function parseStreamLine(line: string): unknown {
+  if (line.startsWith("{")) {
+    try {
+      return JSON.parse(line);
+    } catch {
+      // Malformed JSON packet: drop it rather than fabricate a content packet.
+      return undefined;
+    }
+  }
+  // Raw-text SSE lines (Echo backends always send JSON envelopes) surface as
+  // content deltas so text-only SSE endpoints can still stream.
+  return { content: line };
 }
 
 export const api = {
