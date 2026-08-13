@@ -79,4 +79,42 @@ describe("InMemoryStateProvider", () => {
     await expect(provider.set("m1", makeState())).resolves.toBeUndefined();
     await expect(provider.get("m1")).resolves.not.toBeNull();
   });
+
+  test("expired ttl entries are evicted and get returns null", async () => {
+    vi.useFakeTimers();
+    try {
+      await provider.set("m1", makeState(), 60);
+      await expect(provider.get("m1")).resolves.not.toBeNull();
+
+      vi.advanceTimersByTime(60_000);
+      await expect(provider.get("m1")).resolves.toBeNull();
+      await expect(provider.get("m1")).resolves.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("a ttl of 0 or undefined never expires", async () => {
+    await provider.set("m1", makeState(), 0);
+    vi.useFakeTimers();
+    try {
+      vi.advanceTimersByTime(86_400_000);
+      await expect(provider.get("m1")).resolves.not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("an expired entry can be overwritten into a fresh state", async () => {
+    vi.useFakeTimers();
+    try {
+      await provider.set("m1", makeState(), 60);
+      vi.advanceTimersByTime(60_000);
+      await provider.set("m1", makeState({ objective: "Second objective" }), 60);
+      const got = await provider.get("m1");
+      expect(got?.objective).toBe("Second objective");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
