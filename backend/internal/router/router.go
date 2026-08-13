@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"log"
 
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/constants/routes"
@@ -43,12 +42,6 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	pool := database.NewPostgresPool(cfg)
 	rdb := database.NewRedisClient(cfg)
 
-	if pool != nil {
-		if err := database.Migrate(pool); err != nil {
-			log.Printf("⚠️ Warning: Database auto-migration error: %v", err)
-		}
-	}
-
 	// 2. Initialize Repositories
 	userRepo := authrepo.NewRepository(pool)
 	sessionRepo := sessrepo.NewRepository(pool)
@@ -77,7 +70,9 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// 5. Initialize Lifecycle Worker
 	lifecycleWorker := worker.NewLifecycleWorker(cfg, sessionRepo, settingsSvc, consolidationSvc, strategySvc, rdb)
-	go lifecycleWorker.Start(context.Background())
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
+	fbApp.Hooks().OnPreShutdown(func() error { lifecycleCancel(); return nil })
+	go lifecycleWorker.Start(lifecycleCtx)
 
 	// 5. Initialize LLMOps Module
 	llmopsPromptRepo := propsrepo.NewRepository(pool)
@@ -138,7 +133,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
 	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
-	api.Get(routes.V1PathFeatures, featuresHandler.HandleGetFeatures)
+	api.Get(routes.V1PathFeatures, middleware.AuthRequired(cfg.JWTSecret), featuresHandler.HandleGetFeatures)
 	api.Get(routes.V1PathStrategies, middleware.AuthRequired(cfg.JWTSecret), strategyHandler.HandleGetStrategies)
 
 	// Settings routes
