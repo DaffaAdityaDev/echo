@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Search, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { StatCard } from "@/components/ui/StatCard";
 import { cn } from "@/utils/cn";
@@ -25,6 +25,12 @@ export function PromptInspectorPanel() {
   const executionModeLabel = isCoordinatorMode ? "COORDINATOR MODE" : isDirectMode ? "DIRECT MODE" : "STANDARD";
   const hasCustomBehavior =
     systemPromptText.length > 0 && !systemPromptText.includes("RESEARCH WORKFLOW INSTRUCTIONS:");
+
+  const filteredPromptLines = useMemo(() => {
+    const needle = promptSearch.trim().toLowerCase();
+    if (!needle) return null;
+    return systemPromptText.split("\n").filter((line) => line.toLowerCase().includes(needle));
+  }, [systemPromptText, promptSearch]);
 
   return (
     <div className="space-y-4">
@@ -112,9 +118,15 @@ export function PromptInspectorPanel() {
 
         {activeDebugInfo?.systemPrompt ? (
           <div className="relative rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-900 dark:bg-zinc-950 overflow-hidden">
-            <pre className="p-4 text-zinc-100 dark:text-zinc-200 text-[11px] font-mono whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed select-text">
-              {systemPromptText}
-            </pre>
+            {filteredPromptLines !== null && filteredPromptLines.length === 0 ? (
+              <div className="p-4 text-xs text-zinc-400 italic text-center">
+                No lines match &quot;{promptSearch.trim()}&quot;.
+              </div>
+            ) : (
+              <pre className="p-4 text-zinc-100 dark:text-zinc-200 text-[11px] font-mono whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed select-text">
+                {filteredPromptLines ? filteredPromptLines.join("\n") : systemPromptText}
+              </pre>
+            )}
           </div>
         ) : (
           <div className="p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/40 text-xs text-zinc-500 dark:text-zinc-400 italic text-center space-y-2">
