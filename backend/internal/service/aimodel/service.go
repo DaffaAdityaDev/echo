@@ -21,6 +21,7 @@ const openCodeGoPrefix = "opencode-go/"
 
 type cacheEntry struct {
 	models    []aitype.ModelInfo
+	err       error
 	expiresAt time.Time
 }
 
@@ -66,7 +67,9 @@ func isMultimodalModel(id string) bool {
 		strings.Contains(lower, "gemini")
 }
 
-func defaultBaseURL(providerType string) string {
+// DefaultBaseURL returns the well-known base URL for a provider type, or an
+// empty string when the provider has no default (e.g. a custom gateway).
+func DefaultBaseURL(providerType string) string {
 	switch providerType {
 	case "opencode-go":
 		return "https://opencode.ai/zen/go/v1"
@@ -92,7 +95,7 @@ func (s *Service) GetModels(ctx context.Context, userID int) ([]aitype.ModelInfo
 		return []aitype.ModelInfo{}, nil
 	}
 	if prefs.BaseURL == "" {
-		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+		prefs.BaseURL = DefaultBaseURL(prefs.ProviderType)
 	}
 
 	return s.getCachedModels(ctx, prefs.ProviderType, prefs.APIKey, prefs.BaseURL)
@@ -105,7 +108,7 @@ func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, bas
 	entry, ok := s.cache.entries[key]
 	if ok && time.Now().Before(entry.expiresAt) {
 		s.cache.mu.RUnlock()
-		return entry.models, nil
+		return entry.models, entry.err
 	}
 	s.cache.mu.RUnlock()
 
@@ -113,15 +116,15 @@ func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, bas
 	entry, ok = s.cache.entries[key]
 	if ok && time.Now().Before(entry.expiresAt) {
 		s.cache.mu.Unlock()
-		return entry.models, nil
+		return entry.models, entry.err
 	}
 
 	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
 	if err != nil {
 		log.Printf("[MODEL] failed to fetch models for %s: %v", providerType, err)
-		s.cache.entries[key] = cacheEntry{expiresAt: time.Now().Add(30 * time.Second)}
+		s.cache.entries[key] = cacheEntry{err: err, expiresAt: time.Now().Add(30 * time.Second)}
 		s.cache.mu.Unlock()
-		return nil, nil
+		return nil, fmt.Errorf("fetch provider models: %w", err)
 	}
 
 	s.cache.entries[key] = cacheEntry{models: models, expiresAt: time.Now().Add(30 * time.Second)}
@@ -201,7 +204,7 @@ func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -229,13 +232,13 @@ func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey str
 	return items, nil
 }
 
-func (s *Service) ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error) {
-	prefs, err := s.settingsSvc.GetSettingsInternal(context.Background(), userID)
+func (s *Service) ResolveProviderConfig(ctx context.Context, userID int, modelID string) (*aitype.ProviderConfig, error) {
+	prefs, err := s.settingsSvc.GetSettingsInternal(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
 	}
 	if prefs == nil || prefs.ProviderType == "" {
-		return nil, fmt.Errorf("provider tidak dikonfigurasi — atur di Settings")
+		return nil, fmt.Errorf("provider not configured: set it in Settings")
 	}
 
 	providerType := prefs.ProviderType
@@ -243,11 +246,11 @@ func (s *Service) ResolveProviderConfig(userID int, modelID string) (*aitype.Pro
 	baseURL := prefs.BaseURL
 
 	if apiKey == "" && providerType != "lm-studio" {
-		return nil, fmt.Errorf("API Key %s wajib diisi di Settings", providerType)
+		return nil, fmt.Errorf("API key for provider %s is required: set it in Settings", providerType)
 	}
 
 	if baseURL == "" {
-		baseURL = defaultBaseURL(providerType)
+		baseURL = DefaultBaseURL(providerType)
 	}
 
 	modelName := modelID

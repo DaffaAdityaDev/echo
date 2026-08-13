@@ -104,7 +104,7 @@ func TestResolveProviderConfig(t *testing.T) {
 				cache:       modelCache{entries: make(map[string]cacheEntry)},
 			}
 
-			got, err := svc.ResolveProviderConfig(tt.userID, tt.modelID)
+			got, err := svc.ResolveProviderConfig(context.Background(), tt.userID, tt.modelID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
