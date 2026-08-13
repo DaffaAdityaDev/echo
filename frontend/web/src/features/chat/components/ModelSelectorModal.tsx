@@ -8,6 +8,7 @@ import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
 import { useModels } from "../hooks/useModels";
 import { usePersistAgentConfig } from "../hooks/usePersistAgentConfig";
+import { resolveDefaultModel } from "../model-match";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const defaultModel = useSettingsStore((s) => s.config.defaultModel);
 
   const persistDefaultModel = usePersistAgentConfig();
+  const defaultModelModel = resolveDefaultModel(models, defaultModel);
 
   if (!isOpen) return null;
 
@@ -58,13 +60,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
     return tags;
   };
 
-  const isDefaultModel = (m: Model) =>
-    m.id === defaultModel ||
-    m.name === defaultModel ||
-    (defaultModel && m.id.endsWith(`/${defaultModel}`)) ||
-    defaultModel?.endsWith(`/${m.name}`);
-
-  const getContextWindow = (_m: Model) => "—";
+  const isDefaultModel = (m: Model) => defaultModelModel?.id === m.id;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -147,7 +143,6 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
               const isSelected = isDefaultModel(m);
               const ProviderIcon = providerIcons[m.provider_name] || Cpu;
               const tags = getModelTags(m);
-              const contextInfo = getContextWindow(m);
 
               return (
                 <button
@@ -185,9 +180,6 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                     </span>
 
                     <span className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-200/60 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-300/40 dark:border-zinc-700/40">
-                        {contextInfo}
-                      </span>
                       {isSelected && (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                           <Check className="h-3.5 w-3.5" />

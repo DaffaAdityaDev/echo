@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/useToast";
 import { downloadJson } from "@/utils/download";
 import { useChatPage } from "../hooks/useChatPage";
 import { useModels } from "../hooks/useModels";
+import { resolveDefaultModel } from "../model-match";
 import { useChatStore } from "../stores/chatStore";
 import { AgentProgress } from "./AgentProgress";
 import { ChatInput } from "./ChatInput";
@@ -108,14 +109,7 @@ export function ChatPage() {
     showToast("Session URL copied to clipboard!", "success");
   };
 
-  const activeModelName =
-    models.find(
-      (m) =>
-        m.id === defaultModel ||
-        m.name === defaultModel ||
-        defaultModel?.endsWith(`/${m.name}`) ||
-        m.id.endsWith(`/${defaultModel}`),
-    )?.name || "Echo Brain";
+  const activeModelName = resolveDefaultModel(models, defaultModel)?.name || "Echo Brain";
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 text-foreground font-sans overflow-hidden">
