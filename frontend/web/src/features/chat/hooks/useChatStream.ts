@@ -9,6 +9,7 @@ import { CHAT_QUERY_KEYS, CHAT_ROLES } from "../constants";
 import { chatApi, sessionApi } from "../services/chat-api";
 import { applyStreamPacket } from "../services/stream";
 import { useChatStore } from "../stores/chatStore";
+import { notifySystem } from "../services/system-notice";
 import type { Message, StreamPacket } from "../types";
 
 async function generateSessionTitle(sid: string): Promise<void> {
@@ -27,7 +28,7 @@ async function generateSessionTitle(sid: string): Promise<void> {
       store.sessions.map((s) => (s.id === sid ? { ...s, title, contextSummary: summary || s.contextSummary } : s)),
     );
   } catch (err) {
-    console.warn("[Chat] Failed to auto-generate title:", err);
+    notifySystem("warning", "TITLE_GENERATION_FAILED", "Failed to auto-generate the session title.");
   }
 }
 
@@ -57,7 +58,7 @@ function stopStreaming() {
       .catch((err: unknown) => {
         // The 5s timeout aborts the request via the controller; not a failure.
         if ((err as { code?: string } | null)?.code !== "ERR_CANCELED") {
-          console.warn("[Chat] Failed to cancel mission:", err);
+          notifySystem("warning", "CANCEL_FAILED", "Failed to cancel the in-flight mission.");
         }
       })
       .finally(() => clearTimeout(cancelTimeout));
@@ -132,13 +133,13 @@ export function useChatStream() {
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
-      console.error("Chat error:", err);
       const store = useChatStore.getState();
       store.setAgentState("error");
       const currentMsgs = store.messages;
       if (currentMsgs.length === 0) return;
       const lastIdx = currentMsgs.length - 1;
       const errorMessage = extractErrorMessage(err, "Failed to fetch response from agent.");
+      notifySystem("error", "STREAM_FAILED", errorMessage);
       const prevContent = currentMsgs[lastIdx]?.content || "";
       const updatedContent = prevContent ? `${prevContent}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`;
       const lastMessage = {
@@ -165,8 +166,8 @@ export function useChatStream() {
       if (sid) {
         try {
           await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(sid) });
-        } catch (err) {
-          console.warn("[Chat] Failed to invalidate messages query:", err);
+        } catch {
+          notifySystem("warning", "MESSAGE_REFRESH_FAILED", "Failed to refresh the message list.");
         }
       }
 
@@ -179,8 +180,8 @@ export function useChatStream() {
       try {
         await generateSessionTitle(sid || "");
         await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
-      } catch (err) {
-        console.warn("[Chat] Failed to refresh sessions:", err);
+      } catch {
+        notifySystem("warning", "SESSION_REFRESH_FAILED", "Failed to refresh the session list.");
       }
     }
   };

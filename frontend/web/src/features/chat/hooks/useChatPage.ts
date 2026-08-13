@@ -11,6 +11,23 @@ import type { DbMessage, Message, ThoughtStep } from "../types";
 import { useChatStream } from "./useChatStream";
 import { useSessions } from "./useSessions";
 
+function parseToolCallContent(content: string): { toolName: string; toolInput: Record<string, unknown> } {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (typeof parsed === "object" && parsed !== null) {
+      const rec = parsed as Record<string, unknown>;
+      return {
+        toolName: typeof rec.toolName === "string" ? rec.toolName : "",
+        toolInput:
+          typeof rec.toolInput === "object" && rec.toolInput !== null ? (rec.toolInput as Record<string, unknown>) : {},
+      };
+    }
+  } catch {
+    // Not JSON: fall through to the safe default.
+  }
+  return { toolName: "", toolInput: {} };
+}
+
 function groupMessagesByTurn(messages: DbMessage[]): Message[] {
   const turnMap = new Map<number, DbMessage[]>();
   for (const msg of messages) {
@@ -48,10 +65,7 @@ function groupMessagesByTurn(messages: DbMessage[]): Message[] {
         if (m.role === "thought") {
           steps.push({ type: "reasoning", content: m.content });
         } else if (m.role === "tool_call") {
-          let parsed = { toolName: "", toolInput: {} };
-          try {
-            parsed = JSON.parse(m.content);
-          } catch {}
+          const parsed = parseToolCallContent(m.content);
           steps.push({ type: "tool_call", toolName: parsed.toolName, toolInput: parsed.toolInput });
         } else if (m.role === "tool_result") {
           const colonIdx = m.content.indexOf(" result: ");

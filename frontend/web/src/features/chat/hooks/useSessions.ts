@@ -3,6 +3,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
+import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 
 export function useSessions() {
@@ -37,9 +38,10 @@ export function useSessions() {
       }
       try {
         await sessionApi.delete(id);
-      } catch (e) {
-        console.error("Failed to delete session on backend:", e);
+      } catch {
+        notifySystem("error", "SESSION_DELETE_FAILED", "Failed to delete the session on the server.");
       } finally {
+        // Reload the canonical list so a failed delete rolls the session back.
         queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
       }
     },

@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { QUERY_STANDARD } from "@/lib/query-standard";
 import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
+import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 import type { Session } from "../types";
 
@@ -76,8 +77,8 @@ export function useSessionsInfinite() {
           setActiveSession(session.id);
           queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
         })
-        .catch((err) => {
-          console.error("[Chat] Failed to create initial session:", err);
+        .catch(() => {
+          notifySystem("error", "INITIAL_SESSION_FAILED", "Failed to create an initial session.");
           initialised.current = false;
         });
     }

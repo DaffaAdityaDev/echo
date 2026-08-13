@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { sessionApi } from "../services/chat-api";
+import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 
 export function useHitlApproval() {
@@ -16,8 +17,8 @@ export function useHitlApproval() {
         () => {},
         controller.signal,
       );
-    } catch (e) {
-      console.error("HITL approve stream error:", e);
+    } catch {
+      notifySystem("error", "HITL_APPROVAL_FAILED", "Failed to send the approval decision.");
     } finally {
       clearPending();
     }
@@ -34,8 +35,8 @@ export function useHitlApproval() {
           () => {},
           controller.signal,
         );
-      } catch (e) {
-        console.error("HITL deny stream error:", e);
+      } catch {
+        notifySystem("error", "HITL_DENY_FAILED", "Failed to send the deny decision.");
       } finally {
         clearPending();
       }
