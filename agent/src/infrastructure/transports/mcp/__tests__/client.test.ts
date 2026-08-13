@@ -23,14 +23,20 @@ const mockClientCtor = vi.hoisted(() =>
 const mockSSEClientTransport = vi.hoisted(() =>
   vi.fn(
     class {
-      constructor(private readonly _url: URL) {}
+      url: URL;
+      constructor(url: URL) {
+        this.url = url;
+      }
     },
   ),
 );
 const mockStdioClientTransport = vi.hoisted(() =>
   vi.fn(
     class {
-      constructor(private readonly _opts: { command: string; args?: string[] }) {}
+      opts: { command: string; args?: string[] };
+      constructor(opts: { command: string; args?: string[] }) {
+        this.opts = opts;
+      }
     },
   ),
 );
