@@ -1,4 +1,4 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, type SystemMessage } from "@langchain/core/messages";
 import { ContextManager } from "../context_manager";
 
 describe("ContextManager", () => {

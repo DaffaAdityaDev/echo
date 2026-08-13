@@ -94,9 +94,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
           await emitter.emitContent(onPacket, iteration, cleanContent);
         }
       } else if (event.content && pendingToolCall) {
-        logger.info(
-          `[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`,
-        );
+        logger.info(`[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`);
       }
       if (event.usage) {
         const { stepCost } = calculateUsageCost(

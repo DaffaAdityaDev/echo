@@ -88,12 +88,12 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state).not.toBeNull();
-    expect(state!.messages).toHaveLength(2);
-    expect(state!.messages[0]).toBeInstanceOf(HumanMessage);
-    expect(state!.messages[0].content).toBe("Hello");
-    expect(state!.messages[1]).toBeInstanceOf(AIMessage);
-    expect(state!.messages[1].content).toBe("Hi there");
+    if (!state) throw new Error("expected deserialized state");
+    expect(state.messages).toHaveLength(2);
+    expect(state.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(state.messages[0].content).toBe("Hello");
+    expect(state.messages[1]).toBeInstanceOf(AIMessage);
+    expect(state.messages[1].content).toBe("Hi there");
   });
 
   test("deserializes all message types correctly", () => {
@@ -111,12 +111,12 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state).not.toBeNull();
-    expect(state!.messages[0]).toBeInstanceOf(SystemMessage);
-    expect(state!.messages[1]).toBeInstanceOf(HumanMessage);
-    expect(state!.messages[2]).toBeInstanceOf(AIMessage);
-    expect(state!.messages[3]).toBeInstanceOf(ToolMessage);
-    expect((state!.messages[3] as ToolMessage).tool_call_id).toBe("c1");
+    if (!state) throw new Error("expected deserialized state");
+    expect(state.messages[0]).toBeInstanceOf(SystemMessage);
+    expect(state.messages[1]).toBeInstanceOf(HumanMessage);
+    expect(state.messages[2]).toBeInstanceOf(AIMessage);
+    expect(state.messages[3]).toBeInstanceOf(ToolMessage);
+    expect((state.messages[3] as ToolMessage).tool_call_id).toBe("c1");
   });
 
   test("handles unknown message type by defaulting to HumanMessage", () => {
@@ -129,9 +129,9 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
-    expect(state).not.toBeNull();
-    expect(state!.messages[0]).toBeInstanceOf(HumanMessage);
-    expect(state!.messages[0].content).toBe("fallback");
+    if (!state) throw new Error("expected deserialized state");
+    expect(state.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(state.messages[0].content).toBe("fallback");
   });
 
   test("returns null when serialized is null/undefined", () => {
@@ -188,8 +188,8 @@ describe("deserializeAgentState", () => {
   test("handles empty messages array", () => {
     const serialized = { missionId: "m1", objective: "O1", tasks: [], memory: {}, messages: [] };
     const state = deserializeAgentState(serialized);
-    expect(state).not.toBeNull();
-    expect(state!.messages).toEqual([]);
+    if (!state) throw new Error("expected deserialized state");
+    expect(state.messages).toEqual([]);
   });
 });
 
@@ -218,8 +218,8 @@ describe("round-trip", () => {
 
     const serialized = serializeAgentState(original);
     const deserialized = deserializeAgentState(serialized);
-    expect(deserialized).not.toBeNull();
-    const state = deserialized!;
+    if (!deserialized) throw new Error("expected deserialized state");
+    const state = deserialized;
 
     expect(state.missionId).toBe(original.missionId);
     expect(state.objective).toBe(original.objective);

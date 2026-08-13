@@ -24,7 +24,9 @@ export const ProviderFactory = {
   fromConfig(config: ProviderConnectionConfig): LLMProvider {
     const Provider = ProviderFactory.registry.get(config.type);
     if (!Provider) {
-      throw new Error(`Unknown provider type: "${config.type}". Supported types: ${[...ProviderFactory.registry.keys()].join(", ")}`);
+      throw new Error(
+        `Unknown provider type: "${config.type}". Supported types: ${[...ProviderFactory.registry.keys()].join(", ")}`,
+      );
     }
     return new Provider(config.base_url, config.model, config.api_key);
   },
