@@ -41,4 +41,32 @@ describe("DegradationManager", () => {
     expect(manager.shouldAbort()).toBe(false);
     expect(manager.getConsecutiveFailures()).toBe(0);
   });
+
+  it("keeps restricted reachable when degradeAfter >= 5", () => {
+    const manager = new DegradationManager({ degradeAfter: 5, abortAfter: 9 });
+    for (let i = 0; i < 5; i++) manager.recordToolError();
+    expect(manager.getLevel()).toBe("restricted");
+    expect(manager.isDegraded()).toBe(true);
+    expect(manager.shouldAbort()).toBe(false);
+
+    manager.recordToolError();
+    expect(manager.getLevel()).toBe("restricted");
+
+    manager.recordToolError();
+    expect(manager.getLevel()).toBe("standard");
+    expect(manager.shouldAbort()).toBe(false);
+  });
+
+  it("still fires standard before abort when abortAfter < 5", () => {
+    const manager = new DegradationManager({ degradeAfter: 2, abortAfter: 4 });
+    for (let i = 0; i < 2; i++) manager.recordToolError();
+    expect(manager.getLevel()).toBe("restricted");
+
+    manager.recordToolError();
+    expect(manager.getLevel()).toBe("standard");
+    expect(manager.shouldAbort()).toBe(false);
+
+    manager.recordToolError();
+    expect(manager.shouldAbort()).toBe(true);
+  });
 });
