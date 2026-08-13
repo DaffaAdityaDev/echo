@@ -133,13 +133,28 @@ describe("ToolRegistry", () => {
       expect(features.map((f) => f.id)).toEqual(["delegate_task", "web_search", "write_todos"]);
     });
 
-    test("falls back to the id as name when no tool definition is loaded", () => {
+    test("falls back to the canonical description when no tool definition is loaded", () => {
       const features = getImplementedFeatures(registry);
       expect(features).toEqual([
-        { id: "delegate_task", name: "delegate_task", description: "" },
-        { id: "web_search", name: "web_search", description: "" },
-        { id: "write_todos", name: "write_todos", description: "" },
+        {
+          id: "delegate_task",
+          name: "delegate_task",
+          description: expect.stringMatching(/Delegate a specific sub-task/),
+        },
+        {
+          id: "web_search",
+          name: "web_search",
+          description: expect.stringMatching(/Web search engine/),
+        },
+        {
+          id: "write_todos",
+          name: "write_todos",
+          description: expect.stringMatching(/task plan/),
+        },
       ]);
+      for (const feature of features) {
+        expect(feature.description.length).toBeGreaterThan(0);
+      }
     });
 
     test("uses loaded tool definitions for name and description", () => {

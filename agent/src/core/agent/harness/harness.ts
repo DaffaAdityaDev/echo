@@ -122,7 +122,7 @@ export class NlahHarness {
     this.loopDetector.restoreHistory(history);
   }
 
-  private async setupMissionParams(_state: AgentState, traceparent?: string) {
+  private async setupMissionParams(traceparent?: string) {
     const traceId = crypto.randomUUID().replace(/-/g, "");
     const parentSpanId = "";
     if (traceparent?.startsWith("00-")) {
@@ -233,7 +233,7 @@ export class NlahHarness {
 
     await this.emitter.emitMetadata(onPacket, 0, { content: `Initializing state registry context.` });
 
-    const { traceId } = await this.setupMissionParams(state, traceparent);
+    const { traceId } = await this.setupMissionParams(traceparent);
     const trace = startAgentTrace(
       traceId,
       state.missionId,
@@ -358,7 +358,7 @@ export class NlahHarness {
 
       await this.emitter.emitTurnComplete(onPacket, iteration, runtime.isComplete, iteration, this.totalCostUsd);
 
-      await stateStorage.set(state.missionId, state, 600);
+      await stateStorage.set(state.missionId, state, HARNESS_CONFIG.STATE_TTL_SECONDS);
 
       if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
         queuePromptDebug({
@@ -598,7 +598,7 @@ export class NlahHarness {
                 expiresAt: approval.expiresAt,
               },
             },
-            300,
+            HARNESS_CONFIG.PAUSED_STATE_TTL_SECONDS,
           );
           await onPacket({
             type: "hitl_approval_required",
@@ -645,7 +645,6 @@ export class NlahHarness {
             assistantContent,
             reasoningContent,
             iteration,
-            onPacket,
             state,
             runtime.currentToolMap,
           );
@@ -679,7 +678,7 @@ export class NlahHarness {
           });
           span.end();
         }
-        await stateStorage.set(state.missionId, state, 600);
+        await stateStorage.set(state.missionId, state, HARNESS_CONFIG.STATE_TTL_SECONDS);
       } catch (err: unknown) {
         if (cancellationManager.isAborted(this.missionId) || cancellationManager.isCancelled(this.missionId)) {
           logger.info(`NlahHarness: Mission ${this.missionId} aborted mid-turn, surfacing as cancellation.`);

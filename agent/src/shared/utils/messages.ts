@@ -6,6 +6,7 @@ import { AIMessage, type BaseMessage, HumanMessage, SystemMessage, ToolMessage }
 export function mapHistoryToMessages(history?: Array<{ role: string; content: string }>): BaseMessage[] {
   if (!history) return [];
   const result: BaseMessage[] = [];
+  let toolCallSeq = 0;
   for (const m of history) {
     const role = m.role.toLowerCase();
     if (role === "user" || role === "human") {
@@ -13,7 +14,8 @@ export function mapHistoryToMessages(history?: Array<{ role: string; content: st
     } else if (role === "system") {
       result.push(new SystemMessage(m.content));
     } else if (role === "tool_result" || role === "tool") {
-      const toolCallId = `prev_tool_${Math.random().toString(36).substring(2, 9)}`;
+      toolCallSeq += 1;
+      const toolCallId = `prev_tool_${toolCallSeq}`;
       result.push(
         new AIMessage({
           content: "",

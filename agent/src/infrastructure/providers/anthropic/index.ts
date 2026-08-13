@@ -3,6 +3,7 @@ import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain
 import { LLM_CONFIG } from "../../../shared/constants";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { getLangChainCallbacks } from "../../../shared/utils/langfuse";
+import { ANTHROPIC_MAX_CONTEXT_TOKENS } from "../constants";
 import { ReasoningInterceptor } from "../utils";
 
 export class AnthropicProvider implements LLMProvider {
@@ -27,7 +28,7 @@ export class AnthropicProvider implements LLMProvider {
         fetch: (url: string | URL | Request, options?: RequestInit) => this.interceptor.interceptFetch(url, options),
       },
     });
-    this.maxContextTokens = 200000;
+    this.maxContextTokens = ANTHROPIC_MAX_CONTEXT_TOKENS;
   }
 
   async *stream(

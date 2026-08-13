@@ -1,5 +1,6 @@
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
-import type { AgentState, LLMProvider, Observation, Task, ToolDefinition } from "../../../shared/types";
+import { z } from "zod";
+import type { AgentState, LLMProvider, Observation, ToolDefinition } from "../../../shared/types";
 import { logger } from "../../../shared/utils/logger";
 import type { CircuitBreaker } from "./circuit_breaker";
 import { compressObservation } from "./compressor";
@@ -8,6 +9,15 @@ import type { DegradationManager } from "./degradation";
 import type { HarnessEventEmitter } from "./events";
 import type { AgentStatusTracker } from "./status-tracker";
 import type { HarnessEvent, HarnessRuntimeConfig } from "./types";
+
+const todosSchema = z.array(
+  z.object({
+    id: z.string(),
+    description: z.string(),
+    status: z.enum(["pending", "in_progress", "done", "failed"]),
+    observation: z.string().optional(),
+  }),
+);
 
 export interface ToolExecutorDeps {
   provider: LLMProvider;
@@ -67,8 +77,15 @@ export class ToolExecutor {
     await this.deps.emitter.emitToolCall(onPacket, iteration, pendingToolCall.name, pendingToolCall.args);
 
     if (pendingToolCall.name === "write_todos") {
-      await this.deps.emitter.emitTodos(onPacket, iteration, pendingToolCall.args.todos);
-      state.tasks = pendingToolCall.args.todos as Task[];
+      const parsedTodos = todosSchema.safeParse(pendingToolCall.args.todos);
+      if (parsedTodos.success) {
+        await this.deps.emitter.emitTodos(onPacket, iteration, parsedTodos.data);
+        state.tasks = parsedTodos.data;
+      } else {
+        logger.warn(`write_todos received malformed todos; state.tasks left unchanged`, {
+          missionId: state.missionId,
+        });
+      }
     } else if (pendingToolCall.name === "delegate_task") {
       await this.deps.emitter.emitSubagentCall(
         onPacket,

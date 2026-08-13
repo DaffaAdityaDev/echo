@@ -1,4 +1,4 @@
-import type { AgentStatus } from "../../../shared/types";
+import type { AgentStatus, Task } from "../../../shared/types";
 import { PACKET_TYPES } from "./constants";
 import type { AgentStatusTracker } from "./status-tracker";
 import type { HarnessEvent, HarnessEventType } from "./types";
@@ -119,7 +119,7 @@ export class HarnessEventEmitter {
     await this.sendBase(onPacket, { type: "tool_skip", step, toolName });
   }
 
-  async emitTodos(onPacket: (p: HarnessEvent) => Promise<void>, step: number, todos: unknown) {
+  async emitTodos(onPacket: (p: HarnessEvent) => Promise<void>, step: number, todos: Task[]) {
     await this.sendBase(onPacket, { type: "todo", step, todos });
   }
 

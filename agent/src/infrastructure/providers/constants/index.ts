@@ -1,5 +1,7 @@
 export const LOCAL_URL_KEYWORDS = ["localhost", "127.0.0.1", "lm-studio", "local", "192.168.", "10."] as const;
 
+export const ANTHROPIC_MAX_CONTEXT_TOKENS = 200_000;
+
 export const PRICING_MODELS = {
   GPT_4O_MINI: {
     pattern: "gpt-4o-mini",

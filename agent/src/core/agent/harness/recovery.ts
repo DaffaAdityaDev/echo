@@ -143,7 +143,6 @@ export class RecoveryHandler {
     assistantContent: string,
     reasoningContent: string,
     iteration: number,
-    _onPacket: (p: HarnessEvent) => Promise<void>,
     state: AgentState,
     toolMap: Map<string, ToolDefinition>,
   ): Promise<{ isComplete: boolean; retryWithTool: { name: string; args: Record<string, unknown> } | null }> {
