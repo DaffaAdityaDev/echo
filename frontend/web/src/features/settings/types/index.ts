@@ -67,7 +67,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   providerType: "opencode-go",
   apiKey: "",
   hasApiKey: false,
-  baseUrl: "https://opencode.ai/zen/go/v1",
+  baseUrl: process.env.NEXT_PUBLIC_AGENT_BASE_URL || "https://opencode.ai/zen/go/v1",
 };
 
 export const DEFAULT_HARNESS_TOGGLES: HarnessFeatureToggles = {
