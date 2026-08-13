@@ -26,7 +26,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setConfig: (partial) =>
     set((state) => {
       const next = { ...state.config, ...partial };
-      setStorageJSON(STORAGE_KEY, next);
+      // The backend stores the key encrypted and only re-exposes hasApiKey;
+      // never persist the plaintext key — memory only.
+      setStorageJSON(STORAGE_KEY, { ...next, apiKey: undefined });
       return { config: next, mutations: state.mutations + 1 };
     }),
   resetConfig: () => {
