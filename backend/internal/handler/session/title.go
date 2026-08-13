@@ -160,7 +160,11 @@ Respond ONLY with a valid JSON object in this exact format:
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("[AUTO-TITLE] Failed to read error response for session %s: %v", sessionID, err)
+			return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider returned error")
+		}
 		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s: %s", resp.StatusCode, sessionID, string(respBody))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)))
 	}

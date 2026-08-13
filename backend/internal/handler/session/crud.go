@@ -28,7 +28,9 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 	}
 
 	var req CreateSessionRequest
-	_ = c.Bind().JSON(&req)
+	if err := c.Bind().JSON(&req); err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
+	}
 
 	if req.StrategyVersion != "" && h.StrategySvc != nil {
 		if !h.StrategySvc.IsValidVersion(c.Context(), req.StrategyVersion) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -74,7 +75,10 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 	}
 
 	agentURL := fmt.Sprintf("%s/api/v1/sessions/%s/%s", h.Cfg.AgentHTTPURL, sessionID, action)
-	jsonPayload, _ := json.Marshal(body)
+	jsonPayload, err := json.Marshal(body)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Failed to serialize request body")
+	}
 
 	agentReq, err := http.NewRequestWithContext(c.Context(), "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
@@ -89,7 +93,11 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("[CHAT] Failed to read agent %s response for session %s: %v", action, sessionID, err)
+		return handlerutil.RespondError(c, resp.StatusCode, "Agent rejected")
+	}
 	if resp.StatusCode != http.StatusOK {
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent rejected", string(bodyBytes))
 	}

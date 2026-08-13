@@ -43,7 +43,10 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read agent skills error response: %w", err)
+		}
 		return nil, fmt.Errorf("agent skills request failed: status %d, details: %s", resp.StatusCode, string(bodyBytes))
 	}
 

@@ -197,7 +197,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 			if err != nil {
 				log.Printf("[CONSOLIDATION] Error during auto-consolidation: %v", err)
 			} else {
-				currentSession, _ = h.SessionRepo.GetByID(ctx, req.SessionID)
+				currentSession, err = h.SessionRepo.GetByID(ctx, req.SessionID)
+				if err != nil {
+					log.Printf("[CHAT] Failed to reload session %s after consolidation: %v", req.SessionID, err)
+				}
 			}
 		}
 	}
@@ -210,9 +213,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		}
 	}
 	if currentPinnedVersion == "" {
-		_ = h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion)
+		if err := h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion); err != nil {
+			log.Printf("[CHAT] Failed to pin strategy version for session %s: %v", req.SessionID, err)
+		}
 	}
-	_ = h.SessionRepo.TouchSession(ctx, req.SessionID)
+	if err := h.SessionRepo.TouchSession(ctx, req.SessionID); err != nil {
+		log.Printf("[CHAT] Failed to touch session %s: %v", req.SessionID, err)
+	}
 
 	dbMessages, err := h.buildCappedHistory(ctx, req.SessionID)
 	if err != nil {
