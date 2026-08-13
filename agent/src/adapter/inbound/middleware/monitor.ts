@@ -2,6 +2,22 @@ import type { Context, Next } from "hono";
 import { MONITOR_CONSTANTS } from "../../../shared/constants/middleware";
 import { logger } from "../../../shared/utils/logger";
 
+const SENSITIVE_KEY_PATTERN = /api_key|apikey|credentials|secret|token|password/i;
+
+function redactSensitiveValues(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveValues);
+  }
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      result[key] = SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : redactSensitiveValues(entry);
+    }
+    return result;
+  }
+  return value;
+}
+
 export async function monitorMiddleware(c: Context, next: Next) {
   const start = Date.now();
   const method = c.req.method;
@@ -20,7 +36,10 @@ export async function monitorMiddleware(c: Context, next: Next) {
         const { history, ...rest } = parsed;
         bodySummary = rest;
       }
-    } catch (_err) {
+    } catch (err) {
+      logger.debug(
+        `Request body summarization failed [${method} ${path}]: ${err instanceof Error ? err.message : String(err)}`,
+      );
       bodySummary = { error: MONITOR_CONSTANTS.BODY_ERROR_SUMMARY };
     }
   }
@@ -29,7 +48,7 @@ export async function monitorMiddleware(c: Context, next: Next) {
     method,
     path,
     traceparent,
-    payload: bodySummary,
+    payload: bodySummary ? redactSensitiveValues(bodySummary) : undefined,
   });
 
   await next();
