@@ -9,6 +9,7 @@ import (
 	adminrepo "echo-backend/internal/repository/admin"
 	"encoding/hex"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -20,7 +21,7 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 		if tokenString != "" {
 			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 				return []byte(cfg.JWTSecret), nil
-			})
+			}, jwt.WithValidMethods([]string{"HS256"}))
 			if err == nil && token.Valid {
 				claims := token.Claims.(jwt.MapClaims)
 				c.Locals("user_id", claims["sub"])
@@ -46,7 +47,7 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(cfg.JWTSecret), nil
-		})
+		}, jwt.WithValidMethods([]string{"HS256"}))
 		if err == nil && token.Valid {
 			claims := token.Claims.(jwt.MapClaims)
 			c.Locals("user_id", claims["sub"])
@@ -61,7 +62,9 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 		hash := sha256.Sum256([]byte(tokenString))
 		hashStr := hex.EncodeToString(hash[:])
 
-		key, err := apiKeyRepo.GetByHash(context.Background(), hashStr)
+		apiKeyCtx, apiKeyCancel := context.WithTimeout(c.Context(), 5*time.Second)
+		defer apiKeyCancel()
+		key, err := apiKeyRepo.GetByHash(apiKeyCtx, hashStr)
 		if err != nil || key == nil {
 			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid credentials")
 		}
