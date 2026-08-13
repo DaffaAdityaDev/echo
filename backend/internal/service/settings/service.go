@@ -5,6 +5,7 @@ import (
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/models/user"
 	"echo-backend/internal/repository/settings"
+	aimodel "echo-backend/internal/service/aimodel"
 	"echo-backend/pkg/crypto"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,9 @@ const PromptTemplateSettingKey = "prompt_template_name"
 func ResolvePromptTemplateName(raw []byte, tenantID, fallback string) string {
 	var mapping map[string]string
 	if len(raw) > 0 {
-		_ = json.Unmarshal(raw, &mapping)
+		if err := json.Unmarshal(raw, &mapping); err != nil {
+			log.Printf("[SETTINGS] Failed to parse prompt_template_name app setting: %v", err)
+		}
 	}
 	if name := mapping[tenantID]; name != "" {
 		return name
@@ -25,20 +28,6 @@ func ResolvePromptTemplateName(raw []byte, tenantID, fallback string) string {
 		return name
 	}
 	return fallback
-}
-
-func defaultBaseURL(providerType string) string {
-	switch providerType {
-	case "opencode-go":
-		return "https://opencode.ai/zen/go/v1"
-	case "lm-studio":
-		return "http://localhost:1234/v1"
-	case "openai":
-		return "https://api.openai.com/v1"
-	case "anthropic":
-		return "https://api.anthropic.com"
-	}
-	return ""
 }
 
 type Service struct {
@@ -63,7 +52,7 @@ func (s *Service) GetDefaults() *usermodel.UserPreferences {
 		DefaultSkills:   []string{},
 		ProviderType:    "opencode-go",
 		APIKey:          "",
-		BaseURL:         defaultBaseURL("opencode-go"),
+		BaseURL:         aimodel.DefaultBaseURL("opencode-go"),
 	}
 }
 
@@ -86,7 +75,7 @@ func (s *Service) GetSettings(ctx context.Context, userID int) (*usermodel.UserP
 		prefs.ProviderType = "opencode-go"
 	}
 	if prefs.BaseURL == "" {
-		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+		prefs.BaseURL = aimodel.DefaultBaseURL(prefs.ProviderType)
 	}
 
 	return prefs, nil
@@ -143,7 +132,7 @@ func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*usermod
 		prefs.ProviderType = "opencode-go"
 	}
 	if prefs.BaseURL == "" {
-		prefs.BaseURL = defaultBaseURL(prefs.ProviderType)
+		prefs.BaseURL = aimodel.DefaultBaseURL(prefs.ProviderType)
 	}
 
 	return prefs, nil
