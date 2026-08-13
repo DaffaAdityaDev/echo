@@ -1,6 +1,21 @@
 import { PACKET_TYPES } from "../../../constants";
-import type { Message, StreamPacket, ThoughtStep } from "../../../types";
+import type { AgentState, Message, StreamPacket, ThoughtStep } from "../../../types";
 import type { StreamStore, SubagentPacket } from "./types";
+
+const AGENT_STATES: readonly AgentState[] = [
+  "starting",
+  "running",
+  "looping",
+  "stalled",
+  "degraded",
+  "completed",
+  "aborted",
+  "error",
+];
+
+function isAgentState(value: unknown): value is AgentState {
+  return typeof value === "string" && (AGENT_STATES as readonly string[]).includes(value);
+}
 
 function pushStep(message: Message, step: ThoughtStep): void {
   message.steps.push(step);
@@ -146,9 +161,9 @@ export function handleStateChange(
   data: StreamPacket & { type: "state_change" },
   store: StreamStore,
 ): void {
-  const nextState = (data.to || data.agentStatus?.state) as string | undefined;
-  if (nextState) {
-    store.setAgentState(nextState as never);
+  const nextState = data.to || data.agentStatus?.state;
+  if (isAgentState(nextState)) {
+    store.setAgentState(nextState);
     pushStep(lastMessage, { type: "state_change", content: `State changed to ${nextState}` });
   }
 }

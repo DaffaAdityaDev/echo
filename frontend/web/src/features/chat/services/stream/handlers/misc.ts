@@ -60,12 +60,8 @@ export function handleHitlApproval(
 }
 
 export function handleDefault(lastMessage: Message, data: StreamPacket, _store: StreamStore): void {
-  const streamRecord = data as unknown as {
-    choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
-    content?: string;
-    reasoning_content?: string;
-  };
-  const delta = streamRecord.choices?.[0]?.delta || streamRecord;
+  if (!isRawDelta(data)) return;
+  const delta = data.choices?.[0]?.delta ?? data;
   const content = delta.content || "";
   const reasoning = delta.reasoning_content || "";
 
@@ -83,4 +79,23 @@ export function handleDefault(lastMessage: Message, data: StreamPacket, _store: 
   if (content) {
     lastMessage.content = (lastMessage.content || "") + content;
   }
+}
+
+interface RawStreamDelta {
+  choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
+  content?: string;
+  reasoning_content?: string;
+}
+
+function isRawDelta(value: unknown): value is RawStreamDelta {
+  if (typeof value !== "object" || value === null) return false;
+  const rec = value as Record<string, unknown>;
+  if (typeof rec.content === "string" || typeof rec.reasoning_content === "string") return true;
+  if (!Array.isArray(rec.choices)) return false;
+  const choice = rec.choices[0];
+  if (typeof choice !== "object" || choice === null) return false;
+  const delta = (choice as Record<string, unknown>).delta;
+  if (typeof delta !== "object" || delta === null) return false;
+  const deltaRec = delta as Record<string, unknown>;
+  return typeof deltaRec.content === "string" || typeof deltaRec.reasoning_content === "string";
 }
