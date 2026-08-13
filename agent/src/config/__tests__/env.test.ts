@@ -23,6 +23,10 @@ const validInput = {
 };
 
 describe("envSchema", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   test("a complete valid input passes", () => {
     const result = envSchema.safeParse(validInput);
     expect(result.success).toBe(true);
@@ -50,6 +54,20 @@ describe("envSchema", () => {
   test("invalid url fails", () => {
     const result = envSchema.safeParse({ ...validInput, BACKEND_URL: "not-a-url" });
     expect(result.success).toBe(false);
+  });
+
+  test("production without SERVICE_JWT_SECRET fails validation", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = envSchema.safeParse({ ...validInput, NODE_ENV: "production", SERVICE_JWT_SECRET: undefined });
+    expect(result.success).toBe(false);
+  });
+
+  test("development without SERVICE_JWT_SECRET falls back to the dev secret", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const result = envSchema.safeParse({ ...validInput, NODE_ENV: "development", SERVICE_JWT_SECRET: undefined });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.SERVICE_JWT_SECRET.length).toBeGreaterThanOrEqual(32);
   });
 
   test("defaults are applied when fields are omitted", () => {
