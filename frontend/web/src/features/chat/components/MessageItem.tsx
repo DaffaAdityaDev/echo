@@ -7,6 +7,7 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { cn } from "@/utils/cn";
 import { formatContentSize } from "@/utils/format";
 import { CHAT_ROLES } from "../constants";
+import { stripProtocolMarkup } from "../protocol";
 import type { Message } from "../types";
 import { ThoughtStepView } from "./steps";
 
@@ -16,13 +17,6 @@ const Markdown = dynamic(() => import("@/components/Markdown"), {
 });
 
 const LARGE_MESSAGE_THRESHOLD = 50_000;
-
-const PROTOCOL_MARKUP =
-  /<(dsml|tool_calls|invoke|parameter|write_todos|delegate_task|user_objective|function)(\s[^>]*)?>[\s\S]*?<\/\1>|<\/?(dsml|tool_calls|invoke|parameter|write_todos|delegate_task|user_objective|function)\b[^>]*>/gi;
-
-function stripProtocolMarkup(content: string): string {
-  return content.replace(PROTOCOL_MARKUP, "");
-}
 
 interface MessageItemContext {
   isStreaming: boolean;

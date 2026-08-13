@@ -3,6 +3,7 @@
 import { CheckCircle2, ChevronDown, ChevronUp, Globe, Loader2, RefreshCw, Sparkles, XCircle } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/utils/cn";
+import { buildAgentStatusMessage, formatAgentUrl } from "../protocol";
 import type { AgentProgress as AgentProgressType, AgentState } from "../types";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 
@@ -25,30 +26,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
   const discoveredCount = swarm?.discoveredCount ?? 0;
   const activeUrls = swarm?.activeUrls ? Object.values(swarm.activeUrls) : [];
 
-  // Get status message
-  let statusMessage = progress.statusMessage || "Agent Orchestrating Mission...";
-  if (currentTool) {
-    statusMessage = `Executing ${currentTool}...`;
-  }
-  if (swarm?.status && swarm?.url) {
-    const formattedUrl = swarm.url.replace(/^https?:\/\/(www\.)?/, "");
-    const shortUrl = formattedUrl.length > 32 ? `${formattedUrl.substring(0, 32)}...` : formattedUrl;
-    if (swarm.status === "crawling") {
-      statusMessage = `Crawling ${shortUrl}...`;
-    } else if (swarm.status === "scraped") {
-      statusMessage = `Scraped ${shortUrl}`;
-    } else if (swarm.status === "critic_validating") {
-      statusMessage = `Validating facts from ${shortUrl}`;
-    } else if (swarm.status === "critic_passed") {
-      statusMessage = `Approved facts from ${shortUrl}`;
-    } else if (swarm.status === "critic_failed") {
-      statusMessage = `Retrying extraction for ${shortUrl}`;
-    } else if (swarm.status === "scrape_failed") {
-      statusMessage = `Failed to scrape ${shortUrl}`;
-    } else if (swarm.status === "synthesis") {
-      statusMessage = `Synthesizing research findings...`;
-    }
-  }
+  const statusMessage = buildAgentStatusMessage(progress);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-2 font-sans animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -143,7 +121,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 
               <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 font-mono text-[11px]">
                 {activeUrls.map((item) => {
-                  const displayUrl = item.url.replace(/^https?:\/\/(www\.)?/, "");
+                  const displayUrl = formatAgentUrl(item.url);
 
                   let statusIcon = <Loader2 className="h-3 w-3 text-blue-500 animate-spin shrink-0" />;
                   let statusLabel = "crawling";
