@@ -22,11 +22,12 @@ await toolRegistry.autoload();
 // Initialize Redis (mission event store)
 initRedis(ENV.REDIS_URL);
 
-// Cleanup leftover files from previous sessions at startup only
+// Clean leftover debug dumps from previous sessions only when prompt debugging is enabled
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
-rmSync(join(root, "debug"), { recursive: true, force: true });
-rmSync(join(root, "logs"), { recursive: true, force: true });
-logger.info("Startup cleanup complete (debug/, logs/)");
+if (ENV.DEBUG_PROMPT) {
+  rmSync(join(root, "debug"), { recursive: true, force: true });
+  logger.info("Startup cleanup complete (debug/)");
+}
 
 // Initialize Memory Client
 const memoryProvider = new MemoryAdapter(ENV.BACKEND_URL);
