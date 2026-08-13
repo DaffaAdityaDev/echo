@@ -26,9 +26,9 @@ package main
 // @description Internal service JWT token (Format: Bearer <service JWT>).
 
 import (
-	"bufio"
 	"echo-backend/internal/config"
 	"echo-backend/internal/constants/app"
+	"echo-backend/internal/database"
 	"echo-backend/internal/router"
 	"log"
 	"os"
@@ -41,30 +41,24 @@ import (
 )
 
 func main() {
-	// Load .env file
-	if f, err := os.Open(".env"); err == nil {
-		defer f.Close()
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				val := strings.TrimSpace(parts[1])
-				if _, ok := os.LookupEnv(key); !ok {
-					os.Setenv(key, val)
-				}
-			}
-		}
-	} else {
+	if err := config.LoadDotEnv(".env"); err != nil {
 		log.Println(app.MsgNoEnvFile)
 	}
 
 	// Load configuration
 	cfg := config.Load()
+
+	if err := config.ValidateSecrets(cfg); err != nil {
+		log.Fatalf("Refusing to start: %v", err)
+	}
+
+	// Run database migration before serving traffic
+	if pool := database.NewPostgresPool(cfg); pool != nil {
+		if err := database.Migrate(pool); err != nil {
+			log.Printf("Warning: Database auto-migration error: %v", err)
+		}
+		pool.Close()
+	}
 
 	// Initialize server
 	appInstance := fiber.New(fiber.Config{
@@ -77,9 +71,10 @@ func main() {
 		Format: app.LogFormat,
 	}))
 	appInstance.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization", "traceparent", "x-agent-session-id"},
+		AllowOrigins:     corsAllowedOrigins(),
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "traceparent", "x-agent-session-id"},
+		AllowCredentials: true,
 	}))
 
 	// Routes
@@ -90,4 +85,29 @@ func main() {
 	if err := appInstance.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("%s: %v", app.ErrServerStartup, err)
 	}
+}
+
+// corsAllowedOrigins returns the browser origins allowed to call the API with
+// credentials (cookie auth), from CORS_ALLOWED_ORIGINS (comma-separated).
+// Wildcards cannot be combined with credentialed requests, so the default is
+// restricted to local development origins.
+func corsAllowedOrigins() []string {
+	raw := strings.TrimSpace(envOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"))
+	origins := []string{}
+	for _, origin := range strings.Split(raw, ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	if len(origins) == 0 {
+		return []string{"http://localhost:3000"}
+	}
+	return origins
+}
+
+func envOrDefault(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
