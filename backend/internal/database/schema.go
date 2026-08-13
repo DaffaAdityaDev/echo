@@ -1,5 +1,14 @@
 package database
 
+// This file is the single source of truth for the backend schema: Migrate()
+// is executed at startup and by cmd/db/migrate. The files under backend/migrations
+// are legacy and are NOT executed by any code; the drift-causing LLMOps DDL
+// (20260725_001_llmops_studio) was removed because its extra tables
+// (eval_datasets, eval_runs, shadow_runs, audit_logs) are unreferenced by Go
+// code, and its prompt_versions CHECK listed a 'shadow' status that schema.go
+// did not. Any future DDL change must land here (or in a real migration tool),
+// never in a second orphaned copy.
+
 import (
 	"context"
 	"fmt"
@@ -146,7 +155,7 @@ CREATE TABLE IF NOT EXISTS prompt_versions (
     system_prompt TEXT NOT NULL,
     bound_tools JSONB NOT NULL DEFAULT '[]'::jsonb,
     variables JSONB NOT NULL DEFAULT '[]'::jsonb,
-    status VARCHAR(32) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_review', 'approved', 'production', 'rolled_back')),
+    status VARCHAR(32) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_review', 'shadow', 'approved', 'production', 'rolled_back')),
     created_by VARCHAR(128) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_prompt_versions_template_version UNIQUE (template_id, version)
