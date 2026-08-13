@@ -31,8 +31,7 @@ export function PacketLogsPanel() {
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const filteredPackets = packetLogs.filter((p) => {
-    const pType = (p as { type?: string }).type;
-    const matchesType = packetFilter === "all" || pType === packetFilter;
+    const matchesType = packetFilter === "all" || p.type === packetFilter;
     const matchesSearch = !packetSearch || JSON.stringify(p).toLowerCase().includes(packetSearch.toLowerCase());
     return matchesType && matchesSearch;
   });
@@ -97,7 +96,7 @@ export function PacketLogsPanel() {
         ) : (
           filteredPackets.map((pkt, idx) => {
             const isExpanded = expandedPacketIndex === idx;
-            const pktType = (pkt as { type?: string }).type || "packet";
+            const pktType = pkt.type || "packet";
             const badgeStyle =
               typeBadgeColors[pktType] ||
               "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700";

@@ -105,6 +105,11 @@ const sections: HarnessSection[] = [
   },
 ];
 
+function asToggleGroup(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
 export function HarnessTab({ config, setConfig }: HarnessTabProps) {
   return (
     <div className="space-y-4">
@@ -116,14 +121,16 @@ export function HarnessTab({ config, setConfig }: HarnessTabProps) {
       </p>
 
       {sections.map((section) => {
-        const groupConfig = (config.harnessToggles?.[section.key] ?? {}) as Record<string, unknown>;
-        const defaultGroup = (DEFAULT_HARNESS_TOGGLES[section.key] ?? {}) as Record<string, unknown>;
+        const groupConfig = asToggleGroup(config.harnessToggles?.[section.key]);
+        const defaultGroup = asToggleGroup(DEFAULT_HARNESS_TOGGLES[section.key]);
         const enabled = Boolean(groupConfig.enabled ?? defaultGroup.enabled ?? true);
         const SectionIcon = section.icon;
 
         const updateToggles = (patchGroup: (group: Record<string, unknown>) => Record<string, unknown>) => {
-          const toggles = { ...(config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES) } as Record<string, unknown>;
-          toggles[section.key] = patchGroup(groupConfig);
+          const toggles: Record<string, unknown> = {
+            ...(config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES),
+          };
+          toggles[section.key] = patchGroup(asToggleGroup(toggles[section.key]));
           setConfig({ harnessToggles: toggles as HarnessFeatureToggles });
         };
 
