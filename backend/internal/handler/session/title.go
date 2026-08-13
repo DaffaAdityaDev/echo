@@ -31,6 +31,15 @@ type GenerateTitleResponse struct {
 	Cached bool `json:"cached"`
 }
 
+// titleHistoryLimit caps how many messages are sent to the LLM for title
+// generation — the full history would otherwise be stringified and shipped
+// to the provider on every call.
+const titleHistoryLimit = 40
+
+// jsonObjectRe extracts the JSON object from an LLM reply that may wrap it
+// in prose.
+var jsonObjectRe = regexp.MustCompile(`\{[\s\S]*\}`)
+
 // HandleGenerateTitle godoc
 // @Summary Generate a session title
 // @Description Generates a title and summary from the session history using an LLM
@@ -74,7 +83,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 		return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: session.Title, Summary: session.ContextSummary, Cached: true})
 	}
 
-	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, 0, 0)
+	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, titleHistoryLimit, 0)
 	if err != nil {
 		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
 	}
@@ -109,7 +118,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 		if content == "" {
 			continue
 		}
-		conversation.WriteString(fmt.Sprintf("%s: %s\n", m.Role, content))
+		fmt.Fprintf(&conversation, "%s: %s\n", m.Role, content)
 	}
 
 	systemPrompt := `You are an AI session metadata generator. Given the conversation history, generate a concise, human-readable Title (3 to 6 words, Title Case, no quotes, no period) and a 1-sentence Summary describing the main topic or objective.
@@ -181,8 +190,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		rawContent = strings.TrimSpace(chatCompletion.Choices[0].Message.ReasoningContent)
 	}
 
-	re := regexp.MustCompile(`\{[\s\S]*\}`)
-	if match := re.FindString(rawContent); match != "" {
+	if match := jsonObjectRe.FindString(rawContent); match != "" {
 		rawContent = match
 	}
 

@@ -10,6 +10,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// HttpClient is the shared outbound client for internal agent calls. It has
+// no global Timeout: chat.go and hitl.go stream the agent's response body for
+// the whole turn (minutes), and http.Client.Timeout would abort the stream
+// mid-body. Non-streaming callers bound their requests with per-call context
+// timeouts instead.
 var HttpClient = &http.Client{}
 
 func GetUserID(c fiber.Ctx) (int, error) {
