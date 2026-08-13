@@ -1,6 +1,7 @@
 import type { AgentStatus } from "../../../shared/types";
+import { PACKET_TYPES } from "./constants";
 import type { AgentStatusTracker } from "./status-tracker";
-import type { HarnessEvent } from "./types";
+import type { HarnessEvent, HarnessEventType } from "./types";
 
 export interface HarnessEmitterDeps {
   getMissionId: () => string;
@@ -20,9 +21,9 @@ export class HarnessEventEmitter {
 
   private async sendBase(
     onPacket: (p: HarnessEvent) => Promise<void>,
-    packet: { type: string } & Record<string, unknown>,
+    packet: { type: HarnessEventType } & Record<string, unknown>,
   ) {
-    if (packet.type !== "heartbeat") {
+    if (packet.type !== PACKET_TYPES.HEARTBEAT) {
       this.lastActivityTimestamp = Date.now();
       this.stallEmitted = false;
     }
@@ -42,7 +43,7 @@ export class HarnessEventEmitter {
     level: "info" | "warning" | "error" = "warning",
   ) {
     if (this.deps.systemNoticesEnabled) {
-      await this.sendBase(onPacket, { type: "system_notice", step, payload: { level, code, message } });
+      await this.sendBase(onPacket, { type: PACKET_TYPES.SYSTEM_NOTICE, step, payload: { level, code, message } });
     }
   }
 
@@ -153,7 +154,7 @@ export class HarnessEventEmitter {
   }
 
   async emitHeartbeat(onPacket: (p: HarnessEvent) => Promise<void>, step: number) {
-    await this.sendBase(onPacket, { type: "heartbeat", step });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.HEARTBEAT, step });
   }
 
   async emitTurnComplete(

@@ -2,8 +2,32 @@ import type { RestToolConfig } from "../../../infrastructure/transports/rest/typ
 import type { AgentStrategy, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
 import type { BehaviorPrompt } from "../prompts";
 
+export type HarnessEventType =
+  | "metadata"
+  | "reasoning"
+  | "content"
+  | "tool_call"
+  | "tool_result"
+  | "tool_skip"
+  | "todo"
+  | "subagent_call"
+  | "subagent_result"
+  | "usage"
+  | "progress"
+  | "heartbeat"
+  | "state_change"
+  | "degraded"
+  | "turn_complete"
+  | "debug"
+  | "system_notice"
+  | "error"
+  | "swarm_status"
+  | "token_metrics"
+  | "hitl_approval_required"
+  | "mission_completed";
+
 export type HarnessEvent = {
-  type: string;
+  type: HarnessEventType;
   missionId: string;
   step?: number;
   content?: string;
