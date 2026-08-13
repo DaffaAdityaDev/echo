@@ -37,8 +37,12 @@ export function getCosineSimilarity(text1: string, text2: string): number {
   return dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2));
 }
 
+export function estimateCharTokens(text: string): number {
+  return Math.ceil((text || "").length / 4);
+}
+
 export function getHistoryTokens(msgs: BaseMessage[]): number {
-  return msgs.reduce((acc, m) => acc + Math.ceil((m.content || "").toString().length / 4), 0);
+  return msgs.reduce((acc, m) => acc + estimateCharTokens((m.content || "").toString()), 0);
 }
 
 export function selectiveTruncateToolResults(messages: BaseMessage[], threshold: number): BaseMessage[] {

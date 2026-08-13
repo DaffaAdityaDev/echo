@@ -1,5 +1,6 @@
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
 import type { LLMProvider, ProviderEvent } from "../../../shared/types";
+import { estimateCharTokens } from "../../../shared/utils/harness";
 import { logger } from "../../../shared/utils/logger";
 import { HARNESS_CONFIG } from "./constants";
 import type { ContentSanitizer } from "./content_sanitizer";
@@ -65,7 +66,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
 
       if (event.reasoning) {
         reasoningContent += event.reasoning;
-        tokenEstimate += Math.ceil(event.reasoning.length / 4);
+        tokenEstimate += estimateCharTokens(event.reasoning);
         statusTracker?.update({
           currentThought: (reasoningContent || assistantContent).substring(0, 50),
           throughput:
@@ -75,7 +76,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
       }
       if (event.content) {
         assistantContent += event.content;
-        tokenEstimate += Math.ceil(event.content.length / 4);
+        tokenEstimate += estimateCharTokens(event.content);
         statusTracker?.update({
           currentThought: (reasoningContent || assistantContent).substring(0, 50),
           throughput:
