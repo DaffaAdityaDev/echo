@@ -90,7 +90,7 @@ Request Parsing
   // Query parameters (via mode, etc.)
 
   // Headers
-  userTier := c.Get("X-User-Tier")
+  userTier := middleware.UserTier(c) // tier from JWT claim
   traceparent := c.Get("traceparent")
 
   // Cookie

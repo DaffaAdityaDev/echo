@@ -93,7 +93,8 @@ type User struct {
 ## Tier System
 
 Echo uses a **tier-based** access model (not role-based) for feature gating.
-The tier is passed via the `X-User-Tier` header.
+The tier is read from the signed JWT `tier` claim (issued at login/
+registration); missing or unknown values default to `free`.
 
 ### Tiers
 
@@ -107,11 +108,10 @@ The tier is passed via the `X-User-Tier` header.
 ### Default Behavior
 
 ```go
-// backend/internal/handler/chat/handler.go:175-178
-userTier := c.Get("X-User-Tier")
-if userTier == "" {
-    userTier = "pro" // Default to pro for local backward-compatibility
-}
+// backend/internal/middleware/claims.go — TierFromClaims
+userTier := middleware.UserTier(c)
+// Tier comes from the signed JWT "tier" claim (issued at login/registration);
+// missing or unknown claims resolve to "free" (least privilege).
 ```
 
 ## Feature Gates
@@ -229,7 +229,7 @@ field.
 └──────┬───────┘   └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
        │                    │                       │                     │
        │  GET /features     │                       │                     │
-       │  X-User-Tier:free  │                       │                     │
+       │  JWT tier: free    │                       │                     │
        │───────────────────►│                       │                     │
        │                    │                       │                     │
        │                    │  Check cache           │                     │
@@ -300,8 +300,8 @@ backend `features` table (migration 009_create_features); the agent's
 
 ## Entry Points & Exports
 
-- **Tier check**: `backend/internal/handler/chat/handler.go:175-195` —
-  X-User-Tier header processing + enforcement loop
+- **Tier check**: `backend/internal/middleware/claims.go` —
+  TierFromClaims (signed JWT `tier` claim; missing/unknown → `free`) + enforcement loop
 - **Feature response**: `backend/internal/handler/chat/handler.go:878-904` —
   HandleGetFeatures (locked flags)
 - **Feature cache**: `backend/internal/handler/chat/handler.go:751-799` —

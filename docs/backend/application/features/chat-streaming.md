@@ -119,7 +119,7 @@ Message Flow - HandleChat
      ├─ Start OTel span "HandleChat" with attributes:
      │      agent.session_id, mission.id, llm.model
      │
-     ├─ Read X-User-Tier header (default: "pro")
+     ├─ Tier from signed JWT "tier" claim (default: "free")
      │
      ├─ Feature gating via FeaturesSvc.ValidateRequest (features resolved
      │      from user_preferences — never from the request):

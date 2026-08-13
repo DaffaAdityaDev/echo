@@ -88,8 +88,8 @@ provider_config in payloads from Go Backend"
 |                               |   encrypted in the DB (UserPreferences) — see      |
 |                               |   `../contracts/env-contract.md`; passed per        |
 |                               |   request via provider_config.api_key              |
-| Tier / entitlement status     | Backend-only: `X-User-Tier` header is read and     |
-|                               |   enforced in chat/handler.go:175-195; agent never  |
+| Tier / entitlement status     | Backend-only: tier from signed JWT `tier` claim,   |
+|                               |   default `free` (least privilege); agent never    |
 |                               |   receives the tier                                |
 | Billing state / usage ledger  | No such field exists in mission.schema.ts; design  |
 |                               |   in `../domain/usage-billing.md` puts it backend-  |

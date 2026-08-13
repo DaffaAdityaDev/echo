@@ -447,8 +447,9 @@ orgId (billing organization). Default: `local`.
 
 **Tier**
 Access level for feature gating. Values: `free` (basic features), `pro` (all
-features). Passed via `X-User-Tier` header.
-*Source: `backend/internal/handler/chat/handler.go:111-114`*
+features). Read from the signed JWT `tier` claim issued at login/registration;
+missing or unknown claims default to `free` (least privilege).
+*Source: `backend/internal/middleware/claims.go`*
 
 **ToolDefinition**
 Contract for a callable tool: name, description, Zod schema, execute function,

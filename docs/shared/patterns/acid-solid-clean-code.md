@@ -38,9 +38,9 @@ return tx.Commit(ctx)
 
 | File | Sequence | ACID? |
 |---|---|---|
-| `chat/handler.go` — final flush | `UpdateMessageContent` + `UpdateMessageStatus` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
-| `chat/handler.go` — user msg + placeholder | `InsertMessage("user")` + `InsertAssistantPlaceholder` | ❌ Must be 1 tx |
-| `session/handler.go` — prune | `UpdateContextSummary` + `DeleteMessagesUpToTurn` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
+| `internal/handler/chat/stream_writer.go` — finalizeTurn (final flush) | `CompleteTurn`: `UpdateMessageContent` + `UpdateMessageStatus` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
+| `internal/repository/session/repository.go` — PrepareTurn (user msg + placeholder) | `InsertMessage("user")` + `InsertAssistantPlaceholder` | ❌ Must be 1 tx |
+| `internal/handler/session/prune.go` → `internal/service/consolidation/service.go` → `PruneSession` (prune) | `UpdateContextSummary` + `DeleteMessagesUpToTurn` + `UpdateSessionTimestamp` | ❌ Must be 1 tx |
 | `session/repository.go` — SaveTurnMessages | All 4 steps | ✅ Already in tx |
 
 ### Context Timeout
