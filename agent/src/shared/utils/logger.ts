@@ -7,7 +7,6 @@ const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
 
 const RED = "\x1b[31m";
-const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const MAGENTA = "\x1b[35m";
 const CYAN = "\x1b[36m";
@@ -65,6 +64,7 @@ function formatMeta(meta?: unknown): string {
     });
     return ` ${GRAY}[${entries.join(" ")}]${RESET}`;
   } catch {
+    // Formatting failures must not crash request logging; fall back to no meta
     return "";
   }
 }
@@ -97,6 +97,8 @@ const LEVEL_CONFIG: Record<
   WARN: { color: YELLOW, consoleFn: "warn", fmt: (m) => `${YELLOW}${m}${RESET}` },
   ERROR: { color: RED, consoleFn: "error", fmt: (m) => `${RED}${BOLD}${m}${RESET}` },
   DEBUG: { color: GRAY, consoleFn: "debug", fmt: (m) => `${GRAY}${m}${RESET}` },
+  TELEMETRY: { color: MAGENTA, consoleFn: "log", fmt: (m) => `${MAGENTA}${m}${RESET}` },
+  AGENT: { color: MAGENTA, consoleFn: "log", fmt: (m) => `${MAGENTA}${m}${RESET}` },
 };
 
 export class Logger {
@@ -125,33 +127,31 @@ export class Logger {
 
   langfuse(level: "INFO" | "WARN" | "ERROR" | "DEBUG", msg: string, meta?: unknown) {
     this.log(level, msg, meta);
-    try {
-      import("./langfuse")
-        .then(({ langfuseStorage }) => {
-          const store = langfuseStorage.getStore();
-          const activeObservation = store?.span || store?.trace;
-          if (activeObservation) {
-            const levelMap: Record<string, ObservationLevel> = {
-              INFO: "DEFAULT",
-              WARN: "WARNING",
-              ERROR: "ERROR",
-              DEBUG: "DEBUG",
-            };
-            activeObservation.startObservation(
-              msg,
-              {
-                input: msg,
-                level: levelMap[level] || "DEFAULT",
-                metadata: meta as Record<string, unknown>,
-              },
-              { asType: "event" },
-            );
-          }
-        })
-        .catch(() => {});
-    } catch {
-      /* fail silently */
-    }
+    import("./langfuse")
+      .then(({ langfuseStorage }) => {
+        const store = langfuseStorage.getStore();
+        const activeObservation = store?.span || store?.trace;
+        if (activeObservation) {
+          const levelMap: Record<string, ObservationLevel> = {
+            INFO: "DEFAULT",
+            WARN: "WARNING",
+            ERROR: "ERROR",
+            DEBUG: "DEBUG",
+          };
+          activeObservation.startObservation(
+            msg,
+            {
+              input: msg,
+              level: levelMap[level] || "DEFAULT",
+              metadata: meta as Record<string, unknown>,
+            },
+            { asType: "event" },
+          );
+        }
+      })
+      .catch((err) => {
+        this.debug(`Langfuse observation failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
   }
 
   telemetry(type: string, payload: Record<string, unknown>) {
@@ -159,10 +159,7 @@ export class Logger {
     const sessionId = payload.sessionId || "unknown";
     const messagesCount = (payload.input as { messages?: unknown[] } | undefined)?.messages?.length || 0;
     const cost = (payload.metadata as { monetary_cost_usd?: number } | undefined)?.monetary_cost_usd || 0;
-    console.log(
-      `${MAGENTA}${BOLD}[TELEMETRY]${RESET} ${DIM}[${getTimestamp()}]${RESET} ${MAGENTA}${type.toUpperCase()}${RESET} | Span: ${CYAN}${spanId}${RESET} | Session: ${CYAN}${sessionId}${RESET} | MsgCount: ${YELLOW}${messagesCount}${RESET} | Cost: ${GREEN}$${cost.toFixed(5)}${RESET}`,
-    );
-    writeToFile(
+    this.log(
       "TELEMETRY",
       `${type.toUpperCase()} | Span: ${spanId} | Session: ${sessionId} | MsgCount: ${messagesCount} | Cost: $${cost.toFixed(5)}`,
       payload,
@@ -170,11 +167,7 @@ export class Logger {
   }
 
   agentActivity(missionId: string, event: string, msg: string, meta?: unknown) {
-    const timestamp = getTimestamp();
-    console.log(
-      `${MAGENTA}${BOLD}[AGENT:${event}]${RESET} ${DIM}[${timestamp}]${RESET} [${missionId.slice(0, 8)}] ${msg}${formatMeta(meta)}`,
-    );
-    writeToFile(`AGENT_${event}`, `[${missionId}] ${msg}`, meta);
+    this.log("AGENT", `[${event}] [${missionId.slice(0, 8)}] ${msg}`, meta);
     writeToAgentActivityFile(missionId, event, msg, meta);
   }
 }
