@@ -1,37 +1,26 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useModels } from "@/features/chat/hooks/useModels";
 import { useFeatures } from "@/features/shared/hooks/useFeatures";
 import { useSkills } from "@/features/shared/hooks/useSkills";
-import { QUERY_STANDARD } from "@/lib/query-standard";
 import { settingsApi } from "../services/settings-api";
 import { useSettingsStore } from "../stores/settingsStore";
 
 export function useSettingsPage() {
   const config = useSettingsStore((s) => s.config);
-  const loadedStore = useSettingsStore((s) => s.loaded);
+  const loaded = useSettingsStore((s) => s.loaded);
   const setConfig = useSettingsStore((s) => s.setConfig);
   const resetConfig = useSettingsStore((s) => s.resetConfig);
+  const hydrate = useSettingsStore((s) => s.hydrate);
 
   const { features } = useFeatures();
   const { skills } = useSkills();
   const { models } = useModels();
 
-  const { data: serverConfig, isLoading } = useQuery({
-    queryKey: ["settings"],
-    queryFn: settingsApi.get,
-    staleTime: 60_000,
-    ...QUERY_STANDARD,
-    retry: false,
-  });
-
   useEffect(() => {
-    if (serverConfig) {
-      setConfig(serverConfig);
-    }
-  }, [serverConfig, setConfig]);
+    void hydrate();
+  }, [hydrate]);
 
   const handleSave = async () => {
     try {
@@ -52,11 +41,10 @@ export function useSettingsPage() {
 
   return {
     config,
-    loaded: loadedStore && !isLoading,
+    loaded,
     features,
     skills,
     groupedModels,
-    loading: isLoading,
     handleSave,
     setConfig,
     resetConfig,

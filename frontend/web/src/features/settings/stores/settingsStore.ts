@@ -21,7 +21,7 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   config: loadConfig(),
-  loaded: true,
+  loaded: false,
   mutations: 0,
   setConfig: (partial) =>
     set((state) => {
@@ -36,6 +36,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ config: DEFAULT_AGENT_CONFIG });
   },
   hydrate: async () => {
+    set({ loaded: false });
     try {
       const mutationsBefore = get().mutations;
       const serverConfig = await settingsApi.get();
@@ -46,13 +47,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
     } catch (err) {
       console.warn("[Settings] Failed to hydrate config from server:", err);
+    } finally {
+      set({ loaded: true });
     }
   },
 }));
-
-// The server (user_preferences) is authoritative: re-hydrate once at app load so
-// the synchronous localStorage bootstrap is overridden. Guarded to the browser —
-// during SSR this module executes server-side, where no fetch must fire.
-if (typeof window !== "undefined") {
-  void useSettingsStore.getState().hydrate();
-}
