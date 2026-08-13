@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/middleware"
 	"echo-backend/internal/models/llmops"
 	"echo-backend/internal/service/llmops"
 	"github.com/gofiber/fiber/v3"
@@ -103,7 +104,10 @@ type createVersionReq struct {
 // @Router /api/v1/studio/prompts/{id}/versions [post]
 func (h *PromptHandler) HandleCreateVersion(c fiber.Ctx) error {
 	templateID := c.Params("id")
-	actor := c.Get("X-User-Email", "unknown@echo.internal")
+	actor := middleware.UserEmail(c)
+	if actor == "" {
+		actor = "unknown@echo.internal"
+	}
 
 	var req createVersionReq
 	if err := c.Bind().Body(&req); err != nil {
@@ -220,10 +224,16 @@ type PromoteResponse struct {
 func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 	templateID := c.Params("id")
 	versionStr := c.Params("version")
-	version, _ := strconv.Atoi(versionStr)
-	actor := c.Get("X-User-Email", "unknown@echo.internal")
+	version, err := strconv.Atoi(versionStr)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid version parameter")
+	}
+	actor := middleware.UserEmail(c)
+	if actor == "" {
+		actor = "unknown@echo.internal"
+	}
 
-	err := h.promptSvc.PromoteToProduction(c.Context(), templateID, version, actor)
+	err = h.promptSvc.PromoteToProduction(c.Context(), templateID, version, actor)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -259,7 +269,10 @@ func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid version parameter")
 	}
 
-	actor := c.Get("X-User-Email", "unknown@echo.internal")
+	actor := middleware.UserEmail(c)
+	if actor == "" {
+		actor = "unknown@echo.internal"
+	}
 	err = h.promptSvc.RollbackToVersion(c.Context(), templateID, version, actor)
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())

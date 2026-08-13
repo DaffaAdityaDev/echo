@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"echo-backend/internal/models/llmops"
 	"github.com/jackc/pgx/v5"
@@ -88,15 +89,21 @@ func (r *repository) GetTemplateByID(ctx context.Context, templateID string) (*l
 }
 
 func (r *repository) CreateVersion(ctx context.Context, v *llmopsmodel.PromptVersion) (*llmopsmodel.PromptVersion, error) {
-	toolsJSON, _ := json.Marshal(v.BoundTools)
-	varsJSON, _ := json.Marshal(v.Variables)
+	toolsJSON, err := json.Marshal(v.BoundTools)
+	if err != nil {
+		return nil, fmt.Errorf("marshal bound tools: %w", err)
+	}
+	varsJSON, err := json.Marshal(v.Variables)
+	if err != nil {
+		return nil, fmt.Errorf("marshal variables: %w", err)
+	}
 
 	query := `
 		INSERT INTO prompt_versions (template_id, version, system_prompt, bound_tools, variables, status, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at
 	`
-	err := r.pool.QueryRow(ctx, query, v.TemplateID, v.Version, v.SystemPrompt, toolsJSON, varsJSON, v.Status, v.CreatedBy).
+	err = r.pool.QueryRow(ctx, query, v.TemplateID, v.Version, v.SystemPrompt, toolsJSON, varsJSON, v.Status, v.CreatedBy).
 		Scan(&v.ID, &v.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create version: %w", err)
@@ -120,8 +127,12 @@ func (r *repository) GetVersion(ctx context.Context, templateID string, version 
 		}
 		return nil, fmt.Errorf("get version: %w", err)
 	}
-	_ = json.Unmarshal(toolsBytes, &v.BoundTools)
-	_ = json.Unmarshal(varsBytes, &v.Variables)
+	if err := json.Unmarshal(toolsBytes, &v.BoundTools); err != nil {
+		return nil, fmt.Errorf("decode bound_tools: %w", err)
+	}
+	if err := json.Unmarshal(varsBytes, &v.Variables); err != nil {
+		return nil, fmt.Errorf("decode variables: %w", err)
+	}
 	return v, nil
 }
 
@@ -143,8 +154,12 @@ func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name 
 		}
 		return nil, fmt.Errorf("get active version by name: %w", err)
 	}
-	_ = json.Unmarshal(toolsBytes, &v.BoundTools)
-	_ = json.Unmarshal(varsBytes, &v.Variables)
+	if err := json.Unmarshal(toolsBytes, &v.BoundTools); err != nil {
+		return nil, fmt.Errorf("decode bound_tools: %w", err)
+	}
+	if err := json.Unmarshal(varsBytes, &v.Variables); err != nil {
+		return nil, fmt.Errorf("decode variables: %w", err)
+	}
 	return v, nil
 }
 
@@ -163,8 +178,12 @@ func (r *repository) ListVersions(ctx context.Context, templateID string) ([]llm
 		if err := rows.Scan(&v.ID, &v.TemplateID, &v.Version, &v.SystemPrompt, &toolsBytes, &varsBytes, &v.Status, &v.CreatedBy, &v.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan version row: %w", err)
 		}
-		_ = json.Unmarshal(toolsBytes, &v.BoundTools)
-		_ = json.Unmarshal(varsBytes, &v.Variables)
+		if err := json.Unmarshal(toolsBytes, &v.BoundTools); err != nil {
+			return nil, fmt.Errorf("decode bound_tools: %w", err)
+		}
+		if err := json.Unmarshal(varsBytes, &v.Variables); err != nil {
+			return nil, fmt.Errorf("decode variables: %w", err)
+		}
 		versions = append(versions, v)
 	}
 	return versions, nil
@@ -175,7 +194,23 @@ func (r *repository) PromoteVersion(ctx context.Context, templateID string, vers
 	if err != nil {
 		return fmt.Errorf("tx begin: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			log.Printf("[LLMOPS] promote version rollback failed: %v", err)
+		}
+	}()
+
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM prompt_versions WHERE template_id = $1 AND version = $2`, templateID, version).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("promote version: version %d of template %s does not exist", version, templateID)
+	}
+	if err != nil {
+		return fmt.Errorf("fetch version status: %w", err)
+	}
+	if status == "rolled_back" {
+		return fmt.Errorf("promote version: version %d of template %s is rolled back and cannot be promoted", version, templateID)
+	}
 
 	_, err = tx.Exec(ctx, `UPDATE prompt_templates SET active_version = $1, updated_at = NOW() WHERE id = $2`, version, templateID)
 	if err != nil {
@@ -195,7 +230,23 @@ func (r *repository) RollbackVersion(ctx context.Context, templateID string, tar
 	if err != nil {
 		return fmt.Errorf("tx begin: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			log.Printf("[LLMOPS] rollback version tx rollback failed: %v", err)
+		}
+	}()
+
+	var targetStatus string
+	err = tx.QueryRow(ctx, `SELECT status FROM prompt_versions WHERE template_id = $1 AND version = $2`, templateID, targetVersion).Scan(&targetStatus)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("rollback version: version %d of template %s does not exist", targetVersion, templateID)
+	}
+	if err != nil {
+		return fmt.Errorf("fetch target version status: %w", err)
+	}
+	if targetStatus == "rolled_back" {
+		return fmt.Errorf("rollback version: version %d of template %s is already rolled back", targetVersion, templateID)
+	}
 
 	var currentActive int
 	err = tx.QueryRow(ctx, `SELECT active_version FROM prompt_templates WHERE id = $1`, templateID).Scan(&currentActive)
