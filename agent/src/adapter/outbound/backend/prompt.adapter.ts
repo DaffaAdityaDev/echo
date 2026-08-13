@@ -32,7 +32,7 @@ export class PromptAdapter {
   private redis: Redis | null;
 
   constructor(options: PromptAdapterOptions = {}) {
-    this.baseUrl = options.baseUrl || ENV.BACKEND_URL || "http://localhost:8080";
+    this.baseUrl = options.baseUrl || ENV.BACKEND_URL;
     this.redis = options.redis !== undefined ? options.redis : getRedisClient();
   }
 
@@ -57,7 +57,8 @@ export class PromptAdapter {
       const raw = await this.redis.get(this.cacheKey(templateName, tenantId));
       if (!raw) return null;
       return JSON.parse(raw) as ActivePrompt;
-    } catch {
+    } catch (err) {
+      logger.warn(`Prompt cache read failed`, { templateName, tenantId, error: err });
       return null;
     }
   }
@@ -66,8 +67,8 @@ export class PromptAdapter {
     if (!this.redis) return;
     try {
       await this.redis.set(this.cacheKey(templateName, tenantId), JSON.stringify(prompt), "EX", CACHE_TTL_SECONDS);
-    } catch {
-      // Cache write failures must not fail the prompt resolution
+    } catch (err) {
+      logger.warn(`Prompt cache write failed`, { templateName, tenantId, error: err });
     }
   }
 

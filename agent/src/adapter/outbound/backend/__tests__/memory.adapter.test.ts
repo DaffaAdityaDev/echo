@@ -8,7 +8,7 @@ vi.mock("../../../../shared/utils/jwt", () => ({
 }));
 
 vi.mock("../../../../config/env", () => ({
-  ENV: { BACKEND_URL: "", STATE_BACKEND: "memory" },
+  ENV: { BACKEND_URL: "http://localhost:8080", STATE_BACKEND: "memory" },
 }));
 
 vi.mock("../../../../shared/utils/logger", () => ({

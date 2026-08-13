@@ -2,6 +2,7 @@ import { ENV } from "../../../config/env";
 import { deserializeAgentState, serializeAgentState } from "../../../core/agent/storage";
 import type { AgentState } from "../../../shared/types";
 import { signServiceJwt } from "../../../shared/utils/jwt";
+import { logger } from "../../../shared/utils/logger";
 
 const ENDPOINTS = {
   store: "/api/v1/internal/memory/episodic/store",
@@ -12,6 +13,7 @@ function parseRecallContent(content: string): unknown {
   try {
     return JSON.parse(content);
   } catch {
+    logger.debug(`Memory recall content is not a single JSON document, falling back to fragment parsing`);
     let last: unknown = null;
     for (const fragment of content.split("\n")) {
       if (fragment === "") continue;
@@ -31,7 +33,7 @@ export class MemoryAdapter {
   private connected = false;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || ENV.BACKEND_URL || "http://localhost:8080";
+    this.baseUrl = baseUrl || ENV.BACKEND_URL;
   }
 
   async connect() {
@@ -113,7 +115,10 @@ export class MemoryAdapter {
       const parsed = parseRecallContent(content);
       if (parsed == null) return null;
       return deserializeAgentState(parsed);
-    } catch {
+    } catch (err) {
+      logger.error(
+        `Memory state recall failed for mission ${missionId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return null;
     }
   }
