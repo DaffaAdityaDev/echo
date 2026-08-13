@@ -50,13 +50,9 @@ const (
 		LIMIT NULLIF($2, 0) OFFSET $3
 	`
 	QueryGetSession = `
-		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, COALESCE(s.strategy_version, ''), COALESCE(s.last_accessed_at, s.updated_at), s.created_at, s.updated_at,
-		       COUNT(m.id) as message_count,
-		       COALESCE(SUM(m.token_count), 0) as token_count
+		SELECT s.id, s.user_id, s.title, s.context_summary, s.status, COALESCE(s.strategy_version, ''), COALESCE(s.last_accessed_at, s.updated_at), s.created_at, s.updated_at
 		FROM sessions s
-		LEFT JOIN messages m ON m.session_id = s.id
 		WHERE s.id = $1
-		GROUP BY s.id, s.user_id, s.title, s.context_summary, s.status, s.strategy_version, s.last_accessed_at, s.created_at, s.updated_at
 	`
 	QueryPinSessionStrategyVersion = `
 		UPDATE sessions

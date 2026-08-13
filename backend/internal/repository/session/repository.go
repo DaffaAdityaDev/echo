@@ -52,7 +52,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID int, limit int, offs
 func (r *Repository) GetByID(ctx context.Context, sessionID string) (*chatmodel.Session, error) {
 	var s chatmodel.Session
 	err := r.pool.QueryRow(ctx, db.QueryGetSession, sessionID).
-		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.StrategyVersion, &s.LastAccessedAt, &s.CreatedAt, &s.UpdatedAt, &s.MessageCount, &s.TokenCount)
+		Scan(&s.ID, &s.UserID, &s.Title, &s.ContextSummary, &s.Status, &s.StrategyVersion, &s.LastAccessedAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
