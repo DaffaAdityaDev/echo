@@ -3,6 +3,7 @@ import type { LangfuseSpan } from "@langfuse/tracing";
 import { context, trace as otelTrace } from "@opentelemetry/api";
 import { ENV } from "../../../config/env";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
+import { ProviderFactory } from "../../../infrastructure/providers/factory";
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import { CANCELLED_MESSAGE } from "../../../shared/constants/errors";
 import type { AgentState, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
@@ -581,7 +582,7 @@ export class NlahHarness {
                 toolNames: Array.from(runtime.currentToolMap.keys()),
                 restTools: this.restTools,
                 providerConfig: {
-                  type: this.provider.constructor.name,
+                  type: ProviderFactory.resolveType(this.provider) ?? "unknown",
                   base_url: this.provider.baseURL ?? "",
                   api_key: null,
                   model: this.provider.modelName ?? "unknown",

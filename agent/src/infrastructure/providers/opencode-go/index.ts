@@ -34,11 +34,13 @@ type ApiMessage =
 export class OpenCodeGoProvider implements LLMProvider {
   private client: OpenAI;
   private interceptor = new ReasoningInterceptor();
+  private apiKey: string;
   public modelName: string;
   public baseURL: string;
   public maxContextTokens: number = 1_000_000;
 
-  constructor(baseURL: string, modelName: string, apiKey: string = "dummy") {
+  constructor(baseURL: string, modelName: string, apiKey?: string) {
+    this.apiKey = apiKey ?? "";
     this.modelName = modelName;
     this.baseURL = baseURL;
     this.client = new OpenAI({
@@ -90,6 +92,11 @@ export class OpenCodeGoProvider implements LLMProvider {
     systemPrompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
+    if (!this.apiKey) {
+      throw new Error(
+        `OpenCodeGoProvider: an API key is required but was not provided (baseURL=${this.baseURL}). Pass api_key in the provider config.`,
+      );
+    }
     const apiMessages = this.serializeMessages(messages, systemPrompt);
     const apiTools =
       tools.length > 0

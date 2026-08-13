@@ -14,11 +14,13 @@ import { ReasoningInterceptor } from "../utils";
 export class LMStudioProvider implements LLMProvider {
   private chat: ChatOpenAI;
   private interceptor = new ReasoningInterceptor();
+  private apiKey: string;
   public modelName: string;
   public baseURL: string;
   public maxContextTokens?: number;
 
-  constructor(baseURL: string, modelName: string, apiKey: string = "lm-studio", maxContextTokens?: number) {
+  constructor(baseURL: string, modelName: string, apiKey?: string, maxContextTokens?: number) {
+    this.apiKey = apiKey ?? "";
     this.modelName = modelName;
     const clean = baseURL.replace(/\/+$/, "");
     this.baseURL = clean.endsWith("/v1") ? clean : `${clean}/v1`;
@@ -50,6 +52,11 @@ export class LMStudioProvider implements LLMProvider {
     systemPrompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
+    if (!this.apiKey) {
+      throw new Error(
+        `LMStudioProvider: an API key is required but was not provided (baseURL=${this.baseURL}). Pass api_key in the provider config.`,
+      );
+    }
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({

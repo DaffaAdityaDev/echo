@@ -8,11 +8,13 @@ import { ReasoningInterceptor } from "../utils";
 export class AnthropicProvider implements LLMProvider {
   private chat: ChatAnthropic;
   private interceptor = new ReasoningInterceptor();
+  private apiKey: string;
   public modelName: string;
   public baseURL: string;
   public maxContextTokens: number;
 
-  constructor(baseURL: string, modelName: string, apiKey: string = "dummy") {
+  constructor(baseURL: string, modelName: string, apiKey?: string) {
+    this.apiKey = apiKey ?? "";
     this.modelName = modelName;
     this.baseURL = baseURL || "https://api.anthropic.com";
     this.chat = new ChatAnthropic({
@@ -34,6 +36,11 @@ export class AnthropicProvider implements LLMProvider {
     systemPrompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
+    if (!this.apiKey) {
+      throw new Error(
+        `AnthropicProvider: an API key is required but was not provided (baseURL=${this.baseURL}). Pass api_key in the provider config.`,
+      );
+    }
     const systemParts = [systemPrompt];
     const nonSystemMessages = messages.filter((m: BaseMessage) => {
       if (m._getType() === "system") {

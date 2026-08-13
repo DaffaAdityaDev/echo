@@ -113,7 +113,7 @@ describe("OpenCodeGoProvider", () => {
   });
 
   function makeProvider(): OpenCodeGoProvider {
-    return new OpenCodeGoProvider("http://opencode-go.test", "opencode-go/gpt-4o");
+    return new OpenCodeGoProvider("http://opencode-go.test", "opencode-go/gpt-4o", "test-key");
   }
 
   it("yields content events, an accumulated tool call, and usage", async () => {
@@ -233,7 +233,7 @@ describe("OpenAIProvider", () => {
   });
 
   function makeProvider(): OpenAIProvider {
-    return new OpenAIProvider("http://openai.test", "gpt-4o-mini");
+    return new OpenAIProvider("http://openai.test", "gpt-4o-mini", "test-key");
   }
 
   it("yields content events and passes tools to bindTools", async () => {
@@ -294,7 +294,7 @@ describe("AnthropicProvider", () => {
   });
 
   function makeProvider(): AnthropicProvider {
-    return new AnthropicProvider("https://anthropic.test", "claude-sonnet-4");
+    return new AnthropicProvider("https://anthropic.test", "claude-sonnet-4", "test-key");
   }
 
   it("yields content events and merges system messages into cacheable blocks", async () => {
@@ -359,7 +359,7 @@ describe("LMStudioProvider", () => {
   });
 
   function makeProvider(): LMStudioProvider {
-    return new LMStudioProvider("http://localhost:1234", "local-model-8k");
+    return new LMStudioProvider("http://localhost:1234", "local-model-8k", "test-key");
   }
 
   it("normalizes the base URL with /v1", () => {

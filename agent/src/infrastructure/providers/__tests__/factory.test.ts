@@ -95,12 +95,18 @@ describe("ProviderFactory", () => {
     expect(p.apiKey).toBe("sk-test");
   });
 
-  it("unknown type falls back to OpenAIProvider (module-level fallback)", () => {
-    const p = ProviderFactory.fromConfig({
-      type: "unknown",
-      base_url: "http://d",
-      model: "fallback",
-    } as unknown as Parameters<typeof ProviderFactory.fromConfig>[0]);
-    expect(p).toBeDefined();
+  it("throws a clear error for an unknown provider type", () => {
+    expect(() =>
+      ProviderFactory.fromConfig({
+        type: "unknown",
+        base_url: "http://d",
+        model: "fallback",
+      } as unknown as Parameters<typeof ProviderFactory.fromConfig>[0]),
+    ).toThrow(/Unknown provider type/);
+  });
+
+  it("resolveType maps a provider instance back to its registry key", () => {
+    const p = ProviderFactory.fromConfig({ type: "openai", base_url: "http://a", model: "gpt-4" });
+    expect(ProviderFactory.resolveType(p as unknown as import("../../../shared/types").LLMProvider)).toBe("openai");
   });
 });
