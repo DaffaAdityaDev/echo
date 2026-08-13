@@ -1,9 +1,22 @@
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { ENV } from "../../../config/env";
 import { ERROR_MESSAGES, ERROR_STATUS, ERROR_TYPES } from "../../../shared/constants/errors";
 import { HTTP_STATUS } from "../../../shared/constants/http";
 import { AppError } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
+
+type UpstreamErrorKind = "rate_limit" | "timeout" | null;
+
+// Upstream SDK errors arrive as opaque Error instances with no stable code or
+// status fields, so typed matching (AppError) cannot cover them; substring
+// matching is the fallback of last resort. Ordered by specificity.
+function classifyUpstreamError(err: Error): UpstreamErrorKind {
+  const msg = err.message || "";
+  if (/rate\s*limit/i.test(msg) || msg.includes("429")) return "rate_limit";
+  if (/timeout|deadline/i.test(msg) || msg.includes("504") || msg.includes("408")) return "timeout";
+  return null;
+}
 
 export function errorHandler(err: Error, c: Context) {
   const requestId = c.req.header("x-request-id") || "unknown";
@@ -24,9 +37,9 @@ export function errorHandler(err: Error, c: Context) {
     );
   }
 
-  const errMsg = err.message || "";
-  if (errMsg.includes("rate limit") || errMsg.includes("429") || errMsg.includes("RateLimit")) {
-    logger.error(`LLM Rate Limit encountered [Request: ${requestId}]: ${errMsg}`);
+  const upstreamKind = classifyUpstreamError(err);
+  if (upstreamKind === "rate_limit") {
+    logger.error(`LLM Rate Limit encountered [Request: ${requestId}]: ${err.message}`);
     return c.json(
       {
         status: ERROR_STATUS,
@@ -37,8 +50,8 @@ export function errorHandler(err: Error, c: Context) {
     );
   }
 
-  if (errMsg.includes("timeout") || errMsg.includes("deadline") || errMsg.includes("504") || errMsg.includes("408")) {
-    logger.error(`Upstream timeout encountered [Request: ${requestId}]: ${errMsg}`);
+  if (upstreamKind === "timeout") {
+    logger.error(`Upstream timeout encountered [Request: ${requestId}]: ${err.message}`);
     return c.json(
       {
         status: ERROR_STATUS,
@@ -49,8 +62,8 @@ export function errorHandler(err: Error, c: Context) {
     );
   }
 
-  if (err instanceof SyntaxError && errMsg.includes("JSON")) {
-    logger.warn(`Invalid JSON payload submitted [Request: ${requestId}]: ${errMsg}`);
+  if (err instanceof SyntaxError && err.message.includes("JSON")) {
+    logger.warn(`Invalid JSON payload submitted [Request: ${requestId}]: ${err.message}`);
     return c.json(
       {
         status: ERROR_STATUS,
@@ -66,7 +79,7 @@ export function errorHandler(err: Error, c: Context) {
     {
       status: "error",
       error_type: ERROR_TYPES.INTERNAL_SERVER,
-      message: process.env.NODE_ENV === "production" ? ERROR_MESSAGES.INTERNAL_SERVER : err.message,
+      message: ENV.NODE_ENV === "production" ? ERROR_MESSAGES.INTERNAL_SERVER : err.message,
     },
     HTTP_STATUS.INTERNAL_SERVER_ERROR,
   );
