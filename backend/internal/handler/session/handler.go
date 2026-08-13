@@ -40,7 +40,7 @@ func parseNonNegativeInt(s string) int {
 }
 
 type ModelSvc interface {
-	ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error)
+	ResolveProviderConfig(ctx context.Context, userID int, modelID string) (*aitype.ProviderConfig, error)
 }
 
 type StrategySvc interface {

@@ -93,8 +93,8 @@ type mockModelSvc struct {
 	mock.Mock
 }
 
-func (m *mockModelSvc) ResolveProviderConfig(userID int, modelID string) (*aitype.ProviderConfig, error) {
-	args := m.Called(userID, modelID)
+func (m *mockModelSvc) ResolveProviderConfig(ctx context.Context, userID int, modelID string) (*aitype.ProviderConfig, error) {
+	args := m.Called(ctx, userID, modelID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
