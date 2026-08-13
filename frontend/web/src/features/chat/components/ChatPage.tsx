@@ -152,7 +152,7 @@ export function ChatPage() {
           </div>
           <div className="flex justify-between py-2 border-b border-zinc-800">
             <span>Search Sessions</span>
-            <kbd className="px-2 py-0.5 bg-zinc-800 rounded font-mono text-[10px]">⌘ + K</kbd>
+            <kbd className="px-2 py-0.5 bg-zinc-800 rounded font-mono text-[10px]">⌘K / Ctrl+K</kbd>
           </div>
           <div className="flex justify-between py-2">
             <span>Close Modal</span>

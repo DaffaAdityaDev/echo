@@ -46,6 +46,18 @@ export function SessionSidebar({
   const hasNextPageRef = useRef(hasNextPage);
   const isFetchingNextPageRef = useRef(isFetchingNextPage);
   const isErrorRef = useRef(isError);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     hasNextPageRef.current = hasNextPage;
@@ -175,6 +187,7 @@ export function SessionSidebar({
           <div className="relative flex items-center">
             <Search className="h-3.5 w-3.5 absolute left-3 text-zinc-400 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               name="chat-search"
               autoComplete="off"
