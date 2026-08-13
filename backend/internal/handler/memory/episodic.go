@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -64,7 +65,8 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to serialize entry")
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	key := fmt.Sprintf("memory:episodic:%s", req.SessionID)
 
 	if err := h.rdb.LPush(ctx, key, data).Err(); err != nil {
@@ -75,7 +77,9 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 	if req.TTL > 0 {
 		ttl = time.Duration(req.TTL) * time.Second
 	}
-	h.rdb.Expire(ctx, key, ttl)
+	if err := h.rdb.Expire(ctx, key, ttl).Err(); err != nil {
+		log.Printf("[MEMORY] Failed to set TTL for episodic key %s: %v", key, err)
+	}
 
 	return handlerutil.RespondCreated(c, StoreEpisodicResponse{
 		ID:     generateID("mem_ep_"),
@@ -129,7 +133,8 @@ func (h *Handler) HandleGetEpisodic(c fiber.Ctx) error {
 		req.Offset = 0
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	key := fmt.Sprintf("memory:episodic:%s", req.SessionID)
 
 	total, err := h.rdb.LLen(ctx, key).Result()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -61,7 +62,8 @@ func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	_, err := h.pool.Exec(ctx, `
 		INSERT INTO memory_procedural (id, name, content, metadata)
 		VALUES ($1, $2, $3, $4)
@@ -123,7 +125,8 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id or name is required")
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	var id, name, content string
 	var metadataBytes []byte
@@ -151,7 +154,9 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 	}
 
 	var metadata interface{}
-	json.Unmarshal(metadataBytes, &metadata)
+	if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
+		log.Printf("[MEMORY] Failed to parse metadata for procedural memory %s: %v", id, err)
+	}
 
 	return handlerutil.RespondSuccess(c, ProceduralGetResponse{
 		ID:        id,
