@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -25,10 +26,12 @@ func GetUserID(c fiber.Ctx) (int, error) {
 	return strconv.Atoi(userIDStr)
 }
 
-func GenerateUUID() string {
+func GenerateUUID() (string, error) {
 	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate uuid: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func RespondSuccess(c fiber.Ctx, data any) error {

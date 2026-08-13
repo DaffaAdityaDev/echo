@@ -116,9 +116,14 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	}
 	userID := strconv.Itoa(userIDInt)
 
+	id, err := handlerutil.GenerateUUID()
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to generate key")
+	}
+
 	now := time.Now()
 	ak := authmodel.ApiKey{
-		ID:        handlerutil.GenerateUUID(),
+		ID:        id,
 		KeyHash:   hash,
 		Prefix:    prefix,
 		Name:      req.Name,
