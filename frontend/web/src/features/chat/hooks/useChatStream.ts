@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useCallback, useRef } from "react";
 import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { extractErrorMessage } from "@/utils/error";
@@ -32,43 +33,11 @@ async function generateSessionTitle(sid: string): Promise<void> {
   }
 }
 
-// Module-scoped stream control shared across hook instances: the AbortController
-// lives here so any mounted component (chat input, header, sidebar) can stop
-// the active stream — not just the hook instance that started it.
-let activeAbort: AbortController | null = null;
-let interruptedTurn = false;
-
-function stopStreaming() {
-  if (!activeAbort) return;
-  interruptedTurn = true;
-  activeAbort.abort();
-  activeAbort = null;
-
-  const sid = useChatStore.getState().activeSessionId;
-  if (sid) {
-    // Finalize any streaming trace for this session immediately, and tell
-    // the backend to interrupt the mission (aborts the in-flight LLM
-    // stream). Fire-and-forget: the fetch abort alone already stops the
-    // stream; the cancel request makes the stop prompt across the chain.
-    useTraceStore.getState().finalizeInterruptedForSession(sid);
-    const cancelController = new AbortController();
-    const cancelTimeout = setTimeout(() => cancelController.abort(), 5000);
-    sessionApi
-      .cancel(sid, cancelController.signal)
-      .catch((err: unknown) => {
-        // The 5s timeout aborts the request via the controller; not a failure.
-        if ((err as { code?: string } | null)?.code !== "ERR_CANCELED") {
-          notifySystem("warning", "CANCEL_FAILED", "Failed to cancel the in-flight mission.");
-        }
-      })
-      .finally(() => clearTimeout(cancelTimeout));
-  }
-
-  useChatStore.getState().setIsLoading(false);
-  useChatStore.getState().setAgentProgress(null);
-  useChatStore.getState().setAgentState("aborted");
-}
-
+// Stream control is scoped to the hook instance that started the stream:
+// module-level AbortControllers would let one mounted instance abort a
+// stream owned by another instance (e.g. a stale page transition or a
+// second chat page). Stop buttons reach the controller through the same
+// instance's sendMessage, so single-instance behavior is unchanged.
 export function useChatStream() {
   const isLoading = useChatStore((s) => s.isLoading);
   const setMessages = useChatStore((s) => s.setMessages);
@@ -78,12 +47,46 @@ export function useChatStream() {
   const clearMessages = useChatStore((s) => s.clearMessages);
   const queryClient = useQueryClient();
   const router = useRouter();
+  const activeAbortRef = useRef<AbortController | null>(null);
+  const interruptedTurnRef = useRef(false);
+
+  const stopStreaming = useCallback(() => {
+    const controller = activeAbortRef.current;
+    if (!controller) return;
+    interruptedTurnRef.current = true;
+    controller.abort();
+    activeAbortRef.current = null;
+
+    const sid = useChatStore.getState().activeSessionId;
+    if (sid) {
+      // Finalize any streaming trace for this session immediately, and tell
+      // the backend to interrupt the mission (aborts the in-flight LLM
+      // stream). Fire-and-forget: the fetch abort alone already stops the
+      // stream; the cancel request makes the stop prompt across the chain.
+      useTraceStore.getState().finalizeInterruptedForSession(sid);
+      const cancelController = new AbortController();
+      const cancelTimeout = setTimeout(() => cancelController.abort(), 5000);
+      sessionApi
+        .cancel(sid, cancelController.signal)
+        .catch((err: unknown) => {
+          // The 5s timeout aborts the request via the controller; not a failure.
+          if ((err as { code?: string } | null)?.code !== "ERR_CANCELED") {
+            notifySystem("warning", "CANCEL_FAILED", "Failed to cancel the in-flight mission.");
+          }
+        })
+        .finally(() => clearTimeout(cancelTimeout));
+    }
+
+    useChatStore.getState().setIsLoading(false);
+    useChatStore.getState().setAgentProgress(null);
+    useChatStore.getState().setAgentState("aborted");
+  }, []);
 
   const sendMessage = async (input: string) => {
     if (!input.trim() || isLoading) return;
 
-    interruptedTurn = false;
-    const userMessage: Message = {
+      interruptedTurnRef.current = false;
+      const userMessage: Message = {
       role: CHAT_ROLES.USER,
       content: input,
       steps: [],
@@ -107,7 +110,7 @@ export function useChatStream() {
         totalIterations: 0,
       });
 
-      activeAbort = new AbortController();
+      activeAbortRef.current = new AbortController();
 
       const payload: Record<string, unknown> = { message: input };
       const activeSessionId = useChatStore.getState().activeSessionId;
@@ -120,7 +123,7 @@ export function useChatStream() {
         (data: StreamPacket) => {
           applyStreamPacket(data);
         },
-        activeAbort.signal,
+        activeAbortRef.current.signal,
         (response: Response) => {
           const sessionId = response.headers.get("X-Session-ID");
           if (sessionId && useChatStore.getState().activeSessionId === null) {
@@ -156,7 +159,7 @@ export function useChatStream() {
           const updated = [...currentMsgs];
           updated[lastIdx] = {
             ...updated[lastIdx],
-            status: interruptedTurn ? ("interrupted" as const) : ("complete" as const),
+            status: interruptedTurnRef.current ? ("interrupted" as const) : ("complete" as const),
           };
           store.setMessages(updated);
         }
@@ -186,14 +189,14 @@ export function useChatStream() {
     }
   };
 
-  const stopStream = () => {
+  const stopStream = useCallback(() => {
     stopStreaming();
-  };
+  }, [stopStreaming]);
 
-  const handleClearMessages = () => {
+  const handleClearMessages = useCallback(() => {
     stopStream();
     clearMessages();
-  };
+  }, [stopStream, clearMessages]);
 
   return {
     sendMessage,
