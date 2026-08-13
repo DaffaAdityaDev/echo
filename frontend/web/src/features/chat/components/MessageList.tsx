@@ -2,6 +2,8 @@
 
 import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { UI_CONFIG } from "@/constants";
+import { CHAT_ROLES } from "../constants";
 import type { Message } from "../types";
 import { MessageItem } from "./MessageItem";
 
@@ -17,8 +19,6 @@ interface MessageListProps {
 export interface MessageListHandle {
   scrollToBottom: () => void;
 }
-
-import { UI_CONFIG } from "@/constants";
 
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(function MessageList(
   { messages, isLoading, onScrollBtnChange, fetchNextPage, hasNextPage, isFetchingNextPage },
@@ -105,7 +105,15 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
           </div>
         ) : (
           messages.map((msg, idx) => (
-            <MessageItem key={msg.id} msg={msg} isLast={idx === messages.length - 1} isLoading={isLoading} />
+            <MessageItem
+              key={msg.id}
+              msg={msg}
+              context={{
+                isStreaming:
+                  msg.role === CHAT_ROLES.ASSISTANT && (msg.status === "streaming" || (idx === messages.length - 1 && isLoading)),
+                isLast: idx === messages.length - 1,
+              }}
+            />
           ))
         )}
         <div ref={scrollRef} className="h-4" />

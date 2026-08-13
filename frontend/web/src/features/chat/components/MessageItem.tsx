@@ -24,15 +24,19 @@ function stripProtocolMarkup(content: string): string {
   return content.replace(PROTOCOL_MARKUP, "");
 }
 
-interface MessageItemProps {
-  msg: Message;
+interface MessageItemContext {
+  isStreaming: boolean;
   isLast: boolean;
-  isLoading: boolean;
 }
 
-export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }: MessageItemProps) {
+interface MessageItemProps {
+  msg: Message;
+  context: MessageItemContext;
+}
+
+export const MessageItem = memo(function MessageItem({ msg, context }: MessageItemProps) {
+  const { isStreaming, isLast } = context;
   const isAssistant = msg.role === CHAT_ROLES.ASSISTANT;
-  const isStreaming = isAssistant && (msg.status === "streaming" || (isLast && isLoading));
   const deferredContent = useDeferredValue(msg.content);
   const activeContent = isStreaming ? deferredContent : msg.content;
 
@@ -50,7 +54,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
 
   const renderContent = () => {
     if (!activeContent) {
-      if (isLoading && isLast && msg.steps.length === 0) {
+      if (isStreaming && isLast && msg.steps.length === 0) {
         return (
           <div className="flex items-center gap-2 py-2 text-muted text-xs italic font-mono">
             <span className="w-2 h-2 bg-gb-blue rounded-full animate-ping" />
@@ -169,7 +173,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, isLoading }:
 
         {/* Thought Process Accordion */}
         {msg.steps.length > 0 && (
-          <details className="group/thinking mb-1" open={isLoading && isLast}>
+          <details className="group/thinking mb-1" open={isStreaming && isLast}>
             <summary className="flex items-center gap-2 text-[10px] font-bold text-gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-blue-50 p-2 rounded-xs border border-gb-bright-blue/30">
               <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />
               <span>Thought Process ({msg.steps.length} steps)</span>
