@@ -19,10 +19,10 @@ export class ReasoningInterceptor {
         const cloned = response.clone();
         const errBody = await cloned.text();
         logger.error(
-          `âŒ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`,
+          `❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`,
         );
       } catch (_e) {
-        logger.error(`âŒ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
+        logger.error(`❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
       }
       return response;
     }

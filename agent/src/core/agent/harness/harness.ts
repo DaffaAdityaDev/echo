@@ -151,7 +151,7 @@ export class NlahHarness {
       );
     } else {
       logger.info(
-        `[selectTools] No explicitTools set â€” falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`,
+        `[selectTools] No explicitTools set — falling back to ToolRetriever (fullToolPool=${fullToolPool.length} tools)`,
       );
       // Strict allowlist: web_search can only be enabled via explicit features.
       const retrieverPool = filteredFullPool.filter((t) => t.name !== "web_search");
@@ -162,7 +162,7 @@ export class NlahHarness {
       const allowed = NlahHarness.skillRegistry.getToolFilter(this.skills);
       if (allowed) tools = tools.filter((t) => allowed.includes(t.name));
       logger.info(
-        `[selectTools] Skills filter applied (skills=${this.skills.join(",")}) â€” tools remaining: ${tools.length}`,
+        `[selectTools] Skills filter applied (skills=${this.skills.join(",")}) — tools remaining: ${tools.length}`,
       );
     }
 
@@ -214,7 +214,7 @@ export class NlahHarness {
   ): Promise<void> {
     if (!ENV.DEBUG_PROMPT && ENV.NODE_ENV !== DEBUG_CONFIG.ENV) return;
     queuePromptDebug({ state, iteration, strategyName: this.strategyRef.current.name, systemPrompt });
-    logger.info(`ðŸ“� Prompt debug operations queued in background`);
+    logger.info(`📓 Prompt debug operations queued in background`);
     try {
       await this.emitter.emitDebug(
         onPacket,
@@ -512,7 +512,7 @@ export class NlahHarness {
           runtime.totalInputTokensSum += usage.promptTokens;
         }
 
-        // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) â€” existing behavior preserved
+        // LAYER 2: SEMANTIC LOOP DETECTION (Cosine Similarity) — existing behavior preserved
         if (runtime.previousThought && assistantContent) {
           const sim = getCosineSimilarity(runtime.previousThought, assistantContent);
           logger.info(`Semantic cosine similarity calculated: ${sim.toFixed(4)}`);
@@ -639,7 +639,7 @@ export class NlahHarness {
           await this.emitter.emitContent(onPacket, iteration, assistantContent);
         } else {
           logger.info(
-            `[runMission] Iter ${iteration}: no toolCall â€” entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`,
+            `[runMission] Iter ${iteration}: no toolCall — entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`,
           );
           const { isComplete: turnComplete, retryWithTool } = await this.recovery.handleAutoRecovery(
             assistantContent,

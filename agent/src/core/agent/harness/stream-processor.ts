@@ -95,7 +95,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
         }
       } else if (event.content && pendingToolCall) {
         logger.info(
-          `[processStreamEvents] Content suppressed â€” toolCall pending, content_len=${event.content.length}`,
+          `[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`,
         );
       }
       if (event.usage) {
@@ -135,7 +135,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
   }
 
   logger.info(
-    `[processStreamEvents] Done â€” hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`,
+    `[processStreamEvents] Done — hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`,
   );
   return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage: usageResult };
 }
