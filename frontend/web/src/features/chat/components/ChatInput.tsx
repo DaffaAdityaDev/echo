@@ -3,11 +3,10 @@
 import { Globe, Paperclip, Send, Sliders, Sparkles, Square, X } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
-import { settingsApi } from "@/features/settings/services/settings-api";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
-import type { AgentConfig } from "@/features/settings/types";
 import { cn } from "@/utils/cn";
 import { CHAT_MODES } from "../constants";
+import { usePersistAgentConfig } from "../hooks/usePersistAgentConfig";
 import { useChatStore } from "../stores/chatStore";
 
 interface ChatInputProps {
@@ -29,15 +28,7 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
 
   const isWebSearchActive = selectedFeatures.includes("web_search");
 
-  const persistConfig = async (partial: Partial<AgentConfig>) => {
-    const merged = { ...useSettingsStore.getState().config, ...partial };
-    useSettingsStore.getState().setConfig(partial);
-    try {
-      await settingsApi.update(merged);
-    } catch (err) {
-      console.warn("[Settings] Failed to persist config change:", err);
-    }
-  };
+  const persistConfig = usePersistAgentConfig();
 
   const toggleMode = () => {
     void persistConfig({ defaultMode: mode === CHAT_MODES.AGENT ? CHAT_MODES.STANDARD : CHAT_MODES.AGENT });

@@ -3,11 +3,11 @@
 import { Bot, Check, Cloud, Cpu, Image, Search, Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { settingsApi } from "@/features/settings/services/settings-api";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import type { Model } from "@/lib/queries";
 import { cn } from "@/utils/cn";
 import { useModels } from "../hooks/useModels";
+import { usePersistAgentConfig } from "../hooks/usePersistAgentConfig";
 
 export interface ModelSelectorModalProps {
   isOpen: boolean;
@@ -28,15 +28,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   const { models } = useModels();
   const defaultModel = useSettingsStore((s) => s.config.defaultModel);
 
-  const persistDefaultModel = async (modelId: string) => {
-    const merged = { ...useSettingsStore.getState().config, defaultModel: modelId };
-    useSettingsStore.getState().setConfig({ defaultModel: modelId });
-    try {
-      await settingsApi.update(merged);
-    } catch (err) {
-      console.warn("[Settings] Failed to persist default model:", err);
-    }
-  };
+  const persistDefaultModel = usePersistAgentConfig();
 
   if (!isOpen) return null;
 
@@ -162,7 +154,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                   key={m.id}
                   type="button"
                   onClick={() => {
-                    void persistDefaultModel(m.id);
+                    void persistDefaultModel({ defaultModel: m.id });
                     onClose();
                   }}
                   className={cn(
