@@ -284,7 +284,6 @@ export interface StrategyRegistryEntry {
 export interface StrategyRegistry {
   list(): StrategyRegistryEntry[];
   resolve(version: string): AgentStrategy;
-  isDeprecated(version: string): boolean;
 }
 
 /**

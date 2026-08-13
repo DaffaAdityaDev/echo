@@ -32,10 +32,9 @@ describe("StrategyRegistry", () => {
     expect(registry.resolve("sequential")).toBeInstanceOf(NLAHStrategy);
   });
 
-  it("should check deprecation status correctly", () => {
-    expect(registry.isDeprecated("nlah:v1")).toBe(false);
-    expect(registry.isDeprecated("standard:v1")).toBe(false);
-    expect(registry.isDeprecated("unknown:v1")).toBe(false);
+  it("should resolve versions and aliases to concrete strategies", () => {
+    expect(registry.resolve("nlah:v1")).toBeInstanceOf(NLAHStrategy);
+    expect(registry.resolve("standard:v1")).toBeInstanceOf(StandardStrategy);
   });
 
   it("should export a singleton strategyRegistry instance", () => {

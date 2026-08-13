@@ -11,6 +11,17 @@ export interface ProviderConnectionConfig {
   model: string;
 }
 
+export function isProviderConnectionConfig(value: unknown): value is ProviderConnectionConfig {
+  if (typeof value !== "object" || value === null) return false;
+  const cfg = value as Record<string, unknown>;
+  if (cfg.type !== "openai" && cfg.type !== "anthropic" && cfg.type !== "lm-studio" && cfg.type !== "opencode-go") {
+    return false;
+  }
+  if (typeof cfg.base_url !== "string" || typeof cfg.model !== "string") return false;
+  if (cfg.api_key !== undefined && cfg.api_key !== null && typeof cfg.api_key !== "string") return false;
+  return true;
+}
+
 type ProviderCtor = new (baseUrl: string, modelName: string, apiKey?: string) => LLMProvider;
 
 export const ProviderFactory = {

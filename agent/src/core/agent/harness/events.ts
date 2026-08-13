@@ -61,7 +61,7 @@ export class HarnessEventEmitter {
       summary?: string;
     },
   ) {
-    await this.sendBase(onPacket, { type: "metadata", step, ...fields });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.METADATA, step, ...fields });
   }
 
   async emitStateChange(
@@ -71,7 +71,7 @@ export class HarnessEventEmitter {
     to: string,
     reason: string,
   ) {
-    await this.sendBase(onPacket, { type: "state_change", step, from, to, reason });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.STATE_CHANGE, step, from, to, reason });
   }
 
   async emitDegraded(
@@ -81,19 +81,19 @@ export class HarnessEventEmitter {
     to: string,
     reason: string,
   ) {
-    await this.sendBase(onPacket, { type: "degraded", step, from, to, reason });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.DEGRADED, step, from, to, reason });
   }
 
   async emitReasoning(onPacket: (p: HarnessEvent) => Promise<void>, step: number, content: string) {
-    await this.sendBase(onPacket, { type: "reasoning", step, content });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.REASONING, step, content });
   }
 
   async emitContent(onPacket: (p: HarnessEvent) => Promise<void>, step: number, content: string) {
-    await this.sendBase(onPacket, { type: "content", step, content });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.CONTENT, step, content });
   }
 
   async emitUsage(onPacket: (p: HarnessEvent) => Promise<void>, step: number, usage: object) {
-    await this.sendBase(onPacket, { type: "usage", step, usage });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.USAGE, step, usage });
   }
 
   async emitToolCall(
@@ -102,7 +102,7 @@ export class HarnessEventEmitter {
     toolName: string,
     toolInput: Record<string, unknown>,
   ) {
-    await this.sendBase(onPacket, { type: "tool_call", step, toolName, toolInput });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.TOOL_CALL, step, toolName, toolInput });
   }
 
   async emitToolResult(
@@ -112,15 +112,15 @@ export class HarnessEventEmitter {
     content: string,
     toolResult?: unknown,
   ) {
-    await this.sendBase(onPacket, { type: "tool_result", step, toolName, content, toolResult });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.TOOL_RESULT, step, toolName, content, toolResult });
   }
 
   async emitToolSkip(onPacket: (p: HarnessEvent) => Promise<void>, step: number, toolName: string) {
-    await this.sendBase(onPacket, { type: "tool_skip", step, toolName });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.TOOL_SKIP, step, toolName });
   }
 
   async emitTodos(onPacket: (p: HarnessEvent) => Promise<void>, step: number, todos: Task[]) {
-    await this.sendBase(onPacket, { type: "todo", step, todos });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.TODO, step, todos });
   }
 
   async emitSubagentCall(
@@ -129,7 +129,11 @@ export class HarnessEventEmitter {
     name: string,
     instruction: string,
   ) {
-    await this.sendBase(onPacket, { type: "subagent_call", step, subagent: { name, instruction, status: "calling" } });
+    await this.sendBase(onPacket, {
+      type: PACKET_TYPES.SUBAGENT_CALL,
+      step,
+      subagent: { name, instruction, status: "calling" },
+    });
   }
 
   async emitSubagentResult(
@@ -140,7 +144,11 @@ export class HarnessEventEmitter {
     result: string,
     status: "completed" | "failed",
   ) {
-    await this.sendBase(onPacket, { type: "subagent_result", step, subagent: { name, instruction, result, status } });
+    await this.sendBase(onPacket, {
+      type: PACKET_TYPES.SUBAGENT_RESULT,
+      step,
+      subagent: { name, instruction, result, status },
+    });
   }
 
   async emitProgress(
@@ -150,7 +158,7 @@ export class HarnessEventEmitter {
     tokensUsed: number,
     tokensTotal: number,
   ) {
-    await this.sendBase(onPacket, { type: "progress", step, phase, tokensUsed, tokensTotal });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.PROGRESS, step, phase, tokensUsed, tokensTotal });
   }
 
   async emitHeartbeat(onPacket: (p: HarnessEvent) => Promise<void>, step: number) {
@@ -164,7 +172,7 @@ export class HarnessEventEmitter {
     totalIterations: number,
     totalCost: number,
   ) {
-    await this.sendBase(onPacket, { type: "turn_complete", step, completed, totalIterations, totalCost });
+    await this.sendBase(onPacket, { type: PACKET_TYPES.TURN_COMPLETE, step, completed, totalIterations, totalCost });
   }
 
   async markStalledIfNeeded(onPacket: (p: HarnessEvent) => Promise<void>, iteration: number): Promise<void> {
@@ -183,7 +191,13 @@ export class HarnessEventEmitter {
     currentHistoryLength: number,
     rawMessages: Array<{ role: string; content: string }>,
   ) {
-    await this.sendBase(onPacket, { type: "debug", step, rawSystemPrompt, currentHistoryLength, rawMessages });
+    await this.sendBase(onPacket, {
+      type: PACKET_TYPES.DEBUG,
+      step,
+      rawSystemPrompt,
+      currentHistoryLength,
+      rawMessages,
+    });
   }
 
   async updateStatus(onPacket: (p: HarnessEvent) => Promise<void>, updates: Partial<AgentStatus>, step: number) {

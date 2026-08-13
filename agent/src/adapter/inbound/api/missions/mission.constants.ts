@@ -55,4 +55,6 @@ export const MISSION_ERROR_MESSAGES = {
   APPROVAL_EXPIRED_OR_NOT_FOUND: "APPROVAL_EXPIRED_OR_NOT_FOUND",
   MISSION_CANCELLED: "MISSION_CANCELLED",
   INVALID_DECISION: "Invalid decision payload",
+  PROVIDER_CONFIG_REQUIRED:
+    "PROVIDER_CONFIG_REQUIRED: resume needs provider_config in the request body (API keys are not persisted)",
 } as const;

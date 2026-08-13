@@ -55,5 +55,9 @@ export const PACKET_TYPES = {
   HEARTBEAT: "heartbeat",
   TURN_COMPLETE: "turn_complete",
   SYSTEM_NOTICE: "system_notice",
+  TOKEN_METRICS: "token_metrics",
+  HITL_APPROVAL_REQUIRED: "hitl_approval_required",
+  MISSION_COMPLETED: "mission_completed",
+  SWARM_STATUS: "swarm_status",
   ERROR: "error",
 } as const;

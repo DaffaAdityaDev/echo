@@ -38,23 +38,6 @@ export class StrategyRegistry implements IStrategyRegistry {
 
     return StrategyFactory.create(normalized);
   }
-
-  public isDeprecated(versionOrAlias: string): boolean {
-    const normalized = versionOrAlias.toLowerCase().trim();
-
-    for (const entry of CATALOG) {
-      for (const vInfo of entry.versions) {
-        if (
-          vInfo.version.toLowerCase() === normalized ||
-          vInfo.aliases.some((alias) => alias.toLowerCase() === normalized)
-        ) {
-          return vInfo.status === "deprecated";
-        }
-      }
-    }
-
-    return false;
-  }
 }
 
 export const strategyRegistry = new StrategyRegistry();

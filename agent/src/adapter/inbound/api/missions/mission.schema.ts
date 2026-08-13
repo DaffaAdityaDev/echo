@@ -270,12 +270,7 @@ export const createMissionSchema = z.preprocess(
     sessionId: z.string().nullable().optional(),
     model: z.string().nullable().optional(),
     prompt_template: z.string().nullable().optional(),
-    provider_config: z.object({
-      type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
-      base_url: z.string(),
-      api_key: z.string().nullable().optional(),
-      model: z.string(),
-    }),
+    provider_config: ProviderConfigSchema,
     features: z.array(z.string()).nullable().optional(),
     skills: z.array(z.string()).nullable().optional(),
     history: z
@@ -298,6 +293,7 @@ export const hitlDecisionSchema = z.object({
   approvalId: z.string(),
   decision: z.enum([HITL_DECISIONS.APPROVE, HITL_DECISIONS.DENY]),
   reason: z.string().optional(),
+  provider_config: ProviderConfigSchema.optional(),
 });
 
 export type HitlDecisionInput = z.infer<typeof hitlDecisionSchema>;

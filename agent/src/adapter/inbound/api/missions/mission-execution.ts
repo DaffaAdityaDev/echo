@@ -1,8 +1,8 @@
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { cancellationManager, type NlahHarness } from "../../../../core/agent/harness";
+import { PACKET_TYPES } from "../../../../core/agent/harness/constants";
 import type { HarnessEvent } from "../../../../core/agent/harness/types";
-import { ERROR_STATUS } from "../../../../shared/constants/errors";
 import type { AgentState } from "../../../../shared/types";
 import { logger } from "../../../../shared/utils/logger";
 import { STREAM_CONSTANTS } from "./mission.constants";
@@ -38,7 +38,7 @@ export async function streamHarnessExecution(
       logger.error(`${opts.executionLog} ${errorMessage}`);
       try {
         const errorPacket = {
-          type: ERROR_STATUS,
+          type: PACKET_TYPES.ERROR,
           missionId: opts.missionId,
           step: STREAM_CONSTANTS.ERROR_STEP,
           content: errorMessage,

@@ -5,7 +5,7 @@ import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
 import { stateStorage } from "../../../../core/agent/storage";
 import { StrategyFactory } from "../../../../core/agent/strategies";
 import { createRestTool, toolRegistry } from "../../../../core/agent/tools";
-import { type ProviderConnectionConfig, ProviderFactory } from "../../../../infrastructure/providers/factory";
+import { isProviderConnectionConfig, ProviderFactory } from "../../../../infrastructure/providers/factory";
 import { ERROR_STATUS } from "../../../../shared/constants/errors";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
 import type { Observation, PausedMissionState, ToolDefinition } from "../../../../shared/types";
@@ -77,7 +77,19 @@ export async function handleHitlDecision(c: Context) {
     );
   }
 
-  const provider = ProviderFactory.fromConfig(harnessSnapshot.providerConfig as ProviderConnectionConfig);
+  const providerConfig =
+    body.provider_config ??
+    (isProviderConnectionConfig(harnessSnapshot.providerConfig) ? harnessSnapshot.providerConfig : null);
+  if (!providerConfig) {
+    return c.json({ error: MISSION_ERROR_MESSAGES.PROVIDER_CONFIG_REQUIRED }, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const provider = ProviderFactory.fromConfig({
+    type: providerConfig.type,
+    base_url: providerConfig.base_url,
+    model: providerConfig.model,
+    api_key: providerConfig.api_key ?? undefined,
+  });
   const strategy = StrategyFactory.create(harnessSnapshot.strategyName);
 
   const behaviorPrompt = harnessSnapshot.behaviorPrompt ?? null;

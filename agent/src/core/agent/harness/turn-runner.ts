@@ -14,7 +14,7 @@ import { stateStorage } from "../storage/factory";
 import type { BudgetMonitor } from "./budget_monitor";
 import { cancellationManager } from "./cancel_manager";
 import type { CircuitBreaker } from "./circuit_breaker";
-import { DEBUG_CONFIG, HARNESS_CONFIG } from "./constants";
+import { DEBUG_CONFIG, HARNESS_CONFIG, PACKET_TYPES } from "./constants";
 import type { ContentSanitizer } from "./content_sanitizer";
 import type { ContextManager } from "./context_manager";
 import { queuePromptDebug } from "./debug";
@@ -308,7 +308,7 @@ export class TurnRunner {
             HARNESS_CONFIG.PAUSED_STATE_TTL_SECONDS,
           );
           await onPacket({
-            type: "hitl_approval_required",
+            type: PACKET_TYPES.HITL_APPROVAL_REQUIRED,
             timestamp: Date.now(),
             missionId: this.deps.getMissionId(),
             step: iteration,

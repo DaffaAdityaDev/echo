@@ -36,6 +36,16 @@ const mocks = vi.hoisted(() => {
     StrategyFactory: { create: vi.fn() },
     strategyRegistry: { resolve: vi.fn() },
     ProviderFactory: { fromConfig: vi.fn() },
+    isProviderConnectionConfig: (value: unknown) => {
+      const cfg = value as Record<string, unknown> | null;
+      return (
+        typeof cfg === "object" &&
+        cfg !== null &&
+        typeof cfg.type === "string" &&
+        typeof cfg.base_url === "string" &&
+        typeof cfg.model === "string"
+      );
+    },
     fakeProvider: {
       stream: vi.fn(),
       validate: vi.fn(async () => {}),
@@ -69,6 +79,7 @@ vi.mock("../../../../../core/agent/strategies", () => ({
 
 vi.mock("../../../../../infrastructure/providers/factory", () => ({
   ProviderFactory: mocks.ProviderFactory,
+  isProviderConnectionConfig: mocks.isProviderConnectionConfig,
 }));
 
 vi.mock("../../../../../shared/utils/logger", () => ({
