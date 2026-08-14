@@ -17,11 +17,19 @@ type Config struct {
 	HistoryMaxTokens        int
 	HistoryMaxMsgChars      int
 	ConsolidationSkipTokens int
-	EncryptionKey           string
-	StrategyRolloutDefault  float64
-	PromptTemplateName      string
-	DefaultUserTier         string
-	WorkerInterval          string
-	DecayDeprecateAfter     int
-	DecayArchiveAfter       int
+	// ConsolidationSkipRatio is the percentage of the model context window at
+	// which consolidation is skipped (sessions beyond it cannot be
+	// summarized). Used when ConsolidationSkipTokens is not set.
+	ConsolidationSkipRatio int
+	// SummarizePayloadRatio is the percentage of the model context window
+	// used as the summarize payload budget. Used when HistoryMaxTokens is not
+	// set.
+	SummarizePayloadRatio  int
+	EncryptionKey          string
+	StrategyRolloutDefault float64
+	PromptTemplateName     string
+	DefaultUserTier        string
+	WorkerInterval         string
+	DecayDeprecateAfter    int
+	DecayArchiveAfter      int
 }

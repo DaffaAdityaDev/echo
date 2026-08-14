@@ -22,7 +22,7 @@ type SessionRepo interface {
 }
 
 type ConsolidationSvc interface {
-	CheckThreshold(ctx context.Context, sessionID string) (bool, error)
+	CheckThreshold(ctx context.Context, sessionID string, providerConfig map[string]interface{}) (bool, error)
 	TriggerConsolidation(ctx context.Context, sessionID string, providerConfig map[string]interface{}) error
 }
 

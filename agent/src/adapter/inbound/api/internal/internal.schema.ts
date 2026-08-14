@@ -18,6 +18,7 @@ export const SummarizeRequestSchema = z.object({
     base_url: z.string(),
     api_key: z.string().nullable().optional(),
     model: z.string(),
+    max_context_tokens: z.number().optional(),
   }),
 });
 

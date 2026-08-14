@@ -49,13 +49,18 @@ func RespondMessage(c fiber.Ctx, msg string) error {
 	})
 }
 
+// RespondError writes the error response body and returns a non-nil error so
+// handlers that `return handlerutil.RespondError(...)` actually stop. The
+// returned fiber.Error carries the status so the app error handler can render
+// it (without clobbering the already-written body) when a caller ignores it.
 func RespondError(c fiber.Ctx, status int, msg string) error {
 	return RespondErrorDetail(c, status, msg, "")
 }
 
 func RespondErrorDetail(c fiber.Ctx, status int, msg string, details string) error {
-	return c.Status(status).JSON(fiber.Map{
+	_ = c.Status(status).JSON(fiber.Map{
 		"error":   msg,
 		"details": details,
 	})
+	return fiber.NewError(status, msg)
 }

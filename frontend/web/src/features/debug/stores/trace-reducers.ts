@@ -247,9 +247,7 @@ function reduceFileOperation(
   ctx: TraceReducerContext,
 ): void {
   const { operation, path, preview } = packet.fileOp;
-  trace.spans.push({
-    id: `${trace.id}-fileop-${packet.step}-${packet.seq}`,
-    traceId: trace.id,
+  addSpanIfMissing(trace, `${trace.id}-fileop-${packet.step}-${packet.seq}`, () => ({
     parentId: ctx.getActiveParentSpanId(trace.spans),
     name: `File: ${operation.toUpperCase()} ${path.split("/").pop()}`,
     type: "file_operation",
@@ -260,7 +258,7 @@ function reduceFileOperation(
     input: path,
     output: preview,
     metadata: { operation, fullPath: path },
-  });
+  }));
 }
 
 function reduceSwarmStatus(
@@ -308,9 +306,7 @@ function reduceTokenMetrics(trace: Trace, packet: Extract<StreamPacket, { type: 
 }
 
 function reduceStateChange(trace: Trace, packet: StatePacket, ctx: TraceReducerContext): void {
-  trace.spans.push({
-    id: `${trace.id}-state-${packet.step}-${packet.seq}`,
-    traceId: trace.id,
+  addSpanIfMissing(trace, `${trace.id}-state-${packet.step}-${packet.seq}`, () => ({
     parentId: ctx.getActiveParentSpanId(trace.spans),
     name: `State Transition: ${packet.type === "degraded" ? "DEGRADED" : packet.to}`,
     type: "info",
@@ -320,7 +316,7 @@ function reduceStateChange(trace: Trace, packet: StatePacket, ctx: TraceReducerC
     durationMs: 0,
     output: packet.reason || "",
     metadata: { from: packet.from, to: packet.to },
-  });
+  }));
 }
 
 function reduceProgress(trace: Trace, packet: Extract<StreamPacket, { type: "progress" }>): void {
@@ -340,9 +336,7 @@ function reduceError(trace: Trace, packet: Extract<StreamPacket, { type: "error"
         }
       : s,
   );
-  trace.spans.push({
-    id: `${trace.id}-error-${packet.step}-${packet.seq}`,
-    traceId: trace.id,
+  addSpanIfMissing(trace, `${trace.id}-error-${packet.step}-${packet.seq}`, () => ({
     parentId: ctx.getActiveParentSpanId(trace.spans),
     name: "Execution Error",
     type: "error",
@@ -352,7 +346,7 @@ function reduceError(trace: Trace, packet: Extract<StreamPacket, { type: "error"
     durationMs: 0,
     output: packet.content,
     metadata: { code: packet.code },
-  });
+  }));
 }
 
 function reduceSystemNotice(
@@ -360,9 +354,7 @@ function reduceSystemNotice(
   packet: Extract<StreamPacket, { type: "system_notice" }>,
   ctx: TraceReducerContext,
 ): void {
-  trace.spans.push({
-    id: `${trace.id}-notice-${packet.step}-${packet.seq}`,
-    traceId: trace.id,
+  addSpanIfMissing(trace, `${trace.id}-notice-${packet.step}-${packet.seq}`, () => ({
     parentId: ctx.getActiveParentSpanId(trace.spans),
     name: `System Notice [${packet.payload.level.toUpperCase()}]`,
     type: "info",
@@ -372,7 +364,7 @@ function reduceSystemNotice(
     durationMs: 0,
     output: packet.payload.message,
     metadata: { code: packet.payload.code },
-  });
+  }));
 }
 
 function reduceHitlApproval(
@@ -380,9 +372,7 @@ function reduceHitlApproval(
   packet: Extract<StreamPacket, { type: "hitl_approval_required" }>,
   ctx: TraceReducerContext,
 ): void {
-  trace.spans.push({
-    id: `${trace.id}-hitl-${packet.step}`,
-    traceId: trace.id,
+  addSpanIfMissing(trace, `${trace.id}-hitl-${packet.step}`, () => ({
     parentId: ctx.getActiveParentSpanId(trace.spans),
     name: `HITL Approval: ${packet.payload.toolName}`,
     type: "tool",
@@ -395,7 +385,7 @@ function reduceHitlApproval(
       riskLevel: packet.payload.riskLevel,
       expiresAt: packet.payload.expiresAt,
     },
-  });
+  }));
 }
 
 function reduceTurnComplete(

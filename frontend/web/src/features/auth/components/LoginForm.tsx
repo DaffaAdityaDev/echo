@@ -50,9 +50,13 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
     e.preventDefault();
     if (!validate()) return;
 
-    await loginAsync({ email, password });
-    const redirect = searchParams.get("redirect") || "/";
-    router.push(isSafeRedirect(redirect) ? redirect : "/");
+    try {
+      await loginAsync({ email, password });
+      const redirect = searchParams.get("redirect") || "/";
+      router.push(isSafeRedirect(redirect) ? redirect : "/");
+    } catch {
+      // Ignored: mutation error is captured by useAuth's loginMutation and rendered via loginError
+    }
   };
 
   return (

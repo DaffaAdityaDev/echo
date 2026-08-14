@@ -140,6 +140,127 @@ describe("Agent Summarization Endpoint", () => {
     expect(body.messages_summarized).toBe(2);
   });
 
+  test("truncates and caps giant message payloads within the model context budget", async () => {
+    const streamMock = vi.fn(async function* () {
+      yield { content: "Summary.", usage: { completionTokens: 5 } };
+    });
+    vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
+      stream: streamMock,
+      validate: vi.fn(async () => {}),
+      cleanupReasoning: vi.fn(async () => {}),
+      maxContextTokens: 128000,
+      modelName: "fake-model",
+      baseURL: "http://fake.local",
+    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+
+    const app = buildApp();
+    const giant = "x".repeat(1_000_000);
+    const res = await app.request(
+      "/sessions/summarize",
+      summarizeRequest({
+        session_id: "test-session",
+        messages: [
+          { role: "user", content: giant },
+          { role: "assistant", content: giant },
+        ],
+        provider_config: {
+          type: "openai",
+          base_url: "http://localhost",
+          model: "gpt-4o",
+          max_context_tokens: 128000,
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    const budget = Math.floor(128000 * 0.6);
+    const perMsgChars = Math.max(budget * 2, 100000);
+    let totalTokens = 0;
+    for (const m of sent) {
+      expect(m.content.length).toBeLessThanOrEqual(perMsgChars + "\n...[truncated]".length);
+      totalTokens += Math.ceil(m.content.length / 4);
+    }
+    expect(totalTokens).toBeLessThanOrEqual(budget);
+  });
+
+  test("keeps the full payload when the model context window is large", async () => {
+    const streamMock = vi.fn(async function* () {
+      yield { content: "Summary.", usage: { completionTokens: 5 } };
+    });
+    vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
+      stream: streamMock,
+      validate: vi.fn(async () => {}),
+      cleanupReasoning: vi.fn(async () => {}),
+      maxContextTokens: 10_000_000,
+      modelName: "fake-model",
+      baseURL: "http://fake.local",
+    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+
+    const app = buildApp();
+    const giant = "x".repeat(1_000_000);
+    const res = await app.request(
+      "/sessions/summarize",
+      summarizeRequest({
+        session_id: "test-session",
+        messages: [
+          { role: "user", content: giant },
+          { role: "assistant", content: giant },
+        ],
+        provider_config: {
+          type: "opencode-go",
+          base_url: "http://localhost",
+          model: "deepseek-v4-flash",
+          max_context_tokens: 10_000_000,
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    expect(sent.length).toBe(2);
+    expect(sent[0].content).toBe(giant);
+    expect(sent[1].content).toBe(giant);
+  });
+
+  test("falls back to fixed caps when the context window is unknown", async () => {
+    const streamMock = vi.fn(async function* () {
+      yield { content: "Summary.", usage: { completionTokens: 5 } };
+    });
+    vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
+      stream: streamMock,
+      validate: vi.fn(async () => {}),
+      cleanupReasoning: vi.fn(async () => {}),
+      modelName: "fake-model",
+      baseURL: "http://fake.local",
+    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+
+    const app = buildApp();
+    const giant = "x".repeat(1_000_000);
+    const res = await app.request(
+      "/sessions/summarize",
+      summarizeRequest({
+        session_id: "test-session",
+        messages: [
+          { role: "user", content: giant },
+          { role: "assistant", content: giant },
+        ],
+        provider_config: {
+          type: "lm-studio",
+          base_url: "http://localhost",
+          model: "custom-model",
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    expect(sent.length).toBeLessThan(2);
+    for (const m of sent) {
+      expect(m.content.length).toBeLessThanOrEqual(100000 + "\n...[truncated]".length);
+    }
+  });
+
   test("returns 500 when the provider stream fails", async () => {
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: vi.fn(() => {

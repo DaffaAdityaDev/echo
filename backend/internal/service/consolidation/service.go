@@ -5,6 +5,7 @@ import (
 	"context"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
+	"echo-backend/internal/pkg/historycap"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,18 +33,93 @@ func NewService(cfg *cfgmodel.Config, sessionRepo SessionRepo) *Service {
 	}
 }
 
-func (s *Service) CheckThreshold(ctx context.Context, sessionID string) (bool, error) {
+// shouldSkip reports whether a session is too large to summarize. Summarizing
+// astronomically large sessions (e.g. load-test sessions with millions of
+// tokens) would exceed the provider context window and fail, so they are
+// skipped instead of attempted. A threshold of 0 disables the guard.
+func (s *Service) shouldSkip(tokenCount, skipThreshold int) bool {
+	return skipThreshold > 0 && tokenCount > skipThreshold
+}
+
+// skipThresholdFor returns the token count above which consolidation is
+// skipped. An explicit CONSOLIDATION_SKIP_TOKENS override wins; otherwise the
+// threshold is derived from the model's context window (skip ratio), falling
+// back to 200k when the window is unknown. A derived ratio of 0 disables the
+// guard.
+func (s *Service) skipThresholdFor(maxContextTokens int) int {
+	if s.cfg.ConsolidationSkipTokens > 0 {
+		return s.cfg.ConsolidationSkipTokens
+	}
+	if maxContextTokens <= 0 {
+		return 200000
+	}
+	ratio := s.cfg.ConsolidationSkipRatio
+	if ratio <= 0 {
+		return 0
+	}
+	if ratio > 100 {
+		ratio = 100
+	}
+	return maxContextTokens * ratio / 100
+}
+
+// payloadBudgetFor returns the token budget for the summarize payload. An
+// explicit HISTORY_MAX_TOKENS override wins; otherwise the budget is derived
+// from the model's context window (payload ratio), falling back to 50k when
+// the window is unknown.
+func (s *Service) payloadBudgetFor(maxContextTokens int) int {
+	if s.cfg.HistoryMaxTokens > 0 {
+		return s.cfg.HistoryMaxTokens
+	}
+	if maxContextTokens <= 0 {
+		return 50000
+	}
+	ratio := s.cfg.SummarizePayloadRatio
+	if ratio <= 0 {
+		ratio = 60
+	}
+	if ratio > 100 {
+		ratio = 100
+	}
+	return maxContextTokens * ratio / 100
+}
+
+// maxContextTokensFrom extracts the model context window from a provider
+// config map ("max_context_tokens"), returning 0 when absent or unparsable.
+func maxContextTokensFrom(providerConfig map[string]interface{}) int {
+	if providerConfig == nil {
+		return 0
+	}
+	v, ok := providerConfig["max_context_tokens"]
+	if !ok {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case json.Number:
+		i, err := n.Int64()
+		if err != nil {
+			return 0
+		}
+		return int(i)
+	default:
+		return 0
+	}
+}
+
+func (s *Service) CheckThreshold(ctx context.Context, sessionID string, providerConfig map[string]interface{}) (bool, error) {
 	tokenCount, err := s.sessionRepo.GetSessionTokenCount(ctx, sessionID)
 	if err != nil {
 		return false, fmt.Errorf("failed to check token count: %w", err)
 	}
 
-	// Skip consolidation for astronomically large sessions (e.g. load-test
-	// sessions with millions of tokens) — summarizing them would exceed the
-	// provider context window and fail.
-	if s.cfg.ConsolidationSkipTokens > 0 && tokenCount > s.cfg.ConsolidationSkipTokens {
+	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
+	if s.shouldSkip(tokenCount, skipThreshold) {
 		log.Printf("[CONSOLIDATION] Session %s has %d tokens, exceeding skip threshold %d. Skipping consolidation.",
-			sessionID, tokenCount, s.cfg.ConsolidationSkipTokens)
+			sessionID, tokenCount, skipThreshold)
 		return false, nil
 	}
 
@@ -69,6 +145,20 @@ type SummarizeResponse struct {
 }
 
 func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, providerConfig map[string]interface{}) error {
+	// Guard applies to every caller (lifecycle worker, chat auto-compact,
+	// manual prune): never attempt to summarize a session whose size would
+	// exceed the provider context window.
+	tokenCount, err := s.sessionRepo.GetSessionTokenCount(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to check token count: %w", err)
+	}
+	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
+	if s.shouldSkip(tokenCount, skipThreshold) {
+		log.Printf("[CONSOLIDATION] Skipping consolidation for session %s: %d tokens exceeds skip threshold %d.",
+			sessionID, tokenCount, skipThreshold)
+		return nil
+	}
+
 	maxTurn, err := s.sessionRepo.GetMaxTurnNumber(ctx, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get max turn: %w", err)
@@ -90,13 +180,10 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return fmt.Errorf("failed to load messages for pruning: %w", err)
 	}
 
-	var messagesToSummarize []SummarizeMessage
+	var messagesToSummarize []*chatmodel.Message
 	for _, m := range allMessages {
 		if m.TurnNumber <= pruneLimitTurn {
-			messagesToSummarize = append(messagesToSummarize, SummarizeMessage{
-				Role:    m.Role,
-				Content: m.Content,
-			})
+			messagesToSummarize = append(messagesToSummarize, m)
 		}
 	}
 
@@ -104,11 +191,30 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return nil
 	}
 
-	log.Printf("[CONSOLIDATION] Summarizing %d messages up to turn %d for session %s", len(messagesToSummarize), pruneLimitTurn, sessionID)
+	// Cap the payload the same way chat history is capped: truncate oversized
+	// contents and keep only the OLDEST messages that fit the token budget
+	// (derived from the model context window). Without this, a few oversized
+	// messages would still exceed the provider context window and fail the
+	// summarization.
+	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
+	cappedMessages := historycap.Cap(messagesToSummarize, payloadBudget, payloadBudget*2, false)
+	if len(cappedMessages) != len(messagesToSummarize) {
+		log.Printf("[CONSOLIDATION] Summarize payload capped for session %s: %d/%d messages included", sessionID, len(cappedMessages), len(messagesToSummarize))
+	}
+
+	var summarizeMessages []SummarizeMessage
+	for _, m := range cappedMessages {
+		summarizeMessages = append(summarizeMessages, SummarizeMessage{
+			Role:    m.Role,
+			Content: m.Content,
+		})
+	}
+
+	log.Printf("[CONSOLIDATION] Summarizing %d messages up to turn %d for session %s", len(summarizeMessages), pruneLimitTurn, sessionID)
 
 	reqBody := SummarizeRequest{
 		SessionID:        sessionID,
-		Messages:         messagesToSummarize,
+		Messages:         summarizeMessages,
 		MaxSummaryTokens: s.cfg.SUMMARIZE_MAX_TOKENS,
 		ProviderConfig:   providerConfig,
 	}

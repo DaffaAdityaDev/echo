@@ -26,7 +26,9 @@ func Load() *cfgmodel.Config {
 	c.SUMMARIZE_MAX_TOKENS = envInt("SUMMARIZE_MAX_TOKENS", 500)
 	c.HistoryMaxTokens = envInt("HISTORY_MAX_TOKENS", 50000)
 	c.HistoryMaxMsgChars = envInt("HISTORY_MAX_MSG_CHARS", 100000)
-	c.ConsolidationSkipTokens = envInt("CONSOLIDATION_SKIP_TOKENS", 200000)
+	c.ConsolidationSkipTokens = envInt("CONSOLIDATION_SKIP_TOKENS", 0)
+	c.ConsolidationSkipRatio = envInt("CONSOLIDATION_SKIP_RATIO", 90)
+	c.SummarizePayloadRatio = envInt("SUMMARIZE_PAYLOAD_RATIO", 60)
 	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
 	if c.EncryptionKey == "" {
 		log.Println("ENCRYPTION_KEY is empty; API key encryption will fail at runtime. Set a 32-char key.")

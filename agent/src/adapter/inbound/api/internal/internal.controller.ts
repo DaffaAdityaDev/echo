@@ -4,8 +4,41 @@ import { HTTP_STATUS } from "../../../../shared/constants/http";
 import { estimateCharTokens } from "../../../../shared/utils/harness";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
-import { SUMMARIZE_ERROR_MESSAGES, SUMMARIZE_LOG_PREFIX } from "./internal.constants";
+import {
+  SUMMARIZE_ERROR_MESSAGES,
+  SUMMARIZE_LOG_PREFIX,
+  SUMMARIZE_MAX_MSG_CHARS,
+  SUMMARIZE_MAX_TOTAL_TOKENS,
+  SUMMARIZE_PAYLOAD_RATIO,
+} from "./internal.constants";
 import { SummarizeRequestSchema, type SummarizeResponse } from "./internal.schema";
+
+const TRUNCATED_MARKER = "\n...[truncated]";
+
+// capSummarizeMessages truncates oversized contents and keeps only the oldest
+// messages that fit the token budget, so the payload can never exceed the
+// provider context window regardless of what the caller sends.
+function capSummarizeMessages(
+  messages: { role: string; content: string }[],
+  maxMsgChars: number,
+  maxTotalTokens: number,
+): { role: string; content: string }[] {
+  const capped: { role: string; content: string }[] = [];
+  let totalTokens = 0;
+
+  for (const m of messages) {
+    const wasTruncated = m.content.length > maxMsgChars;
+    const content = wasTruncated ? m.content.slice(0, maxMsgChars) + TRUNCATED_MARKER : m.content;
+    const charge = wasTruncated ? Math.ceil(content.length / 4) : estimateCharTokens(content);
+    if (totalTokens > 0 && totalTokens + charge > maxTotalTokens) {
+      break; // keep the oldest messages only
+    }
+    totalTokens += charge;
+    capped.push({ role: m.role, content });
+  }
+
+  return capped;
+}
 
 export async function summarizeSession(c: Context) {
   try {
@@ -26,14 +59,30 @@ export async function summarizeSession(c: Context) {
 
     const { session_id, messages, max_summary_tokens, provider_config } = parseResult.data;
 
-    logger.info(`${SUMMARIZE_LOG_PREFIX} Generating summary for session: ${session_id}`);
-
-    const langchainMessages = mapHistoryToMessages(messages);
-
     const provider = ProviderFactory.fromConfig({
       ...provider_config,
       api_key: provider_config.api_key ?? undefined,
     });
+
+    logger.info(`${SUMMARIZE_LOG_PREFIX} Generating summary for session: ${session_id}`);
+
+    // Budget scales with the model's context window (60%); falls back to the
+    // fixed constants when the window is unknown. Per-message truncation is
+    // half the budget in characters (~4 chars/token), matching the 100k char
+    // cap at the 50k-token default.
+    const maxContextTokens = provider.maxContextTokens ?? 0;
+    const payloadBudget =
+      maxContextTokens > 0 ? Math.floor(maxContextTokens * SUMMARIZE_PAYLOAD_RATIO) : SUMMARIZE_MAX_TOTAL_TOKENS;
+    const maxMsgChars = Math.max(payloadBudget * 2, SUMMARIZE_MAX_MSG_CHARS);
+
+    const cappedMessages = capSummarizeMessages(messages, maxMsgChars, payloadBudget);
+    if (cappedMessages.length !== messages.length) {
+      logger.info(
+        `${SUMMARIZE_LOG_PREFIX} Summarize input capped: ${cappedMessages.length}/${messages.length} messages included (budget ${payloadBudget} tokens)`,
+      );
+    }
+
+    const langchainMessages = mapHistoryToMessages(cappedMessages);
 
     const systemPrompt = `You are a professional software architect and session consolidator.
 Summarize the following chat history into a single, concise paragraph. Focus on the main objective, key decisions, configuration details, and parameters agreed upon.

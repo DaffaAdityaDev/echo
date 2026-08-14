@@ -23,6 +23,10 @@ func (h *Handler) resolveTurnPreferences(ctx context.Context, c fiber.Ctx, userI
 		log.Printf("[CHAT] Failed to load settings for user %d, falling back to defaults: %v", userID, err)
 		prefs = h.SettingsSvc.GetDefaults()
 	}
+	if prefs == nil {
+		log.Printf("[CHAT] Settings returned nil for user %d, falling back to defaults", userID)
+		prefs = h.SettingsSvc.GetDefaults()
+	}
 
 	modelID := prefs.DefaultModel
 	if modelID == "" {
@@ -119,7 +123,7 @@ func (h *Handler) resolveOrCreateSession(ctx context.Context, c fiber.Ctx, userI
 // reloaded) session and the resolved strategy version.
 func (h *Handler) prepareTurnState(ctx context.Context, c fiber.Ctx, userID int, req *ChatRequest, currentSession *chatmodel.Session, currentPinnedVersion string, providerMap map[string]interface{}) (*chatmodel.Session, string, error) {
 	if req.SessionID != "" {
-		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID)
+		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID, providerMap)
 		if err == nil && isThresholdCrossed {
 			log.Printf("[CONSOLIDATION] Token threshold reached. Compacting session %s...", req.SessionID)
 			err = h.ConsolidationSvc.TriggerConsolidation(ctx, req.SessionID, providerMap)

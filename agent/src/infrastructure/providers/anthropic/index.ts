@@ -14,7 +14,7 @@ export class AnthropicProvider implements LLMProvider {
   public baseURL: string;
   public maxContextTokens: number;
 
-  constructor(baseURL: string, modelName: string, apiKey?: string) {
+  constructor(baseURL: string, modelName: string, apiKey?: string, maxContextTokens?: number) {
     this.apiKey = apiKey ?? "";
     this.modelName = modelName;
     this.baseURL = baseURL || "https://api.anthropic.com";
@@ -28,7 +28,7 @@ export class AnthropicProvider implements LLMProvider {
         fetch: (url: string | URL | Request, options?: RequestInit) => this.interceptor.interceptFetch(url, options),
       },
     });
-    this.maxContextTokens = ANTHROPIC_MAX_CONTEXT_TOKENS;
+    this.maxContextTokens = maxContextTokens ?? ANTHROPIC_MAX_CONTEXT_TOKENS;
   }
 
   async *stream(

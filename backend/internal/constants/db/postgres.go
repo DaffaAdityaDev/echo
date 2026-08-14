@@ -136,10 +136,14 @@ const (
 		SET status = 'interrupted'
 		WHERE session_id = $1 AND status = 'streaming'
 	`
+	// Token count takes the larger of the stored count and a content-length
+	// estimate: stored token_count can under-report (e.g. load-test messages
+	// inserted without accurate counts), which would let oversized sessions
+	// slip past consolidation guards and blow the provider context window.
 	QueryGetSessionTokenCount = `
-		SELECT COALESCE(SUM(token_count), 0)
-		FROM messages
-		WHERE session_id = $1
+		SELECT COALESCE(SUM(GREATEST(m.token_count, CEIL(LENGTH(m.content) / 4.0))), 0)
+		FROM messages m
+		WHERE m.session_id = $1
 	`
 	QueryGetMaxTurnNumber = `
 		SELECT COALESCE(MAX(turn_number), 0)
@@ -173,7 +177,7 @@ const (
 		LEFT JOIN messages m ON m.session_id = s.id
 		WHERE s.status = 'active' AND s.updated_at < $1
 		GROUP BY s.id, s.user_id
-		HAVING COALESCE(SUM(m.token_count), 0) >= $2
+		HAVING COALESCE(SUM(GREATEST(m.token_count, CEIL(LENGTH(m.content) / 4.0))), 0) >= $2
 		LIMIT $3
 	`
 	QueryScanSessionsForArchive = `

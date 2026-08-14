@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/repository/session"
 	"echo-backend/internal/service/consolidation"
@@ -99,9 +100,10 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 		}
 
 		providerMap := map[string]interface{}{
-			"type":     userPrefs.ProviderType,
-			"base_url": userPrefs.BaseURL,
-			"model":    userPrefs.DefaultModel,
+			"type":               userPrefs.ProviderType,
+			"base_url":           userPrefs.BaseURL,
+			"model":              userPrefs.DefaultModel,
+			"max_context_tokens": aitype.ContextWindowFor(aitype.ProviderType(userPrefs.ProviderType), userPrefs.DefaultModel),
 		}
 		if userPrefs.APIKey != "" {
 			providerMap["api_key"] = userPrefs.APIKey

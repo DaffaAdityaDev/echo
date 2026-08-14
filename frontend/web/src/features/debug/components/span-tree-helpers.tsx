@@ -29,12 +29,18 @@ export interface VisibleSpanNode {
 export function buildSpanTree(spans: Span[]): TreeSpanNode[] {
   const nodeMap = new Map<string, TreeSpanNode>();
   const roots: TreeSpanNode[] = [];
+  const uniqueSpans: Span[] = [];
+  const seenIds = new Set<string>();
 
   for (const span of spans) {
-    nodeMap.set(span.id, { span, children: [], depth: 0 });
+    if (!seenIds.has(span.id)) {
+      seenIds.add(span.id);
+      uniqueSpans.push(span);
+      nodeMap.set(span.id, { span, children: [], depth: 0 });
+    }
   }
 
-  for (const span of spans) {
+  for (const span of uniqueSpans) {
     const node = nodeMap.get(span.id);
     if (!node) continue;
     const parentNode = span.parentId ? nodeMap.get(span.parentId) : undefined;

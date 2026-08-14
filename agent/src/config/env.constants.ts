@@ -21,4 +21,6 @@ export const ENV_VALIDATION_MESSAGES = {
   SERVICE_JWT_SECRET: "⚠️ SERVICE_JWT_SECRET is required for inter-service JWT authentication!",
 } as const;
 
+export const KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN = "default-internal-token-secret" as const;
+
 export const SERVICE_JWT_ALGORITHM = "HS256" as const;

@@ -324,21 +324,32 @@
   }
 }
 
-/* Magic UI / Streamdown AI Pure Mount Cursor Reveal */
+/* FlowToken / Streamdown AI Word Fade-In & Blur Reveal */
 @keyframes cursorReveal {
-  from {
-    filter: blur(5px);
+  0% {
+    filter: blur(4px);
     opacity: 0;
-    transform: translateY(2px);
+    transform: translateY(2px) scale(0.98);
   }
-  to {
+  100% {
     filter: blur(0px);
     opacity: 1;
-    transform: translateY(0px);
+    transform: translateY(0px) scale(1);
   }
 }
 
 .animate-cursor-reveal {
-  animation: cursorReveal 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: cursorReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: filter, opacity, transform;
+}
+
+/* Modern Clean Code Block Token Reset (strips tailwind typography prose-code backgrounds) */
+.prose pre,
+.prose pre code,
+.prose pre code span,
+.prose pre span {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }

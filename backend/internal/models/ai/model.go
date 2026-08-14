@@ -12,4 +12,7 @@ type ModelInfo struct {
 	ProviderName string `json:"provider_name" example:"OpenAI"`
 	// SupportsMultimodal reports whether the model accepts image inputs.
 	SupportsMultimodal bool `json:"supports_multimodal" example:"true"`
+	// MaxContextTokens is the model's maximum context length in tokens; 0
+	// means unknown (callers fall back to conservative defaults).
+	MaxContextTokens int `json:"max_context_tokens,omitempty" example:"1048576"`
 }

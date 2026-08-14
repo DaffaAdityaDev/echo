@@ -64,9 +64,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	}
 
 	providerMap := map[string]interface{}{
-		"type":     providerCfg.Type,
-		"base_url": providerCfg.BaseURL,
-		"model":    providerCfg.Model,
+		"type":               providerCfg.Type,
+		"base_url":           providerCfg.BaseURL,
+		"model":              providerCfg.Model,
+		"max_context_tokens": providerCfg.MaxContextTokens,
 	}
 	if providerCfg.APIKey != "" {
 		providerMap["api_key"] = providerCfg.APIKey
@@ -157,8 +158,12 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		activeRunsMu.Unlock()
 	}()
 
+	// The agent request must stay alive until the streamed response has been
+	// fully relayed: SendStreamWriter registers a callback that fasthttp runs
+	// only AFTER the handler returns, so cancelling agentReqCtx in a defer
+	// here would abort the outbound agent request before the first packet is
+	// forwarded. Cancel it when the stream actually ends instead.
 	agentReqCtx, cancelAgentReq := context.WithCancel(ctx)
-	defer cancelAgentReq()
 
 	interruptStop := make(chan struct{})
 	defer close(interruptStop)
@@ -210,5 +215,6 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		h.streamAgentResponse(w, resp, req.SessionID, assistantMsgID, nextTurn, redisLockToken)
+		cancelAgentReq()
 	})
 }

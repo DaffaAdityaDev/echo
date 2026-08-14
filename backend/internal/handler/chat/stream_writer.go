@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -116,9 +117,11 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 		line, rErr := reader.ReadBytes('\n')
 		if len(line) > 0 {
 			if _, wErr := w.Write(line); wErr != nil {
+				log.Printf("[CHAT] Client write failed for session %s: %v", sessionID, wErr)
 				break
 			}
 			if err := w.Flush(); err != nil {
+				log.Printf("[CHAT] Client flush failed for session %s: %v", sessionID, err)
 				break
 			}
 
@@ -161,6 +164,9 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 			}
 		}
 		if rErr != nil {
+			if rErr != io.EOF {
+				log.Printf("[CHAT] Agent stream aborted for session %s: %v", sessionID, rErr)
+			}
 			break
 		}
 	}

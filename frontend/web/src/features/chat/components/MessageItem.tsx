@@ -6,7 +6,7 @@ import { memo, useDeferredValue, useState } from "react";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { cn } from "@/utils/cn";
 import { formatContentSize } from "@/utils/format";
-import { CHAT_ROLES } from "../constants";
+import { CHAT_ROLES, PACKET_TYPES } from "../constants";
 import { stripProtocolMarkup } from "../protocol";
 import type { Message } from "../types";
 import { ThoughtStepView } from "./steps";
@@ -31,9 +31,16 @@ interface MessageItemProps {
 export const MessageItem = memo(function MessageItem({ msg, context }: MessageItemProps) {
   const { isStreaming, isLast } = context;
   const isAssistant = msg.role === CHAT_ROLES.ASSISTANT;
-  const deferredContent = useDeferredValue(msg.content);
-  const activeContent = isStreaming ? deferredContent : msg.content;
 
+  // Fallback to reasoning step content if main msg.content is empty (e.g. DeepSeek R1 streaming)
+  const reasoningStep = msg.steps?.find((s) => s.type === PACKET_TYPES.REASONING);
+  const isContentFromReasoning = !msg.content && !!reasoningStep?.content;
+  const rawContent = msg.content || reasoningStep?.content || "";
+
+  const deferredContent = useDeferredValue(rawContent);
+  const activeContent = isStreaming ? deferredContent : rawContent;
+
+  const [isThoughtOpen, setIsThoughtOpen] = useState<boolean | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
   const [renderAsMarkdown, setRenderAsMarkdown] = useState(false);
   const { copied, copy } = useCopyToClipboard();
@@ -41,14 +48,24 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
   const isLarge = activeContent.length > LARGE_MESSAGE_THRESHOLD;
   const showPreview = isLarge && !expanded;
 
+  const hasContent = activeContent && activeContent.trim().length > 0;
+
+  // Filter steps: if reasoning content was promoted to main body, don't duplicate it in accordion
+  const displaySteps = isContentFromReasoning
+    ? msg.steps.filter((s) => s.type !== PACKET_TYPES.REASONING)
+    : msg.steps;
+
+  const thoughtOpen = isThoughtOpen ?? ((isStreaming && isLast) || !hasContent);
+
   const handleCopy = () => {
-    if (!msg.content) return;
-    copy(msg.content);
+    const textToCopy = rawContent || msg.steps?.map((s) => s.content).filter(Boolean).join("\n\n");
+    if (!textToCopy) return;
+    copy(textToCopy);
   };
 
   const renderContent = () => {
     if (!activeContent) {
-      if (isStreaming && isLast && msg.steps.length === 0) {
+      if (isStreaming && isLast && displaySteps.length === 0) {
         return (
           <div className="flex items-center gap-2 py-2 text-muted text-xs italic font-mono">
             <span className="w-2 h-2 bg-gb-blue rounded-full animate-ping" />
@@ -138,8 +155,10 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
       {/* Message Card Container */}
       <div
         className={cn(
-          "max-w-[90%] sm:max-w-[85%] rounded-xs px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-xs border font-mono",
-          !isAssistant ? "bg-slate-50 text-foreground border-slate-300" : "bg-white border-border text-foreground",
+          "rounded-xs px-4 py-3 text-sm leading-relaxed flex flex-col gap-3 relative transition-all shadow-xs border font-mono min-w-0",
+          !isAssistant
+            ? "bg-slate-50 text-foreground border-slate-300 max-w-[90%] sm:max-w-[85%]"
+            : "bg-white border-border text-foreground flex-1 w-full max-w-full",
         )}
       >
         {/* Mission metadata bar */}
@@ -166,17 +185,21 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
         )}
 
         {/* Thought Process Accordion */}
-        {msg.steps.length > 0 && (
-          <details className="group/thinking mb-1" open={isStreaming && isLast}>
+        {displaySteps.length > 0 && (
+          <details
+            className="group/thinking mb-1"
+            open={thoughtOpen}
+            onToggle={(e) => setIsThoughtOpen((e.target as HTMLDetailsElement).open)}
+          >
             <summary className="flex items-center gap-2 text-[10px] font-bold text-gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-blue-50 p-2 rounded-xs border border-gb-bright-blue/30">
               <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />
-              <span>Thought Process ({msg.steps.length} steps)</span>
+              <span>Thought Process ({displaySteps.length} steps)</span>
               <ChevronDown className="h-3 w-3 ml-auto group-open/thinking:rotate-180 transition-transform" />
             </summary>
             <div className="mt-2.5 flex flex-col gap-2">
-              {msg.steps.map((step, idx) => (
+              {displaySteps.map((step, idx) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: thought steps have no stable id
-                <ThoughtStepView key={idx} step={step} isStreaming={isStreaming && idx === msg.steps.length - 1} />
+                <ThoughtStepView key={idx} step={step} isStreaming={isStreaming && idx === displaySteps.length - 1} />
               ))}
             </div>
           </details>
@@ -200,7 +223,7 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
         )}
 
         {/* Floating Action Toolbar on Assistant Messages */}
-        {isAssistant && msg.content && (
+        {isAssistant && (msg.content || msg.steps.length > 0) && (
           <div className="flex items-center gap-2 pt-2 border-t border-border text-muted text-xs font-mono">
             <button
               type="button"

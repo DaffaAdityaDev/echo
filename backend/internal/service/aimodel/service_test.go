@@ -47,10 +47,11 @@ func TestResolveProviderConfig(t *testing.T) {
 				BaseURL:      "https://custom.openai.com/v1",
 			},
 			want: &aitype.ProviderConfig{
-				Type:    aitype.ProviderOpenAI,
-				BaseURL: "https://custom.openai.com/v1",
-				APIKey:  "sk-custom-key",
-				Model:   "custom-model",
+				Type:             aitype.ProviderOpenAI,
+				BaseURL:          "https://custom.openai.com/v1",
+				APIKey:           "sk-custom-key",
+				Model:            "custom-model",
+				MaxContextTokens: 128000,
 			},
 		},
 		{
@@ -81,10 +82,11 @@ func TestResolveProviderConfig(t *testing.T) {
 				BaseURL:      "",
 			},
 			want: &aitype.ProviderConfig{
-				Type:    aitype.ProviderOpenCode,
-				BaseURL: "https://opencode.ai/zen/go/v1",
-				APIKey:  "sk-key",
-				Model:   "",
+				Type:             aitype.ProviderOpenCode,
+				BaseURL:          "https://opencode.ai/zen/go/v1",
+				APIKey:           "sk-key",
+				Model:            "",
+				MaxContextTokens: 1_000_000,
 			},
 		},
 	}

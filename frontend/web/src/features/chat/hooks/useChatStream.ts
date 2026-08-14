@@ -49,6 +49,7 @@ export function useChatStream() {
   const router = useRouter();
   const activeAbortRef = useRef<AbortController | null>(null);
   const interruptedTurnRef = useRef(false);
+  const pendingNavigationRef = useRef<string | null>(null);
 
   const stopStreaming = useCallback(() => {
     const controller = activeAbortRef.current;
@@ -129,7 +130,10 @@ export function useChatStream() {
           if (sessionId && useChatStore.getState().activeSessionId === null) {
             useChatStore.getState().setActiveSession(sessionId);
             useChatStore.getState().setNewChatPending(false);
-            router.push(`/session/${sessionId}`);
+            // Defer navigation until the turn ends: pushing mid-stream can drop
+            // the streaming connection (the mission is then cancelled for token
+            // safety). The finally block navigates once the stream completes.
+            pendingNavigationRef.current = sessionId;
             queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
           }
         },
@@ -176,6 +180,12 @@ export function useChatStream() {
 
       setIsLoading(false);
       setAgentProgress(null);
+
+      const pendingSid = pendingNavigationRef.current;
+      pendingNavigationRef.current = null;
+      if (pendingSid && store.activeSessionId === pendingSid) {
+        router.push(`/session/${pendingSid}`);
+      }
 
       // Auto-generate title if still default, then refresh the session list.
       // Title generation bumps updated_at, so the paginated list must refetch;

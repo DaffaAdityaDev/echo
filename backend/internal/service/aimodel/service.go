@@ -150,6 +150,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 				ProviderType:       aitype.ProviderOpenCode,
 				ProviderName:       "OpenCode Go",
 				SupportsMultimodal: isMultimodalModel(id),
+				MaxContextTokens:   aitype.ContextWindowFor(aitype.ProviderOpenCode, id),
 			}
 		})
 	case "lm-studio":
@@ -160,6 +161,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 				ProviderType:       aitype.ProviderLMStudio,
 				ProviderName:       "LM Studio",
 				SupportsMultimodal: isMultimodalModel(id),
+				MaxContextTokens:   aitype.ContextWindowFor(aitype.ProviderLMStudio, id),
 			}
 		})
 	case "openai":
@@ -170,6 +172,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 				ProviderType:       aitype.ProviderOpenAI,
 				ProviderName:       "OpenAI",
 				SupportsMultimodal: isMultimodalModel(id),
+				MaxContextTokens:   aitype.ContextWindowFor(aitype.ProviderOpenAI, id),
 			}
 		})
 	case "anthropic":
@@ -180,6 +183,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 				ProviderType:       aitype.ProviderAnthropic,
 				ProviderName:       "Anthropic",
 				SupportsMultimodal: isMultimodalModel(id),
+				MaxContextTokens:   aitype.ContextWindowFor(aitype.ProviderAnthropic, id),
 			}
 		})
 	default:
@@ -259,9 +263,10 @@ func (s *Service) ResolveProviderConfig(ctx context.Context, userID int, modelID
 	}
 
 	return &aitype.ProviderConfig{
-		Type:    aitype.ProviderType(providerType),
-		BaseURL: baseURL,
-		APIKey:  apiKey,
-		Model:   modelName,
+		Type:             aitype.ProviderType(providerType),
+		BaseURL:          baseURL,
+		APIKey:           apiKey,
+		Model:            modelName,
+		MaxContextTokens: aitype.ContextWindowFor(aitype.ProviderType(providerType), modelName),
 	}, nil
 }

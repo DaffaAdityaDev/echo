@@ -79,7 +79,7 @@ type mockConsolidationSvc struct {
 	mock.Mock
 }
 
-func (m *mockConsolidationSvc) CheckThreshold(ctx context.Context, sessionID string) (bool, error) {
+func (m *mockConsolidationSvc) CheckThreshold(ctx context.Context, sessionID string, providerConfig map[string]interface{}) (bool, error) {
 	args := m.Called(ctx, sessionID)
 	return args.Bool(0), args.Error(1)
 }

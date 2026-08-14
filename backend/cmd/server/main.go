@@ -30,6 +30,7 @@ import (
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/database"
 	"echo-backend/internal/router"
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -62,7 +63,8 @@ func main() {
 
 	// Initialize server
 	appInstance := fiber.New(fiber.Config{
-		AppName: app.Name,
+		AppName:      app.Name,
+		ErrorHandler: errorHandler,
 	})
 
 	// Middleware
@@ -85,6 +87,23 @@ func main() {
 	if err := appInstance.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("%s: %v", app.ErrServerStartup, err)
 	}
+}
+
+// errorHandler renders handler errors as JSON without clobbering a response
+// body that a handler already wrote (RespondErrorDetail writes and returns a
+// non-nil error). Plain errors become a generic 500, matching fiber defaults.
+func errorHandler(c fiber.Ctx, err error) error {
+	var fe *fiber.Error
+	if errors.As(err, &fe) {
+		if len(c.Response().Body()) > 0 {
+			return nil
+		}
+		return c.Status(fe.Code).JSON(fiber.Map{"error": fe.Message, "details": ""})
+	}
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error":   "Internal Server Error",
+		"details": "",
+	})
 }
 
 // corsAllowedOrigins returns the browser origins allowed to call the API with

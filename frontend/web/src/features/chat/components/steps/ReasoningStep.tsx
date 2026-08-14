@@ -1,12 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import Markdown from "@/components/Markdown";
 import type { ThoughtStep } from "../../types";
-
-const Markdown = dynamic(() => import("@/components/Markdown"), {
-  ssr: false,
-  loading: () => <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />,
-});
 
 interface ReasoningStepProps {
   step: ThoughtStep;

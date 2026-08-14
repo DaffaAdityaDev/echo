@@ -37,12 +37,13 @@ export class OpenCodeGoProvider implements LLMProvider {
   private apiKey: string;
   public modelName: string;
   public baseURL: string;
-  public maxContextTokens: number = 1_000_000;
+  public maxContextTokens: number;
 
-  constructor(baseURL: string, modelName: string, apiKey?: string) {
+  constructor(baseURL: string, modelName: string, apiKey?: string, maxContextTokens?: number) {
     this.apiKey = apiKey ?? "";
     this.modelName = modelName;
     this.baseURL = baseURL;
+    this.maxContextTokens = maxContextTokens ?? 1_000_000;
     this.client = new OpenAI({
       baseURL,
       apiKey,

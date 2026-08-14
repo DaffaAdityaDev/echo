@@ -9,6 +9,8 @@ export interface ProviderConnectionConfig {
   base_url: string;
   api_key?: string;
   model: string;
+  /** Model context window in tokens; 0/absent = unknown (provider default). */
+  max_context_tokens?: number;
 }
 
 export function isProviderConnectionConfig(value: unknown): value is ProviderConnectionConfig {
@@ -39,7 +41,7 @@ export const ProviderFactory = {
         `Unknown provider type: "${config.type}". Supported types: ${[...ProviderFactory.registry.keys()].join(", ")}`,
       );
     }
-    return new Provider(config.base_url, config.model, config.api_key);
+    return new Provider(config.base_url, config.model, config.api_key, config.max_context_tokens || undefined);
   },
 
   resolveType(provider: LLMProvider): string | undefined {
