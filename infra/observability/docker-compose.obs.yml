@@ -1,0 +1,43 @@
+services:
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: loki
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    networks:
+      - observability
+      - dokploy-network
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=dark
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+    restart: unless-stopped
+    networks:
+      - observability
+
+volumes:
+  loki_data:
+  grafana_data:
+
+networks:
+  observability:
+    driver: bridge
+  dokploy-network:
+    external: true

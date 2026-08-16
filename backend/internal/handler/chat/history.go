@@ -2,7 +2,7 @@ package chat
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	chatmodel "echo-backend/internal/models/chat"
 	"echo-backend/internal/pkg/historycap"
@@ -21,7 +21,7 @@ func (h *Handler) buildCappedHistory(ctx context.Context, sessionID string) ([]*
 	capped := historycap.Cap(dbMessages, h.Cfg.HistoryMaxTokens, h.Cfg.HistoryMaxMsgChars, true)
 
 	if len(capped) != len(dbMessages) {
-		log.Printf("[HISTORY] Session %s history capped: %d/%d messages included", sessionID, len(capped), len(dbMessages))
+		slog.Info("session history capped", "component", "history", "session_id", sessionID, "included", len(capped), "total", len(dbMessages))
 	}
 	return capped, nil
 }

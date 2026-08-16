@@ -6,7 +6,6 @@ import { useChatStore } from "@/features/chat/stores/chatStore";
 import type { StreamPacket } from "@/features/chat/types";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import type { AgentConfig } from "@/features/settings/types";
-import { getStorageJSON, setStorageJSON } from "@/utils/storage";
 import { applyPacketToTrace } from "./trace-reducers";
 
 export interface Span {
@@ -53,58 +52,8 @@ interface TraceState {
   clearTraces: () => void;
 }
 
-const LOCAL_STORAGE_KEY = "echo-traces-list";
-const TRIM_LIMIT = 4000;
-const PERSIST_DEBOUNCE_MS = 300;
-
-const loadStoredTraces = (): Trace[] => {
-  return getStorageJSON<Trace[]>(LOCAL_STORAGE_KEY) || [];
-};
-
-const trimValue = (value: unknown): unknown => {
-  if (typeof value === "string") {
-    return value.length > TRIM_LIMIT ? `${value.slice(0, TRIM_LIMIT)}...[truncated]` : value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(trimValue);
-  }
-  if (value !== null && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = trimValue(val);
-    }
-    return out;
-  }
-  return value;
-};
-
-const trimForStorage = (trace: Trace): Trace => ({
-  ...trace,
-  output: trace.output ? (trimValue(trace.output) as string) : undefined,
-  metadata: trimValue(trace.metadata) as Record<string, unknown>,
-  spans: trace.spans.map((span) => ({
-    ...span,
-    input: trimValue(span.input),
-    output: trimValue(span.output),
-    metadata: trimValue(span.metadata) as Record<string, unknown> | undefined,
-  })),
-});
-
-const saveStoredTraces = (traces: Trace[]) => {
-  setStorageJSON(LOCAL_STORAGE_KEY, traces.slice(0, 50).map(trimForStorage));
-};
-
-// Streaming packets settle every few hundred ms; a trailing debounce avoids a
-// synchronous localStorage write per packet. Fires with the latest state.
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
-const scheduleStoredTracesSave = () => {
-  if (persistTimer !== null) clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    saveStoredTraces(useTraceStore.getState().traces);
-  }, PERSIST_DEBOUNCE_MS);
-};
-
+// Traces are ephemeral session telemetry: kept in memory only, never persisted
+// to localStorage (mission content can contain sensitive data).
 const createTrace = (
   traceId: string,
   timestamp: number,
@@ -163,10 +112,9 @@ const interruptOtherStreamingTraces = (
 };
 
 export const useTraceStore = create<TraceState>((set) => ({
-  traces: loadStoredTraces(),
+  traces: [],
   clearTraces: () => {
     set({ traces: [] });
-    saveStoredTraces([]);
   },
   finalizeInterruptedForSession: (sessionId) => {
     set((state) => {
@@ -190,8 +138,6 @@ export const useTraceStore = create<TraceState>((set) => ({
           ),
         };
       });
-      const changed = nextTraces.some((t, i) => t !== state.traces[i]);
-      if (changed) saveStoredTraces(nextTraces);
       return { traces: nextTraces };
     });
   },
@@ -237,10 +183,6 @@ export const useTraceStore = create<TraceState>((set) => ({
         nextTraces.unshift(trace);
       } else {
         nextTraces[traceIndex] = trace;
-      }
-
-      if (trace.status !== "streaming" || interrupted.interruptedAny) {
-        scheduleStoredTracesSave();
       }
 
       return { traces: nextTraces.slice(0, 50) };

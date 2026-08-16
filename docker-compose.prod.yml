@@ -39,10 +39,16 @@ services:
       - ENABLE_OTEL=${ENABLE_OTEL:-false}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
+      - LOKI_URL=${LOKI_URL:-}
     depends_on:
       - echo-postgres
       - echo-agent
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   echo-frontend:
     build:

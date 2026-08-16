@@ -1,5 +1,8 @@
+import { BOOT_BANNER } from "../shared/constants/banner";
 import { KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN } from "./env.constants";
 import { envSchema } from "./env.schema";
+
+console.log(BOOT_BANNER);
 
 const parsedEnv = envSchema.safeParse(process.env);
 

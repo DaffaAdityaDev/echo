@@ -3,6 +3,7 @@
 import { AlertCircle, Rocket, Save, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/hooks/useToast";
 import type { usePromptLibrary } from "../../hooks/usePromptLibrary";
 import { PromptLibrary } from "./PromptLibrary";
 import { PromptVersionTimeline } from "./PromptVersionTimeline";
@@ -35,6 +36,7 @@ export function PromptsPage(props: Props) {
     handleRollback,
   } = props;
 
+  const { showToast } = useToast();
   const [showDiff, setShowDiff] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "rollback"; version: number } | null>(null);
 
@@ -98,7 +100,7 @@ export function PromptsPage(props: Props) {
                       <VersionStatusBadge status={activeVersionData.status} />
                     </div>
                     <div className="flex items-center gap-2">
-                      {activeVersionData.status !== "production" && (
+                      {activeVersionData.status !== "production" && activeVersionData.status !== "rolled_back" && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -215,9 +217,20 @@ export function PromptsPage(props: Props) {
                 variant={confirmAction.type === "rollback" ? "danger" : "primary"}
                 isLoading={isPromoting || isRollingBack}
                 onClick={async () => {
-                  if (confirmAction.type === "promote") await handlePromote(confirmAction.version);
-                  else await handleRollback(confirmAction.version);
-                  setConfirmAction(null);
+                  try {
+                    if (confirmAction.type === "promote") {
+                      await handlePromote(confirmAction.version);
+                      showToast(`Version ${confirmAction.version} promoted to production`, "success");
+                    } else {
+                      await handleRollback(confirmAction.version);
+                      showToast(`Rolled back to version ${confirmAction.version}`, "success");
+                    }
+                    setConfirmAction(null);
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : "Action failed";
+                    showToast(msg, "error");
+                    setConfirmAction(null);
+                  }
                 }}
               >
                 {confirmAction.type === "promote" ? "Promote" : "Rollback"}

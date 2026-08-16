@@ -8,7 +8,9 @@ import (
 	"echo-backend/internal/service/consolidation"
 	"echo-backend/internal/service/settings"
 	"echo-backend/internal/service/strategy"
-	"log"
+	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -47,19 +49,28 @@ func (w *Worker) Start(ctx context.Context) {
 		interval = 15 * time.Minute
 	}
 
-	log.Printf("[LIFECYCLE] Worker started with interval %s", interval)
+	slog.Info("worker started", "component", "lifecycle", "interval", interval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("[LIFECYCLE] Worker shutting down...")
+			slog.Info("worker shutting down", "component", "lifecycle")
 			return
 		case <-ticker.C:
-			w.runCycle(ctx, interval)
+			w.runCycleSafe(ctx, interval)
 		}
 	}
+}
+
+func (w *Worker) runCycleSafe(ctx context.Context, interval time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("cycle panic recovered", "component", "lifecycle", "panic", fmt.Sprintf("%v", r), "stack", string(debug.Stack()))
+		}
+	}()
+	w.runCycle(ctx, interval)
 }
 
 func (w *Worker) runCycle(ctx context.Context, interval time.Duration) {
@@ -67,12 +78,12 @@ func (w *Worker) runCycle(ctx context.Context, interval time.Duration) {
 		lockKey := "lifecycle:scan_lock"
 		acquired, err := w.rdb.SetNX(ctx, lockKey, "locked", interval-5*time.Second).Result()
 		if err != nil || !acquired {
-			log.Println("[LIFECYCLE] Cycle skipped: lock not acquired or another replica running")
+			slog.Warn("cycle skipped", "component", "lifecycle", "reason", "lock not acquired or another replica running")
 			return
 		}
 	}
 
-	log.Println("[LIFECYCLE] Starting maintenance cycle")
+	slog.Info("starting maintenance cycle", "component", "lifecycle")
 
 	w.runConsolidationJob(ctx)
 
@@ -80,7 +91,7 @@ func (w *Worker) runCycle(ctx context.Context, interval time.Duration) {
 
 	w.runCacheRefreshJob(ctx)
 
-	log.Println("[LIFECYCLE] Maintenance cycle completed")
+	slog.Info("maintenance cycle completed", "component", "lifecycle")
 }
 
 func (w *Worker) runConsolidationJob(ctx context.Context) {
@@ -88,14 +99,14 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 	idleBefore := time.Now().Add(-idleWindow)
 	sessions, err := w.sessionRepo.ScanSessionsForConsolidation(ctx, idleBefore, w.cfg.PRUNE_THRESHOLD, 50)
 	if err != nil {
-		log.Printf("[LIFECYCLE] Consolidation scan error: %v", err)
+		slog.Error("consolidation scan error", "component", "lifecycle", "err", err)
 		return
 	}
 
 	for _, sess := range sessions {
 		userPrefs, err := w.settingsSvc.GetSettingsInternal(ctx, sess.UserID)
 		if err != nil || userPrefs == nil {
-			log.Printf("[LIFECYCLE] Skip session %s: provider config resolution failed for user %d", sess.ID, sess.UserID)
+			slog.Warn("skip session: provider config resolution failed", "component", "lifecycle", "session_id", sess.ID, "user_id", sess.UserID)
 			continue
 		}
 
@@ -109,10 +120,10 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 			providerMap["api_key"] = userPrefs.APIKey
 		}
 
-		log.Printf("[LIFECYCLE] Consolidating idle session %s (token count: %d)", sess.ID, sess.TokenCount)
+		slog.Info("consolidating idle session", "component", "lifecycle", "session_id", sess.ID, "token_count", sess.TokenCount)
 		cCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		if err := w.consolidationSvc.TriggerConsolidation(cCtx, sess.ID, providerMap); err != nil {
-			log.Printf("[LIFECYCLE] Consolidation failed for session %s: %v", sess.ID, err)
+			slog.Error("consolidation failed", "component", "lifecycle", "session_id", sess.ID, "err", err)
 		}
 		cancel()
 	}
@@ -133,32 +144,32 @@ func (w *Worker) runDecayAndGCJob(ctx context.Context) {
 
 	deprecatedIDs, err := w.sessionRepo.ScanSessionsForDeprecate(ctx, deprecateCutoff, archiveCutoff)
 	if err != nil {
-		log.Printf("[LIFECYCLE] Deprecated scan error: %v", err)
+		slog.Error("deprecated scan error", "component", "lifecycle", "err", err)
 	} else if len(deprecatedIDs) > 0 {
-		log.Printf("[LIFECYCLE] Evaluated stage-1 decay (derived deprecated) for %d sessions past %d days cutoff", len(deprecatedIDs), deprecateDays)
+		slog.Info("evaluated stage-1 decay", "component", "lifecycle", "sessions", len(deprecatedIDs), "cutoff_days", deprecateDays)
 	}
 
 	archivedIDs, err := w.sessionRepo.ScanSessionsForArchive(ctx, archiveCutoff)
 	if err != nil {
-		log.Printf("[LIFECYCLE] Archive scan error: %v", err)
+		slog.Error("archive scan error", "component", "lifecycle", "err", err)
 	} else if len(archivedIDs) > 0 {
-		log.Printf("[LIFECYCLE] Archived %d inactive sessions", len(archivedIDs))
+		slog.Info("archived inactive sessions", "component", "lifecycle", "sessions", len(archivedIDs))
 	}
 
 	gcRetentionDays := archiveDays + 30
 	gcCutoff := time.Now().AddDate(0, 0, -gcRetentionDays)
 	deletedMsgCount, err := w.sessionRepo.DeleteMessagesForArchivedSessions(ctx, gcCutoff)
 	if err != nil {
-		log.Printf("[LIFECYCLE] GC error: %v", err)
+		slog.Error("gc error", "component", "lifecycle", "err", err)
 	} else if deletedMsgCount > 0 {
-		log.Printf("[LIFECYCLE] GC deleted %d messages for retention-drained archived sessions", deletedMsgCount)
+		slog.Info("gc deleted messages", "component", "lifecycle", "messages", deletedMsgCount)
 	}
 }
 
 func (w *Worker) runCacheRefreshJob(ctx context.Context) {
 	if _, err := w.strategySvc.GetRollout(ctx); err != nil {
-		log.Printf("[LIFECYCLE] Failed to refresh strategy rollout cache: %v", err)
+		slog.Error("failed to refresh strategy rollout cache", "component", "lifecycle", "err", err)
 	} else {
-		log.Println("[LIFECYCLE] Refreshed strategy:rollout cache")
+		slog.Info("refreshed strategy rollout cache", "component", "lifecycle")
 	}
 }

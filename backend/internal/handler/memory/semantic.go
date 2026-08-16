@@ -3,7 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -79,7 +79,7 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		}
 		// The vector insert can fail when pgvector is unavailable; fall back
 		// to storing without the embedding rather than failing the request.
-		log.Printf("[MEMORY] Failed to store semantic memory %s with embedding, retrying without vector: %v", req.ID, err)
+		slog.Error("failed to store semantic memory with embedding, retrying without vector", "component", "memory", "id", req.ID, "err", err)
 	}
 
 	_, err := h.pool.Exec(ctx, `
@@ -179,7 +179,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 
 		var metadata interface{}
 		if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-			log.Printf("[MEMORY] Failed to parse metadata for semantic memory %s: %v", id, err)
+			slog.Warn("failed to parse metadata for semantic memory", "component", "memory", "id", id, "err", err)
 		}
 
 		results = append(results, SemanticSearchResult{

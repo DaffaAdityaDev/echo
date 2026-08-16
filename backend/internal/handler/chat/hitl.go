@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -95,7 +95,7 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[CHAT] Failed to read agent %s response for session %s: %v", action, sessionID, err)
+		slog.Error("failed to read agent response", "component", "chat", "action", action, "session_id", sessionID, "err", err)
 		return handlerutil.RespondError(c, resp.StatusCode, "Agent rejected")
 	}
 	if resp.StatusCode != http.StatusOK {

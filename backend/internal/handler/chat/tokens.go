@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -33,13 +33,13 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 
 	resp, err := handlerutil.HttpClient.Do(req)
 	if err != nil {
-		log.Printf("[TOKENS] Agent tokenize unreachable, falling back to estimate: %v", err)
+		slog.Warn("agent tokenize unreachable, falling back to estimate", "component", "tokens", "err", err)
 		return estimateTokensFallback(text)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[TOKENS] Agent tokenize failed (status %d), falling back to estimate", resp.StatusCode)
+		slog.Warn("agent tokenize failed, falling back to estimate", "component", "tokens", "status", resp.StatusCode)
 		return estimateTokensFallback(text)
 	}
 
@@ -47,7 +47,7 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		log.Printf("[TOKENS] Agent tokenize decode failed, falling back to estimate: %v", err)
+		slog.Warn("agent tokenize decode failed, falling back to estimate", "component", "tokens", "err", err)
 		return estimateTokensFallback(text)
 	}
 	return out.Tokens

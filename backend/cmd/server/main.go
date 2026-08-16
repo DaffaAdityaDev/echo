@@ -29,10 +29,14 @@ import (
 	"echo-backend/internal/config"
 	"echo-backend/internal/constants/app"
 	"echo-backend/internal/database"
+	pkglogger "echo-backend/internal/pkg/logger"
 	"echo-backend/internal/router"
 	"errors"
-	"log"
+	"fmt"
+	"io"
+	"log/slog"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -43,20 +47,25 @@ import (
 
 func main() {
 	if err := config.LoadDotEnv(".env"); err != nil {
-		log.Println(app.MsgNoEnvFile)
+		slog.Info(app.MsgNoEnvFile)
 	}
+	pkglogger.Init(os.Getenv("ENVIRONMENT"))
+	pkglogger.EnableLoki(os.Getenv("LOKI_URL"))
 
 	// Load configuration
 	cfg := config.Load()
 
 	if err := config.ValidateSecrets(cfg); err != nil {
-		log.Fatalf("Refusing to start: %v", err)
+		slog.Error("refusing to start", "err", err)
+		os.Exit(1)
 	}
+
+	fmt.Println(app.Banner)
 
 	// Run database migration before serving traffic
 	if pool := database.NewPostgresPool(cfg); pool != nil {
 		if err := database.Migrate(pool); err != nil {
-			log.Printf("Warning: Database auto-migration error: %v", err)
+			slog.Warn("database auto-migration error", "err", err)
 		}
 		pool.Close()
 	}
@@ -68,9 +77,30 @@ func main() {
 	})
 
 	// Middleware
-	appInstance.Use(recover.New())
+	appInstance.Use(recover.New(recover.Config{
+		EnableStackTrace: true,
+		StackTraceHandler: func(_ fiber.Ctx, e any) {
+			slog.Error("panic recovered", "component", "server", "panic", fmt.Sprintf("%v", e), "stack", string(debug.Stack()))
+		},
+	}))
+
+	// Access log: human-friendly with colors in dev, machine-readable JSON
+	// without ANSI escapes in production. When the Loki sink is enabled the
+	// line is tee'd to it in JSON, console format included.
+	logFormat, logTimeFormat, disableColors := app.LogFormat, app.LogTimeFormat, false
+	var logOutput io.Writer = os.Stdout
+	if strings.EqualFold(cfg.Environment, "production") {
+		logFormat, logTimeFormat, disableColors = app.LogFormatJSON, app.LogTimeFormatJSON, true
+	}
+	if lokiOutput := pkglogger.LokiWriter(); lokiOutput != nil {
+		logFormat, logTimeFormat, disableColors = app.LogFormatJSON, app.LogTimeFormatJSON, true
+		logOutput = io.MultiWriter(os.Stdout, lokiOutput)
+	}
 	appInstance.Use(logger.New(logger.Config{
-		Format: app.LogFormat,
+		Format:        logFormat,
+		TimeFormat:    logTimeFormat,
+		DisableColors: disableColors,
+		Stream:        logOutput,
 	}))
 	appInstance.Use(cors.New(cors.Config{
 		AllowOrigins:     corsAllowedOrigins(),
@@ -83,9 +113,10 @@ func main() {
 	router.SetupRoutes(appInstance, cfg)
 
 	// Start
-	log.Printf("Server starting on port %s", cfg.Port)
+	slog.Info("server starting", "port", cfg.Port)
 	if err := appInstance.Listen(":" + cfg.Port); err != nil {
-		log.Fatalf("%s: %v", app.ErrServerStartup, err)
+		slog.Error(app.ErrServerStartup, "err", err)
+		os.Exit(1)
 	}
 }
 

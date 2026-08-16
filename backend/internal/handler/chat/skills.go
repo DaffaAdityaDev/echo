@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -62,7 +62,7 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 
 	if h.RedisClient != nil {
 		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
-			log.Printf("Failed to cache skills in Redis: %v", err)
+			slog.Warn("failed to cache skills in redis", "component", "chat", "err", err)
 		}
 	}
 

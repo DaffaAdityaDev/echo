@@ -12,7 +12,7 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -166,24 +166,24 @@ CREATE INDEX IF NOT EXISTS idx_prompt_versions_template ON prompt_versions(templ
 
 func Migrate(pool *pgxpool.Pool) error {
 	if pool == nil {
-		log.Println("No PostgreSQL connection, skipping migration")
+		slog.Info("no PostgreSQL connection, skipping migration", "component", "database")
 		return nil
 	}
 
 	ctx := context.Background()
 
 	if _, err := pool.Exec(ctx, schemaLLMOpsStudio); err != nil {
-		log.Printf("failed to create llmops studio tables: %v", err)
+		slog.Error("failed to create llmops studio tables", "component", "database", "err", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaFeatures); err != nil {
-		log.Printf("failed to create features table: %v", err)
+		slog.Error("failed to create features table", "component", "database", "err", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaApiKeys); err != nil {
 		return fmt.Errorf("failed to create api_keys table: %w", err)
 	}
-	log.Println("Created api_keys table")
+	slog.Info("created api_keys table", "component", "database")
 
 	if _, err := pool.Exec(ctx, schemaUsers); err != nil {
 		return fmt.Errorf("failed to create users table: %w", err)
@@ -193,13 +193,13 @@ func Migrate(pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create sessions table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS strategy_version TEXT DEFAULT ''"); err != nil {
-		log.Printf("failed to add strategy_version column to sessions: %v", err)
+		slog.Error("failed to add strategy_version column to sessions", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NOW()"); err != nil {
-		log.Printf("failed to add last_accessed_at column to sessions: %v", err)
+		slog.Error("failed to add last_accessed_at column to sessions", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_sessions_last_accessed ON sessions(last_accessed_at)"); err != nil {
-		log.Printf("failed to create idx_sessions_last_accessed: %v", err)
+		slog.Error("failed to create idx_sessions_last_accessed", "component", "database", "err", err)
 	}
 
 	const schemaAppSettings = `
@@ -211,56 +211,56 @@ func Migrate(pool *pgxpool.Pool) error {
 	INSERT INTO app_settings (key, value) VALUES ('strategy_rollout', '{}') ON CONFLICT (key) DO NOTHING;
 	`
 	if _, err := pool.Exec(ctx, schemaAppSettings); err != nil {
-		log.Printf("failed to create app_settings table: %v", err)
+		slog.Error("failed to create app_settings table", "component", "database", "err", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaMessages); err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps JSONB"); err != nil {
-		log.Printf("failed to add steps column to messages: %v", err)
+		slog.Error("failed to add steps column to messages", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted'))"); err != nil {
-		log.Printf("failed to add status column to messages: %v", err)
+		slog.Error("failed to add status column to messages", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_messages_session_status ON messages(session_id, status)"); err != nil {
-		log.Printf("failed to create idx_messages_session_status: %v", err)
+		slog.Error("failed to create idx_messages_session_status", "component", "database", "err", err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaUserPreferences); err != nil {
 		return fmt.Errorf("failed to create user_preferences table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS provider_type TEXT DEFAULT 'opencode-go'"); err != nil {
-		log.Printf("failed to add provider_type column to user_preferences: %v", err)
+		slog.Error("failed to add provider_type column to user_preferences", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS api_key TEXT DEFAULT ''"); err != nil {
-		log.Printf("failed to add api_key column to user_preferences: %v", err)
+		slog.Error("failed to add api_key column to user_preferences", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS base_url TEXT DEFAULT ''"); err != nil {
-		log.Printf("failed to add base_url column to user_preferences: %v", err)
+		slog.Error("failed to add base_url column to user_preferences", "component", "database", "err", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS harness_toggles JSONB DEFAULT '{}'"); err != nil {
-		log.Printf("failed to add harness_toggles column to user_preferences: %v", err)
+		slog.Error("failed to add harness_toggles column to user_preferences", "component", "database", "err", err)
 	}
 
 	if _, err := pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector"); err != nil {
-		log.Printf("failed to create vector extension: %v", err)
+		slog.Error("failed to create vector extension", "component", "database", "err", err)
 	}
 
 	_, err := pool.Exec(ctx, schemaVector)
 	if err != nil {
-		log.Printf("pgvector not available, creating memory_semantic without embedding: %v", err)
+		slog.Error("pgvector not available, creating memory_semantic without embedding", "component", "database", "err", err)
 		if _, err = pool.Exec(ctx, schemaNoVector); err != nil {
 			return fmt.Errorf("failed to create memory_semantic: %w", err)
 		}
-		log.Println("Database migration completed (without pgvector)")
+		slog.Info("database migration completed (without pgvector)", "component", "database")
 	} else {
 		_, _ = pool.Exec(ctx, `
 			CREATE INDEX IF NOT EXISTS idx_memory_semantic_embedding
 			ON memory_semantic USING ivfflat (embedding vector_cosine_ops)
 			WITH (lists = 100)
 		`)
-		log.Println("Database migration completed with pgvector & llmops studio support")
+		slog.Info("database migration completed with pgvector & llmops studio support", "component", "database")
 	}
 
 	if _, err = pool.Exec(ctx, schemaProcedural); err != nil {

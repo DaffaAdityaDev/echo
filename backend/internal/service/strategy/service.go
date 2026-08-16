@@ -6,7 +6,7 @@ import (
 	"echo-backend/internal/repository/settings"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -179,7 +179,7 @@ func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, re
 
 	rollouts, err := s.GetRollout(ctx)
 	if err != nil {
-		log.Printf("[STRATEGY] Failed to load rollout percentages, resolving with defaults: %v", err)
+		slog.Warn("failed to load rollout percentages, resolving with defaults", "component", "strategy", "err", err)
 		rollouts = map[string]RolloutCfg{}
 	}
 

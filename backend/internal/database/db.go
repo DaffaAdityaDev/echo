@@ -4,7 +4,8 @@ import (
 	"context"
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/config"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,7 +25,7 @@ func NewRedisClient(cfg *cfgmodel.Config) *redis.Client {
 		MinIdleConns: 10,
 		PoolTimeout:  4 * time.Second,
 	})
-	log.Println("Redis connection initialized")
+	slog.Info("redis connection initialized", "component", "database")
 	return rdb
 }
 
@@ -38,7 +39,8 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("%s: %v", db.ErrPostgresConfig, err)
+		slog.Error(db.ErrPostgresConfig, "err", err)
+		os.Exit(1)
 	}
 
 	poolCfg.MaxConns = 10
@@ -46,13 +48,15 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
-		log.Fatalf("%s: %v", db.ErrPostgresPool, err)
+		slog.Error(db.ErrPostgresPool, "err", err)
+		os.Exit(1)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("%s: %v", db.ErrPostgresPing, err)
+		slog.Error(db.ErrPostgresPing, "err", err)
+		os.Exit(1)
 	}
 
-	log.Println(db.MsgPostgresConnected)
+	slog.Info(db.MsgPostgresConnected, "component", "database")
 	return pool
 }

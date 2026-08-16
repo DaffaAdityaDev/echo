@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -121,7 +121,7 @@ func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, bas
 
 	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
 	if err != nil {
-		log.Printf("[MODEL] failed to fetch models for %s: %v", providerType, err)
+		slog.Error("failed to fetch models", "component", "model", "provider", providerType, "err", err)
 		s.cache.entries[key] = cacheEntry{err: err, expiresAt: time.Now().Add(30 * time.Second)}
 		s.cache.mu.Unlock()
 		return nil, fmt.Errorf("fetch provider models: %w", err)

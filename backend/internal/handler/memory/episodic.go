@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -78,7 +78,7 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 		ttl = time.Duration(req.TTL) * time.Second
 	}
 	if err := h.rdb.Expire(ctx, key, ttl).Err(); err != nil {
-		log.Printf("[MEMORY] Failed to set TTL for episodic key %s: %v", key, err)
+		slog.Error("failed to set ttl for episodic key", "component", "memory", "key", key, "err", err)
 	}
 
 	return handlerutil.RespondCreated(c, StoreEpisodicResponse{

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"time"
 
 	"echo-backend/internal/handler/handlerutil"
@@ -155,7 +155,7 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 
 	var metadata interface{}
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-		log.Printf("[MEMORY] Failed to parse metadata for procedural memory %s: %v", id, err)
+		slog.Warn("failed to parse metadata for procedural memory", "component", "memory", "id", id, "err", err)
 	}
 
 	return handlerutil.RespondSuccess(c, ProceduralGetResponse{

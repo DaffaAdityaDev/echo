@@ -3,7 +3,7 @@ package config
 import (
 	cfgConst "echo-backend/internal/constants/config"
 	"echo-backend/internal/models/config"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 )
@@ -31,7 +31,7 @@ func Load() *cfgmodel.Config {
 	c.SummarizePayloadRatio = envInt("SUMMARIZE_PAYLOAD_RATIO", 60)
 	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
 	if c.EncryptionKey == "" {
-		log.Println("ENCRYPTION_KEY is empty; API key encryption will fail at runtime. Set a 32-char key.")
+		slog.Warn("ENCRYPTION_KEY is empty; API key encryption will fail at runtime", "component", "config", "hint", "Set a 32-char key.")
 	}
 	c.StrategyRolloutDefault = envFloat("STRATEGY_ROLLOUT_DEFAULT", 0.1)
 	c.PromptTemplateName = envStr("PROMPT_TEMPLATE_NAME", "")

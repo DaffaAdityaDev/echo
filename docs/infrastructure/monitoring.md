@@ -203,6 +203,36 @@ Application Metrics (OTel)
 Alert rules would be added to `prometheus.yml` under `rule_files:` and a
 dedicated `alertmanager.yml` configuration.
 
+## Log Leg: Backend -> Loki -> Grafana (IMPLEMENTED)
+
+In addition to the metrics/traces pipeline above, application logs are
+aggregated by a separate, JVM-free stack defined in infra/observability/:
+
++-------------+--------------------------------------------------------------+
+| Component   | Role                                                         |
++-------------+--------------------------------------------------------------+
+| Loki        | Go single-binary log store (target all), TSDB schema, 30-day|
+|             | retention, filesystem storage in the loki_data volume       |
+| Grafana     | Dashboard + Loki datasource (auto-provisioned)              |
++-------------+--------------------------------------------------------------+
+
+The backend pushes structured logs **directly** to Loki via the push API
+(`/loki/api/v1/push`) through an asynchronous, fire-and-forget sink enabled
+by the `LOKI_URL` env var (`backend/internal/pkg/logger/`). No Vector, no
+Docker log driver, no files on disk: the backend container sets
+`logging: driver: "none"` and records are dropped silently while Loki is
+unreachable. Console logging stays the primary channel — human text in dev,
+JSON in production — and `LOKI_URL` is optional (unset = console only, so
+local development needs no external dependency).
+
+The sink batches JSON lines (slog records + access log) and flushes every 5
+seconds or 1 MB under fixed labels `service="echo-backend"` and
+`stream="stdout"`. When `LOKI_URL` is set, the access log also switches to
+JSON so both streams arrive parseable. Panic stack traces are logged as a
+single JSON string field ("stack"), so no multiline parsing is needed. The
+std log package is unused outside tests.
+
+Quick start and example LogQL queries: infra/observability/README.md.
 ## Source References
 
 +---------------------------------------------+------------------------------------------+

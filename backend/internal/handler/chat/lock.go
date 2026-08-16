@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -48,7 +48,7 @@ func newLockToken() (string, error) {
 // gateway instances (the in-process acquireSessionLock only covers a single
 // process). Without it, two instances could run the same session's missions
 // concurrently and the agent's per-turn event-stream reset would clobber the
-// in-flight stream. Returns a nil unlock when Redis is unavailable — those
+// in-flight stream. Returns a nil unlock when Redis is unavailable - those
 // deployments rely on the in-process lock alone.
 func acquireRedisSessionLock(ctx context.Context, rdb *redis.Client, sessionID string) (string, func(), error) {
 	noop := func() {}
@@ -78,7 +78,7 @@ func acquireRedisSessionLock(ctx context.Context, rdb *redis.Client, sessionID s
 		unlockCtx, unlockCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer unlockCancel()
 		if err := sessionUnlockScript.Run(unlockCtx, rdb, []string{key}, token).Err(); err != nil {
-			log.Printf("[CHAT] Failed to release session lock %s: %v", sessionID, err)
+			slog.Error("failed to release session lock", "component", "chat", "session_id", sessionID, "err", err)
 		}
 	}, nil
 }
@@ -93,6 +93,6 @@ func renewRedisSessionLock(ctx context.Context, rdb *redis.Client, sessionID, to
 	}
 	key := sessionLockKey(sessionID)
 	if err := sessionRenewScript.Run(ctx, rdb, []string{key}, token, int64(redisSessionLockTTL/time.Millisecond)).Err(); err != nil {
-		log.Printf("[CHAT] Failed to renew session lock %s: %v", sessionID, err)
+		slog.Error("failed to renew session lock", "component", "chat", "session_id", sessionID, "err", err)
 	}
 }

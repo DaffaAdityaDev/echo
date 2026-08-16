@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -154,7 +154,7 @@ Respond ONLY with a valid JSON object in this exact format:
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		log.Printf("[AUTO-TITLE] HTTP request failed for session %s: %v", sessionID, err)
+		slog.Error("http request failed", "component", "auto-title", "session_id", sessionID, "err", err)
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -162,10 +162,10 @@ Respond ONLY with a valid JSON object in this exact format:
 	if resp.StatusCode != http.StatusOK {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Printf("[AUTO-TITLE] Failed to read error response for session %s: %v", sessionID, err)
+			slog.Error("failed to read error response", "component", "auto-title", "session_id", sessionID, "err", err)
 			return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider returned error")
 		}
-		log.Printf("[AUTO-TITLE] Provider returned status %d for session %s: %s", resp.StatusCode, sessionID, string(respBody))
+		slog.Warn("provider returned non-200 status", "component", "auto-title", "session_id", sessionID, "status", resp.StatusCode, "body", string(respBody))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)))
 	}
 
@@ -184,8 +184,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
-		log.Printf("[AUTO-TITLE] Failed to parse chat completion for session %s: err=%v choices=%d", sessionID, err, len(chatCompletion.Choices))
-		log.Printf("[AUTO-TITLE] Full response body: %s", string(respBytes))
+		slog.Error("failed to parse chat completion", "component", "auto-title", "session_id", sessionID, "err", err, "choices", len(chatCompletion.Choices))
+		slog.Debug("full response body", "component", "auto-title", "body", string(respBytes))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Failed to parse LLM response")
 	}
 
@@ -204,8 +204,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
-		log.Printf("[AUTO-TITLE] Failed to parse JSON for session %s: %v", sessionID, err)
-		log.Printf("[AUTO-TITLE] Content after regex: %s", truncateStr(rawContent, 500))
+		slog.Error("failed to parse json", "component", "auto-title", "session_id", sessionID, "err", err)
+		slog.Debug("content after regex", "component", "auto-title", "content", truncateStr(rawContent, 500))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM response is not valid JSON")
 	}
 
@@ -220,7 +220,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to save title")
 	}
 
-	log.Printf("[AUTO-TITLE] Generated title for session %s: '%s'", sessionID, title)
+	slog.Info("generated title", "component", "auto-title", "session_id", sessionID, "title", title)
 	return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: title, Summary: summary})
 }
 

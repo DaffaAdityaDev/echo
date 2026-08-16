@@ -35,7 +35,7 @@ func NewHandler(cfg *cfgmodel.Config, apiKeyRepo APIKeyRepo) *Handler {
 
 type createAPIKeyRequest struct {
 	Name   string   `json:"name" binding:"required" example:"Production Key"` // Display name for the API key
-	Scopes []string `json:"scopes" example:"read,write"`   // Optional permission scopes
+	Scopes []string `json:"scopes" example:"read,write"`                      // Optional permission scopes
 }
 
 // AdminStatsResponse is the payload returned by the stats endpoint.

@@ -3,25 +3,31 @@ package main
 import (
 	"echo-backend/internal/config"
 	"echo-backend/internal/database"
-	"log"
+	pkglogger "echo-backend/internal/pkg/logger"
+	"log/slog"
+	"os"
 )
 
 func main() {
 	if err := config.LoadDotEnv(".env"); err != nil {
-		log.Println("No .env file found, using system environment variables")
+		slog.Info("no .env file found, using system environment variables")
 	}
+
+	pkglogger.Init(os.Getenv("ENVIRONMENT"))
 
 	cfg := config.Load()
 
 	pool := database.NewPostgresPool(cfg)
 	if pool == nil {
-		log.Fatal("DATABASE_URL not set or database pool initialization failed")
+		slog.Error("DATABASE_URL not set or database pool initialization failed")
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	if err := database.Migrate(pool); err != nil {
-		log.Fatalf("Migration failed: %v", err)
+		slog.Error("migration failed", "err", err)
+		os.Exit(1)
 	}
 
-	log.Println("Database migration completed successfully.")
+	slog.Info("database migration completed successfully")
 }

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -122,7 +122,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 
 	if s.rdb != nil {
 		if err := s.rdb.Set(ctx, implementedCacheKey, bodyBytes, implementedCacheTTL).Err(); err != nil {
-			log.Printf("[FEATURES] Failed to cache implemented features in Redis: %v", err)
+			slog.Warn("failed to cache implemented features in redis", "component", "features", "err", err)
 		}
 	}
 
@@ -175,13 +175,13 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
-		log.Printf("[FEATURES] ValidateRequest: failed to load active features, skipping validation: %v", err)
+		slog.Warn("failed to load active features, skipping validation", "component", "features", "err", err)
 		return nil
 	}
 
 	implemented, err := s.GetImplementedSet(ctx)
 	if err != nil {
-		log.Printf("[FEATURES] ValidateRequest: failed to load implemented features, skipping validation: %v", err)
+		slog.Warn("failed to load implemented features, skipping validation", "component", "features", "err", err)
 		return nil
 	}
 

@@ -8,7 +8,7 @@ import (
 	"echo-backend/internal/pkg/historycap"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -118,8 +118,7 @@ func (s *Service) CheckThreshold(ctx context.Context, sessionID string, provider
 
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		log.Printf("[CONSOLIDATION] Session %s has %d tokens, exceeding skip threshold %d. Skipping consolidation.",
-			sessionID, tokenCount, skipThreshold)
+		slog.Info("session exceeds skip threshold, skipping consolidation", "component", "consolidation", "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
 		return false, nil
 	}
 
@@ -154,8 +153,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	}
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		log.Printf("[CONSOLIDATION] Skipping consolidation for session %s: %d tokens exceeds skip threshold %d.",
-			sessionID, tokenCount, skipThreshold)
+		slog.Info("skipping consolidation: tokens exceed skip threshold", "component", "consolidation", "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
 		return nil
 	}
 
@@ -166,7 +164,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 
 	pruneLimitTurn := maxTurn - s.cfg.PRUNE_KEEP_LATEST_TURNS
 	if pruneLimitTurn <= 0 {
-		log.Printf("[CONSOLIDATION] Session %s has max turn %d, which is less than keepTurns %d. Skipping pruning.", sessionID, maxTurn, s.cfg.PRUNE_KEEP_LATEST_TURNS)
+		slog.Info("session max turn below keep turns, skipping pruning", "component", "consolidation", "session_id", sessionID, "max_turn", maxTurn, "keep_turns", s.cfg.PRUNE_KEEP_LATEST_TURNS)
 		return nil
 	}
 
@@ -199,7 +197,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
 	cappedMessages := historycap.Cap(messagesToSummarize, payloadBudget, payloadBudget*2, false)
 	if len(cappedMessages) != len(messagesToSummarize) {
-		log.Printf("[CONSOLIDATION] Summarize payload capped for session %s: %d/%d messages included", sessionID, len(cappedMessages), len(messagesToSummarize))
+		slog.Info("summarize payload capped", "component", "consolidation", "session_id", sessionID, "included", len(cappedMessages), "total", len(messagesToSummarize))
 	}
 
 	var summarizeMessages []SummarizeMessage
@@ -210,7 +208,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		})
 	}
 
-	log.Printf("[CONSOLIDATION] Summarizing %d messages up to turn %d for session %s", len(summarizeMessages), pruneLimitTurn, sessionID)
+	slog.Info("summarizing messages", "component", "consolidation", "messages", len(summarizeMessages), "up_to_turn", pruneLimitTurn, "session_id", sessionID)
 
 	reqBody := SummarizeRequest{
 		SessionID:        sessionID,
@@ -263,6 +261,6 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return fmt.Errorf("failed to execute prune session transaction: %w", err)
 	}
 
-	log.Printf("[CONSOLIDATION] Pruning successful for session %s. New summary length: %d chars.", sessionID, len(newSummary))
+	slog.Info("pruning successful", "component", "consolidation", "session_id", sessionID, "new_summary_len", len(newSummary))
 	return nil
 }

@@ -1,8 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { normalizeSpec } from "@/lib/docs/normalize";
+import { createContext, useContext } from "react";
+import { specQueries } from "@/lib/queries";
 import type { NormalizedSpec } from "@/lib/docs/types";
 import { extractErrorMessage } from "@/utils/error";
 
@@ -25,28 +26,20 @@ export function useSpec() {
 }
 
 export function OpenApiSpecProvider({ children }: { children: React.ReactNode }) {
-  const [spec, setSpec] = useState<NormalizedSpec | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: spec, isPending, isError, error, refetch } = useQuery(specQueries.fetch());
 
-  const fetchSpec = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/docs/spec", { cache: "no-store" });
-      if (!res.ok) throw new Error(`Failed to load spec: ${res.statusText}`);
-      const raw = await res.json();
-      setSpec(normalizeSpec(raw));
-    } catch (err) {
-      setError(extractErrorMessage(err, "Unknown error"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSpec();
-  }, [fetchSpec]);
-
-  return <SpecContext.Provider value={{ spec, loading, error, refresh: fetchSpec }}>{children}</SpecContext.Provider>;
+  return (
+    <SpecContext.Provider
+      value={{
+        spec: spec ?? null,
+        loading: isPending,
+        error: isError ? extractErrorMessage(error, "Unknown error") : null,
+        refresh: () => {
+          void refetch();
+        },
+      }}
+    >
+      {children}
+    </SpecContext.Provider>
+  );
 }

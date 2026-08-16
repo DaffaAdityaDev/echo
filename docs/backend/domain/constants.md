@@ -34,8 +34,10 @@ Package: app - Application Constants
 
   const (
       Name          = "Echo Backend API"
-      LogFormat     = "[${time}] ${status} - ${latency} ${method} ${path}\n"
-      TimeFormat    = "2006-01-02 15:04:05"
+      LogFormat     = "[${time}] ${status} ${method} ${white}${path}${reset} ip=${ip} route=${route} latency=${latency} in=${bytesReceived}B out=${bytesSent}B ${magenta}ua=${ua}${reset} err=${error}\n"
+      LogTimeFormat = "2006-01-02 15:04:05.000"
+      LogFormatJSON     = `{"time":"${time}","pid":${pid},"status":${status},"method":"${method}","path":"${path}","route":"${route}","ip":"${ip}","latency":"${latency}","in":${bytesReceived},"out":${bytesSent},"ua":"${ua}","err":"${error}"}` + "\n"
+      LogTimeFormatJSON = "2006-01-02T15:04:05.000Z"
       HealthStatus  = "ok"
       HealthMessage = "Echo Backend API is running"
   )
@@ -49,8 +51,10 @@ Package: app - Application Constants
 | Constant         | Value                                                  | Usage                      |
 +------------------+--------------------------------------------------------+----------------------------+
 | Name             | "Echo Backend API"                                     | Fiber AppName config       |
-| LogFormat        | "[${time}] ${status} - ${latency} ${method} ${path}\n" | Fiber logger format        |
-| TimeFormat       | "2006-01-02 15:04:05"                                  | Go time format             |
+| LogFormat        | Dev access log (color tags, human-friendly)            | Fiber logger format (dev)  |
+| LogTimeFormat    | "2006-01-02 15:04:05.000"                              | Dev log time format        |
+| LogFormatJSON    | One JSON object per line, no ANSI escapes              | Fiber logger format (prod) |
+| LogTimeFormatJSON| "2006-01-02T15:04:05.000Z"                             | Prod log time format (UTC) |
 | HealthStatus     | "ok"                                                   | Health check response      |
 | HealthMessage    | "Echo Backend API is running"                           | Health check response      |
 | MsgNoEnvFile     | (message)                                              | Warning log                |

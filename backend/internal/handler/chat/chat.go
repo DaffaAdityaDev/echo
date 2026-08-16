@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -96,7 +96,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	// gateway instances when Redis is present. No-op unlock when unavailable.
 	redisLockToken, releaseRedisLock, err := acquireRedisSessionLock(ctx, h.RedisClient, req.SessionID)
 	if err != nil {
-		log.Printf("[CHAT] Distributed session lock unavailable for %s: %v", req.SessionID, err)
+		slog.Warn("distributed session lock unavailable", "component", "chat", "session_id", req.SessionID, "err", err)
 	}
 	defer releaseRedisLock()
 
@@ -117,7 +117,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	tenantID := c.Get("X-Tenant-ID", "local")
 	promptTemplateName, err := h.SettingsSvc.ResolvePromptTemplateNameForTenant(ctx, tenantID)
 	if err != nil {
-		log.Printf("[CHAT] Failed to resolve prompt template name: %v", err)
+		slog.Warn("failed to resolve prompt template name", "component", "chat", "err", err)
 	}
 
 	payload := buildChatAgentPayload(payloadArgs{
@@ -134,13 +134,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		tenantID:           tenantID,
 		promptTemplateName: promptTemplateName,
 	})
-	log.Printf("[CHAT] tenant=%s prompt_template=%q features=%v", tenantID, payload["prompt_template"], payload["features"])
+	slog.Info("chat turn started", "component", "chat", "tenant_id", tenantID, "prompt_template", payload["prompt_template"], "features", payload["features"])
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("[CHAT] Failed to marshal agent payload for session %s: %v", req.SessionID, err)
+		slog.Error("failed to marshal agent payload", "component", "chat", "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
 	}
@@ -171,9 +171,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	agentReq, err := http.NewRequestWithContext(agentReqCtx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		log.Printf("[CHAT] Failed to create agent request for session %s: %v", req.SessionID, err)
+		slog.Error("failed to create agent request", "component", "chat", "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
@@ -186,9 +186,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
-		log.Printf("[CHAT] Agent service unreachable for session %s: %v", req.SessionID, err)
+		slog.Error("agent service unreachable", "component", "chat", "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
@@ -198,10 +198,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		bodyBytes, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if readErr != nil {
-			log.Printf("[CHAT] Failed to read agent error response for session %s: %v", req.SessionID, readErr)
+			slog.Error("failed to read agent error response", "component", "chat", "session_id", req.SessionID, "err", readErr)
 		}
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			log.Printf("[CHAT] Failed to finalize interrupted turn for session %s: %v", req.SessionID, finalizeErr)
+			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}

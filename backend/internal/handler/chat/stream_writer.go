@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +68,11 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	flushDone := make(chan struct{})
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("flush goroutine panic recovered", "component", "chat", "panic", fmt.Sprintf("%v", r), "stack", string(debug.Stack()))
+			}
+		}()
 		defer close(flushDone)
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
@@ -89,7 +95,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 					return h.SessionRepo.UpdateMessageContent(dbCtx, assistantMsgID, content, nil, completionTokens)
 				})
 				if err != nil {
-					log.Printf("[CHAT] Flush error msg %d (after retries): %v", assistantMsgID, err)
+					slog.Error("flush error after retries", "component", "chat", "msg_id", assistantMsgID, "err", err)
 				}
 			}
 		}
@@ -117,11 +123,11 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 		line, rErr := reader.ReadBytes('\n')
 		if len(line) > 0 {
 			if _, wErr := w.Write(line); wErr != nil {
-				log.Printf("[CHAT] Client write failed for session %s: %v", sessionID, wErr)
+				slog.Error("client write failed", "component", "chat", "session_id", sessionID, "err", wErr)
 				break
 			}
 			if err := w.Flush(); err != nil {
-				log.Printf("[CHAT] Client flush failed for session %s: %v", sessionID, err)
+				slog.Error("client flush failed", "component", "chat", "session_id", sessionID, "err", err)
 				break
 			}
 
@@ -165,7 +171,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 		}
 		if rErr != nil {
 			if rErr != io.EOF {
-				log.Printf("[CHAT] Agent stream aborted for session %s: %v", sessionID, rErr)
+				slog.Error("agent stream aborted", "component", "chat", "session_id", sessionID, "err", rErr)
 			}
 			break
 		}
@@ -176,7 +182,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	select {
 	case <-flushDone:
 	case <-time.After(10 * time.Second):
-		log.Printf("[CHAT] Flush goroutine did not exit for msg %d; proceeding to finalize", assistantMsgID)
+		slog.Warn("flush goroutine did not exit; proceeding to finalize", "component", "chat", "msg_id", assistantMsgID)
 	}
 
 	sc.mu.RLock()
@@ -200,14 +206,14 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	}
 
 	if err := h.finalizeTurn(assistantMsgID, sessionID, finalContent, steps, assistantTokens, status); err != nil {
-		log.Printf("[CHAT] Error finalizing turn for msg %d: %v", assistantMsgID, err)
+		slog.Error("error finalizing turn", "component", "chat", "msg_id", assistantMsgID, "err", err)
 	}
 
-	log.Printf("[CHAT] Completed turn %d for session %s (status=%s, content_len=%d)", nextTurn, sessionID, status, len(finalContent))
+	slog.Info("completed turn", "component", "chat", "turn", nextTurn, "session_id", sessionID, "status", status, "content_len", len(finalContent))
 }
 
 // finalizeTurn persists the assistant message's final state once a turn ends.
-// Called on every path after PrepareTurn — including agent request failures —
+// Called on every path after PrepareTurn - including agent request failures -
 // so the streaming placeholder is never left stuck in 'streaming'.
 func (h *Handler) finalizeTurn(assistantMsgID int64, sessionID, content string, steps json.RawMessage, tokenCount int, status string) error {
 	err := retryDBOperation(3, 100*time.Millisecond, func() error {

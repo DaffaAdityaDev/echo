@@ -89,8 +89,9 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           title="Agent Settings"
+          aria-label="Agent Settings"
         >
           <Settings className="h-4 w-4" />
         </button>
@@ -98,8 +99,9 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onCreateSession}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           title="New Chat"
+          aria-label="New Chat"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -107,8 +109,9 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onShareSession}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           title="Copy Session URL Slug"
+          aria-label="Copy Session URL Slug"
         >
           <Share2 className="h-4 w-4 text-purple-500" />
         </button>
@@ -116,8 +119,9 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onExportChat}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors hidden sm:inline-flex cursor-pointer"
+          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors hidden sm:inline-flex cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           title="Export Chat JSON"
+          aria-label="Export Chat JSON"
         >
           <Download className="h-4 w-4" />
         </button>

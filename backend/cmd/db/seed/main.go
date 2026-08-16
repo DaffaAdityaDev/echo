@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"echo-backend/internal/config"
 	"echo-backend/internal/database"
 	authmodel "echo-backend/internal/models/auth"
+	pkglogger "echo-backend/internal/pkg/logger"
 	authrepo "echo-backend/internal/repository/auth"
 
 	"github.com/jackc/pgx/v5"
@@ -61,13 +62,13 @@ func countTokensViaAgent(text string) int {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[SEED] Agent tokenize unreachable, falling back to estimate: %v", err)
+		slog.Warn("agent tokenize unreachable, falling back to estimate", "component", "seed", "err", err)
 		return estimateTokens(text)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[SEED] Agent tokenize failed (status %d), falling back to estimate", resp.StatusCode)
+		slog.Warn("agent tokenize failed, falling back to estimate", "component", "seed", "status", resp.StatusCode)
 		return estimateTokens(text)
 	}
 
@@ -75,7 +76,7 @@ func countTokensViaAgent(text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		log.Printf("[SEED] Agent tokenize decode failed, falling back to estimate: %v", err)
+		slog.Warn("agent tokenize decode failed, falling back to estimate", "component", "seed", "err", err)
 		return estimateTokens(text)
 	}
 	return out.Tokens
@@ -146,14 +147,17 @@ func main() {
 	flag.Parse()
 
 	if err := config.LoadDotEnv(".env"); err != nil {
-		log.Println("No .env file found, using system environment variables")
+		slog.Info("no .env file found, using system environment variables")
 	}
+
+	pkglogger.Init(os.Getenv("ENVIRONMENT"))
 
 	cfg := config.Load()
 
 	pool := database.NewPostgresPool(cfg)
 	if pool == nil {
-		log.Fatal("DATABASE_URL not set or database pool initialization failed")
+		slog.Error("DATABASE_URL not set or database pool initialization failed")
+		os.Exit(1)
 	}
 	defer pool.Close()
 
@@ -162,23 +166,26 @@ func main() {
 
 	adminPassword := os.Getenv("ADMIN_PASSWORD")
 	if adminPassword == "" {
-		log.Fatal("ADMIN_PASSWORD environment variable is required to seed the admin user")
+		slog.Error("ADMIN_PASSWORD environment variable is required to seed the admin user")
+		os.Exit(1)
 	}
 
 	email := "admin@gmail.com"
 	var adminUser *authmodel.User
 	existingUser, err := userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		log.Fatalf("Failed to check existing user: %v", err)
+		slog.Error("failed to check existing user", "component", "seed", "err", err)
+		os.Exit(1)
 	}
 
 	if existingUser != nil {
-		log.Printf("User %s already exists. Using existing user ID %d.", email, existingUser.ID)
+		slog.Info("user already exists, using existing id", "component", "seed", "email", email, "user_id", existingUser.ID)
 		adminUser = existingUser
 	} else {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		if err != nil {
-			log.Fatalf("Failed to hash password: %v", err)
+			slog.Error("failed to hash password", "component", "seed", "err", err)
+			os.Exit(1)
 		}
 
 		adminUser = &authmodel.User{
@@ -189,47 +196,51 @@ func main() {
 		}
 
 		if err := userRepo.Create(ctx, adminUser); err != nil {
-			log.Fatalf("Failed to seed admin user: %v", err)
+			slog.Error("failed to seed admin user", "component", "seed", "err", err)
+			os.Exit(1)
 		}
-		log.Printf("Seeded default admin user with ID %d.", adminUser.ID)
+		slog.Info("seeded default admin user", "component", "seed", "user_id", adminUser.ID)
 	}
 
 	if !*loadTest {
-		log.Println("Safe mode: skipping database truncation and fake load-test data seeding.")
-		log.Println("Database seeded successfully with default admin user.")
+		slog.Info("safe mode: skipping database truncation and fake load-test data seeding", "component", "seed")
+		slog.Info("database seeded successfully with default admin user", "component", "seed")
 		return
 	}
 
 	// ---- Load-test path (development only) ----
 
 	if strings.EqualFold(os.Getenv("APP_ENV"), "production") {
-		log.Fatal("Refusing --load-test with APP_ENV=production: it TRUNCATES all sessions and messages. Development only.")
+		slog.Error("refusing --load-test with APP_ENV=production: it TRUNCATES all sessions and messages. Development only.")
+		os.Exit(1)
 	}
 
 	fmt.Print("--load-test will TRUNCATE all sessions and messages. Type 'yes' to continue: ")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	if strings.TrimSpace(strings.ToLower(scanner.Text())) != "yes" {
-		log.Fatal("Aborted: --load-test requires explicit 'yes' confirmation.")
+		slog.Error("aborted: --load-test requires explicit 'yes' confirmation")
+		os.Exit(1)
 	}
 
-	log.Println("Cleaning up old sessions and messages...")
+	slog.Info("cleaning up old sessions and messages", "component", "seed")
 	if _, err := pool.Exec(ctx, "TRUNCATE TABLE sessions CASCADE"); err != nil {
-		log.Fatalf("Failed to truncate sessions table: %v", err)
+		slog.Error("failed to truncate sessions table", "component", "seed", "err", err)
+		os.Exit(1)
 	}
-	log.Println("Old sessions and messages truncated successfully.")
+	slog.Info("old sessions and messages truncated successfully", "component", "seed")
 
 	seedStressSession(ctx, pool, adminUser.ID)
 	seedBulkSessions(ctx, pool, adminUser.ID)
 
-	log.Println("Load-test seeding complete.")
+	slog.Info("load-test seeding complete", "component", "seed")
 }
 
 // seedStressSession creates one session with 10 turns (20 messages) of
 // ~4.4 MB / ~1.1M tokens each (realistic text) to stress test rendering and
 // pagination.
 func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
-	log.Println("Seeding ONE special stress test session with 10 turns (20 messages), ~4.4 MB (~1.1M tokens) per message...")
+	slog.Info("seeding stress session with 10 turns (20 messages), ~4.4 MB (~1.1M tokens) per message", "component", "seed")
 
 	createdAt := time.Now()
 	var stressSessionID string
@@ -243,7 +254,8 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		createdAt,
 	).Scan(&stressSessionID)
 	if err != nil {
-		log.Fatalf("Failed to create stress session: %v", err)
+		slog.Error("failed to create stress session", "component", "seed", "err", err)
+		os.Exit(1)
 	}
 
 	const turns = 10
@@ -264,7 +276,8 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		log.Fatalf("Failed to begin transaction for stress messages: %v", err)
+		slog.Error("failed to begin transaction for stress messages", "component", "seed", "err", err)
+		os.Exit(1)
 	}
 	_, err = tx.CopyFrom(
 		ctx,
@@ -274,13 +287,15 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 	)
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		log.Fatalf("Failed to copy stress messages: %v", err)
+		slog.Error("failed to copy stress messages", "component", "seed", "err", err)
+		os.Exit(1)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		log.Fatalf("Failed to commit stress messages: %v", err)
+		slog.Error("failed to commit stress messages", "component", "seed", "err", err)
+		os.Exit(1)
 	}
 
-	log.Printf("\n=== STRESS TEST SESSION READY ===\nID: %s\nTitle: %s\n=================================\n\n", stressSessionID, "🔥 Stress Test Session (1M Context)")
+	slog.Info("stress test session ready", "component", "seed", "id", stressSessionID, "title", "🔥 Stress Test Session (1M Context)")
 }
 
 // Bulk sessions carry REALISTIC multi-paragraph conversations (~2-3 KB per
@@ -456,7 +471,7 @@ func buildBulkAssistantReply(sessionIdx, turn int) string {
 // seedBulkSessions creates 50 sessions (1,000 messages total) to stress test
 // list pagination and session indexing.
 func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
-	log.Println("Preparing to seed 50 sessions and 1,000 realistic long-format messages...")
+	slog.Info("preparing to seed 50 sessions and 1,000 realistic long-format messages", "component", "seed")
 	startTime := time.Now()
 
 	const totalSessions = 50
@@ -471,12 +486,14 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 
 		ids, err := generateUUIDs(ctx, pool, batchEnd-batchStart)
 		if err != nil {
-			log.Fatalf("Failed to generate UUIDs for batch starting at %d: %v", batchStart, err)
+			slog.Error("failed to generate UUIDs for batch", "component", "seed", "batch_start", batchStart, "err", err)
+			os.Exit(1)
 		}
 
 		tx, err := pool.Begin(ctx)
 		if err != nil {
-			log.Fatalf("Failed to begin transaction: %v", err)
+			slog.Error("failed to begin transaction", "component", "seed", "err", err)
+			os.Exit(1)
 		}
 
 		sessionRows := [][]interface{}{}
@@ -523,7 +540,8 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			log.Fatalf("Failed to copy sessions in batch starting at %d: %v", batchStart, err)
+			slog.Error("failed to copy sessions in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			os.Exit(1)
 		}
 
 		// Copy Messages
@@ -535,16 +553,18 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			log.Fatalf("Failed to copy messages in batch starting at %d: %v", batchStart, err)
+			slog.Error("failed to copy messages in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			os.Exit(1)
 		}
 
 		err = tx.Commit(ctx)
 		if err != nil {
-			log.Fatalf("Failed to commit transaction in batch starting at %d: %v", batchStart, err)
+			slog.Error("failed to commit transaction in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			os.Exit(1)
 		}
 
-		log.Printf("Successfully committed batch %d to %d...", batchStart+1, batchEnd)
+		slog.Info("committed batch", "component", "seed", "from", batchStart+1, "to", batchEnd)
 	}
 
-	log.Printf("Database seeded successfully with %d sessions and %d messages in %s!", totalSessions, totalSessions*turnsPerSession*2, time.Since(startTime))
+	slog.Info("database seeded", "component", "seed", "sessions", totalSessions, "messages", totalSessions*turnsPerSession*2, "elapsed", time.Since(startTime))
 }

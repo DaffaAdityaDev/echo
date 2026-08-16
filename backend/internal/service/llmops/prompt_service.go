@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"echo-backend/internal/models/llmops"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
@@ -129,7 +129,7 @@ func (s *promptService) invalidateActivePromptCache(ctx context.Context, templat
 	}
 	key := promptCacheKey(tmpl.TenantID, tmpl.Name)
 	if err := s.rdb.Del(ctx, key).Err(); err != nil {
-		log.Printf("[LLMOPS] Failed to invalidate prompt cache key %s: %v", key, err)
+		slog.Error("failed to invalidate prompt cache key", "component", "llmops", "key", key, "err", err)
 	}
 }
 

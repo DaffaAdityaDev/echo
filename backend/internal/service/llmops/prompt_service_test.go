@@ -129,6 +129,16 @@ func TestPromoteToProduction_RepoErrorPropagates(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestPromoteToProduction_RolledBackVersionErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakePromptRepo{promoteErr: errors.New("promote version: version 6 of template tpl-1 is rolled back and cannot be promoted")}
+	svc := NewPromptService(repo, nil)
+
+	err := svc.PromoteToProduction(context.Background(), "tpl-1", 6, "tester")
+	assert.ErrorContains(t, err, "cannot be promoted")
+}
+
 func TestRollbackToVersion_InvalidatesCache(t *testing.T) {
 	t.Parallel()
 

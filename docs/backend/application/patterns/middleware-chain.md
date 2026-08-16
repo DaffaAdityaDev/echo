@@ -41,7 +41,9 @@ Middleware Chain Order
     │
     ├─ (2) logger.New()
     │        Fiber built-in - request logging
-    │        Format: [${time}] ${status} - ${latency} ${method} ${path}
+    │        Dev:  [${time}] ${status} ${method} ${path} ip=.. route=.. latency=.. in=.. out=.. ua=.. err=.. (colors)
+    │        Prod: one JSON object per line (no ANSI escapes)
+    │        Format chosen in cmd/server/main.go from ENVIRONMENT
     │
     ├─ (3) cors.New()
     │        Fiber built-in - CORS headers

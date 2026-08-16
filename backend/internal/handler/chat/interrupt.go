@@ -3,7 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -47,7 +47,7 @@ func (h *Handler) HandleInterrupt(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
 	}
 
-	// Signal the active run (if any). Idempotent: no active run → no-op.
+	// Signal the active run (if any). Idempotent: no active run -> no-op.
 	activeRunsMu.Lock()
 	run := activeRuns[sessionID]
 	activeRunsMu.Unlock()
@@ -71,7 +71,7 @@ func (h *Handler) HandleInterrupt(c fiber.Ctx) error {
 func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{}, sessionID string, cancelAgentReq context.CancelFunc) {
 	select {
 	case <-run.cancelCh:
-		log.Printf("[CHAT] Interrupt requested for session %s; notifying agent", sessionID)
+		slog.Info("interrupt requested, notifying agent", "component", "chat", "session_id", sessionID)
 		cancelAgentReq()
 		// Guard against stale interrupts: if a new turn has already claimed
 		// the session (user stopped then immediately sent a new message),
@@ -83,10 +83,10 @@ func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{
 			agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer agentCancel()
 			if err := cancelAgentMission(agentCtx, h.Cfg, sessionID); err != nil {
-				log.Printf("[CHAT] Agent cancel call failed for session %s: %v", sessionID, err)
+				slog.Error("agent cancel call failed", "component", "chat", "session_id", sessionID, "err", err)
 			}
 		} else {
-			log.Printf("[CHAT] Stale interrupt for session %s (new turn active); skipping agent cancel", sessionID)
+			slog.Warn("stale interrupt skipped", "component", "chat", "session_id", sessionID)
 		}
 		run.closeBody()
 	case <-interruptStop:

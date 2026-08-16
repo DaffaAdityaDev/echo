@@ -108,6 +108,9 @@ async function readStream(response: Response, onChunk: (data: unknown) => void, 
   let partialLine = "";
   let hasReceivedData = false;
 
+  const contentType = response.headers.get("content-type") || "";
+  const allowPlainText = PLAIN_TEXT_CONTENT_TYPES.some((t) => contentType.includes(t));
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -127,8 +130,9 @@ async function readStream(response: Response, onChunk: (data: unknown) => void, 
       }
 
       if (jsonStr === "[DONE]") continue;
+      if (!jsonStr) continue;
 
-      const packet = parseStreamLine(jsonStr);
+      const packet = parseStreamLine(jsonStr, allowPlainText);
       if (packet !== undefined) {
         onChunk(packet);
       }
@@ -143,7 +147,13 @@ async function readStream(response: Response, onChunk: (data: unknown) => void, 
   }
 }
 
-function parseStreamLine(line: string): unknown {
+// Echo backends always send JSON envelopes over SSE. Plain-text content is
+// only accepted from endpoints that are explicitly text (text/plain,
+// text/markdown); anywhere else a non-JSON line is a protocol violation and
+// must surface as an error rather than silently becoming assistant content.
+const PLAIN_TEXT_CONTENT_TYPES = ["text/plain", "text/markdown"] as const;
+
+export function parseStreamLine(line: string, allowPlainText: boolean): unknown {
   if (line.startsWith("{")) {
     try {
       return JSON.parse(line);
@@ -152,9 +162,10 @@ function parseStreamLine(line: string): unknown {
       return undefined;
     }
   }
-  // Raw-text SSE lines (Echo backends always send JSON envelopes) surface as
-  // content deltas so text-only SSE endpoints can still stream.
-  return { content: line };
+  if (allowPlainText) {
+    return { content: line };
+  }
+  throw new Error(`Unexpected non-JSON data in stream: ${line.slice(0, 120)}`);
 }
 
 export const api = {
