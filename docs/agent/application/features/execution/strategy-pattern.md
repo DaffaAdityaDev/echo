@@ -137,7 +137,7 @@ of strategy instances; the registry maps version strings back to it.
 │  resolve(version: 'nlah:v1') -> AgentStrategy                │
 │    (delegates to StrategyFactory.create(name))               │
 └──────────────────────────────┬───────────────────────────────┘
-                               │ GET /api/strategies
+                               │ GET /api/v1/strategies
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ Go Gateway — operational truth (settings table)              │

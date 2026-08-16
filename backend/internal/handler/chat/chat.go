@@ -110,7 +110,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return err
 	}
 
-	agentURL := fmt.Sprintf("%s/api/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, mode)
+	agentURL := fmt.Sprintf("%s/api/v1/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, mode)
 
 	sessionIDToUse := req.SessionID
 

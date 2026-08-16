@@ -1341,7 +1341,7 @@
     }
   },
   "paths": {
-    "/api/features": {
+    "/api/v1/features": {
       "get": {
         "summary": "List implemented agent features",
         "description": "Fetch the implemented tool registry — the feature IDs the agent can actually execute, dynamically derived from the tool registry. Each entry maps a requestable feature id to its loaded tool name and description. Catalog metadata (tier_requirement, ui_schema, status) is owned by the backend features table, not the agent.",
@@ -1390,7 +1390,7 @@
         }
       }
     },
-    "/api/generate-mission": {
+    "/api/v1/generate-mission": {
       "post": {
         "summary": "Execute agent mission (SSE Stream)",
         "description": "Triggers autonomous agent execution loop and streams response packets via Server-Sent Events. The stream emits HarnessPacket JSON objects, one per line, prefixed with 'data: '. The connection remains open until the mission completes or is aborted.",
@@ -1593,7 +1593,7 @@
         }
       }
     },
-    "/api/internal/sessions/summarize": {
+    "/api/v1/internal/sessions/summarize": {
       "post": {
         "summary": "Summarize chat session history",
         "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",
@@ -1864,7 +1864,7 @@
         }
       }
     },
-    "/api/models": {
+    "/api/v1/models": {
       "get": {
         "summary": "List agent provider models",
         "description": "Fetch supported LLM provider model catalog",
@@ -1921,7 +1921,7 @@
         }
       }
     },
-    "/api/skills": {
+    "/api/v1/skills": {
       "get": {
         "summary": "List available agent skills",
         "description": "Fetch catalog of specialized skill definitions available for activation during missions.",
@@ -1997,7 +1997,7 @@
         }
       }
     },
-    "/api/strategies": {
+    "/api/v1/strategies": {
       "get": {
         "summary": "List versioned strategy catalog",
         "description": "Fetch code-side strategy catalog with versions and aliases.",

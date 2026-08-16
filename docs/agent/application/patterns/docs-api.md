@@ -60,11 +60,11 @@ The spec covers all 6 agent endpoints:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Health check |
-| POST | `/api/generate-mission` | Execute agent mission (SSE stream) |
-| GET | `/api/models` | List available LLM models |
-| GET | `/api/features` | List agent features/tools |
-| GET | `/api/skills` | List agent skill definitions |
-| POST | `/api/internal/sessions/summarize` | Summarize session history |
+| POST | `/api/v1/generate-mission` | Execute agent mission (SSE stream) |
+| GET | `/api/v1/models` | List available LLM models |
+| GET | `/api/v1/features` | List agent features/tools |
+| GET | `/api/v1/skills` | List agent skill definitions |
+| POST | `/api/v1/internal/sessions/summarize` | Summarize session history |
 
 ### Key Schemas Documented
 

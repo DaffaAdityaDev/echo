@@ -21,9 +21,9 @@ export const VALIDATION_MESSAGES = {
 
 export const MISSION_ROUTES = {
   GENERATE_MISSION: "/generate-mission",
-  APPROVE: "/v1/sessions/:id/approve",
-  DENY: "/v1/sessions/:id/deny",
-  CANCEL: "/v1/sessions/:id/cancel",
+  APPROVE: "/sessions/:id/approve",
+  DENY: "/sessions/:id/deny",
+  CANCEL: "/sessions/:id/cancel",
 } as const;
 
 export const HITL_DECISIONS = {

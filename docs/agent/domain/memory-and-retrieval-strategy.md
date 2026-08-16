@@ -381,7 +381,7 @@ Agent-side implications:
 - The agent remains **stateless** — it never decides retention.
 - Episodic memory POSTed to `/api/v1/internal/memory/episodic/store` already
   carries TTL (600s per turn); Redis GC is TTL-only, no agent change.
-- Summarize endpoint (`POST /api/internal/sessions/summarize`) is reused by
+- Summarize endpoint (`POST /api/v1/internal/sessions/summarize`) is reused by
   the worker exactly as the chat fast-path uses it today — no signature change.
 
 ---

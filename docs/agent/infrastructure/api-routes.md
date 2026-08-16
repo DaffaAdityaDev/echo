@@ -87,7 +87,7 @@ src/adapter/inbound/
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                   Route Aggregator (routes.ts)                            │
 │                                                                           │
-  │  ┌─ /api/generate-mission  ──→  createMission                            │
+  │  ┌─ /api/v1/generate-mission  ──→  createMission                            │
   │  │                            ├─ Zod schema validation                   │
   │  │                            ├─ ProviderFactory.fromConfig (provider)   │
   │  │                            ├─ strategyRegistry.resolve(strategyKey)   │
@@ -98,12 +98,12 @@ src/adapter/inbound/
   │  ┌─ /api/v1/sessions/:id/approve   ──→  handleHitlDecision (approve)     │
   │  ┌─ /api/v1/sessions/:id/deny      ──→  handleHitlDecision (deny)        │
 │  │                                                                        │
-│  ┌─ /api/models             ──→  listModels                             │
+│  ┌─ /api/v1/models             ──→  listModels                             │
 │  │                            └─ Proxy to LLM provider /v1/models       │
 │  │                                                                        │
-│  ┌─ /api/features           ──→  Returns implemented tool registry       │
+│  ┌─ /api/v1/features           ──→  Returns implemented tool registry       │
 │  │                                                                        │
-│  ┌─ /api/strategies         ──→  StrategyRegistry catalog [Active]       │
+│  ┌─ /api/v1/strategies         ──→  StrategyRegistry catalog [Active]       │
 │  │                            └─ name, versions, status, aliases         │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                   │
@@ -128,18 +128,18 @@ src/adapter/inbound/
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 | `default router`                 | `adapter/inbound/api/routes.ts`                     | Hono router mounting mission, model, feature, skill, strategy, internal, docs sub-routers |
 | `missionRouter`                  | `adapter/inbound/api/missions/mission.routes.ts`        | `POST /generate-mission` + `/v1/sessions/:id/approve|deny|stream` handlers |
-| `modelRouter`                    | `adapter/inbound/api/models/model.routes.ts`            | `GET /models` handler                            |
-| `featuresRouter`                 | `adapter/inbound/api/features/features.routes.ts`       | `GET /features` handler                          |
-| `skillsRouter`                   | `adapter/inbound/api/skills/skills.routes.ts`           | `GET /skills` handler                            |
-| `strategiesRouter`               | `adapter/inbound/api/strategies/strategies.routes.ts`   | `GET /strategies` handler                        |
+| `modelRouter`                    | `adapter/inbound/api/v1/models/model.routes.ts`            | `GET /models` handler                            |
+| `featuresRouter`                 | `adapter/inbound/api/v1/features/features.routes.ts`       | `GET /features` handler                          |
+| `skillsRouter`                   | `adapter/inbound/api/v1/skills/skills.routes.ts`           | `GET /skills` handler                            |
+| `strategiesRouter`               | `adapter/inbound/api/v1/strategies/strategies.routes.ts`   | `GET /strategies` handler                        |
 | `internalRouter`                 | `adapter/inbound/api/internal/internal.routes.ts`       | `POST /sessions/summarize` handler               |
 
 | `createMission`                  | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
 | `handleHitlDecision`             | `adapter/inbound/api/missions/mission.controller.ts`    | Module-level handler function                    |
-| `listModels`                     | `adapter/inbound/api/models/model.controller.ts`        | Module-level handler function                    |
-| `getFeatures`                    | `adapter/inbound/api/features/features.controller.ts`   | Module-level handler function                    |
-| `listSkills`                     | `adapter/inbound/api/skills/skills.controller.ts`       | Module-level handler function                    |
-| `listStrategies`                 | `adapter/inbound/api/strategies/strategies.controller.ts` | Module-level handler function                  |
+| `listModels`                     | `adapter/inbound/api/v1/models/model.controller.ts`        | Module-level handler function                    |
+| `getFeatures`                    | `adapter/inbound/api/v1/features/features.controller.ts`   | Module-level handler function                    |
+| `listSkills`                     | `adapter/inbound/api/v1/skills/skills.controller.ts`       | Module-level handler function                    |
+| `listStrategies`                 | `adapter/inbound/api/v1/strategies/strategies.controller.ts` | Module-level handler function                  |
 | `summarizeSession`               | `adapter/inbound/api/internal/internal.controller.ts`   | Module-level handler function                    |
 | `HttpStreamTransport`            | `adapter/inbound/api/missions/stream.transport.ts`      | SSE packet serializer with sequence numbers      |
 | `createMissionSchema`            | `adapter/inbound/api/missions/mission.schema.ts`        | Zod schema for mission payload validation        |
@@ -147,7 +147,7 @@ src/adapter/inbound/
 | `SummarizeRequestSchema`         | `adapter/inbound/api/internal/internal.schema.ts`       | Zod schema for summarize request validation      |
 +----------------------------------+--------------------------------------+--------------------------------------------------+
 
-### Mission Endpoint - POST /api/generate-mission
+### Mission Endpoint - POST /api/v1/generate-mission
 
 ```
 // Request body (after Zod normalization)
@@ -179,7 +179,7 @@ src/adapter/inbound/
 // `: heartbeat\n\n` comment interval.
 ```
 
-### Models Endpoint - GET /api/models
+### Models Endpoint - GET /api/v1/models
 
 ```
 // Response
@@ -188,7 +188,7 @@ src/adapter/inbound/
 // Proxies to ENV.LLM_MODEL_API_URL/v1/models
 ```
 
-### Features Endpoint - GET /api/features
+### Features Endpoint - GET /api/v1/features
 
 ```
 // Response
@@ -202,7 +202,7 @@ Array<{
 // metadata is owned by the backend features table (009 migration).
 ```
 
-### Strategies Endpoint - GET /api/strategies  [Active]
+### Strategies Endpoint - GET /api/v1/strategies  [Active]
 
 
 Strategy catalog source of truth — reads the versioned registry
@@ -229,7 +229,7 @@ version back to its strategy implementation via `StrategyFactory`.
 
 ---
 
-### Tokenize Endpoint - POST /api/internal/tokenize  [Active]
+### Tokenize Endpoint - POST /api/v1/internal/tokenize  [Active]
 
 Internal (service-to-service, `X-Internal-Token` or service JWT). Counts
 tokens with the official tiktoken BPE tokenizer (`o200k_base`, WASM via
@@ -279,8 +279,8 @@ Errors: `400` invalid body (missing `text`), `500` tokenization failure.
 | `adapter/inbound/api/missions/mission.schema.ts` | 295-299 | Zod `hitlDecisionSchema`                  |
 | `adapter/inbound/api/missions/mission.constants.ts` | 32-37 | `MISSION_ROUTES` path constants             |
 | `adapter/inbound/api/missions/stream.transport.ts` | 8-29 | SSE transport with seq/timestamp                  |
-| `adapter/inbound/api/models/model.routes.ts` | 6         | `GET /models`                                     |
-| `adapter/inbound/api/features/features.routes.ts` | 6 | `GET /features`                                   |
+| `adapter/inbound/api/v1/models/model.routes.ts` | 6         | `GET /models`                                     |
+| `adapter/inbound/api/v1/features/features.routes.ts` | 6 | `GET /features`                                   |
 | `adapter/inbound/middleware/auth.ts` | 8-42                   | Bearer / X-Internal-Token auth                    |
 | `adapter/inbound/middleware/error.ts` | 8-73                   | Classified error handler                          |
 | `adapter/inbound/middleware/monitor.ts` | 5-54                | Request/response logging                          |

@@ -53,7 +53,7 @@
     }
   },
   "paths": {
-    "/api/features": {
+    "/api/v1/features": {
       "get": {
         "summary": "List implemented agent features",
         "description": "Fetch the implemented tool registry — the feature IDs the agent can actually execute, dynamically derived from the tool registry. Each entry maps a requestable feature id to its loaded tool name and description. Catalog metadata (tier_requirement, ui_schema, status) is owned by the backend features table, not the agent.",

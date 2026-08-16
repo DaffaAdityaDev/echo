@@ -1,4 +1,4 @@
-﻿===============================================================================
+===============================================================================
   DATABASE SCHEMA — Complete Reference
 ===============================================================================
   Module    : Database Schema
@@ -161,7 +161,7 @@ Feature catalog metadata — the **backend-owned** source of truth for
 with an idempotent seed for the 3 canonical features (the `009_create_features`
 migration file is not executed by any tool). The agent does not hold this
 metadata; it reports its implemented registry (`[{id, name, description}]`)
-via `GET /api/features`, and the backend composes the public catalog as
+via `GET /api/v1/features`, and the backend composes the public catalog as
 **features table ∩ agent implemented set**. Referenced by
 `docs/shared/domain/roles-and-permissions.md`.
 

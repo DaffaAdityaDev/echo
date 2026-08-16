@@ -323,7 +323,7 @@ Sent every 15 seconds in SaaS mode to keep connection alive.
 
 ### Agent Internal: Generate Mission
 
-**POST /api/generate-mission?mode=...** (Agent internal)
+**POST /api/v1/generate-mission?mode=...** (Agent internal)
 
 ```json
 // Request (Go -> Agent)
@@ -431,7 +431,7 @@ Defaults come from `DEFAULT_MISSION_VALUES` (`mission.constants.ts`):
 
 The Go gateway's `GET /api/v1/strategies` wraps the same catalog and merges
 the gateway-resolved `rollout` field per version. The agent's internal
-`GET /api/strategies` returns the shape above with no rollout.
+`GET /api/v1/strategies` returns the shape above with no rollout.
 
 ### Models
 
@@ -447,7 +447,7 @@ the gateway-resolved `rollout` field per version. The agent's internal
 }
 ```
 
-Agent `/api/models` returns same shape but wraps OpenAI/LM Studio format:
+Agent `/api/v1/models` returns same shape but wraps OpenAI/LM Studio format:
 
 ```json
 // Transforms from { data: [{ id: "..." }] } -> { models: [{ id, name }] }
@@ -477,13 +477,13 @@ Agent `/api/models` returns same shape but wraps OpenAI/LM Studio format:
 
 ### Agent Internal: Feature Catalog
 
-**GET /api/features** (Agent internal, used by Go)
+**GET /api/v1/features** (Agent internal, used by Go)
 
 The agent's **implemented tool registry** — dynamically derived from its tool
 registry (`getImplementedFeatures()`). No tier, no ui_schema: catalog
 metadata lives in the backend `features` table (migration 009_create_features)
 and is merged by Go. Unknown feature ids requested in
-`POST /api/generate-mission` are rejected with HTTP 400
+`POST /api/v1/generate-mission` are rejected with HTTP 400
 `{"error": "Unknown feature '<id>'"}`, mirroring skills validation.
 
 ```json
@@ -509,7 +509,7 @@ and is merged by Go. Unknown feature ids requested in
 
 ### Agent Internal: Skills Catalog
 
-**GET /api/skills** (Agent internal, used by Go)
+**GET /api/v1/skills** (Agent internal, used by Go)
 
 Backend fetches only when the user's preferences list skills.
 Cached in Redis (10 min TTL).

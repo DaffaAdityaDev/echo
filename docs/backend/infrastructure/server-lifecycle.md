@@ -71,7 +71,7 @@ runs in-process — **no new container/service**.
     │    scan sessions: token_count >= PRUNE_THRESHOLD AND        │
     │      updated_at older than window                          │
     │    → ConsolidationSvc.TriggerConsolidation (existing,      │
-    │       unchanged — reuses agent /api/internal/sessions/      │
+    │       unchanged — reuses agent /api/v1/internal/sessions/      │
     │       summarize)                                           │
     │                                                            │
     │  Job B — Decay & GC                                        │

@@ -75,7 +75,7 @@ Safety guards (hard-coded in `cmd/db/seed/main.go`):
    deployment pipelines can never trigger a truncation.
 
 Token counts are EXACT: the seeder calls the agent's
-`POST /api/internal/tokenize` (official tiktoken BPE, `o200k_base`) per unique
+`POST /api/v1/internal/tokenize` (official tiktoken BPE, `o200k_base`) per unique
 content, cached in-memory. Falls back to chars/4 with a warning only when the
 agent is unreachable.
 

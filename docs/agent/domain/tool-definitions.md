@@ -295,7 +295,7 @@ LAZY_TOOLS = {
   web_search:        () => import('./definitions/web-search'),
 };
 
-// 2. Implemented tool registry (exposed via GET /api/features)
+// 2. Implemented tool registry (exposed via GET /api/v1/features)
 // getImplementedFeatures() — LAZY_TOOLS keys enriched by loaded tool
 // definitions, deduplicated by id, sorted by id:
 getImplementedFeatures() => [

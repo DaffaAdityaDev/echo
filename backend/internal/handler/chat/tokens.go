@@ -23,7 +23,7 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 		return estimateTokensFallback(text)
 	}
 
-	agentURL := h.Cfg.AgentHTTPURL + "/api/internal/tokenize"
+	agentURL := h.Cfg.AgentHTTPURL + "/api/v1/internal/tokenize"
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, agentURL, bytes.NewBuffer(body))
 	if err != nil {
 		return estimateTokensFallback(text)

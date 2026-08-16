@@ -243,7 +243,7 @@ interface StrategyRegistry {
 }
 ```
 
-Catalog shape is shared with `GET /api/strategies` and merged with gateway
+Catalog shape is shared with `GET /api/v1/strategies` and merged with gateway
 rollout at `GET /api/v1/strategies` (see `docs/shared/patterns/strategy-lifecycle.md`).
 
 ### ToolDefinition

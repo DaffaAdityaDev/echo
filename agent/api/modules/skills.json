@@ -62,7 +62,7 @@
     }
   },
   "paths": {
-    "/api/skills": {
+    "/api/v1/skills": {
       "get": {
         "summary": "List available agent skills",
         "description": "Fetch catalog of specialized skill definitions available for activation during missions.",

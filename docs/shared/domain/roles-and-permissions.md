@@ -23,7 +23,7 @@ is reserved for planned admin functionality. Two services cooperate:
 +----------------+-------------------------------------------------------------+
 | Agent (Hono)   | Implementation registry — serves the **implemented tool      |
 |                |   registry** (agent/src/core/agent/tools/registry.ts,        |
-|                |   `getImplementedFeatures()`) via internal GET /api/features |
+|                |   `getImplementedFeatures()`) via internal GET /api/v1/features |
 |                |   (features.routes.ts:6-8): `[{id, name, description}]`,     |
 |                |   dynamically derived from the tool registry. Holds NO       |
 |                |   catalog metadata (tier/ui_schema) in code and no user      |
@@ -51,7 +51,7 @@ is reserved for planned admin functionality. Two services cooperate:
 |                                    |   (implementation registry — no catalog    |
 |                                    |   metadata)                                |
 | agent/src/adapter/inbound/api/     |                                            |
-|   features/features.routes.ts      | Internal GET /api/features endpoint        |
+|   features/features.routes.ts      | Internal GET /api/v1/features endpoint        |
 | agent/src/adapter/inbound/api/     |                                            |
 |   missions/mission.constants.ts    | Mission defaults (strategy, tenant/user/   |
 |                                    |   org) — NOT feature constants             |
@@ -161,8 +161,8 @@ autoloaded tool definitions, deduplicated by id, sorted by id:
 | write_todos     | write_todos                      | free (backend DB)  |
 +-----------------+----------------------------------+--------------------+
 
-Served internally at `GET /api/features` as `[{id, name, description}]`
-(`agent/src/adapter/inbound/api/features/features.routes.ts:6-8`). The Go
+Served internally at `GET /api/v1/features` as `[{id, name, description}]`
+(`agent/src/adapter/inbound/api/v1/features/features.routes.ts:6-8`). The Go
 gateway merges this with its DB catalog (the effective set is **DB catalog ∩
 agent implemented set**) and proxies into Redis under key `agent:features`
 with a 10-minute TTL.
@@ -173,7 +173,7 @@ with a 10-minute TTL.
 1. Go Gateway receives request with Features[] from client
 2. Go fetches the effective feature catalog (cached in Redis, TTL 10m).
    Source: DB `features` table ∩ agent implemented registry
-   (GET /api/features). A feature unknown to the agent is rejected
+   (GET /api/v1/features). A feature unknown to the agent is rejected
    with 400 "Unknown feature '<id>'".
 3. For each requested feature:
    IF user tier == "free" AND feature.tier_requirement == "pro"
@@ -238,7 +238,7 @@ field.
        │                    │                       │                     │
        │                    │◄── MISS ──────────────│                     │
        │                    │                       │                     │
-       │                    │  GET /api/features     │                     │
+       │                    │  GET /api/v1/features     │                     │
        │                    │────────────────────────────────────────────►│
        │                    │                       │                     │
        │                    │◄── feature[] ───────────────────────────────│
@@ -311,7 +311,7 @@ backend `features` table (migration 009_create_features); the agent's
 - **Implemented registry**: `agent/src/core/agent/tools/registry.ts` —
   getImplementedFeatures() (dynamic from tool registry)
 - **Internal endpoint**:
-  `agent/src/adapter/inbound/api/features/features.routes.ts:6-8`
+  `agent/src/adapter/inbound/api/v1/features/features.routes.ts:6-8`
 - **Frontend feature discovery**:
   `frontend/web/src/features/shared/hooks/useFeatures.ts`
 - **User role field**: `backend/internal/models/auth/user.go:5-13`
@@ -332,7 +332,7 @@ backend `features` table (migration 009_create_features); the agent's
 | backend/migrations/009_create_features.up.sql         | 1-16  | features table DDL + seed data         |
 | agent/src/core/agent/tools/registry.ts                | 20-42 | getImplementedFeatures() — implemented |
 |                                                       |       |   registry (agent-side, no metadata)   |
-| agent/src/adapter/inbound/api/features/               | 6-8   | Internal GET /api/features             |
+| agent/src/adapter/inbound/api/v1/features/               | 6-8   | Internal GET /api/v1/features             |
 |   features.routes.ts                                 |       |                                        |
 | agent/src/adapter/inbound/api/missions/               | 87-97 | Unknown feature -> 400 validation      |
 |   mission.controller.ts                              |       |                                        |

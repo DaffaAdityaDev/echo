@@ -28,7 +28,7 @@ that single execution.
 ## Push Contract (Backend -> Agent, per Request)
 
 Everything the agent needs that is knowable before the mission starts is
-pushed in the `POST /api/generate-mission` payload. One round trip, atomic,
+pushed in the `POST /api/v1/generate-mission` payload. One round trip, atomic,
 fast.
 
 +----------------------+------------------------------------------+--------------------------------+--------------------------------------+
@@ -49,7 +49,7 @@ fast.
 | features             | Resolved from user_preferences, ALWAYS   | features                       | chat/handler.go:77,84-94;            |
 |                      |   sent after tier gate — `[]` never      |                                | mission.schema.ts:266               |
 |                      |   catalog (DB `features` table ∩ agent    |                                |                                     |
-|                      |   implemented registry, GET /api/features)|                                |                                     |
+|                      |   implemented registry, GET /api/v1/features)|                                |                                     |
 |                      |   — unknown feature → 400                 |                                |                                     |
 | skills               | Sent only when non-empty (validated);    | skills                         | chat/handler.go:78,110-125;          |
 |                      |   from user_preferences.DefaultSkills    |                                | mission.schema.ts:267                |
@@ -67,7 +67,7 @@ fast.
 
 > **Note (catalog metadata)**: feature catalog metadata — tier_requirement,
 > ui_schema, status — is owned by the **backend** PostgreSQL `features` table
-> (migration 009_create_features). The agent's `GET /api/features` returns
+> (migration 009_create_features). The agent's `GET /api/v1/features` returns
 > only its implemented registry `[{id, name, description}]` (derived from its
 > tool registry) and holds no catalog metadata. The effective catalog is the
 > DB table ∩ agent implemented set; the agent rejects any requested feature id
@@ -149,7 +149,7 @@ New pull capabilities MUST follow the same shape:
    │  strategy_version,                                                   │
    │  config (mcpServers/restTools creds), session_id                    │
    │                                                                      │
-   │  POST /api/generate-mission  (X-Internal-Token)                      │
+   │  POST /api/v1/generate-mission  (X-Internal-Token)                      │
    ▼                                                                      ▼
 ┌──────────────────┐          ┌────────────────────────────────────┐
 │  Go Backend      │─────────►│  Hono Agent (stateless executor)    │

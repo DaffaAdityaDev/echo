@@ -413,7 +413,7 @@ on `sessions.strategy_version`.
 **Strategy Registry**
 Code-side catalog in the agent (`strategies/registry.ts`) answering "what is
 exported": names, versions, status (`active`/`deprecated`), aliases. Exposed
-via `GET /api/strategies`. Operational control (rollout %) stays in the
+via `GET /api/v1/strategies`. Operational control (rollout %) stays in the
 gateway settings table.
 *Source: `docs/agent/application/features/execution/strategy-pattern.md` [Active]*
 

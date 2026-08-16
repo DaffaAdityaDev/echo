@@ -279,7 +279,7 @@ Go does NOT have an LLM — consolidation is delegated to Agent:
 ```
 Go detects threshold exceeded
   │
-  │ HTTP POST → Agent /api/internal/sessions/summarize
+  │ HTTP POST → Agent /api/v1/internal/sessions/summarize
   │ { session_id, messages: [{ role, content }] }  ← oldest N messages
   │
   ▼
@@ -302,7 +302,7 @@ Next turn → prompt built from: system + tools + context_summary + remaining hi
 ### Consolidation Endpoint
 
 ```
-POST /api/internal/sessions/summarize
+POST /api/v1/internal/sessions/summarize
   Host: Agent (Go → Agent HTTP call, NOT a Go route)
   Auth: X-Internal-Token
   Request: {
@@ -365,12 +365,12 @@ Go:
 ```
 Go → Agent (X-Internal-Token, HTTP call):
 
-  POST /api/internal/sessions/summarize
+  POST /api/v1/internal/sessions/summarize
     → Delegated summarization for hard consolidation
 
 Go → Agent (X-Internal-Token, internal):
 
-  POST /api/generate-mission?mode=<mode>
+  POST /api/v1/generate-mission?mode=<mode>
     → Now includes { sessionId, messages[], provider_config, features, skills }
     → messages[] is the FULL BLOCK 4 (not truncated by frontend)
 ```

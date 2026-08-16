@@ -17,7 +17,7 @@ owns the catalog (PostgreSQL `features` table, migration 009_create_features),
 merges it with the agent's implemented set, enforces tier access, and returns
 `locked` flags to end users.
 
-> **IMPORTANT**: `GET /api/features` is an **INTERNAL** endpoint
+> **IMPORTANT**: `GET /api/v1/features` is an **INTERNAL** endpoint
 > (agent-to-agent only). It is protected by the shared `X-Internal-Token`
 > (see `auth.ts:6-40`, wired at `agent/src/index.ts:48`). End users MUST go
 > through the backend at `GET /api/v1/features` —
@@ -46,16 +46,16 @@ merges it with the agent's implemented set, enforces tier access, and returns
 
 The backend never exposes the raw agent registry to clients. It merges its DB
 catalog with the agent's implemented set — the effective catalog is **DB
-features ∩ agent implemented registry**. Two paths consume `GET /api/features`:
+features ∩ agent implemented registry**. Two paths consume `GET /api/v1/features`:
 
 ```
-  GET /api/features            (agent, internal — X-Internal-Token)
+  GET /api/v1/features            (agent, internal — X-Internal-Token)
        │
        ▼
   GetImplementedSet(ctx)       backend/internal/service/features/service.go:71-117
        │  1. Redis GET "agent:features"  (TTL 10m)
        │  2. cache hit      -> return []Feature immediately
-       │  3. cache miss     -> GET {HonoAPIURL}/api/features
+       │  3. cache miss     -> GET {HonoAPIURL}/api/v1/features
        │                       header: X-Internal-Token
        │  4. unmarshal []ImplementedFeature{id,name,description}
        │     merge with DB features table (tier_requirement,

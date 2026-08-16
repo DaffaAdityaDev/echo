@@ -92,7 +92,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 		}
 	}
 
-	agentURL := fmt.Sprintf("%s/api/features", s.cfg.AgentHTTPURL)
+	agentURL := fmt.Sprintf("%s/api/v1/features", s.cfg.AgentHTTPURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, agentURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent features request: %w", err)

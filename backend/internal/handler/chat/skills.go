@@ -27,7 +27,7 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 		}
 	}
 
-	agentURL := fmt.Sprintf("%s/api/skills", h.HonoAPIURL)
+	agentURL := fmt.Sprintf("%s/api/v1/skills", h.HonoAPIURL)
 	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, "GET", agentURL, nil)

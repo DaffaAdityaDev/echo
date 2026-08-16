@@ -82,7 +82,7 @@ api-client.ts                     parseTraceparent()                 │
                                     │   mission.id                   │
                                     │   llm.model                    │
                                     │                                │
-                                    │  POST /api/generate-mission    │
+                                    │  POST /api/v1/generate-mission    │
                                     │  traceparent: "00-{newTid}-    │
                                     │   {newSid}-01"                │
                                     │───────────────────────────────►│

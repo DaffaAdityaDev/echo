@@ -274,7 +274,7 @@ the skills API creates its own.
 
 ## API Endpoint
 
-Skills are served via `GET /api/skills`. The endpoint returns a filtered view:
+Skills are served via `GET /api/v1/skills`. The endpoint returns a filtered view:
 
 ```typescript
 // skills.routes.ts — response shape
@@ -295,7 +295,7 @@ calls.
 
 ```
 Backend receives skills: ["research"]
-  → GET /api/skills (agent, cached Redis 10m)  ← only if skills[] present
+  → GET /api/v1/skills (agent, cached Redis 10m)  ← only if skills[] present
   → validate "research" exists
   → forward skills[] to agent
   → agent resolves preferredTools or uses features (never merged)
@@ -334,7 +334,7 @@ Backend receives skills: ["research"]
 | Controller usage           | `adapter/inbound/api/missions/mission.controller.ts:113` | `new SkillRegistry()` for HITL/creation |
 | Controller tool resolution | `adapter/inbound/api/missions/mission.controller.ts`      | features XOR preferredTools              |
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts`          | `skills` array + `features` array        |
-| Skills API endpoint        | `adapter/inbound/api/skills/skills.routes.ts:6`           | GET /skills route                        |
+| Skills API endpoint        | `adapter/inbound/api/v1/skills/skills.routes.ts:6`           | GET /skills route                        |
 +----------------------------+------------------------------------------+------------------------------------------+
 
 ===============================================================================

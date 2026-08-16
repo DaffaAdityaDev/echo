@@ -691,7 +691,7 @@
     }
   },
   "paths": {
-    "/api/generate-mission": {
+    "/api/v1/generate-mission": {
       "post": {
         "summary": "Execute agent mission (SSE Stream)",
         "description": "Triggers autonomous agent execution loop and streams response packets via Server-Sent Events. The stream emits HarnessPacket JSON objects, one per line, prefixed with 'data: '. The connection remains open until the mission completes or is aborted.",

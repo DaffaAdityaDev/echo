@@ -98,7 +98,7 @@ function mapHistoryToMessages(
 ): BaseMessage[]
 ```
 
-Converts raw API message history (from the `POST /api/generate-mission` body)
+Converts raw API message history (from the `POST /api/v1/generate-mission` body)
 into LangChain message objects. Role mapping:
 - `user`/`human` → `HumanMessage`
 - `system` → `SystemMessage`

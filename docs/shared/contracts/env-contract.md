@@ -195,7 +195,7 @@ LANGFUSE_SECRET_KEY=sk-lf-...
 LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_BASE_URL=http://localhost:3000
 
-# LLM_MODEL_API_URL=http://localhost:1234  (read by agent GET /api/models proxy — model.controller.ts:9)
+# LLM_MODEL_API_URL=http://localhost:1234  (read by agent GET /api/v1/models proxy — model.controller.ts:9)
 # MCP_SERVER_URL=http://localhost:3002/sse
 ENABLE_MCP=false             # when true + MCP_SERVER_URL set: index.ts connects the MCP client (connectMCPServer)
 ENABLE_REST_TOOLS=false      # RESERVED — schema-only; per-session REST tools are wired via config.restTools in mission.controller.ts
@@ -211,7 +211,7 @@ REDIS_URL=redis://localhost:6379
 PORT:                    z.string().default("3001")
 GRPC_PORT:               z.string().default("50051")   // RESERVED — no gRPC code
 CHROMA_URL:              z.string().default("http://localhost:8000")  // RESERVED — no runtime client
-LLM_MODEL_API_URL:       z.string().default("http://127.0.0.1:1234")  // Read by GET /api/models proxy
+LLM_MODEL_API_URL:       z.string().default("http://127.0.0.1:1234")  // Read by GET /api/v1/models proxy
 STATE_BACKEND:           z.enum(["memory", "backend"]).default("memory")
 NODE_ENV:                z.enum(["development","production","test"]).default("development")
 DEBUG_PROMPT:            z.coerce.boolean().default(false)
@@ -300,7 +300,7 @@ INTERNAL_AUTH_TOKEN=default-internal-token-secret
 SERVICE_JWT_SECRET=change-this-to-a-secure-service-jwt-secret-min32chars
 BACKEND_URL=http://echo-backend:8080
 STATE_BACKEND=backend
-LLM_MODEL_API_URL=http://host.docker.internal:1234/v1   # read by agent /api/models proxy
+LLM_MODEL_API_URL=http://host.docker.internal:1234/v1   # read by agent /api/v1/models proxy
 REDIS_URL=redis://echo-redis:6379                        # session event store (Active)
 
 # Provider API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENCODE_GO_API_KEY,

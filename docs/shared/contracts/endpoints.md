@@ -199,13 +199,13 @@ Base path: `/api`
 | Method | Path                                       | Service | Auth     | Description                      | Status |
 +--------+--------------------------------------------+---------+----------+----------------------------------+--------+
 | GET    | /                                          | Agent   | None     | Health check (bypass)            | Active |
-| POST   | /api/generate-mission                      | Agent   | Internal | Execute mission (SSE stream)     | Active |
-| GET    | /api/models                                | Agent   | Internal | List models from LLM provider    | Active |
-| GET    | /api/features                              | Agent   | Internal | Implemented tool registry ([{id,name,description}]) | Active |
-| GET    | /api/strategies                            | Agent   | Internal | Strategy catalog (versions/status)| Active |
+| POST   | /api/v1/generate-mission                      | Agent   | Internal | Execute mission (SSE stream)     | Active |
+| GET    | /api/v1/models                                | Agent   | Internal | List models from LLM provider    | Active |
+| GET    | /api/v1/features                              | Agent   | Internal | Implemented tool registry ([{id,name,description}]) | Active |
+| GET    | /api/v1/strategies                            | Agent   | Internal | Strategy catalog (versions/status)| Active |
 | POST   | /api/v1/sessions/:id/approve               | Agent   | Internal | Approve HITL tool call, resume run (SSE) | Active |
 | POST   | /api/v1/sessions/:id/deny                  | Agent   | Internal | Deny HITL tool call, resume run (SSE) | Active |
-| POST   | /api/internal/sessions/summarize           | Agent   | Internal | Perform LLM session summary      | Active |
+| POST   | /api/v1/internal/sessions/summarize           | Agent   | Internal | Perform LLM session summary      | Active |
 +--------+--------------------------------------------+---------+----------+----------------------------------+--------+
 
 **Auth**: All agent routes (except `/`) require `X-Internal-Token` or `Authorization: Bearer <token>` matching `INTERNAL_AUTH_TOKEN`.
@@ -279,13 +279,13 @@ From `docs/architecture-plan.md` — not yet implemented:
 +-----------+-------------+--------+------------------------------------------+-----------------------+
 | Source    | Target      | Method | Path                                     | Auth Mechanism        |
 +-----------+-------------+--------+------------------------------------------+-----------------------+
-| Go Gateway| Agent Hono  | POST   | /api/generate-mission                    | X-Internal-Token      |
-| Go Gateway| Agent Hono  | GET    | /api/features                            | X-Internal-Token      |
-| Go Gateway| Agent Hono  | GET    | /api/strategies                          | X-Internal-Token      |
-| Go Gateway| Agent Hono  | GET    | /api/models                              | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/generate-mission                    | X-Internal-Token      |
+| Go Gateway| Agent Hono  | GET    | /api/v1/features                            | X-Internal-Token      |
+| Go Gateway| Agent Hono  | GET    | /api/v1/strategies                          | X-Internal-Token      |
+| Go Gateway| Agent Hono  | GET    | /api/v1/models                              | X-Internal-Token      |
 | Go Gateway| Agent Hono  | POST   | /api/v1/sessions/:id/approve             | X-Internal-Token      |
 | Go Gateway| Agent Hono  | POST   | /api/v1/sessions/:id/deny                | X-Internal-Token      |
-| Go Gateway| Agent Hono  | POST   | /api/internal/sessions/summarize         | X-Internal-Token      |
+| Go Gateway| Agent Hono  | POST   | /api/v1/internal/sessions/summarize         | X-Internal-Token      |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/episodic/store   | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/episodic/recall  | Service JWT (Bearer)  |
 | Agent     | Go Gateway  | POST   | /api/v1/internal/memory/semantic/store   | Service JWT (Bearer)  |

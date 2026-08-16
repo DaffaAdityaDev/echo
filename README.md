@@ -53,7 +53,7 @@ flowchart TB
 
     A & B & C & D -->|REST + SSE| E
     E --> F & G
-    F -->|POST /api/generate-mission<br/>+ strategy_version| H
+    F -->|POST /api/v1/generate-mission<br/>+ strategy_version| H
     S --> H
     G <-->|Service JWT Auth| H
     H --> I --> J

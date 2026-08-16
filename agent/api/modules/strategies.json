@@ -51,7 +51,7 @@
     }
   },
   "paths": {
-    "/api/strategies": {
+    "/api/v1/strategies": {
       "get": {
         "summary": "List versioned strategy catalog",
         "description": "Fetch code-side strategy catalog with versions and aliases.",

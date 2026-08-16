@@ -186,7 +186,7 @@ Message Flow - HandleChat
       │      skills (only when non-empty),
       │      strategy_version (resolved version string, e.g. "nlah:v1")
      │
-     ├─ POST to agent /api/generate-mission?mode=<Mode (from preferences)>
+     ├─ POST to agent /api/v1/generate-mission?mode=<Mode (from preferences)>
      │      Headers: Content-Type, X-Internal-Token, traceparent
      │
      │   ┌─ Error: 500 { "error": "Agent service unreachable" }
@@ -243,7 +243,7 @@ Trigger point: after session ownership check, before loading messages.
     ConsolidationSvc.TriggerConsolidation(ctx, sessionID, providerMap)
       └─ Determines pruneBoundary = maxTurn - PRUNE_KEEP_LATEST_TURNS (default 10)
       └─ Loads messages up to pruneBoundary
-      └─ POST to Agent /api/internal/sessions/summarize
+      └─ POST to Agent /api/v1/internal/sessions/summarize
            Body: { session_id, messages, max_summary_tokens, provider_config }
            Header: X-Internal-Token
       └─ On success:
@@ -272,7 +272,7 @@ Skill Catalog — HandleGetSkills
               ├─ Check Redis cache key "agent:skills" (TTL 10 min)
               │     └─ Cache hit -> return []map[string]interface{}
               │
-              ├─ GET <HonoAPIURL>/api/skills
+              ├─ GET <HonoAPIURL>/api/v1/skills
               │      Header: X-Internal-Token
               │
               ├─ Parse response -> []map[string]interface{}{name, ...}
@@ -301,7 +301,7 @@ streaming, ensuring data survival on page refresh or disconnect.
          Returns assistantMsgID
 
   Token counts (exact, no chars/4 estimation):
-    - User message: POST agent /api/internal/tokenize (official tiktoken BPE,
+    - User message: POST agent /api/v1/internal/tokenize (official tiktoken BPE,
       o200k_base) BEFORE the per-session lock — see handler/chat/tokens.go.
       The tokenize call is an HTTP round-trip; it runs outside the lock so a
       slow tokenizer never serializes every message in the session. Only
@@ -370,7 +370,7 @@ Feature Catalog - GetFeatures / HandleGetFeatures
     ├─ Check Redis cache key "agent:features" (TTL 10 min)
     │     └─ Cache hit -> return
     │
-    ├─ GET <HonoAPIURL>/api/features
+    ├─ GET <HonoAPIURL>/api/v1/features
     │      Header: X-Internal-Token
     │
     ├─ Parse response -> []ImplementedFeature{ID, Name, Description}

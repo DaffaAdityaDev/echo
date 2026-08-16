@@ -38,7 +38,7 @@ so they cannot desynchronize.
 │ AGENT CODE (registry.ts) — "what is exported?"               │
 │  list(): [{ name, versions: [{ version, status, aliases }] }]│
 │  resolve('nlah:v1') -> AgentStrategy (via factory)           │
-│  exposed: GET /api/strategies                                │
+│  exposed: GET /api/v1/strategies                                │
 └──────────────────────────────┬───────────────────────────────┘
                                │ (merge)
                                ▼
@@ -67,7 +67,7 @@ Clients never send `strategy_version` in the chat request — resolution is
 server-side only.
 
 The resolved version is forwarded to the agent as `strategy_version` in the
-`POST /api/generate-mission` payload.
+`POST /api/v1/generate-mission` payload.
 
 ---
 
@@ -136,7 +136,7 @@ The resolved version is forwarded to the agent as `strategy_version` in the
 ## Entry Points & Exports
 
 - **Agent registry**: `agent/src/core/agent/strategies/registry.ts` [Active]
-- **Agent endpoint**: `GET /api/strategies` [Active]
+- **Agent endpoint**: `GET /api/v1/strategies` [Active]
 - **Gateway endpoint**: `GET /api/v1/strategies` [Active]
 - **Gateway resolver**: `backend/internal/service/strategy/` [Active]
 - **Schema**: `sessions.strategy_version` (migration 006) [Active]

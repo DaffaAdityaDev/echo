@@ -282,7 +282,7 @@ repetitions, last_score, priority, created_at
 **Mission Flow (Planned MVP)**:
 ```
 1. User requests mission OR completes card -> triggers Go service
-2. Go calls Agent via HTTP: POST /api/generate-mission
+2. Go calls Agent via HTTP: POST /api/v1/generate-mission
 3. Agent fetches user context (cards, weak topics) from Go API
 4. Agent queries Chroma for relevant content (RAG)
 5. Agent uses LLM to generate mission prompt
@@ -371,7 +371,7 @@ Client ──POST /chat──► Gateway
                          │
                          ├─ write pin: sessions.strategy_version (immutable)
                          │
-                         └─ POST /api/generate-mission
+                         └─ POST /api/v1/generate-mission
                               payload + strategy_version ("nlah:v1")
                                      │
                                      ▼

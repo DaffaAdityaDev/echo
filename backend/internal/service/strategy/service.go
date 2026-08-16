@@ -73,7 +73,7 @@ func (s *Service) GetCatalog(ctx context.Context) ([]StrategyRegistryEntry, erro
 		}
 	}
 
-	url := fmt.Sprintf("%s/api/strategies", s.cfg.AgentHTTPURL)
+	url := fmt.Sprintf("%s/api/v1/strategies", s.cfg.AgentHTTPURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create strategy catalog request: %w", err)

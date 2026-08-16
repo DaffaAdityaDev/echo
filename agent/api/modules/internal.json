@@ -79,7 +79,7 @@
     }
   },
   "paths": {
-    "/api/internal/sessions/summarize": {
+    "/api/v1/internal/sessions/summarize": {
       "post": {
         "summary": "Summarize chat session history",
         "description": "Uses the configured LLM provider to produce a condensed session summary from the provided message history.",

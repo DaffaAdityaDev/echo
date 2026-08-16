@@ -222,7 +222,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return fmt.Errorf("failed to serialize summarize request: %w", err)
 	}
 
-	agentURL := fmt.Sprintf("%s/api/internal/sessions/summarize", s.cfg.AgentHTTPURL)
+	agentURL := fmt.Sprintf("%s/api/v1/internal/sessions/summarize", s.cfg.AgentHTTPURL)
 	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create request to agent: %w", err)

@@ -52,7 +52,7 @@ func countTokensViaAgent(text string) int {
 		return estimateTokens(text)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, agentHTTPURL+"/api/internal/tokenize", bytes.NewReader(payload))
+	req, err := http.NewRequest(http.MethodPost, agentHTTPURL+"/api/v1/internal/tokenize", bytes.NewReader(payload))
 	if err != nil {
 		return estimateTokens(text)
 	}

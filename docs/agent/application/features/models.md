@@ -13,7 +13,7 @@ Model listing is now **per-user** on the Go backend. `GET /api/v1/models`
 reads the authenticated user's provider config from `UserPreferences`,
 fetches models from their configured provider API, and returns the list.
 
-The agent still has `GET /api/models` as an internal endpoint, proxying to
+The agent still has `GET /api/v1/models` as an internal endpoint, proxying to
 `LLM_MODEL_API_URL`, but this is **secondary** — the primary model endpoint
 for clients is the Go backend.
 
@@ -74,7 +74,7 @@ func modelsURL(baseURL string) string {
 | Go GET /models     | backend/router.go:148       | JWT-protected route        |
 | Go GetModels()     | service/aimodel/service.go:83 | Per-user model fetch       |
 | Go modelsURL()     | service/aimodel/service.go:132| URL constructor helper     |
-| Agent GET /models  | adapter/inbound/api/models/model.routes.ts:6 | Internal proxy (secondary) |
+| Agent GET /models  | adapter/inbound/api/v1/models/model.routes.ts:6 | Internal proxy (secondary) |
 +--------------------+-----------------------------+----------------------------+
 
 ## Dependencies
@@ -98,8 +98,8 @@ func modelsURL(baseURL string) string {
 | Go service            | service/aimodel/service.go:83 | GetModels(ctx, userID)                       |
 | modelsURL()           | service/aimodel/service.go:132| URL construction logic                       |
 | Cache                 | service/aimodel/service.go:28 | 30s TTL, shared across all users             |
-| Agent route           | adapter/inbound/api/models/model.routes.ts:6 | GET /api/models (Internal auth)              |
-| Agent controller      | adapter/inbound/api/models/model.controller.ts:8-30 | Proxies to LLM_MODEL_API_URL                 |
+| Agent route           | adapter/inbound/api/v1/models/model.routes.ts:6 | GET /api/v1/models (Internal auth)              |
+| Agent controller      | adapter/inbound/api/v1/models/model.controller.ts:8-30 | Proxies to LLM_MODEL_API_URL                 |
 +-----------------------+-----------------------------+----------------------------------------------+
 
 ================================================================================

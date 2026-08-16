@@ -473,7 +473,7 @@ plane without changing the harness:
   sessions.
 - **No restart required**: the agent is stateless; a new strategy ships as a
   deploy of the agent container (rolling update), catalog exposed via
-  `GET /api/strategies`.
+  `GET /api/v1/strategies`.
 
 Full contract: `docs/shared/patterns/strategy-lifecycle.md`.
 
