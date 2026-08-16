@@ -13,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	authconst "echo-backend/internal/constants/auth"
+	msgconst "echo-backend/internal/constants/msg"
 )
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -121,7 +124,7 @@ func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, bas
 
 	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
 	if err != nil {
-		slog.Error("failed to fetch models", "component", "model", "provider", providerType, "err", err)
+		slog.Error(msgconst.ErrAimodelFetchModels, msgconst.ComponentKey, msgconst.ComponentModel, "provider", providerType, "err", err)
 		s.cache.entries[key] = cacheEntry{err: err, expiresAt: time.Now().Add(30 * time.Second)}
 		s.cache.mu.Unlock()
 		return nil, fmt.Errorf("fetch provider models: %w", err)
@@ -192,7 +195,7 @@ func (s *Service) fetchProviderModels(ctx context.Context, providerType, apiKey,
 }
 
 func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey string, transform func(id string) aitype.ModelInfo) ([]aitype.ModelInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +203,7 @@ func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey str
 		if providerType == "anthropic" {
 			req.Header.Set("x-api-key", apiKey)
 		} else {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
+			req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+apiKey)
 		}
 	}
 

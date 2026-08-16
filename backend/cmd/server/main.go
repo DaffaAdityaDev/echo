@@ -28,6 +28,11 @@ package main
 import (
 	"echo-backend/internal/config"
 	"echo-backend/internal/constants/app"
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	envconst "echo-backend/internal/constants/env"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/database"
 	pkglogger "echo-backend/internal/pkg/logger"
 	"echo-backend/internal/router"
@@ -35,6 +40,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -47,16 +53,16 @@ import (
 
 func main() {
 	if err := config.LoadDotEnv(".env"); err != nil {
-		slog.Info(app.MsgNoEnvFile)
+		slog.Info(msgconst.MsgNoEnvFile)
 	}
-	pkglogger.Init(os.Getenv("ENVIRONMENT"))
-	pkglogger.EnableLoki(os.Getenv("LOKI_URL"))
+	pkglogger.Init(os.Getenv(envconst.Environment))
+	pkglogger.EnableLoki(os.Getenv(envconst.LokiURL))
 
 	// Load configuration
 	cfg := config.Load()
 
 	if err := config.ValidateSecrets(cfg); err != nil {
-		slog.Error("refusing to start", "err", err)
+		slog.Error(msgconst.ErrRefuseToStart, "err", err)
 		os.Exit(1)
 	}
 
@@ -65,7 +71,7 @@ func main() {
 	// Run database migration before serving traffic
 	if pool := database.NewPostgresPool(cfg); pool != nil {
 		if err := database.Migrate(pool); err != nil {
-			slog.Warn("database auto-migration error", "err", err)
+			slog.Warn(msgconst.WarnDBAutoMigration, "err", err)
 		}
 		pool.Close()
 	}
@@ -80,7 +86,7 @@ func main() {
 	appInstance.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 		StackTraceHandler: func(_ fiber.Ctx, e any) {
-			slog.Error("panic recovered", "component", "server", "panic", fmt.Sprintf("%v", e), "stack", string(debug.Stack()))
+			slog.Error(msgconst.ErrPanicRecovered, msgconst.ComponentKey, msgconst.ComponentServer, "panic", fmt.Sprintf("%v", e), "stack", string(debug.Stack()))
 		},
 	}))
 
@@ -89,7 +95,7 @@ func main() {
 	// line is tee'd to it in JSON, console format included.
 	logFormat, logTimeFormat, disableColors := app.LogFormat, app.LogTimeFormat, false
 	var logOutput io.Writer = os.Stdout
-	if strings.EqualFold(cfg.Environment, "production") {
+	if strings.EqualFold(cfg.Environment, domainconst.Production) {
 		logFormat, logTimeFormat, disableColors = app.LogFormatJSON, app.LogTimeFormatJSON, true
 	}
 	if lokiOutput := pkglogger.LokiWriter(); lokiOutput != nil {
@@ -104,8 +110,8 @@ func main() {
 	}))
 	appInstance.Use(cors.New(cors.Config{
 		AllowOrigins:     corsAllowedOrigins(),
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "traceparent", "x-agent-session-id"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{httpxconst.HeaderOrigin, httpxconst.HeaderContentType, httpxconst.HeaderAccept, authconst.HeaderAuthorization, httpxconst.HeaderTraceparent, httpxconst.HeaderAgentSessionID},
 		AllowCredentials: true,
 	}))
 
@@ -113,9 +119,9 @@ func main() {
 	router.SetupRoutes(appInstance, cfg)
 
 	// Start
-	slog.Info("server starting", "port", cfg.Port)
+	slog.Info(msgconst.MsgServerStarting, "port", cfg.Port)
 	if err := appInstance.Listen(":" + cfg.Port); err != nil {
-		slog.Error(app.ErrServerStartup, "err", err)
+		slog.Error(msgconst.ErrServerStartup, "err", err)
 		os.Exit(1)
 	}
 }
@@ -142,7 +148,7 @@ func errorHandler(c fiber.Ctx, err error) error {
 // Wildcards cannot be combined with credentialed requests, so the default is
 // restricted to local development origins.
 func corsAllowedOrigins() []string {
-	raw := strings.TrimSpace(envOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"))
+	raw := strings.TrimSpace(envOrDefault(envconst.CORSAllowedOrigins, "http://localhost:3000,http://127.0.0.1:3000"))
 	origins := []string{}
 	for _, origin := range strings.Split(raw, ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {

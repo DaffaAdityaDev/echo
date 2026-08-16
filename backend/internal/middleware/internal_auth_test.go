@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	authconst "echo-backend/internal/constants/auth"
 	"echo-backend/internal/models/config"
 	"net/http"
 	"net/http/httptest"
@@ -31,8 +32,8 @@ func TestInternalAuthRequired(t *testing.T) {
 					"exp": time.Now().Add(time.Hour).Unix(),
 				})
 				tokenStr, _ := token.SignedString([]byte(secret))
-				req := httptest.NewRequest("GET", "/internal/test", nil)
-				req.Header.Set("Authorization", "Bearer "+tokenStr)
+				req := httptest.NewRequest(http.MethodGet, "/internal/test", nil)
+				req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+tokenStr)
 				return req
 			},
 			wantStatus: fiber.StatusOK,
@@ -45,8 +46,8 @@ func TestInternalAuthRequired(t *testing.T) {
 					"exp": time.Now().Add(time.Hour).Unix(),
 				})
 				tokenStr, _ := token.SignedString([]byte(secret))
-				req := httptest.NewRequest("GET", "/internal/test", nil)
-				req.Header.Set("Authorization", "Bearer "+tokenStr)
+				req := httptest.NewRequest(http.MethodGet, "/internal/test", nil)
+				req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+tokenStr)
 				return req
 			},
 			wantStatus: fiber.StatusForbidden,
@@ -59,8 +60,8 @@ func TestInternalAuthRequired(t *testing.T) {
 					"exp": time.Now().Add(time.Hour).Unix(),
 				})
 				tokenStr, _ := token.SignedString([]byte("wrong-secret"))
-				req := httptest.NewRequest("GET", "/internal/test", nil)
-				req.Header.Set("Authorization", "Bearer "+tokenStr)
+				req := httptest.NewRequest(http.MethodGet, "/internal/test", nil)
+				req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+tokenStr)
 				return req
 			},
 			wantStatus: fiber.StatusUnauthorized,
@@ -68,7 +69,7 @@ func TestInternalAuthRequired(t *testing.T) {
 		{
 			name: "missing Authorization header returns 401",
 			setupReq: func() *http.Request {
-				return httptest.NewRequest("GET", "/internal/test", nil)
+				return httptest.NewRequest(http.MethodGet, "/internal/test", nil)
 			},
 			wantStatus: fiber.StatusUnauthorized,
 		},

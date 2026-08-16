@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -78,7 +79,7 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 		ttl = time.Duration(req.TTL) * time.Second
 	}
 	if err := h.rdb.Expire(ctx, key, ttl).Err(); err != nil {
-		slog.Error("failed to set ttl for episodic key", "component", "memory", "key", key, "err", err)
+		slog.Error(msgconst.ErrMemorySetEpisodicTTL, msgconst.ComponentKey, msgconst.ComponentMemory, "key", key, "err", err)
 	}
 
 	return handlerutil.RespondCreated(c, StoreEpisodicResponse{

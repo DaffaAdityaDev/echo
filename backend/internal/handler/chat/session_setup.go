@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"echo-backend/internal/constants/db"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	chatmodel "echo-backend/internal/models/chat"
 	featuresvc "echo-backend/internal/service/features"
@@ -20,11 +21,11 @@ import (
 func (h *Handler) resolveTurnPreferences(ctx context.Context, c fiber.Ctx, userID int, userTier string, req *ChatRequest) (string, string, []string, []string, map[string]interface{}, error) {
 	prefs, err := h.SettingsSvc.GetSettings(ctx, userID)
 	if err != nil {
-		slog.Warn("failed to load settings, falling back to defaults", "component", "chat", "user_id", userID, "err", err)
+		slog.Warn(msgconst.WarnChatLoadSettingsFallback, msgconst.ComponentKey, msgconst.ComponentChat, "user_id", userID, "err", err)
 		prefs = h.SettingsSvc.GetDefaults()
 	}
 	if prefs == nil {
-		slog.Warn("settings returned nil, falling back to defaults", "component", "chat", "user_id", userID)
+		slog.Warn(msgconst.WarnChatSettingsNilFallback, msgconst.ComponentKey, msgconst.ComponentChat, "user_id", userID)
 		prefs = h.SettingsSvc.GetDefaults()
 	}
 
@@ -125,14 +126,14 @@ func (h *Handler) prepareTurnState(ctx context.Context, c fiber.Ctx, userID int,
 	if req.SessionID != "" {
 		isThresholdCrossed, err := h.ConsolidationSvc.CheckThreshold(ctx, req.SessionID, providerMap)
 		if err == nil && isThresholdCrossed {
-			slog.Info("token threshold reached, compacting session", "component", "consolidation", "session_id", req.SessionID)
+			slog.Info(msgconst.InfoConsolidationThreshold, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", req.SessionID)
 			err = h.ConsolidationSvc.TriggerConsolidation(ctx, req.SessionID, providerMap)
 			if err != nil {
-				slog.Error("error during auto-consolidation", "component", "consolidation", "session_id", req.SessionID, "err", err)
+				slog.Error(msgconst.ErrConsolidationAuto, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", req.SessionID, "err", err)
 			} else {
 				currentSession, err = h.SessionRepo.GetByID(ctx, req.SessionID)
 				if err != nil {
-					slog.Error("failed to reload session after consolidation", "component", "chat", "session_id", req.SessionID, "err", err)
+					slog.Error(msgconst.ErrChatReloadAfterConsolid, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 				}
 			}
 		}
@@ -148,11 +149,11 @@ func (h *Handler) prepareTurnState(ctx context.Context, c fiber.Ctx, userID int,
 	}
 	if currentPinnedVersion == "" {
 		if err := h.SessionRepo.PinStrategyVersion(ctx, req.SessionID, resolvedStrategyVersion); err != nil {
-			slog.Error("failed to pin strategy version", "component", "chat", "session_id", req.SessionID, "err", err)
+			slog.Error(msgconst.ErrChatPinStrategyVersion, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 		}
 	}
 	if err := h.SessionRepo.TouchSession(ctx, req.SessionID); err != nil {
-		slog.Error("failed to touch session", "component", "chat", "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatTouchSession, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 	}
 	return currentSession, resolvedStrategyVersion, nil
 }
@@ -193,7 +194,7 @@ func (h *Handler) prepareChatTurn(ctx context.Context, c fiber.Ctx, sessionID st
 
 	assistantMsgID, err := h.SessionRepo.PrepareTurn(ctx, sessionID, userMessage, userTokenCount, nextTurn)
 	if err != nil {
-		slog.Error("failed to prepare turn", "component", "chat", "session_id", sessionID, "err", err)
+		slog.Error(msgconst.ErrChatPrepareTurn, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
 		return nil, 0, 0, handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to prepare chat turn", err.Error())
 	}
 

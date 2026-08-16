@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/llmops"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -196,7 +197,7 @@ func (r *repository) PromoteVersion(ctx context.Context, templateID string, vers
 	}
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			slog.Error("promote version rollback failed", "component", "llmops", "err", err)
+			slog.Error(msgconst.ErrLLMOpsPromoteRollback, msgconst.ComponentKey, msgconst.ComponentLLMOps, "err", err)
 		}
 	}()
 
@@ -232,7 +233,7 @@ func (r *repository) RollbackVersion(ctx context.Context, templateID string, tar
 	}
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			slog.Error("rollback version tx rollback failed", "component", "llmops", "err", err)
+			slog.Error(msgconst.ErrLLMOpsRollbackTx, msgconst.ComponentKey, msgconst.ComponentLLMOps, "err", err)
 		}
 	}()
 

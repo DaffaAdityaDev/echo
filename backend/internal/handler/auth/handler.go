@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
@@ -157,7 +158,7 @@ func (h *Handler) HandleLogout(c fiber.Ctx) error {
 		Value:    "",
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HTTPOnly: true,
-		Secure:   h.Cfg.Environment == "production",
+		Secure:   h.Cfg.Environment == domainconst.Production,
 		SameSite: "Lax",
 		Path:     "/",
 	})
@@ -171,7 +172,7 @@ func setAuthCookie(c fiber.Ctx, environment, token string) {
 		Value:    token,
 		Expires:  time.Now().Add(72 * time.Hour),
 		HTTPOnly: true,
-		Secure:   environment == "production",
+		Secure:   environment == domainconst.Production,
 		SameSite: "Lax",
 		Path:     "/",
 	})

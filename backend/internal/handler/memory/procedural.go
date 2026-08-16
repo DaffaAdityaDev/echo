@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -155,7 +156,7 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 
 	var metadata interface{}
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-		slog.Warn("failed to parse metadata for procedural memory", "component", "memory", "id", id, "err", err)
+		slog.Warn(msgconst.WarnMemoryParseProcedMeta, msgconst.ComponentKey, msgconst.ComponentMemory, "id", id, "err", err)
 	}
 
 	return handlerutil.RespondSuccess(c, ProceduralGetResponse{

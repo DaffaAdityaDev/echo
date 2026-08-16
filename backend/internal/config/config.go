@@ -2,7 +2,10 @@ package config
 
 import (
 	cfgConst "echo-backend/internal/constants/config"
+	envconst "echo-backend/internal/constants/env"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -10,34 +13,34 @@ import (
 
 func Load() *cfgmodel.Config {
 	c := &cfgmodel.Config{}
-	c.Port = envStr("PORT", cfgConst.DefaultPort)
-	c.DatabaseURL = envStr("DATABASE_URL", cfgConst.DefaultDatabaseURL)
-	c.JWTSecret = envStr("JWT_SECRET", cfgConst.DefaultJWTSecret)
-	c.Environment = envStr("ENVIRONMENT", cfgConst.DefaultEnvironment)
-	c.AgentHTTPURL = envStr("HONO_API_URL", envStr("AGENT_HTTP_URL", cfgConst.DefaultAgentHTTPURL))
-	c.RedisAddr = envStr("REDIS_ADDR", cfgConst.DefaultRedisAddr)
-	c.RedisPassword = envStr("REDIS_PASSWORD", cfgConst.DefaultRedisPass)
-	c.InternalAuthToken = envStr("INTERNAL_AUTH_TOKEN", cfgConst.DefaultInternalAuthToken)
-	c.DefaultModel = envStr("DEFAULT_MODEL", cfgConst.DefaultModel)
-	c.ServiceJWTSecret = envStr("SERVICE_JWT_SECRET", cfgConst.DefaultServiceJWTSecret)
-	c.DefaultUserTier = envStr("DEFAULT_USER_TIER", cfgConst.DefaultUserTier)
-	c.PRUNE_THRESHOLD = envInt("PRUNE_THRESHOLD", 100000)
-	c.PRUNE_KEEP_LATEST_TURNS = envInt("PRUNE_KEEP_LATEST_TURNS", 10)
-	c.SUMMARIZE_MAX_TOKENS = envInt("SUMMARIZE_MAX_TOKENS", 500)
-	c.HistoryMaxTokens = envInt("HISTORY_MAX_TOKENS", 50000)
-	c.HistoryMaxMsgChars = envInt("HISTORY_MAX_MSG_CHARS", 100000)
-	c.ConsolidationSkipTokens = envInt("CONSOLIDATION_SKIP_TOKENS", 0)
-	c.ConsolidationSkipRatio = envInt("CONSOLIDATION_SKIP_RATIO", 90)
-	c.SummarizePayloadRatio = envInt("SUMMARIZE_PAYLOAD_RATIO", 60)
-	c.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
+	c.Port = envStr(envconst.Port, cfgConst.DefaultPort)
+	c.DatabaseURL = envStr(envconst.DatabaseURL, cfgConst.DefaultDatabaseURL)
+	c.JWTSecret = envStr(envconst.JWTSecret, cfgConst.DefaultJWTSecret)
+	c.Environment = envStr(envconst.Environment, cfgConst.DefaultEnvironment)
+	c.AgentHTTPURL = envStr(envconst.HonoAPIURL, envStr(envconst.AgentHTTPURL, cfgConst.DefaultAgentHTTPURL))
+	c.RedisAddr = envStr(envconst.RedisAddr, cfgConst.DefaultRedisAddr)
+	c.RedisPassword = envStr(envconst.RedisPassword, cfgConst.DefaultRedisPass)
+	c.InternalAuthToken = envStr(envconst.InternalAuthToken, cfgConst.DefaultInternalAuthToken)
+	c.DefaultModel = envStr(envconst.DefaultModel, cfgConst.DefaultModel)
+	c.ServiceJWTSecret = envStr(envconst.ServiceJWTSecret, cfgConst.DefaultServiceJWTSecret)
+	c.DefaultUserTier = envStr(envconst.DefaultUserTier, cfgConst.DefaultUserTier)
+	c.PRUNE_THRESHOLD = envInt(envconst.PruneThreshold, 100000)
+	c.PRUNE_KEEP_LATEST_TURNS = envInt(envconst.PruneKeepLatestTurns, 10)
+	c.SUMMARIZE_MAX_TOKENS = envInt(envconst.SummarizeMaxTokens, 500)
+	c.HistoryMaxTokens = envInt(envconst.HistoryMaxTokens, 50000)
+	c.HistoryMaxMsgChars = envInt(envconst.HistoryMaxMsgChars, 100000)
+	c.ConsolidationSkipTokens = envInt(envconst.ConsolidationSkipTokens, 0)
+	c.ConsolidationSkipRatio = envInt(envconst.ConsolidationSkipRatio, 90)
+	c.SummarizePayloadRatio = envInt(envconst.SummarizePayloadRatio, 60)
+	c.EncryptionKey = os.Getenv(envconst.EncryptionKey)
 	if c.EncryptionKey == "" {
-		slog.Warn("ENCRYPTION_KEY is empty; API key encryption will fail at runtime", "component", "config", "hint", "Set a 32-char key.")
+		slog.Warn(fmt.Sprintf(msgconst.WarnEncryptionKeyEmpty, envconst.EncryptionKey), msgconst.ComponentKey, msgconst.ComponentConfig, "hint", "Set a 32-char key.")
 	}
-	c.StrategyRolloutDefault = envFloat("STRATEGY_ROLLOUT_DEFAULT", 0.1)
-	c.PromptTemplateName = envStr("PROMPT_TEMPLATE_NAME", "")
-	c.WorkerInterval = envStr("WORKER_INTERVAL", "15m")
-	c.DecayDeprecateAfter = envInt("DECAY_DEPRECATE_AFTER", 30)
-	c.DecayArchiveAfter = envInt("DECAY_ARCHIVE_AFTER", 90)
+	c.StrategyRolloutDefault = envFloat(envconst.StrategyRolloutDefault, 0.1)
+	c.PromptTemplateName = envStr(envconst.PromptTemplateName, "")
+	c.WorkerInterval = envStr(envconst.WorkerInterval, "15m")
+	c.DecayDeprecateAfter = envInt(envconst.DecayDeprecateAfter, 30)
+	c.DecayArchiveAfter = envInt(envconst.DecayArchiveAfter, 90)
 	return c
 }
 

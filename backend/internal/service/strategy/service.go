@@ -2,6 +2,8 @@ package strategy
 
 import (
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/repository/settings"
 	"encoding/json"
@@ -78,7 +80,7 @@ func (s *Service) GetCatalog(ctx context.Context) ([]StrategyRegistryEntry, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to create strategy catalog request: %w", err)
 	}
-	req.Header.Set("X-Internal-Token", s.cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderXInternalToken, s.cfg.InternalAuthToken)
 
 	res, err := s.httpClient.Do(req)
 	if err != nil {
@@ -179,7 +181,7 @@ func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, re
 
 	rollouts, err := s.GetRollout(ctx)
 	if err != nil {
-		slog.Warn("failed to load rollout percentages, resolving with defaults", "component", "strategy", "err", err)
+		slog.Warn(msgconst.WarnStrategyRolloutDefaults, msgconst.ComponentKey, msgconst.ComponentStrategy, "err", err)
 		rollouts = map[string]RolloutCfg{}
 	}
 

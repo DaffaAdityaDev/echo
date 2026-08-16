@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 )
 
@@ -28,18 +30,18 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 	if err != nil {
 		return estimateTokensFallback(text)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	req.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
 
 	resp, err := handlerutil.HttpClient.Do(req)
 	if err != nil {
-		slog.Warn("agent tokenize unreachable, falling back to estimate", "component", "tokens", "err", err)
+		slog.Warn(msgconst.WarnTokensAgentUnreachable, msgconst.ComponentKey, msgconst.ComponentTokens, "err", err)
 		return estimateTokensFallback(text)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("agent tokenize failed, falling back to estimate", "component", "tokens", "status", resp.StatusCode)
+		slog.Warn(msgconst.WarnTokensAgentFailed, msgconst.ComponentKey, msgconst.ComponentTokens, "status", resp.StatusCode)
 		return estimateTokensFallback(text)
 	}
 
@@ -47,7 +49,7 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		slog.Warn("agent tokenize decode failed, falling back to estimate", "component", "tokens", "err", err)
+		slog.Warn(msgconst.WarnTokensAgentDecodeFailed, msgconst.ComponentKey, msgconst.ComponentTokens, "err", err)
 		return estimateTokensFallback(text)
 	}
 	return out.Tokens

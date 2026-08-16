@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/models/user"
 	"echo-backend/internal/repository/settings"
@@ -18,7 +19,7 @@ func ResolvePromptTemplateName(raw []byte, tenantID, fallback string) string {
 	var mapping map[string]string
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &mapping); err != nil {
-			slog.Warn("failed to parse prompt_template_name app setting", "component", "settings", "err", err)
+			slog.Warn(msgconst.WarnSettingsParsePromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, "err", err)
 		}
 	}
 	if name := mapping[tenantID]; name != "" {
@@ -118,7 +119,7 @@ func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*usermod
 	if prefs.APIKey != "" {
 		decrypted, decErr := crypto.Decrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
 		if decErr != nil {
-			slog.Error("failed to decrypt api key", "component", "settings", "user_id", userID, "err", decErr)
+			slog.Error(msgconst.ErrSettingsDecryptAPIKey, msgconst.ComponentKey, msgconst.ComponentSettings, "user_id", userID, "err", decErr)
 			prefs.APIKey = ""
 		} else {
 			prefs.APIKey = decrypted
@@ -156,7 +157,7 @@ func (s *Service) ResolvePromptTemplateNameForTenant(ctx context.Context, tenant
 
 	latest, err := s.settingsRepo.GetLatestActivePromptTemplateName(ctx, tenantID)
 	if err != nil {
-		slog.Warn("failed to query latest active prompt template", "component", "settings", "err", err)
+		slog.Warn(msgconst.WarnSettingsQueryPromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, "err", err)
 		return "", nil
 	}
 

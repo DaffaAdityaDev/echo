@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/middleware"
 	"echo-backend/internal/models/config"
 	llmopsmodel "echo-backend/internal/models/llmops"
@@ -64,7 +66,7 @@ func TestAgentGetActivePrompt_MissingTemplate(t *testing.T) {
 
 	app := newAgentPromptTestApp(t, &fakePromptService{})
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/internal/prompts/active", nil)
-	req.Header.Set("Authorization", "Bearer "+signServiceJWT(t, "service-jwt-secret"))
+	req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+signServiceJWT(t, "service-jwt-secret"))
 
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
@@ -82,13 +84,13 @@ func TestAgentGetActivePrompt_Success(t *testing.T) {
 			SystemPrompt: "You are a helpful support agent.",
 			BoundTools:   []string{"web_search", "write_todos"},
 			Variables:    []string{"{{user_name}}"},
-			Status:       "production",
+			Status:       domainconst.Production,
 		},
 	}
 	app := newAgentPromptTestApp(t, svc)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/internal/prompts/active?template=support", nil)
 	req.Header.Set("X-Tenant-ID", "tenant-x")
-	req.Header.Set("Authorization", "Bearer "+signServiceJWT(t, "service-jwt-secret"))
+	req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+signServiceJWT(t, "service-jwt-secret"))
 
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
@@ -98,7 +100,7 @@ func TestAgentGetActivePrompt_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, string(body), `"version":3`)
 	assert.Contains(t, string(body), `"system_prompt":"You are a helpful support agent."`)
-	assert.Contains(t, string(body), `"status":"production"`)
+	assert.Contains(t, string(body), `"status":"`+domainconst.Production+`"`)
 }
 
 func TestAgentGetActivePrompt_NotFound(t *testing.T) {
@@ -107,7 +109,7 @@ func TestAgentGetActivePrompt_NotFound(t *testing.T) {
 	svc := &fakePromptService{err: context.DeadlineExceeded}
 	app := newAgentPromptTestApp(t, svc)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/internal/prompts/active?template=support", nil)
-	req.Header.Set("Authorization", "Bearer "+signServiceJWT(t, "service-jwt-secret"))
+	req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+signServiceJWT(t, "service-jwt-secret"))
 
 	resp, err := app.Test(req)
 	assert.NoError(t, err)

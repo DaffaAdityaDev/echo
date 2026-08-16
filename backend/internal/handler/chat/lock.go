@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"crypto/rand"
+	msgconst "echo-backend/internal/constants/msg"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -78,7 +79,7 @@ func acquireRedisSessionLock(ctx context.Context, rdb *redis.Client, sessionID s
 		unlockCtx, unlockCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer unlockCancel()
 		if err := sessionUnlockScript.Run(unlockCtx, rdb, []string{key}, token).Err(); err != nil {
-			slog.Error("failed to release session lock", "component", "chat", "session_id", sessionID, "err", err)
+			slog.Error(msgconst.ErrChatReleaseSessionLock, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
 		}
 	}, nil
 }
@@ -93,6 +94,6 @@ func renewRedisSessionLock(ctx context.Context, rdb *redis.Client, sessionID, to
 	}
 	key := sessionLockKey(sessionID)
 	if err := sessionRenewScript.Run(ctx, rdb, []string{key}, token, int64(redisSessionLockTTL/time.Millisecond)).Err(); err != nil {
-		slog.Error("failed to renew session lock", "component", "chat", "session_id", sessionID, "err", err)
+		slog.Error(msgconst.ErrChatRenewSessionLock, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
 	}
 }

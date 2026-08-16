@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/models/config"
 	"testing"
 )
@@ -56,8 +57,8 @@ func TestResolveVersion_ExplicitRequest(t *testing.T) {
 	t.Parallel()
 
 	catalog := []StrategyRegistryEntry{
-		{Name: "standard", Versions: []StrategyVersionInfo{{Version: "standard:v1", Status: "active", Aliases: []string{"chat"}}}},
-		{Name: "nlah", Versions: []StrategyVersionInfo{{Version: "nlah:v1", Status: "active", Aliases: []string{"agent"}}}},
+		{Name: "standard", Versions: []StrategyVersionInfo{{Version: "standard:v1", Status: domainconst.StatusActive, Aliases: []string{"chat"}}}},
+		{Name: "nlah", Versions: []StrategyVersionInfo{{Version: "nlah:v1", Status: domainconst.StatusActive, Aliases: []string{"agent"}}}},
 		{Name: "deep_research", Versions: []StrategyVersionInfo{{Version: "deep_research:v1", Status: "deprecated", Aliases: []string{"research"}}}},
 	}
 	noRollouts := map[string]RolloutCfg{}
@@ -102,8 +103,8 @@ func TestResolveVersion_Rollout(t *testing.T) {
 	t.Parallel()
 
 	catalog := []StrategyRegistryEntry{
-		{Name: "standard", Versions: []StrategyVersionInfo{{Version: "standard:v1", Status: "active", Aliases: []string{"chat"}}}},
-		{Name: "nlah", Versions: []StrategyVersionInfo{{Version: "nlah:v1", Status: "active", Aliases: []string{"agent"}}}},
+		{Name: "standard", Versions: []StrategyVersionInfo{{Version: "standard:v1", Status: domainconst.StatusActive, Aliases: []string{"chat"}}}},
+		{Name: "nlah", Versions: []StrategyVersionInfo{{Version: "nlah:v1", Status: domainconst.StatusActive, Aliases: []string{"agent"}}}},
 	}
 
 	t.Run("no rollout config never reroutes to unconfigured versions", func(t *testing.T) {

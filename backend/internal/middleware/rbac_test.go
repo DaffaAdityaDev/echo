@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	domainconst "echo-backend/internal/constants/domain"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -19,19 +21,19 @@ func TestRequireRoles(t *testing.T) {
 	}{
 		{
 			name:         "role in allowed list passes",
-			allowedRoles: []string{"admin", "super-admin"},
-			userRole:     "admin",
+			allowedRoles: []string{domainconst.RoleAdmin, domainconst.RoleSuperAdmin},
+			userRole:     domainconst.RoleAdmin,
 			wantStatus:   fiber.StatusOK,
 		},
 		{
 			name:         "role not in allowed list returns 403",
-			allowedRoles: []string{"super-admin"},
-			userRole:     "admin",
+			allowedRoles: []string{domainconst.RoleSuperAdmin},
+			userRole:     domainconst.RoleAdmin,
 			wantStatus:   fiber.StatusForbidden,
 		},
 		{
 			name:         "missing role returns 403",
-			allowedRoles: []string{"admin"},
+			allowedRoles: []string{domainconst.RoleAdmin},
 			userRole:     "",
 			wantStatus:   fiber.StatusForbidden,
 		},
@@ -56,7 +58,7 @@ func TestRequireRoles(t *testing.T) {
 				},
 			)
 
-			resp, err := app.Test(httptest.NewRequest("GET", "/admin", nil))
+			resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/admin", nil))
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})

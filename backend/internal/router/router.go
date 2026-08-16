@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"echo-backend/internal/constants/app"
+	domainconst "echo-backend/internal/constants/domain"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/constants/routes"
 	"echo-backend/internal/database"
 	adminhdl "echo-backend/internal/handler/admin"
@@ -96,12 +98,12 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// API Documentation (Scalar UI & OpenAPI spec)
 	fbApp.Get("/api/docs/openapi.json", func(c fiber.Ctx) error {
-		c.Set("Content-Type", "application/json; charset=utf-8")
+		c.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSONCharsetUTF8)
 		return c.SendFile("./api/docs/swagger.json")
 	})
 
 	fbApp.Get("/api/docs", func(c fiber.Ctx) error {
-		c.Set("Content-Type", "text/html; charset=utf-8")
+		c.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeHTMLCharsetUTF8)
 		return c.SendString(`<!doctype html>
 <html>
   <head>
@@ -166,13 +168,13 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	prompts := studio.Group("/prompts")
 	prompts.Get("", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
-	prompts.Post("", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer", "product_manager"), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Post("", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer, domainconst.RoleProductManager), llmopsPromptHandler.HandleCreateTemplate)
 	prompts.Get("/active", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetActivePrompt)
 	prompts.Get("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListVersions)
 	prompts.Get("/:id/versions/:v", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetVersion)
-	prompts.Post("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "prompt_engineer"), llmopsPromptHandler.HandleCreateVersion)
-	prompts.Post("/:id/promote/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandlePromote)
-	prompts.Post("/:id/rollback/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles("admin", "product_manager", "admin_bisnis"), llmopsPromptHandler.HandleRollback)
+	prompts.Post("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer), llmopsPromptHandler.HandleCreateVersion)
+	prompts.Post("/:id/promote/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandlePromote)
+	prompts.Post("/:id/rollback/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandleRollback)
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))

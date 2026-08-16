@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
@@ -129,7 +130,7 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 		Name:      req.Name,
 		Scopes:    req.Scopes,
 		UserID:    userID,
-		Status:    "active",
+		Status:    domainconst.StatusActive,
 		CreatedAt: now,
 	}
 
@@ -203,7 +204,7 @@ func (h *Handler) HandleStats(c fiber.Ctx) error {
 	total := int64(len(keys))
 	active := int64(0)
 	for _, k := range keys {
-		if k.Status == "active" {
+		if k.Status == domainconst.StatusActive {
 			active++
 		}
 	}

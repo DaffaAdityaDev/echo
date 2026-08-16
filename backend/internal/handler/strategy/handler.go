@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	stratSvc "echo-backend/internal/service/strategy"
 	"log/slog"
@@ -33,7 +34,7 @@ func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
 
 	rollouts, err := h.strategySvc.GetRollout(c.Context())
 	if err != nil {
-		slog.Warn("failed to load rollout percentages, returning catalog without them", "component", "strategy", "err", err)
+		slog.Warn(msgconst.WarnStrategyRolloutCatalog, msgconst.ComponentKey, msgconst.ComponentStrategy, "err", err)
 		rollouts = map[string]stratSvc.RolloutCfg{}
 	}
 	defaultRollout := h.strategySvc.GetDefaultRollout()

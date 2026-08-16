@@ -14,6 +14,10 @@ import (
 	"time"
 
 	"echo-backend/internal/config"
+	domainconst "echo-backend/internal/constants/domain"
+	envconst "echo-backend/internal/constants/env"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/database"
 	authmodel "echo-backend/internal/models/auth"
 	pkglogger "echo-backend/internal/pkg/logger"
@@ -25,8 +29,8 @@ import (
 )
 
 var (
-	agentHTTPURL  = strings.TrimRight(os.Getenv("AGENT_HTTP_URL"), "/")
-	internalToken = os.Getenv("INTERNAL_AUTH_TOKEN")
+	agentHTTPURL  = strings.TrimRight(os.Getenv(envconst.AgentHTTPURL), "/")
+	internalToken = os.Getenv(envconst.InternalAuthToken)
 	tokenCache    = map[string]int{}
 )
 
@@ -56,19 +60,19 @@ func countTokensViaAgent(text string) int {
 	if err != nil {
 		return estimateTokens(text)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Internal-Token", internalToken)
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	req.Header.Set(httpxconst.HeaderXInternalToken, internalToken)
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Warn("agent tokenize unreachable, falling back to estimate", "component", "seed", "err", err)
+		slog.Warn(msgconst.WarnAgentTokenizeUnreachable, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		return estimateTokens(text)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("agent tokenize failed, falling back to estimate", "component", "seed", "status", resp.StatusCode)
+		slog.Warn(msgconst.WarnAgentTokenizeFailed, msgconst.ComponentKey, msgconst.ComponentSeed, "status", resp.StatusCode)
 		return estimateTokens(text)
 	}
 
@@ -76,7 +80,7 @@ func countTokensViaAgent(text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		slog.Warn("agent tokenize decode failed, falling back to estimate", "component", "seed", "err", err)
+		slog.Warn(msgconst.WarnAgentTokenizeDecode, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		return estimateTokens(text)
 	}
 	return out.Tokens
@@ -147,16 +151,16 @@ func main() {
 	flag.Parse()
 
 	if err := config.LoadDotEnv(".env"); err != nil {
-		slog.Info("no .env file found, using system environment variables")
+		slog.Info(msgconst.MsgNoEnvFileDev)
 	}
 
-	pkglogger.Init(os.Getenv("ENVIRONMENT"))
+	pkglogger.Init(os.Getenv(envconst.Environment))
 
 	cfg := config.Load()
 
 	pool := database.NewPostgresPool(cfg)
 	if pool == nil {
-		slog.Error("DATABASE_URL not set or database pool initialization failed")
+		slog.Error(fmt.Sprintf(msgconst.ErrDatabaseURLNotSet, envconst.DatabaseURL))
 		os.Exit(1)
 	}
 	defer pool.Close()
@@ -164,9 +168,9 @@ func main() {
 	ctx := context.Background()
 	userRepo := authrepo.NewRepository(pool)
 
-	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	adminPassword := os.Getenv(envconst.AdminPassword)
 	if adminPassword == "" {
-		slog.Error("ADMIN_PASSWORD environment variable is required to seed the admin user")
+		slog.Error(fmt.Sprintf(msgconst.ErrAdminPasswordRequired, envconst.AdminPassword))
 		os.Exit(1)
 	}
 
@@ -174,17 +178,17 @@ func main() {
 	var adminUser *authmodel.User
 	existingUser, err := userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		slog.Error("failed to check existing user", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrCheckExistingUser, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
 
 	if existingUser != nil {
-		slog.Info("user already exists, using existing id", "component", "seed", "email", email, "user_id", existingUser.ID)
+		slog.Info(msgconst.InfoUserAlreadyExists, msgconst.ComponentKey, msgconst.ComponentSeed, "email", email, "user_id", existingUser.ID)
 		adminUser = existingUser
 	} else {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		if err != nil {
-			slog.Error("failed to hash password", "component", "seed", "err", err)
+			slog.Error(msgconst.ErrHashPassword, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 			os.Exit(1)
 		}
 
@@ -192,26 +196,26 @@ func main() {
 			Email:        email,
 			PasswordHash: string(hashedPassword),
 			Name:         "Admin",
-			Role:         "admin",
+			Role:         domainconst.RoleAdmin,
 		}
 
 		if err := userRepo.Create(ctx, adminUser); err != nil {
-			slog.Error("failed to seed admin user", "component", "seed", "err", err)
+			slog.Error(msgconst.ErrSeedAdminUser, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 			os.Exit(1)
 		}
-		slog.Info("seeded default admin user", "component", "seed", "user_id", adminUser.ID)
+		slog.Info(msgconst.InfoSeededDefaultAdmin, msgconst.ComponentKey, msgconst.ComponentSeed, "user_id", adminUser.ID)
 	}
 
 	if !*loadTest {
-		slog.Info("safe mode: skipping database truncation and fake load-test data seeding", "component", "seed")
-		slog.Info("database seeded successfully with default admin user", "component", "seed")
+		slog.Info(msgconst.InfoSafeModeSkip, msgconst.ComponentKey, msgconst.ComponentSeed)
+		slog.Info(msgconst.InfoDatabaseSeeded, msgconst.ComponentKey, msgconst.ComponentSeed)
 		return
 	}
 
 	// ---- Load-test path (development only) ----
 
-	if strings.EqualFold(os.Getenv("APP_ENV"), "production") {
-		slog.Error("refusing --load-test with APP_ENV=production: it TRUNCATES all sessions and messages. Development only.")
+	if strings.EqualFold(os.Getenv(envconst.AppEnv), domainconst.Production) {
+		slog.Error(fmt.Sprintf(msgconst.ErrLoadTestInProduction, envconst.AppEnv))
 		os.Exit(1)
 	}
 
@@ -219,28 +223,28 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	if strings.TrimSpace(strings.ToLower(scanner.Text())) != "yes" {
-		slog.Error("aborted: --load-test requires explicit 'yes' confirmation")
+		slog.Error(msgconst.ErrLoadTestAborted)
 		os.Exit(1)
 	}
 
-	slog.Info("cleaning up old sessions and messages", "component", "seed")
+	slog.Info(msgconst.InfoCleanupSessions, msgconst.ComponentKey, msgconst.ComponentSeed)
 	if _, err := pool.Exec(ctx, "TRUNCATE TABLE sessions CASCADE"); err != nil {
-		slog.Error("failed to truncate sessions table", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrTruncateSessions, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
-	slog.Info("old sessions and messages truncated successfully", "component", "seed")
+	slog.Info(msgconst.InfoSessionsTruncated, msgconst.ComponentKey, msgconst.ComponentSeed)
 
 	seedStressSession(ctx, pool, adminUser.ID)
 	seedBulkSessions(ctx, pool, adminUser.ID)
 
-	slog.Info("load-test seeding complete", "component", "seed")
+	slog.Info(msgconst.InfoLoadTestSeedingDone, msgconst.ComponentKey, msgconst.ComponentSeed)
 }
 
 // seedStressSession creates one session with 10 turns (20 messages) of
 // ~4.4 MB / ~1.1M tokens each (realistic text) to stress test rendering and
 // pagination.
 func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
-	slog.Info("seeding stress session with 10 turns (20 messages), ~4.4 MB (~1.1M tokens) per message", "component", "seed")
+	slog.Info(msgconst.InfoSeedingStress, msgconst.ComponentKey, msgconst.ComponentSeed)
 
 	createdAt := time.Now()
 	var stressSessionID string
@@ -254,7 +258,7 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		createdAt,
 	).Scan(&stressSessionID)
 	if err != nil {
-		slog.Error("failed to create stress session", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrCreateStressSession, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
 
@@ -269,14 +273,14 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		assistantContent := fmt.Sprintf("Reply %d: %s", turn, buildStressMessageText(stressTargetChars, turn+100))
 
 		messageRows = append(messageRows,
-			[]interface{}{stressSessionID, "user", userContent, countTokensCached(userContent), turn, msgTime},
-			[]interface{}{stressSessionID, "assistant", assistantContent, countTokensCached(assistantContent), turn, msgTime.Add(30 * time.Second)},
+			[]interface{}{stressSessionID, domainconst.MessageRoleUser, userContent, countTokensCached(userContent), turn, msgTime},
+			[]interface{}{stressSessionID, domainconst.MessageRoleAssistant, assistantContent, countTokensCached(assistantContent), turn, msgTime.Add(30 * time.Second)},
 		)
 	}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		slog.Error("failed to begin transaction for stress messages", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrBeginTxStress, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
 	_, err = tx.CopyFrom(
@@ -287,15 +291,15 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 	)
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		slog.Error("failed to copy stress messages", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrCopyStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		slog.Error("failed to commit stress messages", "component", "seed", "err", err)
+		slog.Error(msgconst.ErrCommitStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 		os.Exit(1)
 	}
 
-	slog.Info("stress test session ready", "component", "seed", "id", stressSessionID, "title", "🔥 Stress Test Session (1M Context)")
+	slog.Info(msgconst.InfoStressSessionReady, msgconst.ComponentKey, msgconst.ComponentSeed, "id", stressSessionID, "title", "🔥 Stress Test Session (1M Context)")
 }
 
 // Bulk sessions carry REALISTIC multi-paragraph conversations (~2-3 KB per
@@ -471,7 +475,7 @@ func buildBulkAssistantReply(sessionIdx, turn int) string {
 // seedBulkSessions creates 50 sessions (1,000 messages total) to stress test
 // list pagination and session indexing.
 func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
-	slog.Info("preparing to seed 50 sessions and 1,000 realistic long-format messages", "component", "seed")
+	slog.Info(msgconst.InfoPreparingBulk, msgconst.ComponentKey, msgconst.ComponentSeed)
 	startTime := time.Now()
 
 	const totalSessions = 50
@@ -486,13 +490,13 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 
 		ids, err := generateUUIDs(ctx, pool, batchEnd-batchStart)
 		if err != nil {
-			slog.Error("failed to generate UUIDs for batch", "component", "seed", "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrGenerateUUIDs, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
 			os.Exit(1)
 		}
 
 		tx, err := pool.Begin(ctx)
 		if err != nil {
-			slog.Error("failed to begin transaction", "component", "seed", "err", err)
+			slog.Error(msgconst.ErrBeginTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
 			os.Exit(1)
 		}
 
@@ -510,7 +514,7 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 				userID,
 				title,
 				fmt.Sprintf("Summary of bulk session %d containing simulated conversational load test data.", i),
-				"active",
+				domainconst.StatusActive,
 				"nlah:v1",
 				createdAt,
 				createdAt,
@@ -525,8 +529,8 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 				assistantContent := buildBulkAssistantReply(i, turn)
 
 				messageRows = append(messageRows,
-					[]interface{}{sessionID, "user", userContent, countTokensCached(userContent), turn, userMsgTime},
-					[]interface{}{sessionID, "assistant", assistantContent, countTokensCached(assistantContent), turn, assistMsgTime},
+					[]interface{}{sessionID, domainconst.MessageRoleUser, userContent, countTokensCached(userContent), turn, userMsgTime},
+					[]interface{}{sessionID, domainconst.MessageRoleAssistant, assistantContent, countTokensCached(assistantContent), turn, assistMsgTime},
 				)
 			}
 		}
@@ -540,7 +544,7 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			slog.Error("failed to copy sessions in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCopySessionsBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
 			os.Exit(1)
 		}
 
@@ -553,18 +557,18 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			slog.Error("failed to copy messages in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCopyMessagesBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
 			os.Exit(1)
 		}
 
 		err = tx.Commit(ctx)
 		if err != nil {
-			slog.Error("failed to commit transaction in batch", "component", "seed", "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCommitTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
 			os.Exit(1)
 		}
 
-		slog.Info("committed batch", "component", "seed", "from", batchStart+1, "to", batchEnd)
+		slog.Info(msgconst.InfoCommittedBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "from", batchStart+1, "to", batchEnd)
 	}
 
-	slog.Info("database seeded", "component", "seed", "sessions", totalSessions, "messages", totalSessions*turnsPerSession*2, "elapsed", time.Since(startTime))
+	slog.Info(msgconst.InfoDatabaseSeededFull, msgconst.ComponentKey, msgconst.ComponentSeed, "sessions", totalSessions, "messages", totalSessions*turnsPerSession*2, "elapsed", time.Since(startTime))
 }

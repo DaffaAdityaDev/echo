@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -30,11 +32,11 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 	agentURL := fmt.Sprintf("%s/api/v1/skills", h.HonoAPIURL)
 	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, "GET", agentURL, nil)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, agentURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
 
 	resp, err := handlerutil.HttpClient.Do(req)
 	if err != nil {
@@ -62,7 +64,7 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 
 	if h.RedisClient != nil {
 		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
-			slog.Warn("failed to cache skills in redis", "component", "chat", "err", err)
+			slog.Warn(msgconst.WarnChatCacheSkillsRedis, msgconst.ComponentKey, msgconst.ComponentChat, "err", err)
 		}
 	}
 

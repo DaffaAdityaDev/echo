@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	domainconst "echo-backend/internal/constants/domain"
 )
 
 var (
@@ -45,7 +47,7 @@ func LokiWriter() io.Writer {
 }
 
 func consoleHandler(environment string) slog.Handler {
-	if strings.EqualFold(environment, "production") {
+	if strings.EqualFold(environment, domainconst.Production) {
 		return slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
 	}
 	return slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})

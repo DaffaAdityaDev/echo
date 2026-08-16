@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -11,7 +13,7 @@ import (
 // withRemoteTraceContext attaches the incoming W3C traceparent header to the
 // request context so the agent's downstream spans inherit the caller's trace.
 func withRemoteTraceContext(ctx context.Context, c fiber.Ctx) context.Context {
-	tpHeader := c.Get("traceparent")
+	tpHeader := c.Get(httpxconst.HeaderTraceparent)
 	if sc, ok := parseTraceparent(tpHeader); ok {
 		return trace.ContextWithRemoteSpanContext(ctx, sc)
 	}

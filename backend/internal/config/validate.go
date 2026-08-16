@@ -2,6 +2,7 @@ package config
 
 import (
 	cfgConst "echo-backend/internal/constants/config"
+	envconst "echo-backend/internal/constants/env"
 	"echo-backend/internal/models/config"
 	"fmt"
 	"strings"
@@ -17,9 +18,9 @@ func ValidateSecrets(c *cfgmodel.Config) error {
 		value  string
 		known  string
 	}{
-		{"JWT_SECRET", c.JWTSecret, cfgConst.DefaultJWTSecret},
-		{"INTERNAL_AUTH_TOKEN", c.InternalAuthToken, cfgConst.DefaultInternalAuthToken},
-		{"SERVICE_JWT_SECRET", c.ServiceJWTSecret, cfgConst.DefaultServiceJWTSecret},
+		{envconst.JWTSecret, c.JWTSecret, cfgConst.DefaultJWTSecret},
+		{envconst.InternalAuthToken, c.InternalAuthToken, cfgConst.DefaultInternalAuthToken},
+		{envconst.ServiceJWTSecret, c.ServiceJWTSecret, cfgConst.DefaultServiceJWTSecret},
 	}
 	for _, chk := range checks {
 		value := strings.TrimSpace(chk.value)

@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strconv"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/middleware"
 
@@ -96,7 +98,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	// gateway instances when Redis is present. No-op unlock when unavailable.
 	redisLockToken, releaseRedisLock, err := acquireRedisSessionLock(ctx, h.RedisClient, req.SessionID)
 	if err != nil {
-		slog.Warn("distributed session lock unavailable", "component", "chat", "session_id", req.SessionID, "err", err)
+		slog.Warn(msgconst.WarnChatLockUnavailable, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 	}
 	defer releaseRedisLock()
 
@@ -117,7 +119,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	tenantID := c.Get("X-Tenant-ID", "local")
 	promptTemplateName, err := h.SettingsSvc.ResolvePromptTemplateNameForTenant(ctx, tenantID)
 	if err != nil {
-		slog.Warn("failed to resolve prompt template name", "component", "chat", "err", err)
+		slog.Warn(msgconst.WarnChatResolvePromptTmpl, msgconst.ComponentKey, msgconst.ComponentChat, "err", err)
 	}
 
 	payload := buildChatAgentPayload(payloadArgs{
@@ -134,13 +136,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		tenantID:           tenantID,
 		promptTemplateName: promptTemplateName,
 	})
-	slog.Info("chat turn started", "component", "chat", "tenant_id", tenantID, "prompt_template", payload["prompt_template"], "features", payload["features"])
+	slog.Info(msgconst.InfoChatTurnStarted, msgconst.ComponentKey, msgconst.ComponentChat, "tenant_id", tenantID, "prompt_template", payload["prompt_template"], "features", payload["features"])
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("failed to marshal agent payload", "component", "chat", "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatMarshalAgentPayload, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
 	}
@@ -169,26 +171,26 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	defer close(interruptStop)
 	go h.watchForInterrupt(run, interruptStop, req.SessionID, cancelAgentReq)
 
-	agentReq, err := http.NewRequestWithContext(agentReqCtx, "POST", agentURL, bytes.NewBuffer(jsonPayload))
+	agentReq, err := http.NewRequestWithContext(agentReqCtx, http.MethodPost, agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		slog.Error("failed to create agent request", "component", "chat", "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatCreateAgentRequest, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
-	agentReq.Header.Set("Content-Type", "application/json")
-	agentReq.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+	agentReq.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	agentReq.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
 
 	newTraceContext := trace.SpanContextFromContext(ctx)
 	agentTraceparent := fmt.Sprintf("00-%s-%s-01", newTraceContext.TraceID().String(), newTraceContext.SpanID().String())
-	agentReq.Header.Set("traceparent", agentTraceparent)
+	agentReq.Header.Set(httpxconst.HeaderTraceparent, agentTraceparent)
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
-		slog.Error("agent service unreachable", "component", "chat", "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatAgentServiceDown, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
@@ -198,16 +200,16 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		bodyBytes, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if readErr != nil {
-			slog.Error("failed to read agent error response", "component", "chat", "session_id", req.SessionID, "err", readErr)
+			slog.Error(msgconst.ErrChatReadAgentErrorResp, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", readErr)
 		}
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error("failed to finalize interrupted turn", "component", "chat", "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
 		}
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}
 
 	c.Response().Header.Set("X-Session-ID", req.SessionID)
-	c.Response().Header.Set("Content-Type", "text/event-stream")
+	c.Response().Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeEventStream)
 	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
 	c.Response().Header.Set("Connection", "keep-alive")
 	c.Response().Header.Set("Transfer-Encoding", "chunked")

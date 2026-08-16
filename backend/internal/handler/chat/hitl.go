@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -80,12 +82,12 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Failed to serialize request body")
 	}
 
-	agentReq, err := http.NewRequestWithContext(c.Context(), "POST", agentURL, bytes.NewBuffer(jsonPayload))
+	agentReq, err := http.NewRequestWithContext(c.Context(), http.MethodPost, agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request")
 	}
-	agentReq.Header.Set("Content-Type", "application/json")
-	agentReq.Header.Set("X-Internal-Token", h.Cfg.InternalAuthToken)
+	agentReq.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	agentReq.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
@@ -95,14 +97,14 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("failed to read agent response", "component", "chat", "action", action, "session_id", sessionID, "err", err)
+		slog.Error(msgconst.ErrChatReadAgentResponse, msgconst.ComponentKey, msgconst.ComponentChat, "action", action, "session_id", sessionID, "err", err)
 		return handlerutil.RespondError(c, resp.StatusCode, "Agent rejected")
 	}
 	if resp.StatusCode != http.StatusOK {
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent rejected", string(bodyBytes))
 	}
 
-	c.Response().Header.Set("Content-Type", "text/event-stream")
+	c.Response().Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeEventStream)
 	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
 	c.Response().Header.Set("Connection", "keep-alive")
 	c.Response().Header.Set("Transfer-Encoding", "chunked")

@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"strings"
 
@@ -18,7 +20,7 @@ func AuthRequired(secret string) fiber.Handler {
 			}
 			token, err := jwt.Parse(s, func(token *jwt.Token) (interface{}, error) {
 				return []byte(secret), nil
-			}, jwt.WithValidMethods([]string{"HS256"}))
+			}, jwt.WithValidMethods([]string{domainconst.SigningAlgHS256}))
 			if err != nil || !token.Valid {
 				return false
 			}
@@ -43,6 +45,6 @@ func AuthRequired(secret string) fiber.Handler {
 			}
 		}
 
-		return handlerutil.RespondError(c, fiber.StatusUnauthorized, auth.ErrMissingToken)
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, msgconst.ErrMissingToken)
 	}
 }

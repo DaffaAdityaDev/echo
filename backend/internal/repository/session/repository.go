@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"echo-backend/internal/constants/db"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/models/chat"
 	"encoding/json"
 	"fmt"
@@ -191,7 +192,7 @@ func (r *Repository) PrepareTurn(ctx context.Context, sessionID string, userCont
 		return 0, fmt.Errorf("failed to mark streaming as interrupted: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, db.QueryInsertMessageWithStatus, sessionID, "user", userContent, userTokenCount, turnNumber, "complete")
+	_, err = tx.Exec(ctx, db.QueryInsertMessageWithStatus, sessionID, domainconst.MessageRoleUser, userContent, userTokenCount, turnNumber, domainconst.StatusComplete)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert user message: %w", err)
 	}

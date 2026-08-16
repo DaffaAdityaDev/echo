@@ -5,7 +5,3 @@ const (
 	BearerPrefix        = "Bearer "
 	TokenCookie         = "auth_token"
 )
-
-const (
-	ErrMissingToken = "Unauthorized: Missing token"
-)

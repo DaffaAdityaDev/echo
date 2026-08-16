@@ -3,6 +3,10 @@ package features
 import (
 	"bufio"
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
+	envconst "echo-backend/internal/constants/env"
+	msgconst "echo-backend/internal/constants/msg"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -33,9 +37,9 @@ func TestFeatureRepository(t *testing.T) {
 			}
 		}
 	}
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL := os.Getenv(envconst.DatabaseURL)
 	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
+		t.Skip(fmt.Sprintf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL))
 	}
 
 	ctx := context.Background()
@@ -72,7 +76,7 @@ func TestFeatureRepository(t *testing.T) {
 	byID := map[string]string{}
 	for _, f := range active {
 		byID[f.ID] = f.TierRequirement
-		if f.Status != "active" {
+		if f.Status != domainconst.StatusActive {
 			t.Errorf("Expected status 'active' for %s, got %q", f.ID, f.Status)
 		}
 	}

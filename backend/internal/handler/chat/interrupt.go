@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	cfgmodel "echo-backend/internal/models/config"
 
@@ -71,7 +73,7 @@ func (h *Handler) HandleInterrupt(c fiber.Ctx) error {
 func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{}, sessionID string, cancelAgentReq context.CancelFunc) {
 	select {
 	case <-run.cancelCh:
-		slog.Info("interrupt requested, notifying agent", "component", "chat", "session_id", sessionID)
+		slog.Info(msgconst.InfoChatInterruptRequested, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID)
 		cancelAgentReq()
 		// Guard against stale interrupts: if a new turn has already claimed
 		// the session (user stopped then immediately sent a new message),
@@ -83,10 +85,10 @@ func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{
 			agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer agentCancel()
 			if err := cancelAgentMission(agentCtx, h.Cfg, sessionID); err != nil {
-				slog.Error("agent cancel call failed", "component", "chat", "session_id", sessionID, "err", err)
+				slog.Error(msgconst.ErrChatAgentCancelCall, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
 			}
 		} else {
-			slog.Warn("stale interrupt skipped", "component", "chat", "session_id", sessionID)
+			slog.Warn(msgconst.WarnChatStaleInterrupt, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID)
 		}
 		run.closeBody()
 	case <-interruptStop:
@@ -97,11 +99,11 @@ func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{
 // agent aborts the in-flight LLM provider stream via its CancellationManager.
 func cancelAgentMission(ctx context.Context, cfg *cfgmodel.Config, sessionID string) error {
 	agentURL := fmt.Sprintf("%s/api/v1/sessions/%s/cancel", cfg.AgentHTTPURL, sessionID)
-	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, agentURL, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("X-Internal-Token", cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderXInternalToken, cfg.InternalAuthToken)
 
 	resp, err := handlerutil.HttpClient.Do(req)
 	if err != nil {

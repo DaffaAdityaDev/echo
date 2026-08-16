@@ -3,6 +3,8 @@ package consolidation
 import (
 	"bytes"
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/pkg/historycap"
@@ -118,7 +120,7 @@ func (s *Service) CheckThreshold(ctx context.Context, sessionID string, provider
 
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		slog.Info("session exceeds skip threshold, skipping consolidation", "component", "consolidation", "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
+		slog.Info(msgconst.InfoConsolidationSkipThreshold, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
 		return false, nil
 	}
 
@@ -153,7 +155,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	}
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		slog.Info("skipping consolidation: tokens exceed skip threshold", "component", "consolidation", "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
+		slog.Info(msgconst.InfoConsolidationTokensExceed, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
 		return nil
 	}
 
@@ -164,7 +166,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 
 	pruneLimitTurn := maxTurn - s.cfg.PRUNE_KEEP_LATEST_TURNS
 	if pruneLimitTurn <= 0 {
-		slog.Info("session max turn below keep turns, skipping pruning", "component", "consolidation", "session_id", sessionID, "max_turn", maxTurn, "keep_turns", s.cfg.PRUNE_KEEP_LATEST_TURNS)
+		slog.Info(msgconst.InfoConsolidationBelowKeep, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "max_turn", maxTurn, "keep_turns", s.cfg.PRUNE_KEEP_LATEST_TURNS)
 		return nil
 	}
 
@@ -197,7 +199,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
 	cappedMessages := historycap.Cap(messagesToSummarize, payloadBudget, payloadBudget*2, false)
 	if len(cappedMessages) != len(messagesToSummarize) {
-		slog.Info("summarize payload capped", "component", "consolidation", "session_id", sessionID, "included", len(cappedMessages), "total", len(messagesToSummarize))
+		slog.Info(msgconst.InfoConsolidationPayloadCapped, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "included", len(cappedMessages), "total", len(messagesToSummarize))
 	}
 
 	var summarizeMessages []SummarizeMessage
@@ -208,7 +210,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		})
 	}
 
-	slog.Info("summarizing messages", "component", "consolidation", "messages", len(summarizeMessages), "up_to_turn", pruneLimitTurn, "session_id", sessionID)
+	slog.Info(msgconst.InfoConsolidationSummarizing, msgconst.ComponentKey, msgconst.ComponentConsolidation, "messages", len(summarizeMessages), "up_to_turn", pruneLimitTurn, "session_id", sessionID)
 
 	reqBody := SummarizeRequest{
 		SessionID:        sessionID,
@@ -223,12 +225,12 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	}
 
 	agentURL := fmt.Sprintf("%s/api/v1/internal/sessions/summarize", s.cfg.AgentHTTPURL)
-	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, agentURL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create request to agent: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Internal-Token", s.cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	req.Header.Set(httpxconst.HeaderXInternalToken, s.cfg.InternalAuthToken)
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -261,6 +263,6 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return fmt.Errorf("failed to execute prune session transaction: %w", err)
 	}
 
-	slog.Info("pruning successful", "component", "consolidation", "session_id", sessionID, "new_summary_len", len(newSummary))
+	slog.Info(msgconst.InfoConsolidationPruned, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "new_summary_len", len(newSummary))
 	return nil
 }

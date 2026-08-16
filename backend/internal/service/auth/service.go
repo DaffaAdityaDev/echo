@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/repository/auth"
@@ -56,7 +57,7 @@ func (s *Service) Register(ctx context.Context, email, password, name string) (*
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		Name:         name,
-		Role:         "user",
+		Role:         domainconst.RoleUser,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

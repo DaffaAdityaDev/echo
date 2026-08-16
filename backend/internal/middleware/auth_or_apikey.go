@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/config"
 	adminrepo "echo-backend/internal/repository/admin"
@@ -21,12 +22,12 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 		if tokenString != "" {
 			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 				return []byte(cfg.JWTSecret), nil
-			}, jwt.WithValidMethods([]string{"HS256"}))
+			}, jwt.WithValidMethods([]string{domainconst.SigningAlgHS256}))
 			if err == nil && token.Valid {
 				claims := token.Claims.(jwt.MapClaims)
 				c.Locals("user_id", claims["sub"])
 				role, _ := claims["role"].(string)
-				if role != "admin" {
+				if role != domainconst.RoleAdmin {
 					return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
 				}
 				c.Locals("user_role", role)
@@ -47,12 +48,12 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(cfg.JWTSecret), nil
-		}, jwt.WithValidMethods([]string{"HS256"}))
+		}, jwt.WithValidMethods([]string{domainconst.SigningAlgHS256}))
 		if err == nil && token.Valid {
 			claims := token.Claims.(jwt.MapClaims)
 			c.Locals("user_id", claims["sub"])
 			role, _ := claims["role"].(string)
-			if role != "admin" {
+			if role != domainconst.RoleAdmin {
 				return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
 			}
 			c.Locals("user_role", role)
@@ -69,7 +70,7 @@ func AuthOrAPIKeyRequired(cfg *cfgmodel.Config, apiKeyRepo *adminrepo.Repository
 			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: Invalid credentials")
 		}
 
-		if key.Status != "active" {
+		if key.Status != domainconst.StatusActive {
 			return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized: API key is revoked")
 		}
 

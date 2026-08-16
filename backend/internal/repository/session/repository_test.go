@@ -3,6 +3,8 @@ package session
 import (
 	"bufio"
 	"context"
+	envconst "echo-backend/internal/constants/env"
+	msgconst "echo-backend/internal/constants/msg"
 	"fmt"
 	"os"
 	"strings"
@@ -34,9 +36,9 @@ func TestSessionRepository(t *testing.T) {
 			}
 		}
 	}
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL := os.Getenv(envconst.DatabaseURL)
 	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
+		t.Skip(fmt.Sprintf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL))
 	}
 
 	ctx := context.Background()

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -79,7 +80,7 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		}
 		// The vector insert can fail when pgvector is unavailable; fall back
 		// to storing without the embedding rather than failing the request.
-		slog.Error("failed to store semantic memory with embedding, retrying without vector", "component", "memory", "id", req.ID, "err", err)
+		slog.Error(msgconst.ErrMemoryStoreSemanticEmbed, msgconst.ComponentKey, msgconst.ComponentMemory, "id", req.ID, "err", err)
 	}
 
 	_, err := h.pool.Exec(ctx, `
@@ -179,7 +180,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 
 		var metadata interface{}
 		if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-			slog.Warn("failed to parse metadata for semantic memory", "component", "memory", "id", id, "err", err)
+			slog.Warn(msgconst.WarnMemoryParseSemanticMeta, msgconst.ComponentKey, msgconst.ComponentMemory, "id", id, "err", err)
 		}
 
 		results = append(results, SemanticSearchResult{

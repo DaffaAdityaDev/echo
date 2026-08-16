@@ -11,7 +11,11 @@ import (
 	"strings"
 	"time"
 
+	authconst "echo-backend/internal/constants/auth"
 	"echo-backend/internal/constants/db"
+	domainconst "echo-backend/internal/constants/domain"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -111,7 +115,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 
 	var conversation strings.Builder
 	for _, m := range messages {
-		if m.Role != "user" && m.Role != "assistant" && m.Role != "system" {
+		if m.Role != domainconst.MessageRoleUser && m.Role != domainconst.MessageRoleAssistant && m.Role != domainconst.MessageRoleSystem {
 			continue
 		}
 		content := strings.TrimSpace(m.Content)
@@ -128,8 +132,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	reqBody := map[string]interface{}{
 		"model": providerCfg.Model,
 		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": conversation.String()},
+			{"role": domainconst.MessageRoleSystem, "content": systemPrompt},
+			{"role": domainconst.MessageRoleUser, "content": conversation.String()},
 		},
 		"temperature": 0.3,
 		"max_tokens":  1024,
@@ -141,20 +145,20 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	endpoint := buildChatCompletionsURL(providerCfg.BaseURL)
-	httpReq, err := http.NewRequestWithContext(c.Context(), "POST", endpoint, bytes.NewBuffer(jsonBytes))
+	httpReq, err := http.NewRequestWithContext(c.Context(), http.MethodPost, endpoint, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request")
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 	if providerCfg.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+providerCfg.APIKey)
+		httpReq.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+providerCfg.APIKey)
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		slog.Error("http request failed", "component", "auto-title", "session_id", sessionID, "err", err)
+		slog.Error(msgconst.ErrTitleHTTPRequest, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "err", err)
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -162,10 +166,10 @@ Respond ONLY with a valid JSON object in this exact format:
 	if resp.StatusCode != http.StatusOK {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			slog.Error("failed to read error response", "component", "auto-title", "session_id", sessionID, "err", err)
+			slog.Error(msgconst.ErrTitleReadErrorResponse, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "err", err)
 			return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider returned error")
 		}
-		slog.Warn("provider returned non-200 status", "component", "auto-title", "session_id", sessionID, "status", resp.StatusCode, "body", string(respBody))
+		slog.Warn(msgconst.WarnTitleProviderNon200, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "status", resp.StatusCode, "body", string(respBody))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)))
 	}
 
@@ -184,8 +188,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	if err := json.Unmarshal(respBytes, &chatCompletion); err != nil || len(chatCompletion.Choices) == 0 {
-		slog.Error("failed to parse chat completion", "component", "auto-title", "session_id", sessionID, "err", err, "choices", len(chatCompletion.Choices))
-		slog.Debug("full response body", "component", "auto-title", "body", string(respBytes))
+		slog.Error(msgconst.ErrTitleParseCompletion, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "err", err, "choices", len(chatCompletion.Choices))
+		slog.Debug(msgconst.DebugTitleFullBody, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "body", string(respBytes))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Failed to parse LLM response")
 	}
 
@@ -204,8 +208,8 @@ Respond ONLY with a valid JSON object in this exact format:
 	}
 
 	if err := json.Unmarshal([]byte(rawContent), &metaData); err != nil {
-		slog.Error("failed to parse json", "component", "auto-title", "session_id", sessionID, "err", err)
-		slog.Debug("content after regex", "component", "auto-title", "content", truncateStr(rawContent, 500))
+		slog.Error(msgconst.ErrTitleParseJSON, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "err", err)
+		slog.Debug(msgconst.DebugTitleContentAfterRegex, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "content", truncateStr(rawContent, 500))
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM response is not valid JSON")
 	}
 
@@ -220,7 +224,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to save title")
 	}
 
-	slog.Info("generated title", "component", "auto-title", "session_id", sessionID, "title", title)
+	slog.Info(msgconst.InfoTitleGenerated, msgconst.ComponentKey, msgconst.ComponentAutoTitle, "session_id", sessionID, "title", title)
 	return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: title, Summary: summary})
 }
 

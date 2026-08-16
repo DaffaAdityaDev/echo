@@ -2,6 +2,7 @@ package features
 
 import (
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/models/config"
 	featuresmodel "echo-backend/internal/models/features"
 	"errors"
@@ -60,11 +61,11 @@ func newTestService(t *testing.T, repo FeatureRepository, handler http.HandlerFu
 
 func standardImplementedServer() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Internal-Token") != "test-token" {
+		if r.Header.Get(httpxconst.HeaderXInternalToken) != "test-token" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		_, _ = fmt.Fprint(w, implementedFixture())
 	}
 }
@@ -96,7 +97,7 @@ func TestValidateRequest_ImplementedGapIsUnknown(t *testing.T) {
 		{"id":"write_todos","name":"Task Planning & Execution Board","description":"Updates task board list state."}
 	]`
 	svc, _ := newTestService(t, &fakeRepo{active: activeFixture()}, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		_, _ = fmt.Fprint(w, partial)
 	})
 
@@ -239,7 +240,7 @@ func TestResolvePublicCatalog_FiltersNonImplemented(t *testing.T) {
 	t.Parallel()
 
 	svc, _ := newTestService(t, &fakeRepo{active: activeFixture()}, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		_, _ = fmt.Fprint(w, `[{"id":"web_search","name":"Web Search","description":"Quick search for real-time weather, prices, and news facts."}]`)
 	})
 

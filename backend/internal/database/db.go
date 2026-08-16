@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"echo-backend/internal/constants/db"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
 	"log/slog"
 	"os"
@@ -25,7 +25,7 @@ func NewRedisClient(cfg *cfgmodel.Config) *redis.Client {
 		MinIdleConns: 10,
 		PoolTimeout:  4 * time.Second,
 	})
-	slog.Info("redis connection initialized", "component", "database")
+	slog.Info(msgconst.InfoRedisInitialized, msgconst.ComponentKey, msgconst.ComponentDatabase)
 	return rdb
 }
 
@@ -39,7 +39,7 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
-		slog.Error(db.ErrPostgresConfig, "err", err)
+		slog.Error(msgconst.ErrPostgresConfig, "err", err)
 		os.Exit(1)
 	}
 
@@ -48,15 +48,15 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
-		slog.Error(db.ErrPostgresPool, "err", err)
+		slog.Error(msgconst.ErrPostgresPool, "err", err)
 		os.Exit(1)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		slog.Error(db.ErrPostgresPing, "err", err)
+		slog.Error(msgconst.ErrPostgresPing, "err", err)
 		os.Exit(1)
 	}
 
-	slog.Info(db.MsgPostgresConnected, "component", "database")
+	slog.Info(msgconst.MsgPostgresConnected, msgconst.ComponentKey, msgconst.ComponentDatabase)
 	return pool
 }

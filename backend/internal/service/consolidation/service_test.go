@@ -2,6 +2,7 @@ package consolidation
 
 import (
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
 	"encoding/json"
@@ -164,9 +165,9 @@ func TestTriggerConsolidation_FetchesOldestMessages(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, "secret", r.Header.Get("X-Internal-Token"))
-		w.Header().Set("Content-Type", "application/json")
+		assert.Equal(t, httpxconst.ContentTypeJSON, r.Header.Get(httpxconst.HeaderContentType))
+		assert.Equal(t, "secret", r.Header.Get(httpxconst.HeaderXInternalToken))
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"summary":"sum","token_count":10,"messages_summarized":2}`))
 	}))
@@ -279,7 +280,7 @@ func TestTriggerConsolidation_CapsGiantMessagesToTokenBudget(t *testing.T) {
 	var captured SummarizeRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&captured)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"summary":"sum","token_count":10,"messages_summarized":2}`))
 	}))
@@ -325,7 +326,7 @@ func TestTriggerConsolidation_DerivesBudgetFromContext(t *testing.T) {
 	var captured SummarizeRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&captured)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"summary":"sum","token_count":10,"messages_summarized":2}`))
 	}))

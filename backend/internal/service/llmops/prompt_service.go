@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/llmops"
 	propsrepo "echo-backend/internal/repository/llmops/module/props"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -129,7 +130,7 @@ func (s *promptService) invalidateActivePromptCache(ctx context.Context, templat
 	}
 	key := promptCacheKey(tmpl.TenantID, tmpl.Name)
 	if err := s.rdb.Del(ctx, key).Err(); err != nil {
-		slog.Error("failed to invalidate prompt cache key", "component", "llmops", "key", key, "err", err)
+		slog.Error(msgconst.ErrLLMOpsInvalidateCache, msgconst.ComponentKey, msgconst.ComponentLLMOps, "key", key, "err", err)
 	}
 }
 

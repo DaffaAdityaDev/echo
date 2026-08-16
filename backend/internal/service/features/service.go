@@ -2,6 +2,8 @@ package features
 
 import (
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
 	featuresmodel "echo-backend/internal/models/features"
 	"encoding/json"
@@ -97,7 +99,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent features request: %w", err)
 	}
-	req.Header.Set("X-Internal-Token", s.cfg.InternalAuthToken)
+	req.Header.Set(httpxconst.HeaderXInternalToken, s.cfg.InternalAuthToken)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -122,7 +124,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 
 	if s.rdb != nil {
 		if err := s.rdb.Set(ctx, implementedCacheKey, bodyBytes, implementedCacheTTL).Err(); err != nil {
-			slog.Warn("failed to cache implemented features in redis", "component", "features", "err", err)
+			slog.Warn(msgconst.WarnFeaturesCacheRedis, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
 		}
 	}
 
@@ -175,13 +177,13 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
-		slog.Warn("failed to load active features, skipping validation", "component", "features", "err", err)
+		slog.Warn(msgconst.WarnFeaturesLoadActiveSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
 		return nil
 	}
 
 	implemented, err := s.GetImplementedSet(ctx)
 	if err != nil {
-		slog.Warn("failed to load implemented features, skipping validation", "component", "features", "err", err)
+		slog.Warn(msgconst.WarnFeaturesLoadImplSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
 		return nil
 	}
 

@@ -2,9 +2,12 @@ package admin
 
 import (
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -61,7 +64,7 @@ func TestHandleCreateKey(t *testing.T) {
 			setUserID: "1",
 			mockSetup: func(m *mockAPIKeyRepo) {
 				m.On("Create", mock.Anything, mock.MatchedBy(func(k *authmodel.ApiKey) bool {
-					return k.Prefix != "" && k.KeyHash != "" && k.Name == "Test Key" && k.Status == "active"
+					return k.Prefix != "" && k.KeyHash != "" && k.Name == "Test Key" && k.Status == domainconst.StatusActive
 				})).Return(nil)
 			},
 			wantStatus: fiber.StatusCreated,
@@ -97,8 +100,8 @@ func TestHandleCreateKey(t *testing.T) {
 				return h.HandleCreateKey(c)
 			})
 
-			req := httptest.NewRequest("POST", "/admin/api-keys", strings.NewReader(tt.body))
-			req.Header.Set("Content-Type", "application/json")
+			req := httptest.NewRequest(http.MethodPost, "/admin/api-keys", strings.NewReader(tt.body))
+			req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 			resp, err := app.Test(req)
 
 			assert.NoError(t, err)

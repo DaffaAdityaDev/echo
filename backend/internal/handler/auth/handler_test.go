@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -90,8 +92,8 @@ func TestHandleLogin(t *testing.T) {
 			app := fiber.New()
 			app.Post("/login", h.HandleLogin)
 
-			req := httptest.NewRequest("POST", "/login", strings.NewReader(tt.body))
-			req.Header.Set("Content-Type", "application/json")
+			req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(tt.body))
+			req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 			resp, err := app.Test(req)
 
 			assert.NoError(t, err)

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	httpxconst "echo-backend/internal/constants/httpx"
 )
 
 const (
@@ -110,7 +112,7 @@ func (w *lokiWriter) push(entries []lokiEntry) {
 	if err != nil {
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 	resp, err := w.client.Do(req)
 	if err != nil {
 		return

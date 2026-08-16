@@ -2,9 +2,12 @@ package session
 
 import (
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
+	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -156,8 +159,8 @@ func TestHandleCreateSession(t *testing.T) {
 				return h.HandleCreateSession(c)
 			})
 
-			req := httptest.NewRequest("POST", "/sessions", strings.NewReader(tt.body))
-			req.Header.Set("Content-Type", "application/json")
+			req := httptest.NewRequest(http.MethodPost, "/sessions", strings.NewReader(tt.body))
+			req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
 			resp, err := app.Test(req)
 
 			assert.NoError(t, err)
@@ -170,8 +173,8 @@ func TestHandleCreateSession(t *testing.T) {
 func TestHandleDeleteSession(t *testing.T) {
 	t.Parallel()
 
-	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: "active"}
-	otherUserSession := &chatmodel.Session{ID: "sess_other", UserID: 2, Status: "active"}
+	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: domainconst.StatusActive}
+	otherUserSession := &chatmodel.Session{ID: "sess_other", UserID: 2, Status: domainconst.StatusActive}
 
 	tests := []struct {
 		name       string
@@ -226,7 +229,7 @@ func TestHandleDeleteSession(t *testing.T) {
 				return h.HandleDeleteSession(c)
 			})
 
-			req := httptest.NewRequest("DELETE", "/sessions/"+tt.sessionID, nil)
+			req := httptest.NewRequest(http.MethodDelete, "/sessions/"+tt.sessionID, nil)
 			resp, err := app.Test(req)
 
 			assert.NoError(t, err)
@@ -239,7 +242,7 @@ func TestHandleDeleteSession(t *testing.T) {
 func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
 	t.Parallel()
 
-	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: "active"}
+	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: domainconst.StatusActive}
 
 	mockRepo := new(mockSessionRepo)
 	mockCons := new(mockConsolidationSvc)
@@ -263,7 +266,7 @@ func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
 		return h.HandleGetSessionMessages(c)
 	})
 
-	req := httptest.NewRequest("GET", "/sessions/sess_shared/messages?limit=-5&offset=-3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/sessions/sess_shared/messages?limit=-5&offset=-3", nil)
 	resp, err := app.Test(req)
 
 	assert.NoError(t, err)
