@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	httpxconst "echo-backend/internal/constants/httpx"
+	"echo-backend/internal/constants/locals"
+	msgconst "echo-backend/internal/constants/msg"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -21,7 +23,7 @@ import (
 var HttpClient = &http.Client{}
 
 func GetUserID(c fiber.Ctx) (int, error) {
-	userIDStr, ok := c.Locals("user_id").(string)
+	userIDStr, ok := c.Locals(locals.UserID).(string)
 	if !ok || userIDStr == "" {
 		return 0, errors.New("user_id not found")
 	}
@@ -65,4 +67,21 @@ func RespondErrorDetail(c fiber.Ctx, status int, msg string, details string) err
 		httpxconst.JSONKeyDetails: details,
 	})
 	return fiber.NewError(status, msg)
+}
+
+// ErrorHandler renders handler errors as JSON without clobbering a response
+// body that a handler already wrote (RespondErrorDetail writes and returns a
+// non-nil error). Plain errors become a generic 500, matching fiber defaults.
+func ErrorHandler(c fiber.Ctx, err error) error {
+	var fe *fiber.Error
+	if errors.As(err, &fe) {
+		if len(c.Response().Body()) > 0 {
+			return nil
+		}
+		return c.Status(fe.Code).JSON(fiber.Map{httpxconst.JSONKeyError: fe.Message, httpxconst.JSONKeyDetails: httpxconst.EmptyDetails})
+	}
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		httpxconst.JSONKeyError:   msgconst.MsgInternalServerError,
+		httpxconst.JSONKeyDetails: httpxconst.EmptyDetails,
+	})
 }

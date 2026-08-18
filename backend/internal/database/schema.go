@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
+    tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -188,6 +189,9 @@ func Migrate(pool *pgxpool.Pool) error {
 
 	if _, err := pool.Exec(ctx, schemaUsers); err != nil {
 		return fmt.Errorf("failed to create users table: %w", err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro'))"); err != nil {
+		slog.Error(msgconst.ErrAddTierCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaSessions); err != nil {

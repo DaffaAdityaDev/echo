@@ -2,6 +2,7 @@ package features
 
 import (
 	"context"
+	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/config"
@@ -19,15 +20,6 @@ import (
 const implementedCacheKey = "agent:features"
 
 const implementedCacheTTL = 10 * time.Minute
-
-// normalizeTier maps any non-pro tier (including empty and unknown values)
-// to "free" so callers can never accidentally grant pro access.
-func normalizeTier(tier string) string {
-	if tier == "pro" {
-		return "pro"
-	}
-	return "free"
-}
 
 type ImplementedFeature struct {
 	ID          string `json:"id"`
@@ -132,7 +124,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 }
 
 func (s *Service) ResolvePublicCatalog(ctx context.Context, userTier string) ([]FeatureResponse, error) {
-	userTier = normalizeTier(userTier)
+	userTier = domainconst.NormalizeTier(userTier)
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
@@ -173,7 +165,7 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 	if len(featureIDs) == 0 {
 		return nil
 	}
-	userTier = normalizeTier(userTier)
+	userTier = domainconst.NormalizeTier(userTier)
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {

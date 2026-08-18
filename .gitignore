@@ -215,3 +215,6 @@ agent/.echo/
 GEMINI.md
 skills-lock.json
 agent/langfuse/
+
+# Local learning/docs workspace
+frontend/KataraGnosis/

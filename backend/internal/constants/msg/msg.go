@@ -21,6 +21,7 @@ const (
 	ComponentFeatures      = "features"
 	ComponentModel         = "model"
 	ComponentLLMOps        = "llmops"
+	ComponentAuth          = "auth"
 )
 
 const (
@@ -133,6 +134,7 @@ const (
 	ErrCreateFeaturesTable    = "failed to create features table"
 	InfoCreatedAPIKeysTable   = "created api_keys table"
 	ErrAddStrategyVersionCol  = "failed to add strategy_version column to sessions"
+	ErrAddTierCol             = "failed to add tier column to users"
 	ErrAddLastAccessedCol     = "failed to add last_accessed_at column to sessions"
 	ErrCreateIdxLastAccessed  = "failed to create idx_sessions_last_accessed"
 	ErrCreateAppSettingsTable = "failed to create app_settings table"
@@ -249,4 +251,41 @@ const (
 
 const (
 	ErrMissingToken = "Unauthorized: Missing token"
+)
+
+const (
+	ErrAuthLogin    = "auth login failed"
+	ErrAuthRegister = "auth register failed"
+)
+
+// HTTP response messages for the auth handler's internal-error paths.
+const (
+	MsgAuthLoginFailed    = "Login failed"
+	MsgAuthRegisterFailed = "Failed to register"
+)
+
+const (
+	// HTTP response messages emitted by the auth middleware stack. The generic
+	// missing-token case reuses ErrMissingToken above.
+	ErrInsufficientRole      = "Forbidden: insufficient role"
+	ErrInvalidToken          = "Unauthorized: Invalid token"
+	ErrInvalidAPICredentials = "Unauthorized: Invalid credentials"
+	ErrAPIKeyRevoked         = "Unauthorized: API key is revoked"
+	ErrMissingInternalToken  = "Unauthorized: Missing internal token"
+	ErrInvalidInternalToken  = "Unauthorized: Invalid internal token"
+	ErrInvalidTokenClaims    = "Unauthorized: Invalid token claims"
+	ErrInvalidTokenSubject   = "Forbidden: Invalid token subject"
+)
+
+const (
+	ErrAdminListKeys     = "Failed to list keys"
+	ErrAdminNameRequired = "name is required"
+	ErrAdminGenerateKey  = "Failed to generate key"
+	ErrAdminStoreKey     = "Failed to store key"
+	ErrAdminIDRequired   = "id is required"
+	ErrAdminFindKey      = "Failed to find key"
+	ErrAdminKeyNotFound  = "Key not found"
+	ErrAdminRevokeKey    = "Failed to revoke key"
+	MsgAdminKeyRevoked   = "Key revoked"
+	ErrAdminGetStats     = "Failed to get stats"
 )

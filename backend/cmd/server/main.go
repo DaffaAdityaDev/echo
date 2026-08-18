@@ -34,9 +34,9 @@ import (
 	httpxconst "echo-backend/internal/constants/httpx"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/database"
+	"echo-backend/internal/handler/handlerutil"
 	pkglogger "echo-backend/internal/pkg/logger"
 	"echo-backend/internal/router"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -72,6 +72,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := config.ValidateTier(cfg); err != nil {
+		slog.Error(msgconst.ErrRefuseToStart, msgconst.KeyErr, err)
+		os.Exit(1)
+	}
+
 	fmt.Println(app.Banner)
 
 	// Run database migration before serving traffic
@@ -85,7 +90,7 @@ func main() {
 	// Initialize server
 	appInstance := fiber.New(fiber.Config{
 		AppName:      app.Name,
-		ErrorHandler: errorHandler,
+		ErrorHandler: handlerutil.ErrorHandler,
 	})
 
 	// Middleware
@@ -130,23 +135,6 @@ func main() {
 		slog.Error(msgconst.ErrServerStartup, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
-}
-
-// errorHandler renders handler errors as JSON without clobbering a response
-// body that a handler already wrote (RespondErrorDetail writes and returns a
-// non-nil error). Plain errors become a generic 500, matching fiber defaults.
-func errorHandler(c fiber.Ctx, err error) error {
-	var fe *fiber.Error
-	if errors.As(err, &fe) {
-		if len(c.Response().Body()) > 0 {
-			return nil
-		}
-		return c.Status(fe.Code).JSON(fiber.Map{httpxconst.JSONKeyError: fe.Message, httpxconst.JSONKeyDetails: httpxconst.EmptyDetails})
-	}
-	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		httpxconst.JSONKeyError:   msgconst.MsgInternalServerError,
-		httpxconst.JSONKeyDetails: httpxconst.EmptyDetails,
-	})
 }
 
 // corsAllowedOrigins returns the browser origins allowed to call the API with

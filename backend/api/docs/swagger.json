@@ -500,14 +500,7 @@
             "get": {
                 "consumes": null,
                 "description": "Returns the catalog of agent features with tier-based locking",
-                "parameters": [
-                    {
-                        "description": "User tier, default pro",
-                        "in": "header",
-                        "name": "X-User-Tier",
-                        "type": "string"
-                    }
-                ],
+                "parameters": [],
                 "produces": [
                     "application/json"
                 ],

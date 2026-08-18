@@ -19,7 +19,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, user *authmodel.User) error {
-	err := r.pool.QueryRow(ctx, db.QueryCreateUser, user.Email, user.PasswordHash, user.Name, user.Role).
+	err := r.pool.QueryRow(ctx, db.QueryCreateUser, user.Email, user.PasswordHash, user.Name, user.Role, user.Tier).
 		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("%s: %w", db.ErrCreateUser, err)
@@ -30,7 +30,7 @@ func (r *Repository) Create(ctx context.Context, user *authmodel.User) error {
 func (r *Repository) GetByEmail(ctx context.Context, email string) (*authmodel.User, error) {
 	var user authmodel.User
 	err := r.pool.QueryRow(ctx, db.QueryGetUserByEmail, email).
-		Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.Tier, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -43,7 +43,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (*authmodel.U
 func (r *Repository) GetUserByID(ctx context.Context, id int) (*authmodel.User, error) {
 	var user authmodel.User
 	err := r.pool.QueryRow(ctx, db.QueryGetUserByID, id).
-		Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.Tier, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil

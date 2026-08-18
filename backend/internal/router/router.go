@@ -34,6 +34,7 @@ import (
 	llmopsSvc "echo-backend/internal/service/llmops"
 	settsvc "echo-backend/internal/service/settings"
 	stratsvc "echo-backend/internal/service/strategy"
+	tiersvc "echo-backend/internal/service/tier"
 	"echo-backend/internal/worker"
 
 	"github.com/gofiber/fiber/v3"
@@ -58,6 +59,10 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	consolidationSvc := consolid.NewService(cfg, sessionRepo)
 	strategySvc := stratsvc.NewService(cfg, settingsRepo, rdb)
 	featuresSvc := featuressvc.NewService(cfg, rdb, featuresRepo)
+
+	// Tier resolution for the auth middleware: per-request cache-aside lookup.
+	tierSvc := tiersvc.NewService(tiersvc.NewRedisCache(rdb), userRepo)
+	authRequired := middleware.AuthRequired(cfg.JWTSecret, tierSvc.Resolve)
 
 	// 4. Initialize Handlers
 	authHandler := authhdl.NewHandler(cfg, authSvc)
@@ -128,23 +133,23 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	authGrp := api.Group(routes.V1AuthGroup)
 	authGrp.Post(routes.V1PathRegister, authHandler.HandleRegister)
 	authGrp.Post(routes.V1PathLogin, authHandler.HandleLogin)
-	authGrp.Get(routes.V1PathMe, middleware.AuthRequired(cfg.JWTSecret), authHandler.HandleMe)
-	authGrp.Post(routes.V1PathLogout, middleware.AuthRequired(cfg.JWTSecret), authHandler.HandleLogout)
+	authGrp.Get(routes.V1PathMe, authRequired, authHandler.HandleMe)
+	authGrp.Post(routes.V1PathLogout, authRequired, authHandler.HandleLogout)
 
 	// Feature routes
-	api.Post(routes.V1PathChat, middleware.AuthRequired(cfg.JWTSecret), chatHandler.HandleChat)
+	api.Post(routes.V1PathChat, authRequired, chatHandler.HandleChat)
 	api.Get(routes.V1PathSkills, chatHandler.HandleGetSkills)
-	api.Get(routes.V1PathModels, middleware.AuthRequired(cfg.JWTSecret), aimodelHandler.HandleGetModels)
-	api.Get(routes.V1PathFeatures, middleware.AuthRequired(cfg.JWTSecret), featuresHandler.HandleGetFeatures)
-	api.Get(routes.V1PathStrategies, middleware.AuthRequired(cfg.JWTSecret), strategyHandler.HandleGetStrategies)
+	api.Get(routes.V1PathModels, authRequired, aimodelHandler.HandleGetModels)
+	api.Get(routes.V1PathFeatures, authRequired, featuresHandler.HandleGetFeatures)
+	api.Get(routes.V1PathStrategies, authRequired, strategyHandler.HandleGetStrategies)
 
 	// Settings routes
 	api.Get(routes.V1PathSettingsDefaults, settingsHandler.HandleGetDefaults)
-	api.Get(routes.V1PathSettings, middleware.AuthRequired(cfg.JWTSecret), settingsHandler.HandleGetSettings)
-	api.Put(routes.V1PathSettings, middleware.AuthRequired(cfg.JWTSecret), settingsHandler.HandleUpdateSettings)
+	api.Get(routes.V1PathSettings, authRequired, settingsHandler.HandleGetSettings)
+	api.Put(routes.V1PathSettings, authRequired, settingsHandler.HandleUpdateSettings)
 
 	// Session routes
-	sessionsGroup := api.Group("/sessions", middleware.AuthRequired(cfg.JWTSecret))
+	sessionsGroup := api.Group("/sessions", authRequired)
 	sessionsGroup.Post("", sessionHandler.HandleCreateSession)
 	sessionsGroup.Get("", sessionHandler.HandleListSessions)
 	sessionsGroup.Get("/:id", sessionHandler.HandleGetSession)
@@ -167,14 +172,14 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	studio := api.Group("/studio")
 
 	prompts := studio.Group("/prompts")
-	prompts.Get("", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListTemplates)
-	prompts.Post("", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer, domainconst.RoleProductManager), llmopsPromptHandler.HandleCreateTemplate)
-	prompts.Get("/active", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetActivePrompt)
-	prompts.Get("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleListVersions)
-	prompts.Get("/:id/versions/:v", middleware.AuthRequired(cfg.JWTSecret), llmopsPromptHandler.HandleGetVersion)
-	prompts.Post("/:id/versions", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer), llmopsPromptHandler.HandleCreateVersion)
-	prompts.Post("/:id/promote/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandlePromote)
-	prompts.Post("/:id/rollback/:version", middleware.AuthRequired(cfg.JWTSecret), middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandleRollback)
+	prompts.Get("", authRequired, llmopsPromptHandler.HandleListTemplates)
+	prompts.Post("", authRequired, middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer, domainconst.RoleProductManager), llmopsPromptHandler.HandleCreateTemplate)
+	prompts.Get("/active", authRequired, llmopsPromptHandler.HandleGetActivePrompt)
+	prompts.Get("/:id/versions", authRequired, llmopsPromptHandler.HandleListVersions)
+	prompts.Get("/:id/versions/:v", authRequired, llmopsPromptHandler.HandleGetVersion)
+	prompts.Post("/:id/versions", authRequired, middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RolePromptEngineer), llmopsPromptHandler.HandleCreateVersion)
+	prompts.Post("/:id/promote/:version", authRequired, middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandlePromote)
+	prompts.Post("/:id/rollback/:version", authRequired, middleware.RequireRoles(domainconst.RoleAdmin, domainconst.RoleProductManager, domainconst.RoleAdminBisnis), llmopsPromptHandler.HandleRollback)
 
 	// Internal routes (service JWT required)
 	internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))

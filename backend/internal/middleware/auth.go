@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"context"
 	"echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/constants/locals"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"strings"
@@ -11,8 +13,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthRequired verifies the JWT token from either the Authorization header or a cookie.
-func AuthRequired(secret string) fiber.Handler {
+// TierResolver returns the effective tier for a user id (as a string, the
+// form used in the JWT "sub" claim). Implementations resolve per request so
+// tier changes apply without waiting for token expiry.
+type TierResolver func(ctx context.Context, userID string) string
+
+// AuthRequired verifies the JWT token from either the Authorization header or
+// a cookie, then attaches identity claims and the resolved tier to the
+// request context.
+func AuthRequired(secret string, resolveTier TierResolver) fiber.Handler {
+	if resolveTier == nil {
+		resolveTier = func(context.Context, string) string { return domainconst.TierFree }
+	}
 	return func(c fiber.Ctx) error {
 		tryToken := func(s string) bool {
 			if s == "" {
@@ -25,10 +37,10 @@ func AuthRequired(secret string) fiber.Handler {
 				return false
 			}
 			claims := token.Claims.(jwt.MapClaims)
-			c.Locals("user_id", claims["sub"])
-			c.Locals("user_role", claims["role"])
-			c.Locals(LocalsKeyUserTier, TierFromClaims(claims))
-			c.Locals(LocalsKeyUserEmail, EmailFromClaims(claims))
+			c.Locals(locals.UserID, claims[auth.ClaimSubject])
+			c.Locals(locals.UserRole, claims[auth.ClaimRole])
+			c.Locals(locals.UserTier, resolveTier(c.Context(), subString(claims)))
+			c.Locals(locals.UserEmail, EmailFromClaims(claims))
 			return true
 		}
 

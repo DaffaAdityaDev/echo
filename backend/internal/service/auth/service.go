@@ -2,17 +2,29 @@ package auth
 
 import (
 	"context"
+	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/repository/auth"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// ErrInvalidCredentials is returned when the email does not exist or the
+// password does not match. Both cases share one error (and message) so the
+// handler cannot be used to enumerate registered emails.
+var ErrInvalidCredentials = errors.New("invalid email or password")
+
+// ErrDuplicateEmail is returned when registration hits the users.email unique
+// constraint.
+var ErrDuplicateEmail = errors.New("email already registered")
 
 type Service struct {
 	cfg      *cfgmodel.Config
@@ -29,14 +41,14 @@ func NewService(cfg *cfgmodel.Config, userRepo *auth.Repository) *Service {
 func (s *Service) Login(ctx context.Context, email, password string) (*authmodel.User, string, error) {
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid email or password")
+		return nil, "", err
 	}
 	if user == nil {
-		return nil, "", fmt.Errorf("invalid email or password")
+		return nil, "", ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, "", fmt.Errorf("invalid email or password")
+		return nil, "", ErrInvalidCredentials
 	}
 
 	token, err := generateToken(s.cfg, user)
@@ -58,9 +70,14 @@ func (s *Service) Register(ctx context.Context, email, password, name string) (*
 		PasswordHash: string(hashedPassword),
 		Name:         name,
 		Role:         domainconst.RoleUser,
+		Tier:         s.cfg.DefaultUserTier,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, "", ErrDuplicateEmail
+		}
 		return nil, "", fmt.Errorf("failed to create user: %w", err)
 	}
 
@@ -78,12 +95,11 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*authmodel.User, err
 
 func generateToken(cfg *cfgmodel.Config, user *authmodel.User) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":   strconv.Itoa(user.ID),
-		"role":  user.Role,
-		"email": user.Email,
-		"tier":  cfg.DefaultUserTier,
-		"exp":   time.Now().Add(72 * time.Hour).Unix(),
-		"iat":   time.Now().Unix(),
+		authconst.ClaimSubject: strconv.Itoa(user.ID),
+		authconst.ClaimRole:    user.Role,
+		authconst.ClaimEmail:   user.Email,
+		authconst.ClaimExp:     time.Now().Add(72 * time.Hour).Unix(),
+		authconst.ClaimIat:     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(cfg.JWTSecret))

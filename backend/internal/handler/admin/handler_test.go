@@ -2,8 +2,10 @@ package admin
 
 import (
 	"context"
+	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
+	"echo-backend/internal/constants/locals"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	"encoding/json"
@@ -95,7 +97,7 @@ func TestHandleCreateKey(t *testing.T) {
 			app := fiber.New()
 			app.Post("/admin/api-keys", func(c fiber.Ctx) error {
 				if tt.setUserID != "" {
-					c.Locals("user_id", tt.setUserID)
+					c.Locals(locals.UserID, tt.setUserID)
 				}
 				return h.HandleCreateKey(c)
 			})
@@ -115,7 +117,7 @@ func TestHandleCreateKey(t *testing.T) {
 				assert.True(t, ok, "response must contain 'key' field")
 				keyStr, ok := keyField.(string)
 				assert.True(t, ok, "'key' must be a string")
-				assert.True(t, strings.HasPrefix(keyStr, "sk_"), "key must start with sk_")
+				assert.True(t, strings.HasPrefix(keyStr, authconst.APIKeyPrefix), "key must start with "+authconst.APIKeyPrefix)
 
 				apiKey, ok := body["api_key"]
 				assert.True(t, ok, "response must contain 'api_key' object")
@@ -123,7 +125,7 @@ func TestHandleCreateKey(t *testing.T) {
 				assert.True(t, ok, "'api_key' must be an object")
 				prefix, ok := apiKeyMap["prefix"].(string)
 				assert.True(t, ok)
-				assert.True(t, strings.HasPrefix(prefix, "sk_"), "prefix must start with sk_")
+				assert.True(t, strings.HasPrefix(prefix, authconst.APIKeyPrefix), "prefix must start with "+authconst.APIKeyPrefix)
 				assert.NotEmpty(t, apiKeyMap["id"])
 			}
 

@@ -64,7 +64,7 @@ func (r *Repository) Revoke(ctx context.Context, id string) error {
 		return fmt.Errorf("%s: %w", db.ErrRevokeApiKey, err)
 	}
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("%s: key not found or already revoked", db.ErrRevokeApiKey)
+		return fmt.Errorf("%s: %s", db.ErrRevokeApiKey, db.ErrRevokeApiKeyNotFound)
 	}
 	return nil
 }

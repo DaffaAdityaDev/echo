@@ -4,11 +4,18 @@ import (
 	"context"
 	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
+	authsvc "echo-backend/internal/service/auth"
 	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/mail"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -32,14 +39,14 @@ func NewHandler(cfg *cfgmodel.Config, authSvc Service) *Handler {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" binding:"required" example:"jane@example.com"` // User email address
-	Password string `json:"password" binding:"required" example:"P@ssw0rd!23"`   // User password
+	Email    string `json:"email" example:"jane@example.com"` // User email address
+	Password string `json:"password" example:"P@ssw0rd!23"`   // User password
 }
 
 type registerRequest struct {
-	Email    string `json:"email" binding:"required" example:"jane@example.com"` // User email address
-	Password string `json:"password" binding:"required" example:"P@ssw0rd!23"`   // User password
-	Name     string `json:"name" binding:"required" example:"Jane Doe"`          // User display name
+	Email    string `json:"email" example:"jane@example.com"` // User email address
+	Password string `json:"password" example:"P@ssw0rd!23"`   // User password
+	Name     string `json:"name" example:"Jane Doe"`          // User display name
 }
 
 // LoginResponse is the payload returned after successful login or registration.
@@ -68,10 +75,17 @@ func (h *Handler) HandleRegister(c fiber.Ctx) error {
 	if err := json.Unmarshal(body, &req); err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request: "+err.Error())
 	}
+	if err := validateRegister(&req); err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, err.Error())
+	}
 
 	user, token, err := h.AuthSvc.Register(c.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusConflict, err.Error())
+		if errors.Is(err, authsvc.ErrDuplicateEmail) {
+			return handlerutil.RespondError(c, fiber.StatusConflict, err.Error())
+		}
+		slog.Error(msgconst.ErrAuthRegister, msgconst.ComponentKey, msgconst.ComponentAuth, msgconst.KeyEmail, req.Email, msgconst.KeyErr, err)
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.MsgAuthRegisterFailed)
 	}
 
 	setAuthCookie(c, h.Cfg.Environment, token)
@@ -102,10 +116,17 @@ func (h *Handler) HandleLogin(c fiber.Ctx) error {
 	if err := json.Unmarshal(body, &req); err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request: "+err.Error())
 	}
+	if err := validateLogin(&req); err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, err.Error())
+	}
 
 	user, token, err := h.AuthSvc.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusUnauthorized, err.Error())
+		if errors.Is(err, authsvc.ErrInvalidCredentials) {
+			return handlerutil.RespondError(c, fiber.StatusUnauthorized, err.Error())
+		}
+		slog.Error(msgconst.ErrAuthLogin, msgconst.ComponentKey, msgconst.ComponentAuth, msgconst.KeyEmail, req.Email, msgconst.KeyErr, err)
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.MsgAuthLoginFailed)
 	}
 
 	setAuthCookie(c, h.Cfg.Environment, token)
@@ -176,4 +197,46 @@ func setAuthCookie(c fiber.Ctx, environment, token string) {
 		SameSite: "Lax",
 		Path:     "/",
 	})
+}
+
+// validateRegister checks the shape of a registration payload before the
+// service layer runs. Password minimum length is the only business rule;
+// everything else guards against storing garbage in the database.
+func validateRegister(req *registerRequest) error {
+	email, err := validateEmail(req.Email)
+	if err != nil {
+		return err
+	}
+	req.Email = email
+	if utf8.RuneCountInString(strings.TrimSpace(req.Password)) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return errors.New("name is required")
+	}
+	return nil
+}
+
+func validateLogin(req *loginRequest) error {
+	email, err := validateEmail(req.Email)
+	if err != nil {
+		return err
+	}
+	req.Email = email
+	if strings.TrimSpace(req.Password) == "" {
+		return errors.New("password is required")
+	}
+	return nil
+}
+
+func validateEmail(email string) (string, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return "", errors.New("email is required")
+	}
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", errors.New("invalid email address")
+	}
+	return addr.Address, nil
 }

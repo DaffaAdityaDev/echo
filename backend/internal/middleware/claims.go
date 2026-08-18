@@ -1,52 +1,41 @@
 package middleware
 
 import (
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/constants/locals"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Locals keys and tier values shared across handlers. Tier comes from the
-// signed JWT issued at login/registration — it is never taken from request
-// headers, which clients could spoof.
-const (
-	LocalsKeyUserTier  = "user_tier"
-	LocalsKeyUserEmail = "user_email"
-
-	TierFree = "free"
-	TierPro  = "pro"
-)
-
-// TierFromClaims extracts the "tier" claim from a verified JWT. A missing,
-// empty, or unknown claim resolves to TierFree (least privilege).
-func TierFromClaims(claims jwt.MapClaims) string {
-	tier, _ := claims["tier"].(string)
-	return normalizeTier(tier)
+// subString extracts the "sub" claim as a string, returning "" when absent or
+// of an unexpected type.
+func subString(claims jwt.MapClaims) string {
+	sub, _ := claims[authconst.ClaimSubject].(string)
+	return sub
 }
 
 // EmailFromClaims extracts the "email" claim from a verified JWT, returning
 // an empty string when absent.
 func EmailFromClaims(claims jwt.MapClaims) string {
-	email, _ := claims["email"].(string)
+	email, _ := claims[authconst.ClaimEmail].(string)
 	return email
 }
 
 // UserTier returns the tier stored on the request by AuthRequired, falling
-// back to TierFree when no verified claims are present.
+// back to the free tier when no verified claims are present. Tier is resolved
+// per request by the AuthRequired middleware (database + Redis cache-aside) —
+// it is never taken from the JWT or from request headers, which clients could
+// spoof. The Locals keys themselves live in constants/locals.
 func UserTier(c fiber.Ctx) string {
-	tier, _ := c.Locals(LocalsKeyUserTier).(string)
-	return normalizeTier(tier)
+	tier, _ := c.Locals(locals.UserTier).(string)
+	return domainconst.NormalizeTier(tier)
 }
 
 // UserEmail returns the email stored on the request by AuthRequired, falling
 // back to an empty string when no verified claims are present.
 func UserEmail(c fiber.Ctx) string {
-	email, _ := c.Locals(LocalsKeyUserEmail).(string)
+	email, _ := c.Locals(locals.UserEmail).(string)
 	return email
-}
-
-func normalizeTier(tier string) string {
-	if tier != TierFree && tier != TierPro {
-		return TierFree
-	}
-	return tier
 }

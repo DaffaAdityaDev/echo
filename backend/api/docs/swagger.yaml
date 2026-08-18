@@ -1328,11 +1328,6 @@ paths:
   /api/v1/features:
     get:
       description: Returns the catalog of agent features with tier-based locking
-      parameters:
-      - description: User tier, default pro
-        in: header
-        name: X-User-Tier
-        type: string
       produces:
       - application/json
       responses:

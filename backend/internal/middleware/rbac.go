@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"echo-backend/internal/constants/locals"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
@@ -8,9 +10,9 @@ import (
 
 func RequireRoles(allowedRoles ...string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		userRole, ok := c.Locals("user_role").(string)
+		userRole, ok := c.Locals(locals.UserRole).(string)
 		if !ok || userRole == "" {
-			return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
+			return handlerutil.RespondError(c, fiber.StatusForbidden, msgconst.ErrInsufficientRole)
 		}
 
 		for _, role := range allowedRoles {
@@ -19,6 +21,6 @@ func RequireRoles(allowedRoles ...string) fiber.Handler {
 			}
 		}
 
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: insufficient role")
+		return handlerutil.RespondError(c, fiber.StatusForbidden, msgconst.ErrInsufficientRole)
 	}
 }

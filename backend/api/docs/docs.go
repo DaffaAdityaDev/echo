@@ -501,14 +501,7 @@ const docTemplate = `{
                     "Chat"
                 ],
                 "summary": "List available agent features",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User tier, default pro",
-                        "name": "X-User-Tier",
-                        "in": "header"
-                    }
-                ],
+                "parameters": [],
                 "responses": {
                     "200": {
                         "description": "Catalog of agent features for the user's tier",

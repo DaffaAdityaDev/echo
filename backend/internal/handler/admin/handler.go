@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
+	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
@@ -35,8 +37,8 @@ func NewHandler(cfg *cfgmodel.Config, apiKeyRepo APIKeyRepo) *Handler {
 }
 
 type createAPIKeyRequest struct {
-	Name   string   `json:"name" binding:"required" example:"Production Key"` // Display name for the API key
-	Scopes []string `json:"scopes" example:"read,write"`                      // Optional permission scopes
+	Name   string   `json:"name" example:"Production Key"` // Display name for the API key
+	Scopes []string `json:"scopes" example:"read,write"`   // Optional permission scopes
 }
 
 // AdminStatsResponse is the payload returned by the stats endpoint.
@@ -57,8 +59,8 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 		return "", "", "", err
 	}
 	hexPart := hex.EncodeToString(b)
-	fullKey = "sk_" + hexPart
-	prefix = "sk_" + hexPart[:8]
+	fullKey = authconst.APIKeyPrefix + hexPart
+	prefix = authconst.APIKeyPrefix + hexPart[:8]
 	h := sha256.Sum256([]byte(fullKey))
 	hash = hex.EncodeToString(h[:])
 	return
@@ -79,7 +81,7 @@ func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 
 	keys, err := h.APIKeyRepo.List(ctx)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to list keys")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminListKeys)
 	}
 	return handlerutil.RespondSuccess(c, keys)
 }
@@ -103,12 +105,12 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request")
 	}
 	if req.Name == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "name is required")
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminNameRequired)
 	}
 
 	fullKey, prefix, hash, err := generateAPIKey()
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to generate key")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminGenerateKey)
 	}
 
 	userIDInt, err := handlerutil.GetUserID(c)
@@ -119,7 +121,7 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 
 	id, err := handlerutil.GenerateUUID()
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to generate key")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminGenerateKey)
 	}
 
 	now := time.Now()
@@ -138,7 +140,7 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	defer cancel()
 
 	if err := h.APIKeyRepo.Create(ctx, &ak); err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store key")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminStoreKey)
 	}
 
 	return handlerutil.RespondCreated(c, CreateAPIKeyResponse{
@@ -162,7 +164,7 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id is required")
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminIDRequired)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
@@ -170,17 +172,17 @@ func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 
 	existing, err := h.APIKeyRepo.GetByID(ctx, id)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to find key")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminFindKey)
 	}
 	if existing == nil {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Key not found")
+		return handlerutil.RespondError(c, fiber.StatusNotFound, msgconst.ErrAdminKeyNotFound)
 	}
 
 	if err := h.APIKeyRepo.Revoke(ctx, id); err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to revoke key")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminRevokeKey)
 	}
 
-	return handlerutil.RespondMessage(c, "Key revoked")
+	return handlerutil.RespondMessage(c, msgconst.MsgAdminKeyRevoked)
 }
 
 // HandleStats godoc
@@ -198,7 +200,7 @@ func (h *Handler) HandleStats(c fiber.Ctx) error {
 
 	keys, err := h.APIKeyRepo.List(ctx)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get stats")
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminGetStats)
 	}
 
 	total := int64(len(keys))

@@ -4,6 +4,7 @@ import (
 	"context"
 	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
+	"echo-backend/internal/constants/locals"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
@@ -154,7 +155,7 @@ func TestHandleCreateSession(t *testing.T) {
 			app := fiber.New()
 			app.Post("/sessions", func(c fiber.Ctx) error {
 				if tt.setUserID != "" {
-					c.Locals("user_id", tt.setUserID)
+					c.Locals(locals.UserID, tt.setUserID)
 				}
 				return h.HandleCreateSession(c)
 			})
@@ -224,7 +225,7 @@ func TestHandleDeleteSession(t *testing.T) {
 			app := fiber.New()
 			app.Delete("/sessions/:id", func(c fiber.Ctx) error {
 				if tt.setUserID != "" {
-					c.Locals("user_id", tt.setUserID)
+					c.Locals(locals.UserID, tt.setUserID)
 				}
 				return h.HandleDeleteSession(c)
 			})
@@ -262,7 +263,7 @@ func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
 
 	app := fiber.New()
 	app.Get("/sessions/:id/messages", func(c fiber.Ctx) error {
-		c.Locals("user_id", "1")
+		c.Locals(locals.UserID, "1")
 		return h.HandleGetSessionMessages(c)
 	})
 
