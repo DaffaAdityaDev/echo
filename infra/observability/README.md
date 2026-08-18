@@ -56,6 +56,33 @@ go run ./cmd/server
 $env:LOKI_URL="http://localhost:3100"; go run ./cmd/server
 ```
 
+## Centralized / remote Loki
+
+The backend only knows `LOKI_URL`, so pointing at a shared instance is a
+config change, never a code change. Optional env vars (all empty by default,
+so the pipeline is unchanged when unset):
+
+| Env | Purpose |
+|---|---|
+| `LOKI_URL` | Push endpoint, e.g. `https://loki.corp.example.com` |
+| `LOKI_USER` / `LOKI_PASSWORD` | HTTP Basic Auth |
+| `LOKI_TENANT_ID` | Multi-tenant header `X-Scope-OrgID` |
+| `LOKI_LABELS` | Extra stream labels, comma-separated `k=v` pairs, e.g. `tenant=acme,project=echo` |
+
+```powershell
+$env:LOKI_URL="https://loki.corp.example.com"
+$env:LOKI_USER="svc-echo"
+$env:LOKI_PASSWORD="secret"
+$env:LOKI_TENANT_ID="acme"
+$env:LOKI_LABELS="tenant=acme,project=echo"
+go run ./cmd/server
+```
+
+Invalid `LOKI_LABELS` entries (no `=` or empty key) are dropped silently;
+extra labels override the base `service`/`stream` labels on conflict.
+Grafana needs its own datasource for the remote Loki (see
+`grafana/provisioning/datasources/loki.yml`).
+
 ## Example LogQL queries
 
 ```

@@ -23,15 +23,26 @@ func Init(environment string) {
 	slog.SetDefault(slog.New(consoleHandler(environment)))
 }
 
+// LokiConfig carries the optional connection and labeling settings for the
+// Loki sink. Every field except URL is optional; empty values reproduce the
+// plain, unauthenticated single-stream behavior.
+type LokiConfig struct {
+	URL       string
+	User      string
+	Password  string
+	TenantID  string
+	LabelsRaw string
+}
+
 // EnableLoki appends an asynchronous Loki sink to the default logger and
 // exposes it through LokiWriter. The sink drops records when Loki is
 // unreachable, so the application never blocks or retries on it. Calling it
 // twice is a no-op.
-func EnableLoki(lokiURL string) {
-	if lokiURL == "" || loki != nil {
+func EnableLoki(cfg LokiConfig) {
+	if cfg.URL == "" || loki != nil {
 		return
 	}
-	loki = newLokiWriter(lokiURL)
+	loki = newLokiWriter(cfg)
 	jsonSink := slog.NewJSONHandler(loki, &slog.HandlerOptions{Level: slog.LevelInfo})
 	slog.SetDefault(slog.New(compositeHandler{handlers: []slog.Handler{consoleHandler(currentEnvironment), jsonSink}}))
 }

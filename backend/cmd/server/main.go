@@ -56,7 +56,13 @@ func main() {
 		slog.Info(msgconst.MsgNoEnvFile, msgconst.KeyErr, err)
 	}
 	pkglogger.Init(os.Getenv(envconst.Environment))
-	pkglogger.EnableLoki(os.Getenv(envconst.LokiURL))
+	pkglogger.EnableLoki(pkglogger.LokiConfig{
+		URL:       os.Getenv(envconst.LokiURL),
+		User:      os.Getenv(envconst.LokiUser),
+		Password:  os.Getenv(envconst.LokiPassword),
+		TenantID:  os.Getenv(envconst.LokiTenantID),
+		LabelsRaw: os.Getenv(envconst.LokiLabels),
+	})
 
 	// Load configuration
 	cfg := config.Load()

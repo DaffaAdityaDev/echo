@@ -153,6 +153,10 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-to-a-32-char-key!!!!}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
       - LOKI_URL=${LOKI_URL:-}
+      - LOKI_USER=${LOKI_USER:-}
+      - LOKI_PASSWORD=${LOKI_PASSWORD:-}
+      - LOKI_TENANT_ID=${LOKI_TENANT_ID:-}
+      - LOKI_LABELS=${LOKI_LABELS:-}
     depends_on:
       echo-postgres:
         condition: service_healthy

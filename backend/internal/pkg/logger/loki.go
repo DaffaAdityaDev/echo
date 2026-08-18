@@ -28,19 +28,46 @@ type lokiEntry struct {
 // forget by design: when the batch channel is full or a push fails, records
 // are dropped silently so the application never blocks on the shipper.
 type lokiWriter struct {
-	url    string
-	lines  chan string
-	client *http.Client
+	url      string
+	user     string
+	password string
+	tenantID string
+	labels   map[string]string
+	lines    chan string
+	client   *http.Client
 }
 
-func newLokiWriter(url string) *lokiWriter {
+func newLokiWriter(cfg LokiConfig) *lokiWriter {
 	w := &lokiWriter{
-		url:    strings.TrimSuffix(url, "/"),
-		lines:  make(chan string, lineBufferSize),
-		client: &http.Client{Timeout: pushTimeout},
+		url:      strings.TrimSuffix(cfg.URL, "/"),
+		user:     cfg.User,
+		password: cfg.Password,
+		tenantID: cfg.TenantID,
+		labels:   parseLabels(cfg.LabelsRaw),
+		lines:    make(chan string, lineBufferSize),
+		client:   &http.Client{Timeout: pushTimeout},
 	}
 	go w.run()
 	return w
+}
+
+// parseLabels turns "k=v,k2=v2" into a map. Invalid entries are dropped
+// silently; entries are trimmed and the last occurrence of a key wins.
+func parseLabels(raw string) map[string]string {
+	labels := map[string]string{}
+	for _, pair := range strings.Split(raw, ",") {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" {
+			continue
+		}
+		labels[key] = value
+	}
+	return labels
 }
 
 // Write enqueues one log line. It always reports success so callers (slog
@@ -100,7 +127,7 @@ func (w *lokiWriter) push(entries []lokiEntry) {
 	}
 	payload := lokiPayload{
 		Streams: []lokiStream{{
-			Stream: map[string]string{"service": "echo-backend", "stream": "stdout"},
+			Stream: w.streamLabels(),
 			Values: values,
 		}},
 	}
@@ -113,10 +140,33 @@ func (w *lokiWriter) push(entries []lokiEntry) {
 		return
 	}
 	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	w.applyPushAuth(req)
 	resp, err := w.client.Do(req)
 	if err != nil {
 		return
 	}
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
+}
+
+// streamLabels returns the stream label set: the fixed base labels with any
+// configured extra labels merged on top (extra wins on conflict).
+func (w *lokiWriter) streamLabels() map[string]string {
+	stream := map[string]string{"service": "echo-backend", "stream": "stdout"}
+	for key, value := range w.labels {
+		stream[key] = value
+	}
+	return stream
+}
+
+// applyPushAuth decorates the push request with Basic Auth and the Loki
+// tenant header when they are configured. Without configuration it is a
+// no-op, preserving the plain unauthenticated push behavior.
+func (w *lokiWriter) applyPushAuth(req *http.Request) {
+	if w.user != "" {
+		req.SetBasicAuth(w.user, w.password)
+	}
+	if w.tenantID != "" {
+		req.Header.Set("X-Scope-OrgID", w.tenantID)
+	}
 }
