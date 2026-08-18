@@ -50,7 +50,7 @@ func (w *Worker) Start(ctx context.Context) {
 		interval = 15 * time.Minute
 	}
 
-	slog.Info(msgconst.InfoWorkerStarted, msgconst.ComponentKey, msgconst.ComponentLifecycle, "interval", interval)
+	slog.Info(msgconst.InfoWorkerStarted, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyInterval, interval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -68,7 +68,7 @@ func (w *Worker) Start(ctx context.Context) {
 func (w *Worker) runCycleSafe(ctx context.Context, interval time.Duration) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error(msgconst.ErrCyclePanicRecovered, msgconst.ComponentKey, msgconst.ComponentLifecycle, "panic", fmt.Sprintf("%v", r), "stack", string(debug.Stack()))
+			slog.Error(msgconst.ErrCyclePanicRecovered, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyPanic, fmt.Sprintf("%v", r), msgconst.KeyStack, string(debug.Stack()))
 		}
 	}()
 	w.runCycle(ctx, interval)
@@ -79,7 +79,7 @@ func (w *Worker) runCycle(ctx context.Context, interval time.Duration) {
 		lockKey := "lifecycle:scan_lock"
 		acquired, err := w.rdb.SetNX(ctx, lockKey, "locked", interval-5*time.Second).Result()
 		if err != nil || !acquired {
-			slog.Warn(msgconst.WarnCycleSkipped, msgconst.ComponentKey, msgconst.ComponentLifecycle, "reason", "lock not acquired or another replica running")
+			slog.Warn(msgconst.WarnCycleSkipped, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyReason, "lock not acquired or another replica running")
 			return
 		}
 	}
@@ -100,14 +100,14 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 	idleBefore := time.Now().Add(-idleWindow)
 	sessions, err := w.sessionRepo.ScanSessionsForConsolidation(ctx, idleBefore, w.cfg.PRUNE_THRESHOLD, 50)
 	if err != nil {
-		slog.Error(msgconst.ErrConsolidationScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, "err", err)
+		slog.Error(msgconst.ErrConsolidationScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyErr, err)
 		return
 	}
 
 	for _, sess := range sessions {
 		userPrefs, err := w.settingsSvc.GetSettingsInternal(ctx, sess.UserID)
 		if err != nil || userPrefs == nil {
-			slog.Warn(msgconst.WarnSkipSessionProviderCfg, msgconst.ComponentKey, msgconst.ComponentLifecycle, "session_id", sess.ID, "user_id", sess.UserID)
+			slog.Warn(msgconst.WarnSkipSessionProviderCfg, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessionID, sess.ID, msgconst.KeyUserID, sess.UserID)
 			continue
 		}
 
@@ -121,10 +121,10 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 			providerMap["api_key"] = userPrefs.APIKey
 		}
 
-		slog.Info(msgconst.InfoConsolidatingIdleSession, msgconst.ComponentKey, msgconst.ComponentLifecycle, "session_id", sess.ID, "token_count", sess.TokenCount)
+		slog.Info(msgconst.InfoConsolidatingIdleSession, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessionID, sess.ID, msgconst.KeyTokenCount, sess.TokenCount)
 		cCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		if err := w.consolidationSvc.TriggerConsolidation(cCtx, sess.ID, providerMap); err != nil {
-			slog.Error(msgconst.ErrConsolidationFailed, msgconst.ComponentKey, msgconst.ComponentLifecycle, "session_id", sess.ID, "err", err)
+			slog.Error(msgconst.ErrConsolidationFailed, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessionID, sess.ID, msgconst.KeyErr, err)
 		}
 		cancel()
 	}
@@ -145,31 +145,31 @@ func (w *Worker) runDecayAndGCJob(ctx context.Context) {
 
 	deprecatedIDs, err := w.sessionRepo.ScanSessionsForDeprecate(ctx, deprecateCutoff, archiveCutoff)
 	if err != nil {
-		slog.Error(msgconst.ErrDeprecatedScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, "err", err)
+		slog.Error(msgconst.ErrDeprecatedScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyErr, err)
 	} else if len(deprecatedIDs) > 0 {
-		slog.Info(msgconst.InfoEvaluatedStage1Decay, msgconst.ComponentKey, msgconst.ComponentLifecycle, "sessions", len(deprecatedIDs), "cutoff_days", deprecateDays)
+		slog.Info(msgconst.InfoEvaluatedStage1Decay, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessions, len(deprecatedIDs), msgconst.KeyCutoffDays, deprecateDays)
 	}
 
 	archivedIDs, err := w.sessionRepo.ScanSessionsForArchive(ctx, archiveCutoff)
 	if err != nil {
-		slog.Error(msgconst.ErrArchiveScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, "err", err)
+		slog.Error(msgconst.ErrArchiveScan, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyErr, err)
 	} else if len(archivedIDs) > 0 {
-		slog.Info(msgconst.InfoArchivedInactiveSessions, msgconst.ComponentKey, msgconst.ComponentLifecycle, "sessions", len(archivedIDs))
+		slog.Info(msgconst.InfoArchivedInactiveSessions, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessions, len(archivedIDs))
 	}
 
 	gcRetentionDays := archiveDays + 30
 	gcCutoff := time.Now().AddDate(0, 0, -gcRetentionDays)
 	deletedMsgCount, err := w.sessionRepo.DeleteMessagesForArchivedSessions(ctx, gcCutoff)
 	if err != nil {
-		slog.Error(msgconst.ErrGCError, msgconst.ComponentKey, msgconst.ComponentLifecycle, "err", err)
+		slog.Error(msgconst.ErrGCError, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyErr, err)
 	} else if deletedMsgCount > 0 {
-		slog.Info(msgconst.InfoGCDeletedMessages, msgconst.ComponentKey, msgconst.ComponentLifecycle, "messages", deletedMsgCount)
+		slog.Info(msgconst.InfoGCDeletedMessages, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyMessages, deletedMsgCount)
 	}
 }
 
 func (w *Worker) runCacheRefreshJob(ctx context.Context) {
 	if _, err := w.strategySvc.GetRollout(ctx); err != nil {
-		slog.Error(msgconst.ErrRefreshStrategyRollout, msgconst.ComponentKey, msgconst.ComponentLifecycle, "err", err)
+		slog.Error(msgconst.ErrRefreshStrategyRollout, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyErr, err)
 	} else {
 		slog.Info(msgconst.InfoRefreshedStrategyRollout, msgconst.ComponentKey, msgconst.ComponentLifecycle)
 	}

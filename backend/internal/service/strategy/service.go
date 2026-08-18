@@ -181,7 +181,7 @@ func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, re
 
 	rollouts, err := s.GetRollout(ctx)
 	if err != nil {
-		slog.Warn(msgconst.WarnStrategyRolloutDefaults, msgconst.ComponentKey, msgconst.ComponentStrategy, "err", err)
+		slog.Warn(msgconst.WarnStrategyRolloutDefaults, msgconst.ComponentKey, msgconst.ComponentStrategy, msgconst.KeyErr, err)
 		rollouts = map[string]RolloutCfg{}
 	}
 

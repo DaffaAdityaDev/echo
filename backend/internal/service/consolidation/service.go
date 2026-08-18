@@ -120,7 +120,7 @@ func (s *Service) CheckThreshold(ctx context.Context, sessionID string, provider
 
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		slog.Info(msgconst.InfoConsolidationSkipThreshold, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
+		slog.Info(msgconst.InfoConsolidationSkipThreshold, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyTokens, tokenCount, msgconst.KeySkipThreshold, skipThreshold)
 		return false, nil
 	}
 
@@ -155,7 +155,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	}
 	skipThreshold := s.skipThresholdFor(maxContextTokensFrom(providerConfig))
 	if s.shouldSkip(tokenCount, skipThreshold) {
-		slog.Info(msgconst.InfoConsolidationTokensExceed, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "tokens", tokenCount, "skip_threshold", skipThreshold)
+		slog.Info(msgconst.InfoConsolidationTokensExceed, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyTokens, tokenCount, msgconst.KeySkipThreshold, skipThreshold)
 		return nil
 	}
 
@@ -166,7 +166,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 
 	pruneLimitTurn := maxTurn - s.cfg.PRUNE_KEEP_LATEST_TURNS
 	if pruneLimitTurn <= 0 {
-		slog.Info(msgconst.InfoConsolidationBelowKeep, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "max_turn", maxTurn, "keep_turns", s.cfg.PRUNE_KEEP_LATEST_TURNS)
+		slog.Info(msgconst.InfoConsolidationBelowKeep, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyMaxTurn, maxTurn, msgconst.KeyKeepTurns, s.cfg.PRUNE_KEEP_LATEST_TURNS)
 		return nil
 	}
 
@@ -199,7 +199,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
 	cappedMessages := historycap.Cap(messagesToSummarize, payloadBudget, payloadBudget*2, false)
 	if len(cappedMessages) != len(messagesToSummarize) {
-		slog.Info(msgconst.InfoConsolidationPayloadCapped, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "included", len(cappedMessages), "total", len(messagesToSummarize))
+		slog.Info(msgconst.InfoConsolidationPayloadCapped, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyIncluded, len(cappedMessages), msgconst.KeyTotal, len(messagesToSummarize))
 	}
 
 	var summarizeMessages []SummarizeMessage
@@ -210,7 +210,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		})
 	}
 
-	slog.Info(msgconst.InfoConsolidationSummarizing, msgconst.ComponentKey, msgconst.ComponentConsolidation, "messages", len(summarizeMessages), "up_to_turn", pruneLimitTurn, "session_id", sessionID)
+	slog.Info(msgconst.InfoConsolidationSummarizing, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeyMessages, len(summarizeMessages), msgconst.KeyUpToTurn, pruneLimitTurn, msgconst.KeySessionID, sessionID)
 
 	reqBody := SummarizeRequest{
 		SessionID:        sessionID,
@@ -263,6 +263,6 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return fmt.Errorf("failed to execute prune session transaction: %w", err)
 	}
 
-	slog.Info(msgconst.InfoConsolidationPruned, msgconst.ComponentKey, msgconst.ComponentConsolidation, "session_id", sessionID, "new_summary_len", len(newSummary))
+	slog.Info(msgconst.InfoConsolidationPruned, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyNewSummaryLen, len(newSummary))
 	return nil
 }

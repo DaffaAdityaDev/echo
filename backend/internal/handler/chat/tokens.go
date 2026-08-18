@@ -35,13 +35,13 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 
 	resp, err := handlerutil.HttpClient.Do(req)
 	if err != nil {
-		slog.Warn(msgconst.WarnTokensAgentUnreachable, msgconst.ComponentKey, msgconst.ComponentTokens, "err", err)
+		slog.Warn(msgconst.WarnTokensAgentUnreachable, msgconst.ComponentKey, msgconst.ComponentTokens, msgconst.KeyErr, err)
 		return estimateTokensFallback(text)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn(msgconst.WarnTokensAgentFailed, msgconst.ComponentKey, msgconst.ComponentTokens, "status", resp.StatusCode)
+		slog.Warn(msgconst.WarnTokensAgentFailed, msgconst.ComponentKey, msgconst.ComponentTokens, msgconst.KeyStatus, resp.StatusCode)
 		return estimateTokensFallback(text)
 	}
 
@@ -49,7 +49,7 @@ func (h *Handler) countTokensViaAgent(ctx context.Context, text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		slog.Warn(msgconst.WarnTokensAgentDecodeFailed, msgconst.ComponentKey, msgconst.ComponentTokens, "err", err)
+		slog.Warn(msgconst.WarnTokensAgentDecodeFailed, msgconst.ComponentKey, msgconst.ComponentTokens, msgconst.KeyErr, err)
 		return estimateTokensFallback(text)
 	}
 	return out.Tokens

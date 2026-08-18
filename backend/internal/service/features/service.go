@@ -124,7 +124,7 @@ func (s *Service) GetImplementedSet(ctx context.Context) ([]ImplementedFeature, 
 
 	if s.rdb != nil {
 		if err := s.rdb.Set(ctx, implementedCacheKey, bodyBytes, implementedCacheTTL).Err(); err != nil {
-			slog.Warn(msgconst.WarnFeaturesCacheRedis, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
+			slog.Warn(msgconst.WarnFeaturesCacheRedis, msgconst.ComponentKey, msgconst.ComponentFeatures, msgconst.KeyErr, err)
 		}
 	}
 
@@ -177,13 +177,13 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
-		slog.Warn(msgconst.WarnFeaturesLoadActiveSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
+		slog.Warn(msgconst.WarnFeaturesLoadActiveSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, msgconst.KeyErr, err)
 		return nil
 	}
 
 	implemented, err := s.GetImplementedSet(ctx)
 	if err != nil {
-		slog.Warn(msgconst.WarnFeaturesLoadImplSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, "err", err)
+		slog.Warn(msgconst.WarnFeaturesLoadImplSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, msgconst.KeyErr, err)
 		return nil
 	}
 

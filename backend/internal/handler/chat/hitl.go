@@ -97,7 +97,7 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error(msgconst.ErrChatReadAgentResponse, msgconst.ComponentKey, msgconst.ComponentChat, "action", action, "session_id", sessionID, "err", err)
+		slog.Error(msgconst.ErrChatReadAgentResponse, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyAction, action, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
 		return handlerutil.RespondError(c, resp.StatusCode, "Agent rejected")
 	}
 	if resp.StatusCode != http.StatusOK {

@@ -66,13 +66,13 @@ func countTokensViaAgent(text string) int {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Warn(msgconst.WarnAgentTokenizeUnreachable, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Warn(msgconst.WarnAgentTokenizeUnreachable, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		return estimateTokens(text)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn(msgconst.WarnAgentTokenizeFailed, msgconst.ComponentKey, msgconst.ComponentSeed, "status", resp.StatusCode)
+		slog.Warn(msgconst.WarnAgentTokenizeFailed, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyStatus, resp.StatusCode)
 		return estimateTokens(text)
 	}
 
@@ -80,7 +80,7 @@ func countTokensViaAgent(text string) int {
 		Tokens int `json:"tokens"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		slog.Warn(msgconst.WarnAgentTokenizeDecode, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Warn(msgconst.WarnAgentTokenizeDecode, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		return estimateTokens(text)
 	}
 	return out.Tokens
@@ -178,17 +178,17 @@ func main() {
 	var adminUser *authmodel.User
 	existingUser, err := userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		slog.Error(msgconst.ErrCheckExistingUser, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrCheckExistingUser, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
 	if existingUser != nil {
-		slog.Info(msgconst.InfoUserAlreadyExists, msgconst.ComponentKey, msgconst.ComponentSeed, "email", email, "user_id", existingUser.ID)
+		slog.Info(msgconst.InfoUserAlreadyExists, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyEmail, email, msgconst.KeyUserID, existingUser.ID)
 		adminUser = existingUser
 	} else {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		if err != nil {
-			slog.Error(msgconst.ErrHashPassword, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+			slog.Error(msgconst.ErrHashPassword, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
@@ -200,10 +200,10 @@ func main() {
 		}
 
 		if err := userRepo.Create(ctx, adminUser); err != nil {
-			slog.Error(msgconst.ErrSeedAdminUser, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+			slog.Error(msgconst.ErrSeedAdminUser, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
-		slog.Info(msgconst.InfoSeededDefaultAdmin, msgconst.ComponentKey, msgconst.ComponentSeed, "user_id", adminUser.ID)
+		slog.Info(msgconst.InfoSeededDefaultAdmin, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyUserID, adminUser.ID)
 	}
 
 	if !*loadTest {
@@ -229,7 +229,7 @@ func main() {
 
 	slog.Info(msgconst.InfoCleanupSessions, msgconst.ComponentKey, msgconst.ComponentSeed)
 	if _, err := pool.Exec(ctx, "TRUNCATE TABLE sessions CASCADE"); err != nil {
-		slog.Error(msgconst.ErrTruncateSessions, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrTruncateSessions, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 	slog.Info(msgconst.InfoSessionsTruncated, msgconst.ComponentKey, msgconst.ComponentSeed)
@@ -258,7 +258,7 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		createdAt,
 	).Scan(&stressSessionID)
 	if err != nil {
-		slog.Error(msgconst.ErrCreateStressSession, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrCreateStressSession, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
@@ -280,7 +280,7 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		slog.Error(msgconst.ErrBeginTxStress, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrBeginTxStress, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 	_, err = tx.CopyFrom(
@@ -291,15 +291,15 @@ func seedStressSession(ctx context.Context, pool *pgxpool.Pool, userID int) {
 	)
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		slog.Error(msgconst.ErrCopyStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrCopyStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		slog.Error(msgconst.ErrCommitStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+		slog.Error(msgconst.ErrCommitStressMessages, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
-	slog.Info(msgconst.InfoStressSessionReady, msgconst.ComponentKey, msgconst.ComponentSeed, "id", stressSessionID, "title", "🔥 Stress Test Session (1M Context)")
+	slog.Info(msgconst.InfoStressSessionReady, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyID, stressSessionID, msgconst.KeyTitle, "🔥 Stress Test Session (1M Context)")
 }
 
 // Bulk sessions carry REALISTIC multi-paragraph conversations (~2-3 KB per
@@ -490,13 +490,13 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 
 		ids, err := generateUUIDs(ctx, pool, batchEnd-batchStart)
 		if err != nil {
-			slog.Error(msgconst.ErrGenerateUUIDs, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrGenerateUUIDs, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyBatchStart, batchStart, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
 		tx, err := pool.Begin(ctx)
 		if err != nil {
-			slog.Error(msgconst.ErrBeginTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, "err", err)
+			slog.Error(msgconst.ErrBeginTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
@@ -544,7 +544,7 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			slog.Error(msgconst.ErrCopySessionsBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCopySessionsBatch, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyBatchStart, batchStart, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
@@ -557,18 +557,18 @@ func seedBulkSessions(ctx context.Context, pool *pgxpool.Pool, userID int) {
 		)
 		if err != nil {
 			_ = tx.Rollback(ctx)
-			slog.Error(msgconst.ErrCopyMessagesBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCopyMessagesBatch, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyBatchStart, batchStart, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
 		err = tx.Commit(ctx)
 		if err != nil {
-			slog.Error(msgconst.ErrCommitTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, "batch_start", batchStart, "err", err)
+			slog.Error(msgconst.ErrCommitTransaction, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyBatchStart, batchStart, msgconst.KeyErr, err)
 			os.Exit(1)
 		}
 
-		slog.Info(msgconst.InfoCommittedBatch, msgconst.ComponentKey, msgconst.ComponentSeed, "from", batchStart+1, "to", batchEnd)
+		slog.Info(msgconst.InfoCommittedBatch, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyFrom, batchStart+1, msgconst.KeyTo, batchEnd)
 	}
 
-	slog.Info(msgconst.InfoDatabaseSeededFull, msgconst.ComponentKey, msgconst.ComponentSeed, "sessions", totalSessions, "messages", totalSessions*turnsPerSession*2, "elapsed", time.Since(startTime))
+	slog.Info(msgconst.InfoDatabaseSeededFull, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeySessions, totalSessions, msgconst.KeyMessages, totalSessions*turnsPerSession*2, msgconst.KeyElapsed, time.Since(startTime))
 }

@@ -28,7 +28,7 @@ func main() {
 	defer pool.Close()
 
 	if err := database.Migrate(pool); err != nil {
-		slog.Error(msgconst.ErrMigrationFailed, "err", err)
+		slog.Error(msgconst.ErrMigrationFailed, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 

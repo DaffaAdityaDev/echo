@@ -34,7 +34,7 @@ func (h *Handler) HandleGetStrategies(c fiber.Ctx) error {
 
 	rollouts, err := h.strategySvc.GetRollout(c.Context())
 	if err != nil {
-		slog.Warn(msgconst.WarnStrategyRolloutCatalog, msgconst.ComponentKey, msgconst.ComponentStrategy, "err", err)
+		slog.Warn(msgconst.WarnStrategyRolloutCatalog, msgconst.ComponentKey, msgconst.ComponentStrategy, msgconst.KeyErr, err)
 		rollouts = map[string]stratSvc.RolloutCfg{}
 	}
 	defaultRollout := h.strategySvc.GetDefaultRollout()

@@ -174,11 +174,11 @@ func Migrate(pool *pgxpool.Pool) error {
 	ctx := context.Background()
 
 	if _, err := pool.Exec(ctx, schemaLLMOpsStudio); err != nil {
-		slog.Error(msgconst.ErrCreateLLMOpsTables, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateLLMOpsTables, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaFeatures); err != nil {
-		slog.Error(msgconst.ErrCreateFeaturesTable, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateFeaturesTable, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaApiKeys); err != nil {
@@ -194,13 +194,13 @@ func Migrate(pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create sessions table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS strategy_version TEXT DEFAULT ''"); err != nil {
-		slog.Error(msgconst.ErrAddStrategyVersionCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddStrategyVersionCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NOW()"); err != nil {
-		slog.Error(msgconst.ErrAddLastAccessedCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddLastAccessedCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_sessions_last_accessed ON sessions(last_accessed_at)"); err != nil {
-		slog.Error(msgconst.ErrCreateIdxLastAccessed, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateIdxLastAccessed, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	const schemaAppSettings = `
@@ -212,45 +212,45 @@ func Migrate(pool *pgxpool.Pool) error {
 	INSERT INTO app_settings (key, value) VALUES ('strategy_rollout', '{}') ON CONFLICT (key) DO NOTHING;
 	`
 	if _, err := pool.Exec(ctx, schemaAppSettings); err != nil {
-		slog.Error(msgconst.ErrCreateAppSettingsTable, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateAppSettingsTable, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaMessages); err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps JSONB"); err != nil {
-		slog.Error(msgconst.ErrAddStepsCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddStepsCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted'))"); err != nil {
-		slog.Error(msgconst.ErrAddStatusCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddStatusCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_messages_session_status ON messages(session_id, status)"); err != nil {
-		slog.Error(msgconst.ErrCreateIdxMsgStatus, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateIdxMsgStatus, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, schemaUserPreferences); err != nil {
 		return fmt.Errorf("failed to create user_preferences table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS provider_type TEXT DEFAULT 'opencode-go'"); err != nil {
-		slog.Error(msgconst.ErrAddProviderTypeCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddProviderTypeCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS api_key TEXT DEFAULT ''"); err != nil {
-		slog.Error(msgconst.ErrAddAPIKeyCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddAPIKeyCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS base_url TEXT DEFAULT ''"); err != nil {
-		slog.Error(msgconst.ErrAddBaseURLCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddBaseURLCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS harness_toggles JSONB DEFAULT '{}'"); err != nil {
-		slog.Error(msgconst.ErrAddHarnessTogglesCol, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrAddHarnessTogglesCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	if _, err := pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector"); err != nil {
-		slog.Error(msgconst.ErrCreateVectorExtension, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.ErrCreateVectorExtension, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
 	_, err := pool.Exec(ctx, schemaVector)
 	if err != nil {
-		slog.Error(msgconst.WarnPGVectorUnavailable, msgconst.ComponentKey, msgconst.ComponentDatabase, "err", err)
+		slog.Error(msgconst.WarnPGVectorUnavailable, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 		if _, err = pool.Exec(ctx, schemaNoVector); err != nil {
 			return fmt.Errorf("failed to create memory_semantic: %w", err)
 		}

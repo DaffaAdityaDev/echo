@@ -79,7 +79,7 @@ func (h *Handler) HandleStoreEpisodic(c fiber.Ctx) error {
 		ttl = time.Duration(req.TTL) * time.Second
 	}
 	if err := h.rdb.Expire(ctx, key, ttl).Err(); err != nil {
-		slog.Error(msgconst.ErrMemorySetEpisodicTTL, msgconst.ComponentKey, msgconst.ComponentMemory, "key", key, "err", err)
+		slog.Error(msgconst.ErrMemorySetEpisodicTTL, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyKey, key, msgconst.KeyErr, err)
 	}
 
 	return handlerutil.RespondCreated(c, StoreEpisodicResponse{

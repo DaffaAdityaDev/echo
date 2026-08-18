@@ -98,7 +98,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	// gateway instances when Redis is present. No-op unlock when unavailable.
 	redisLockToken, releaseRedisLock, err := acquireRedisSessionLock(ctx, h.RedisClient, req.SessionID)
 	if err != nil {
-		slog.Warn(msgconst.WarnChatLockUnavailable, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
+		slog.Warn(msgconst.WarnChatLockUnavailable, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
 	}
 	defer releaseRedisLock()
 
@@ -119,7 +119,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	tenantID := c.Get("X-Tenant-ID", "local")
 	promptTemplateName, err := h.SettingsSvc.ResolvePromptTemplateNameForTenant(ctx, tenantID)
 	if err != nil {
-		slog.Warn(msgconst.WarnChatResolvePromptTmpl, msgconst.ComponentKey, msgconst.ComponentChat, "err", err)
+		slog.Warn(msgconst.WarnChatResolvePromptTmpl, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyErr, err)
 	}
 
 	payload := buildChatAgentPayload(payloadArgs{
@@ -136,13 +136,13 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		tenantID:           tenantID,
 		promptTemplateName: promptTemplateName,
 	})
-	slog.Info(msgconst.InfoChatTurnStarted, msgconst.ComponentKey, msgconst.ComponentChat, "tenant_id", tenantID, "prompt_template", payload["prompt_template"], "features", payload["features"])
+	slog.Info(msgconst.InfoChatTurnStarted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyTenantID, tenantID, msgconst.KeyPromptTemplate, payload["prompt_template"], msgconst.KeyFeatures, payload["features"])
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error(msgconst.ErrChatMarshalAgentPayload, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatMarshalAgentPayload, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
 	}
@@ -173,9 +173,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	agentReq, err := http.NewRequestWithContext(agentReqCtx, http.MethodPost, agentURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		slog.Error(msgconst.ErrChatCreateAgentRequest, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatCreateAgentRequest, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
 	}
@@ -188,9 +188,9 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
-		slog.Error(msgconst.ErrChatAgentServiceDown, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", err)
+		slog.Error(msgconst.ErrChatAgentServiceDown, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
 		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
 	}
@@ -200,10 +200,10 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		bodyBytes, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if readErr != nil {
-			slog.Error(msgconst.ErrChatReadAgentErrorResp, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", readErr)
+			slog.Error(msgconst.ErrChatReadAgentErrorResp, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, readErr)
 		}
 		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", req.SessionID, "err", finalizeErr)
+			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
 		}
 		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
 	}

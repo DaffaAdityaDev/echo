@@ -130,7 +130,7 @@ func (s *promptService) invalidateActivePromptCache(ctx context.Context, templat
 	}
 	key := promptCacheKey(tmpl.TenantID, tmpl.Name)
 	if err := s.rdb.Del(ctx, key).Err(); err != nil {
-		slog.Error(msgconst.ErrLLMOpsInvalidateCache, msgconst.ComponentKey, msgconst.ComponentLLMOps, "key", key, "err", err)
+		slog.Error(msgconst.ErrLLMOpsInvalidateCache, msgconst.ComponentKey, msgconst.ComponentLLMOps, msgconst.KeyKey, key, msgconst.KeyErr, err)
 	}
 }
 

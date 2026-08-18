@@ -19,7 +19,7 @@ func ResolvePromptTemplateName(raw []byte, tenantID, fallback string) string {
 	var mapping map[string]string
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &mapping); err != nil {
-			slog.Warn(msgconst.WarnSettingsParsePromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, "err", err)
+			slog.Warn(msgconst.WarnSettingsParsePromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, msgconst.KeyErr, err)
 		}
 	}
 	if name := mapping[tenantID]; name != "" {
@@ -119,7 +119,7 @@ func (s *Service) GetSettingsInternal(ctx context.Context, userID int) (*usermod
 	if prefs.APIKey != "" {
 		decrypted, decErr := crypto.Decrypt(prefs.APIKey, []byte(s.cfg.EncryptionKey))
 		if decErr != nil {
-			slog.Error(msgconst.ErrSettingsDecryptAPIKey, msgconst.ComponentKey, msgconst.ComponentSettings, "user_id", userID, "err", decErr)
+			slog.Error(msgconst.ErrSettingsDecryptAPIKey, msgconst.ComponentKey, msgconst.ComponentSettings, msgconst.KeyUserID, userID, msgconst.KeyErr, decErr)
 			prefs.APIKey = ""
 		} else {
 			prefs.APIKey = decrypted
@@ -157,7 +157,7 @@ func (s *Service) ResolvePromptTemplateNameForTenant(ctx context.Context, tenant
 
 	latest, err := s.settingsRepo.GetLatestActivePromptTemplateName(ctx, tenantID)
 	if err != nil {
-		slog.Warn(msgconst.WarnSettingsQueryPromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, "err", err)
+		slog.Warn(msgconst.WarnSettingsQueryPromptTmpl, msgconst.ComponentKey, msgconst.ComponentSettings, msgconst.KeyErr, err)
 		return "", nil
 	}
 

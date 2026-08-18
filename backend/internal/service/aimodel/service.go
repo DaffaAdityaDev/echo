@@ -124,7 +124,7 @@ func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, bas
 
 	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
 	if err != nil {
-		slog.Error(msgconst.ErrAimodelFetchModels, msgconst.ComponentKey, msgconst.ComponentModel, "provider", providerType, "err", err)
+		slog.Error(msgconst.ErrAimodelFetchModels, msgconst.ComponentKey, msgconst.ComponentModel, msgconst.KeyProvider, providerType, msgconst.KeyErr, err)
 		s.cache.entries[key] = cacheEntry{err: err, expiresAt: time.Now().Add(30 * time.Second)}
 		s.cache.mu.Unlock()
 		return nil, fmt.Errorf("fetch provider models: %w", err)

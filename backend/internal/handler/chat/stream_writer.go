@@ -72,7 +72,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error(msgconst.ErrChatFlushGoroutinePanic, msgconst.ComponentKey, msgconst.ComponentChat, "panic", fmt.Sprintf("%v", r), "stack", string(debug.Stack()))
+				slog.Error(msgconst.ErrChatFlushGoroutinePanic, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyPanic, fmt.Sprintf("%v", r), msgconst.KeyStack, string(debug.Stack()))
 			}
 		}()
 		defer close(flushDone)
@@ -97,7 +97,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 					return h.SessionRepo.UpdateMessageContent(dbCtx, assistantMsgID, content, nil, completionTokens)
 				})
 				if err != nil {
-					slog.Error(msgconst.ErrChatFlushAfterRetries, msgconst.ComponentKey, msgconst.ComponentChat, "msg_id", assistantMsgID, "err", err)
+					slog.Error(msgconst.ErrChatFlushAfterRetries, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyMsgID, assistantMsgID, msgconst.KeyErr, err)
 				}
 			}
 		}
@@ -125,11 +125,11 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 		line, rErr := reader.ReadBytes('\n')
 		if len(line) > 0 {
 			if _, wErr := w.Write(line); wErr != nil {
-				slog.Error(msgconst.ErrChatClientWrite, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", wErr)
+				slog.Error(msgconst.ErrChatClientWrite, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, wErr)
 				break
 			}
 			if err := w.Flush(); err != nil {
-				slog.Error(msgconst.ErrChatClientFlush, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
+				slog.Error(msgconst.ErrChatClientFlush, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
 				break
 			}
 
@@ -173,7 +173,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 		}
 		if rErr != nil {
 			if rErr != io.EOF {
-				slog.Error(msgconst.ErrChatAgentStreamAborted, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", rErr)
+				slog.Error(msgconst.ErrChatAgentStreamAborted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, rErr)
 			}
 			break
 		}
@@ -184,7 +184,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	select {
 	case <-flushDone:
 	case <-time.After(10 * time.Second):
-		slog.Warn(msgconst.WarnChatFlushGoroutineLeft, msgconst.ComponentKey, msgconst.ComponentChat, "msg_id", assistantMsgID)
+		slog.Warn(msgconst.WarnChatFlushGoroutineLeft, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyMsgID, assistantMsgID)
 	}
 
 	sc.mu.RLock()
@@ -208,10 +208,10 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	}
 
 	if err := h.finalizeTurn(assistantMsgID, sessionID, finalContent, steps, assistantTokens, status); err != nil {
-		slog.Error(msgconst.ErrChatFinalizeTurn, msgconst.ComponentKey, msgconst.ComponentChat, "msg_id", assistantMsgID, "err", err)
+		slog.Error(msgconst.ErrChatFinalizeTurn, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyMsgID, assistantMsgID, msgconst.KeyErr, err)
 	}
 
-	slog.Info(msgconst.InfoChatTurnCompleted, msgconst.ComponentKey, msgconst.ComponentChat, "turn", nextTurn, "session_id", sessionID, "status", status, "content_len", len(finalContent))
+	slog.Info(msgconst.InfoChatTurnCompleted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyTurn, nextTurn, msgconst.KeySessionID, sessionID, msgconst.KeyStatus, status, msgconst.KeyContentLen, len(finalContent))
 }
 
 // finalizeTurn persists the assistant message's final state once a turn ends.

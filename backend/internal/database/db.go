@@ -39,7 +39,7 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
-		slog.Error(msgconst.ErrPostgresConfig, "err", err)
+		slog.Error(msgconst.ErrPostgresConfig, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
@@ -48,12 +48,12 @@ func NewPostgresPool(cfg *cfgmodel.Config) *pgxpool.Pool {
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
-		slog.Error(msgconst.ErrPostgresPool, "err", err)
+		slog.Error(msgconst.ErrPostgresPool, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		slog.Error(msgconst.ErrPostgresPing, "err", err)
+		slog.Error(msgconst.ErrPostgresPing, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 

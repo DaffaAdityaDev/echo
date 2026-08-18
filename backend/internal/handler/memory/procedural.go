@@ -156,7 +156,7 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 
 	var metadata interface{}
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-		slog.Warn(msgconst.WarnMemoryParseProcedMeta, msgconst.ComponentKey, msgconst.ComponentMemory, "id", id, "err", err)
+		slog.Warn(msgconst.WarnMemoryParseProcedMeta, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, id, msgconst.KeyErr, err)
 	}
 
 	return handlerutil.RespondSuccess(c, ProceduralGetResponse{

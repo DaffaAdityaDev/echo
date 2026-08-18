@@ -53,7 +53,7 @@ import (
 
 func main() {
 	if err := config.LoadDotEnv(".env"); err != nil {
-		slog.Info(msgconst.MsgNoEnvFile)
+		slog.Info(msgconst.MsgNoEnvFile, msgconst.KeyErr, err)
 	}
 	pkglogger.Init(os.Getenv(envconst.Environment))
 	pkglogger.EnableLoki(os.Getenv(envconst.LokiURL))
@@ -62,7 +62,7 @@ func main() {
 	cfg := config.Load()
 
 	if err := config.ValidateSecrets(cfg); err != nil {
-		slog.Error(msgconst.ErrRefuseToStart, "err", err)
+		slog.Error(msgconst.ErrRefuseToStart, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 
@@ -71,7 +71,7 @@ func main() {
 	// Run database migration before serving traffic
 	if pool := database.NewPostgresPool(cfg); pool != nil {
 		if err := database.Migrate(pool); err != nil {
-			slog.Warn(msgconst.WarnDBAutoMigration, "err", err)
+			slog.Warn(msgconst.WarnDBAutoMigration, msgconst.KeyErr, err)
 		}
 		pool.Close()
 	}
@@ -86,7 +86,7 @@ func main() {
 	appInstance.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 		StackTraceHandler: func(_ fiber.Ctx, e any) {
-			slog.Error(msgconst.ErrPanicRecovered, msgconst.ComponentKey, msgconst.ComponentServer, "panic", fmt.Sprintf("%v", e), "stack", string(debug.Stack()))
+			slog.Error(msgconst.ErrPanicRecovered, msgconst.ComponentKey, msgconst.ComponentServer, msgconst.KeyPanic, fmt.Sprintf("%v", e), msgconst.KeyPanicType, fmt.Sprintf("%T", e), msgconst.KeyStack, string(debug.Stack()))
 		},
 	}))
 
@@ -119,9 +119,9 @@ func main() {
 	router.SetupRoutes(appInstance, cfg)
 
 	// Start
-	slog.Info(msgconst.MsgServerStarting, "port", cfg.Port)
+	slog.Info(msgconst.MsgServerStarting, msgconst.KeyPort, cfg.Port)
 	if err := appInstance.Listen(":" + cfg.Port); err != nil {
-		slog.Error(msgconst.ErrServerStartup, "err", err)
+		slog.Error(msgconst.ErrServerStartup, msgconst.KeyErr, err)
 		os.Exit(1)
 	}
 }
@@ -135,11 +135,11 @@ func errorHandler(c fiber.Ctx, err error) error {
 		if len(c.Response().Body()) > 0 {
 			return nil
 		}
-		return c.Status(fe.Code).JSON(fiber.Map{"error": fe.Message, "details": ""})
+		return c.Status(fe.Code).JSON(fiber.Map{httpxconst.JSONKeyError: fe.Message, httpxconst.JSONKeyDetails: httpxconst.EmptyDetails})
 	}
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		"error":   "Internal Server Error",
-		"details": "",
+		httpxconst.JSONKeyError:   msgconst.MsgInternalServerError,
+		httpxconst.JSONKeyDetails: httpxconst.EmptyDetails,
 	})
 }
 
@@ -148,7 +148,7 @@ func errorHandler(c fiber.Ctx, err error) error {
 // Wildcards cannot be combined with credentialed requests, so the default is
 // restricted to local development origins.
 func corsAllowedOrigins() []string {
-	raw := strings.TrimSpace(envOrDefault(envconst.CORSAllowedOrigins, "http://localhost:3000,http://127.0.0.1:3000"))
+	raw := strings.TrimSpace(envOrDefault(envconst.CORSAllowedOrigins, envconst.DefaultCORSOrigins))
 	origins := []string{}
 	for _, origin := range strings.Split(raw, ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
@@ -156,7 +156,7 @@ func corsAllowedOrigins() []string {
 		}
 	}
 	if len(origins) == 0 {
-		return []string{"http://localhost:3000"}
+		return []string{envconst.DefaultCORSOrigin}
 	}
 	return origins
 }

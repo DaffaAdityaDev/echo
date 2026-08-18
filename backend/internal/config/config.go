@@ -34,7 +34,7 @@ func Load() *cfgmodel.Config {
 	c.SummarizePayloadRatio = envInt(envconst.SummarizePayloadRatio, 60)
 	c.EncryptionKey = os.Getenv(envconst.EncryptionKey)
 	if c.EncryptionKey == "" {
-		slog.Warn(fmt.Sprintf(msgconst.WarnEncryptionKeyEmpty, envconst.EncryptionKey), msgconst.ComponentKey, msgconst.ComponentConfig, "hint", "Set a 32-char key.")
+		slog.Warn(fmt.Sprintf(msgconst.WarnEncryptionKeyEmpty, envconst.EncryptionKey), msgconst.ComponentKey, msgconst.ComponentConfig, msgconst.KeyHint, "Set a 32-char key.")
 	}
 	c.StrategyRolloutDefault = envFloat(envconst.StrategyRolloutDefault, 0.1)
 	c.PromptTemplateName = envStr(envconst.PromptTemplateName, "")

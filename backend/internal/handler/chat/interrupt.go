@@ -73,7 +73,7 @@ func (h *Handler) HandleInterrupt(c fiber.Ctx) error {
 func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{}, sessionID string, cancelAgentReq context.CancelFunc) {
 	select {
 	case <-run.cancelCh:
-		slog.Info(msgconst.InfoChatInterruptRequested, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID)
+		slog.Info(msgconst.InfoChatInterruptRequested, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID)
 		cancelAgentReq()
 		// Guard against stale interrupts: if a new turn has already claimed
 		// the session (user stopped then immediately sent a new message),
@@ -85,10 +85,10 @@ func (h *Handler) watchForInterrupt(run *activeRun, interruptStop <-chan struct{
 			agentCtx, agentCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer agentCancel()
 			if err := cancelAgentMission(agentCtx, h.Cfg, sessionID); err != nil {
-				slog.Error(msgconst.ErrChatAgentCancelCall, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID, "err", err)
+				slog.Error(msgconst.ErrChatAgentCancelCall, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
 			}
 		} else {
-			slog.Warn(msgconst.WarnChatStaleInterrupt, msgconst.ComponentKey, msgconst.ComponentChat, "session_id", sessionID)
+			slog.Warn(msgconst.WarnChatStaleInterrupt, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID)
 		}
 		run.closeBody()
 	case <-interruptStop:

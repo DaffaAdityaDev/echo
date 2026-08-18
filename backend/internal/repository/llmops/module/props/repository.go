@@ -197,7 +197,7 @@ func (r *repository) PromoteVersion(ctx context.Context, templateID string, vers
 	}
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			slog.Error(msgconst.ErrLLMOpsPromoteRollback, msgconst.ComponentKey, msgconst.ComponentLLMOps, "err", err)
+			slog.Error(msgconst.ErrLLMOpsPromoteRollback, msgconst.ComponentKey, msgconst.ComponentLLMOps, msgconst.KeyErr, err)
 		}
 	}()
 
@@ -233,7 +233,7 @@ func (r *repository) RollbackVersion(ctx context.Context, templateID string, tar
 	}
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			slog.Error(msgconst.ErrLLMOpsRollbackTx, msgconst.ComponentKey, msgconst.ComponentLLMOps, "err", err)
+			slog.Error(msgconst.ErrLLMOpsRollbackTx, msgconst.ComponentKey, msgconst.ComponentLLMOps, msgconst.KeyErr, err)
 		}
 	}()
 

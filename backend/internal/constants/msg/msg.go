@@ -24,6 +24,51 @@ const (
 )
 
 const (
+	KeyErr            = "err"
+	KeySessionID      = "session_id"
+	KeyUserID         = "user_id"
+	KeyID             = "id"
+	KeyBatchStart     = "batch_start"
+	KeySessions       = "sessions"
+	KeyPanic          = "panic"
+	KeyPanicType      = "panic_type"
+	KeyStack          = "stack"
+	KeyMsgID          = "msg_id"
+	KeyKey            = "key"
+	KeyMessages       = "messages"
+	KeyStatus         = "status"
+	KeyPort           = "port"
+	KeyReason         = "reason"
+	KeyFrom           = "from"
+	KeyInterval       = "interval"
+	KeyEmail          = "email"
+	KeyBody           = "body"
+	KeyTurn           = "turn"
+	KeyAction         = "action"
+	KeyProvider       = "provider"
+	KeyTenantID       = "tenant_id"
+	KeyHint           = "hint"
+	KeyContent        = "content"
+	KeyTotal          = "total"
+	KeyIncluded       = "included"
+	KeyTokens         = "tokens"
+	KeyTitle          = "title"
+	KeySkipThreshold  = "skip_threshold"
+	KeyUpToTurn       = "up_to_turn"
+	KeyElapsed        = "elapsed"
+	KeyTo             = "to"
+	KeyTokenCount     = "token_count"
+	KeyChoices        = "choices"
+	KeyNewSummaryLen  = "new_summary_len"
+	KeyKeepTurns      = "keep_turns"
+	KeyContentLen     = "content_len"
+	KeyMaxTurn        = "max_turn"
+	KeyCutoffDays     = "cutoff_days"
+	KeyPromptTemplate = "prompt_template"
+	KeyFeatures       = "features"
+)
+
+const (
 	MsgNoEnvFile = "No .env file found, using system environment variables"
 	// MsgNoEnvFileDev is the lowercase variant historically emitted by the
 	// database helper binaries (seed, migrate); the API server logs the
@@ -34,6 +79,7 @@ const (
 	WarnDBAutoMigration    = "database auto-migration error"
 	ErrPanicRecovered      = "panic recovered"
 	MsgServerStarting      = "server starting"
+	MsgInternalServerError = "Internal Server Error"
 	WarnEncryptionKeyEmpty = "%s is empty; API key encryption will fail at runtime"
 )
 

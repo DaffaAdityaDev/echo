@@ -64,7 +64,7 @@ func (h *Handler) GetSkills(ctx context.Context) ([]map[string]interface{}, erro
 
 	if h.RedisClient != nil {
 		if err := h.RedisClient.Set(ctx, cacheKey, string(bodyBytes), 10*time.Minute).Err(); err != nil {
-			slog.Warn(msgconst.WarnChatCacheSkillsRedis, msgconst.ComponentKey, msgconst.ComponentChat, "err", err)
+			slog.Warn(msgconst.WarnChatCacheSkillsRedis, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyErr, err)
 		}
 	}
 

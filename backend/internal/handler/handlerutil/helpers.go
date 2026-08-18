@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
+	httpxconst "echo-backend/internal/constants/httpx"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -44,8 +46,8 @@ func RespondCreated(c fiber.Ctx, data any) error {
 
 func RespondMessage(c fiber.Ctx, msg string) error {
 	return c.JSON(fiber.Map{
-		"status":  "success",
-		"message": msg,
+		httpxconst.JSONKeyStatus:  httpxconst.JSONKeySuccess,
+		httpxconst.JSONKeyMessage: msg,
 	})
 }
 
@@ -54,13 +56,13 @@ func RespondMessage(c fiber.Ctx, msg string) error {
 // returned fiber.Error carries the status so the app error handler can render
 // it (without clobbering the already-written body) when a caller ignores it.
 func RespondError(c fiber.Ctx, status int, msg string) error {
-	return RespondErrorDetail(c, status, msg, "")
+	return RespondErrorDetail(c, status, msg, httpxconst.EmptyDetails)
 }
 
 func RespondErrorDetail(c fiber.Ctx, status int, msg string, details string) error {
 	_ = c.Status(status).JSON(fiber.Map{
-		"error":   msg,
-		"details": details,
+		httpxconst.JSONKeyError:   msg,
+		httpxconst.JSONKeyDetails: details,
 	})
 	return fiber.NewError(status, msg)
 }

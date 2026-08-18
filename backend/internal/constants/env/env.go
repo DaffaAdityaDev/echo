@@ -32,3 +32,8 @@ const (
 	AdminPassword           = "ADMIN_PASSWORD"
 	AppEnv                  = "APP_ENV"
 )
+
+const (
+	DefaultCORSOrigins = "http://localhost:3000,http://127.0.0.1:3000"
+	DefaultCORSOrigin  = "http://localhost:3000"
+)

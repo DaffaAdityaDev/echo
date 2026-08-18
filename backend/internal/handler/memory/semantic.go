@@ -80,7 +80,7 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 		}
 		// The vector insert can fail when pgvector is unavailable; fall back
 		// to storing without the embedding rather than failing the request.
-		slog.Error(msgconst.ErrMemoryStoreSemanticEmbed, msgconst.ComponentKey, msgconst.ComponentMemory, "id", req.ID, "err", err)
+		slog.Error(msgconst.ErrMemoryStoreSemanticEmbed, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, req.ID, msgconst.KeyErr, err)
 	}
 
 	_, err := h.pool.Exec(ctx, `
@@ -180,7 +180,7 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 
 		var metadata interface{}
 		if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-			slog.Warn(msgconst.WarnMemoryParseSemanticMeta, msgconst.ComponentKey, msgconst.ComponentMemory, "id", id, "err", err)
+			slog.Warn(msgconst.WarnMemoryParseSemanticMeta, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, id, msgconst.KeyErr, err)
 		}
 
 		results = append(results, SemanticSearchResult{
