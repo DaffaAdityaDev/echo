@@ -25,20 +25,33 @@ type mockAuthService struct {
 	mock.Mock
 }
 
-func (m *mockAuthService) Login(ctx context.Context, email, password string) (*authmodel.User, string, error) {
-	args := m.Called(ctx, email, password)
+func (m *mockAuthService) Login(ctx context.Context, email, password, deviceLabel string) (*authmodel.User, *authsvc.TokenPair, error) {
+	args := m.Called(ctx, email, password, deviceLabel)
 	if args.Get(0) == nil {
-		return nil, args.String(1), args.Error(2)
+		return nil, nil, args.Error(2)
 	}
-	return args.Get(0).(*authmodel.User), args.String(1), args.Error(2)
+	return args.Get(0).(*authmodel.User), args.Get(1).(*authsvc.TokenPair), args.Error(2)
 }
 
-func (m *mockAuthService) Register(ctx context.Context, email, password, name string) (*authmodel.User, string, error) {
-	args := m.Called(ctx, email, password, name)
+func (m *mockAuthService) Register(ctx context.Context, email, password, name, deviceLabel string) (*authmodel.User, *authsvc.TokenPair, error) {
+	args := m.Called(ctx, email, password, name, deviceLabel)
 	if args.Get(0) == nil {
-		return nil, args.String(1), args.Error(2)
+		return nil, nil, args.Error(2)
 	}
-	return args.Get(0).(*authmodel.User), args.String(1), args.Error(2)
+	return args.Get(0).(*authmodel.User), args.Get(1).(*authsvc.TokenPair), args.Error(2)
+}
+
+func (m *mockAuthService) RefreshAccessToken(ctx context.Context, refreshToken, deviceLabel string) (*authsvc.TokenPair, error) {
+	args := m.Called(ctx, refreshToken, deviceLabel)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*authsvc.TokenPair), args.Error(1)
+}
+
+func (m *mockAuthService) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+	args := m.Called(ctx, refreshToken)
+	return args.Error(0)
 }
 
 func (m *mockAuthService) GetUserByID(ctx context.Context, id int) (*authmodel.User, error) {
@@ -62,15 +75,16 @@ func TestHandleLogin(t *testing.T) {
 		wantBody   map[string]interface{}
 	}{
 		{
-			name: "valid JSON payload returns 200 with token and user",
+			name: "valid JSON payload returns 200 with token pair and auth cookies",
 			body: `{"email":"jane@example.com","password":"P@ssw0rd!23"}`,
 			mockSetup: func(m *mockAuthService) {
-				m.On("Login", mock.Anything, "jane@example.com", "P@ssw0rd!23").
-					Return(&authmodel.User{ID: 1, Email: "jane@example.com", Name: "Jane Doe"}, "jwt-token-abc", nil)
+				m.On("Login", mock.Anything, "jane@example.com", "P@ssw0rd!23", mock.Anything).
+					Return(&authmodel.User{ID: 1, Email: "jane@example.com", Name: "Jane Doe"},
+						&authsvc.TokenPair{AccessToken: "jwt-token-abc", RefreshToken: "refresh-xyz", ExpiresIn: 900}, nil)
 			},
 			wantStatus: fiber.StatusOK,
 			wantBody: map[string]interface{}{
-				"token": "jwt-token-abc",
+				"access_token": "jwt-token-abc",
 			},
 		},
 		{
@@ -107,10 +121,18 @@ func TestHandleLogin(t *testing.T) {
 			if tt.wantStatus == fiber.StatusOK {
 				var body map[string]interface{}
 				assert.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-				assert.Equal(t, tt.wantBody["token"], body["token"])
+				assert.Equal(t, tt.wantBody["access_token"], body["access_token"])
+				assert.Equal(t, "refresh-xyz", body["refresh_token"])
 				assert.Contains(t, body, "user")
 				user := body["user"].(map[string]interface{})
 				assert.Equal(t, "jane@example.com", user["email"])
+
+				cookieNames := map[string]bool{}
+				for _, c := range resp.Cookies() {
+					cookieNames[c.Name] = true
+				}
+				assert.True(t, cookieNames[authconst.TokenCookie], "access cookie not set")
+				assert.True(t, cookieNames[authconst.RefreshCookie], "refresh cookie not set")
 			}
 
 			mockSvc.AssertExpectations(t)
@@ -123,7 +145,7 @@ func TestHandleLoginWrongCredentials(t *testing.T) {
 
 	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
 	mockSvc := new(mockAuthService)
-	mockSvc.On("Login", mock.Anything, "jane@example.com", "wrongpass").Return(nil, "", authsvc.ErrInvalidCredentials)
+	mockSvc.On("Login", mock.Anything, "jane@example.com", "wrongpass", mock.Anything).Return(nil, nil, authsvc.ErrInvalidCredentials)
 
 	h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
 	app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
@@ -170,7 +192,7 @@ func TestHandleLoginValidation(t *testing.T) {
 			assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 		})
 	}
-	mockSvc.AssertNotCalled(t, "Login", mock.Anything, mock.Anything, mock.Anything)
+	mockSvc.AssertNotCalled(t, "Login", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestHandleLoginInternalError(t *testing.T) {
@@ -178,7 +200,7 @@ func TestHandleLoginInternalError(t *testing.T) {
 
 	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
 	mockSvc := new(mockAuthService)
-	mockSvc.On("Login", mock.Anything, "jane@example.com", "password123").Return(nil, "", errors.New("database down"))
+	mockSvc.On("Login", mock.Anything, "jane@example.com", "password123", mock.Anything).Return(nil, nil, errors.New("database down"))
 
 	h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
 	app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
@@ -206,11 +228,12 @@ func TestHandleRegister(t *testing.T) {
 		wantToken  string
 	}{
 		{
-			name: "valid payload returns 200 with token and auth cookie",
+			name: "valid payload returns 200 with token pair and auth cookies",
 			body: `{"email":"jane@example.com","password":"P@ssw0rd!23","name":"Jane Doe"}`,
 			mockSetup: func(m *mockAuthService) {
-				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe").
-					Return(&authmodel.User{ID: 1, Email: "jane@example.com", Name: "Jane Doe"}, "jwt-token-abc", nil)
+				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe", mock.Anything).
+					Return(&authmodel.User{ID: 1, Email: "jane@example.com", Name: "Jane Doe"},
+						&authsvc.TokenPair{AccessToken: "jwt-token-abc", RefreshToken: "refresh-xyz", ExpiresIn: 900}, nil)
 			},
 			wantStatus: fiber.StatusOK,
 			wantToken:  "jwt-token-abc",
@@ -219,8 +242,8 @@ func TestHandleRegister(t *testing.T) {
 			name: "duplicate email returns 409",
 			body: `{"email":"jane@example.com","password":"P@ssw0rd!23","name":"Jane Doe"}`,
 			mockSetup: func(m *mockAuthService) {
-				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe").
-					Return(nil, "", authsvc.ErrDuplicateEmail)
+				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe", mock.Anything).
+					Return(nil, nil, authsvc.ErrDuplicateEmail)
 			},
 			wantStatus: fiber.StatusConflict,
 		},
@@ -228,8 +251,8 @@ func TestHandleRegister(t *testing.T) {
 			name: "internal error returns 500",
 			body: `{"email":"jane@example.com","password":"P@ssw0rd!23","name":"Jane Doe"}`,
 			mockSetup: func(m *mockAuthService) {
-				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe").
-					Return(nil, "", errors.New("database down"))
+				m.On("Register", mock.Anything, "jane@example.com", "P@ssw0rd!23", "Jane Doe", mock.Anything).
+					Return(nil, nil, errors.New("database down"))
 			},
 			wantStatus: fiber.StatusInternalServerError,
 		},
@@ -275,8 +298,13 @@ func TestHandleRegister(t *testing.T) {
 			if tt.wantStatus == fiber.StatusOK {
 				var body map[string]interface{}
 				assert.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-				assert.Equal(t, tt.wantToken, body["token"])
-				assert.Contains(t, resp.Header.Get("Set-Cookie"), authconst.TokenCookie)
+				assert.Equal(t, tt.wantToken, body["access_token"])
+				cookieNames := map[string]bool{}
+				for _, c := range resp.Cookies() {
+					cookieNames[c.Name] = true
+				}
+				assert.True(t, cookieNames[authconst.TokenCookie], "access cookie not set")
+				assert.True(t, cookieNames[authconst.RefreshCookie], "refresh cookie not set")
 			}
 
 			mockSvc.AssertExpectations(t)
@@ -362,6 +390,7 @@ func TestHandleLogout(t *testing.T) {
 
 	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
 	mockSvc := new(mockAuthService)
+	mockSvc.On("RevokeRefreshToken", mock.Anything, "").Return(nil)
 
 	h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
 	app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
@@ -373,7 +402,135 @@ func TestHandleLogout(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-	setCookie := resp.Header.Get("Set-Cookie")
-	assert.Contains(t, setCookie, authconst.TokenCookie)
-	assert.Contains(t, setCookie, "expires=")
+	cookieNames := map[string]bool{}
+	for _, c := range resp.Cookies() {
+		cookieNames[c.Name] = true
+	}
+	assert.True(t, cookieNames[authconst.TokenCookie], "access cookie not cleared")
+	assert.True(t, cookieNames[authconst.RefreshCookie], "refresh cookie not cleared")
+	mockSvc.AssertExpectations(t)
+}
+
+func TestHandleLogoutRevokesRefreshToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
+	mockSvc := new(mockAuthService)
+	mockSvc.On("RevokeRefreshToken", mock.Anything, "refresh-from-body").Return(nil)
+
+	h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
+	app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
+	app.Post("/logout", h.HandleLogout)
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", strings.NewReader(`{"refresh_token":"refresh-from-body"}`))
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	mockSvc.AssertExpectations(t)
+}
+
+func TestHandleRefresh(t *testing.T) {
+	t.Parallel()
+
+	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
+
+	tests := []struct {
+		name        string
+		cookie      bool
+		body        string
+		mockSetup   func(*mockAuthService)
+		wantStatus  int
+		wantRefresh string
+	}{
+		{
+			name:   "refresh from cookie rotates pair",
+			cookie: true,
+			body:   "",
+			mockSetup: func(m *mockAuthService) {
+				m.On("RefreshAccessToken", mock.Anything, "refresh-cookie", mock.Anything).
+					Return(&authsvc.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh", ExpiresIn: 900}, nil)
+			},
+			wantStatus:  fiber.StatusOK,
+			wantRefresh: "new-refresh",
+		},
+		{
+			name:   "refresh from body rotates pair",
+			cookie: false,
+			body:   `{"refresh_token":"refresh-body"}`,
+			mockSetup: func(m *mockAuthService) {
+				m.On("RefreshAccessToken", mock.Anything, "refresh-body", mock.Anything).
+					Return(&authsvc.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh", ExpiresIn: 900}, nil)
+			},
+			wantStatus:  fiber.StatusOK,
+			wantRefresh: "new-refresh",
+		},
+		{
+			name:   "invalid refresh token returns 401",
+			cookie: false,
+			body:   `{"refresh_token":"stale"}`,
+			mockSetup: func(m *mockAuthService) {
+				m.On("RefreshAccessToken", mock.Anything, "stale", mock.Anything).Return(nil, authsvc.ErrInvalidRefreshToken)
+			},
+			wantStatus: fiber.StatusUnauthorized,
+		},
+		{
+			name:   "revoked refresh token returns 401",
+			cookie: false,
+			body:   `{"refresh_token":"stolen"}`,
+			mockSetup: func(m *mockAuthService) {
+				m.On("RefreshAccessToken", mock.Anything, "stolen", mock.Anything).Return(nil, authsvc.ErrRefreshTokenRevoked)
+			},
+			wantStatus: fiber.StatusUnauthorized,
+		},
+		{
+			name:       "missing refresh token returns 401 without calling service",
+			cookie:     false,
+			body:       `{}`,
+			mockSetup:  func(m *mockAuthService) {},
+			wantStatus: fiber.StatusUnauthorized,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockSvc := new(mockAuthService)
+			tt.mockSetup(mockSvc)
+
+			h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
+			app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
+			app.Post("/refresh", h.HandleRefresh)
+
+			req := httptest.NewRequest(http.MethodPost, "/refresh", strings.NewReader(tt.body))
+			req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+			if tt.cookie {
+				req.AddCookie(&http.Cookie{Name: authconst.RefreshCookie, Value: "refresh-cookie"})
+			}
+
+			resp, err := app.Test(req)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+
+			if tt.wantStatus == fiber.StatusOK {
+				var body map[string]interface{}
+				assert.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+				assert.Equal(t, "new-access", body["access_token"])
+				assert.Equal(t, tt.wantRefresh, body["refresh_token"])
+
+				cookieNames := map[string]bool{}
+				for _, c := range resp.Cookies() {
+					cookieNames[c.Name] = true
+				}
+				assert.True(t, cookieNames[authconst.TokenCookie], "access cookie not set")
+				assert.True(t, cookieNames[authconst.RefreshCookie], "refresh cookie not set")
+			}
+
+			mockSvc.AssertExpectations(t)
+		})
+	}
 }

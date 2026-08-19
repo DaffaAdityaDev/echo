@@ -24,6 +24,24 @@ const client: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+// refreshSession rotates the token pair exactly once for a burst of parallel
+// 401s. Every request that hits a 401 awaits the same promise (single-flight),
+// so concurrent retries cannot race each other with the same refresh token —
+// rotation is one-time-use by design.
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch("/api/auth/refresh", { method: "POST" })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 client.interceptors.request.use((config) => {
   setAuthHeaders(config.headers, config.data);
   return config;
@@ -31,11 +49,16 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const url = error.config?.url || "";
+  async (error) => {
+    const config = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
+    const url = config?.url || "";
     const isAuthPage = url.includes("/auth/login") || url.includes("/auth/register");
     const alreadyOnLogin = typeof window !== "undefined" && window.location.pathname === "/login";
     if (error.response?.status === 401 && typeof window !== "undefined" && !isAuthPage && !alreadyOnLogin) {
+      if (config && !config._retried && (await refreshSession())) {
+        config._retried = true;
+        return client(config);
+      }
       window.location.href = "/login";
     }
     if (error.response) {
@@ -71,16 +94,26 @@ async function stream<T = unknown>(
 ) {
   const { signal } = options;
 
-  const headers = new Headers();
-  headers.set("Content-Type", "application/json");
-  setAuthHeaders(headers, body);
+  const attempt = (): Promise<Response> => {
+    const headers = new Headers();
+    headers.set("Content-Type", "application/json");
+    setAuthHeaders(headers, body);
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal: signal as AbortSignal,
-  });
+    return fetch(`${BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: signal as AbortSignal,
+    });
+  };
+
+  // A stream cannot be safely replayed after a 401, so the access token is
+  // rotated (single-flight) and the request retried exactly once before
+  // surfacing the error.
+  let response = await attempt();
+  if (response.status === 401 && !signal?.aborted && typeof window !== "undefined" && (await refreshSession())) {
+    response = await attempt();
+  }
 
   if (response.ok && options.onResponse) {
     options.onResponse(response);

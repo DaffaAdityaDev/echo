@@ -204,6 +204,7 @@
                 ],
                 "summary": "List available agent features",
                 "description": "Returns the catalog of agent features with tier-based locking",
+                "parameters": null,
                 "responses": {
                     "200": {
                         "description": "Catalog of agent features for the user's tier",
@@ -211,6 +212,15 @@
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/echo-backend_internal_service_features.FeatureResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -224,7 +234,11 @@
                         }
                     }
                 },
-                "security": null,
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": null,
                 "produces": [
                     "application/json"
@@ -242,6 +256,80 @@
                     {
                         "type": "string",
                         "description": "Session ID with a pending tool approval request. The session must belong to the authenticated user (403 otherwise).",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": null,
+                "produces": [
+                    "application/json"
+                ]
+            }
+        },
+        "/api/v1/sessions/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Interrupt an in-flight chat turn",
+                "description": "Requests cancellation of the currently streaming mission for a session. Idempotent: sessions without an active run return success without side effects. The turn is finalized as interrupted when the stream ends.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID with an in-flight mission. The session must belong to the authenticated user (403 otherwise).",
                         "name": "id",
                         "in": "path",
                         "required": true

@@ -133,8 +133,9 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	authGrp := api.Group(routes.V1AuthGroup)
 	authGrp.Post(routes.V1PathRegister, authHandler.HandleRegister)
 	authGrp.Post(routes.V1PathLogin, authHandler.HandleLogin)
+	authGrp.Post(routes.V1PathRefresh, authHandler.HandleRefresh)
 	authGrp.Get(routes.V1PathMe, authRequired, authHandler.HandleMe)
-	authGrp.Post(routes.V1PathLogout, authRequired, authHandler.HandleLogout)
+	authGrp.Post(routes.V1PathLogout, authHandler.HandleLogout)
 
 	// Feature routes
 	api.Post(routes.V1PathChat, authRequired, chatHandler.HandleChat)

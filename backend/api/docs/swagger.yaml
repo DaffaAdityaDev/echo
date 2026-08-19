@@ -6,6 +6,12 @@ definitions:
         description: ID is the model ID used in requests.
         example: gpt-4o
         type: string
+      max_context_tokens:
+        description: |-
+          MaxContextTokens is the model's maximum context length in tokens; 0
+          means unknown (callers fall back to conservative defaults).
+        example: 1048576
+        type: integer
       name:
         description: Name is the display name.
         example: GPT-4o
@@ -93,6 +99,10 @@ definitions:
       role:
         description: User role (e.g. user, admin)
         example: user
+        type: string
+      tier:
+        description: User subscription tier (free, pro)
+        example: free
         type: string
       updated_at:
         description: Time of the last update
@@ -502,8 +512,6 @@ definitions:
         items:
           type: string
         type: array
-    required:
-    - name
     type: object
   internal_handler_aimodel.ModelsResponse:
     properties:
@@ -515,8 +523,14 @@ definitions:
     type: object
   internal_handler_auth.LoginResponse:
     properties:
-      token:
-        description: JWT access token (also set as an HTTP-only cookie)
+      access_token:
+        description: JWT access token (15 minutes)
+        type: string
+      expires_in:
+        description: Access token lifetime in seconds
+        type: integer
+      refresh_token:
+        description: Refresh token (30 days)
         type: string
       user:
         allOf:
@@ -533,9 +547,13 @@ definitions:
         description: User password
         example: P@ssw0rd!23
         type: string
-    required:
-    - email
-    - password
+    type: object
+  internal_handler_auth.refreshRequest:
+    properties:
+      refresh_token:
+        description: Refresh token (or send it as the refresh_token cookie)
+        example: '...'
+        type: string
     type: object
   internal_handler_auth.registerRequest:
     properties:
@@ -551,10 +569,6 @@ definitions:
         description: User password
         example: P@ssw0rd!23
         type: string
-    required:
-    - email
-    - name
-    - password
     type: object
   internal_handler_chat.ChatRequest:
     properties:
@@ -1149,7 +1163,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticates a user and returns a JWT token
+      description: Authenticates a user and returns an access/refresh token pair
       parameters:
       - description: Login payload
         in: body
@@ -1161,7 +1175,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Token and user profile
+          description: Token pair and user profile
           schema:
             $ref: '#/definitions/internal_handler_auth.LoginResponse'
         "400":
@@ -1181,7 +1195,13 @@ paths:
       - Auth
   /api/v1/auth/logout:
     post:
-      description: Clears the authentication cookie
+      description: Revokes the refresh token and clears the authentication cookies
+      parameters:
+      - description: Refresh token (optional when the refresh_token cookie is present)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_handler_auth.refreshRequest'
       produces:
       - application/json
       responses:
@@ -1192,8 +1212,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Logout
       tags:
       - Auth
@@ -1230,11 +1248,41 @@ paths:
       summary: Get current user
       tags:
       - Auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Rotates the refresh token and issues a fresh access/refresh pair.
+        The refresh token is read from the refresh_token cookie, falling back to the
+        request body.
+      parameters:
+      - description: Refresh token (optional when the refresh_token cookie is present)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_handler_auth.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New token pair
+          schema:
+            $ref: '#/definitions/internal_handler_auth.LoginResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh the token pair
+      tags:
+      - Auth
   /api/v1/auth/register:
     post:
       consumes:
       - application/json
-      description: Creates a new user account and returns a JWT token
+      description: Creates a new user account and returns an access/refresh token
+        pair
       parameters:
       - description: Registration payload
         in: body
@@ -1246,7 +1294,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Token and user profile
+          description: Token pair and user profile
           schema:
             $ref: '#/definitions/internal_handler_auth.LoginResponse'
         "400":
@@ -1337,12 +1385,20 @@ paths:
             items:
               $ref: '#/definitions/echo-backend_internal_service_features.FeatureResponse'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: List available agent features
       tags:
       - Chat
@@ -1951,6 +2007,56 @@ paths:
       security:
       - BearerAuth: []
       summary: Approve a pending tool call
+      tags:
+      - Chat
+  /api/v1/sessions/{id}/cancel:
+    post:
+      description: 'Requests cancellation of the currently streaming mission for a
+        session. Idempotent: sessions without an active run return success without
+        side effects. The turn is finalized as interrupted when the stream ends.'
+      parameters:
+      - description: Session ID with an in-flight mission. The session must belong
+          to the authenticated user (403 otherwise).
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Interrupt an in-flight chat turn
       tags:
       - Chat
   /api/v1/sessions/{id}/deny:

@@ -38,6 +38,7 @@ const (
 	KeyKey            = "key"
 	KeyMessages       = "messages"
 	KeyStatus         = "status"
+	KeyErrorCode      = "error_code"
 	KeyPort           = "port"
 	KeyReason         = "reason"
 	KeyFrom           = "from"
@@ -129,26 +130,28 @@ const (
 	ErrPostgresPing      = "unable to ping database"
 	InfoRedisInitialized = "redis connection initialized"
 
-	InfoNoPGSkipMigration     = "no PostgreSQL connection, skipping migration"
-	ErrCreateLLMOpsTables     = "failed to create llmops studio tables"
-	ErrCreateFeaturesTable    = "failed to create features table"
-	InfoCreatedAPIKeysTable   = "created api_keys table"
-	ErrAddStrategyVersionCol  = "failed to add strategy_version column to sessions"
-	ErrAddTierCol             = "failed to add tier column to users"
-	ErrAddLastAccessedCol     = "failed to add last_accessed_at column to sessions"
-	ErrCreateIdxLastAccessed  = "failed to create idx_sessions_last_accessed"
-	ErrCreateAppSettingsTable = "failed to create app_settings table"
-	ErrAddStepsCol            = "failed to add steps column to messages"
-	ErrAddStatusCol           = "failed to add status column to messages"
-	ErrCreateIdxMsgStatus     = "failed to create idx_messages_session_status"
-	ErrAddProviderTypeCol     = "failed to add provider_type column to user_preferences"
-	ErrAddAPIKeyCol           = "failed to add api_key column to user_preferences"
-	ErrAddBaseURLCol          = "failed to add base_url column to user_preferences"
-	ErrAddHarnessTogglesCol   = "failed to add harness_toggles column to user_preferences"
-	ErrCreateVectorExtension  = "failed to create vector extension"
-	WarnPGVectorUnavailable   = "pgvector not available, creating memory_semantic without embedding"
-	InfoMigrationNoVector     = "database migration completed (without pgvector)"
-	InfoMigrationWithVector   = "database migration completed with pgvector & llmops studio support"
+	InfoNoPGSkipMigration         = "no PostgreSQL connection, skipping migration"
+	ErrCreateLLMOpsTables         = "failed to create llmops studio tables"
+	ErrCreateFeaturesTable        = "failed to create features table"
+	InfoCreatedAPIKeysTable       = "created api_keys table"
+	InfoCreatedRefreshTokensTable = "created refresh_tokens table"
+	ErrAddStrategyVersionCol      = "failed to add strategy_version column to sessions"
+	ErrAddTierCol                 = "failed to add tier column to users"
+	ErrAddLastAccessedCol         = "failed to add last_accessed_at column to sessions"
+	ErrCreateIdxLastAccessed      = "failed to create idx_sessions_last_accessed"
+	ErrCreateAppSettingsTable     = "failed to create app_settings table"
+	ErrAddStepsCol                = "failed to add steps column to messages"
+	ErrAddStatusCol               = "failed to add status column to messages"
+	ErrAddStatusCheck             = "failed to update messages status check constraint"
+	ErrCreateIdxMsgStatus         = "failed to create idx_messages_session_status"
+	ErrAddProviderTypeCol         = "failed to add provider_type column to user_preferences"
+	ErrAddAPIKeyCol               = "failed to add api_key column to user_preferences"
+	ErrAddBaseURLCol              = "failed to add base_url column to user_preferences"
+	ErrAddHarnessTogglesCol       = "failed to add harness_toggles column to user_preferences"
+	ErrCreateVectorExtension      = "failed to create vector extension"
+	WarnPGVectorUnavailable       = "pgvector not available, creating memory_semantic without embedding"
+	InfoMigrationNoVector         = "database migration completed (without pgvector)"
+	InfoMigrationWithVector       = "database migration completed with pgvector & llmops studio support"
 )
 
 const (
@@ -202,6 +205,7 @@ const (
 	ErrChatClientWrite           = "client write failed"
 	ErrChatClientFlush           = "client flush failed"
 	ErrChatAgentStreamAborted    = "agent stream aborted"
+	ErrChatAgentStreamError      = "agent stream reported an error"
 	WarnChatFlushGoroutineLeft   = "flush goroutine did not exit; proceeding to finalize"
 	ErrChatFinalizeTurn          = "error finalizing turn"
 	InfoChatTurnCompleted        = "completed turn"
@@ -256,12 +260,15 @@ const (
 const (
 	ErrAuthLogin    = "auth login failed"
 	ErrAuthRegister = "auth register failed"
+	ErrAuthRefresh  = "auth refresh failed"
+	ErrAuthLogout   = "auth logout failed"
 )
 
 // HTTP response messages for the auth handler's internal-error paths.
 const (
 	MsgAuthLoginFailed    = "Login failed"
 	MsgAuthRegisterFailed = "Failed to register"
+	MsgAuthRefreshFailed  = "Failed to refresh session"
 )
 
 const (
@@ -275,6 +282,8 @@ const (
 	ErrInvalidInternalToken  = "Unauthorized: Invalid internal token"
 	ErrInvalidTokenClaims    = "Unauthorized: Invalid token claims"
 	ErrInvalidTokenSubject   = "Forbidden: Invalid token subject"
+	ErrInvalidRefreshToken   = "Unauthorized: Invalid refresh token"
+	ErrRefreshTokenRevoked   = "Unauthorized: Refresh token has been revoked"
 )
 
 const (

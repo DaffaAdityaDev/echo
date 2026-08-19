@@ -51,6 +51,7 @@ const (
 	StatusActive      = "active"
 	StatusComplete    = "complete"
 	StatusStreaming   = "streaming"
+	StatusError       = "error"
 	StatusDeleted     = "deleted"
 	StatusArchived    = "archived"
 	StatusInterrupted = "interrupted"

@@ -80,9 +80,6 @@
         },
         "internal_handler_admin.createAPIKeyRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
                 "name": {
                     "description": "Display name for the API key",

@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `
 
+const schemaRefreshTokens = `
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+	id BIGSERIAL PRIMARY KEY,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	token_hash TEXT NOT NULL UNIQUE,
+	device_label TEXT NOT NULL DEFAULT '',
+	expires_at TIMESTAMPTZ NOT NULL,
+	revoked_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ DEFAULT NOW() 
+)
+`
+
 const schemaSessions = `
 CREATE TABLE IF NOT EXISTS sessions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,7 +96,7 @@ CREATE TABLE IF NOT EXISTS messages (
     token_count INTEGER DEFAULT 0,
     turn_number INTEGER NOT NULL,
     steps       JSONB,
-    status      TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted')),
+    status      TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted', 'error')),
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -194,6 +206,11 @@ func Migrate(pool *pgxpool.Pool) error {
 		slog.Error(msgconst.ErrAddTierCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 
+	if _, err := pool.Exec(ctx, schemaRefreshTokens); err != nil {
+		return fmt.Errorf("failed to create refresh_tokens table: %w", err)
+	}
+	slog.Info(msgconst.InfoCreatedRefreshTokensTable, msgconst.ComponentKey, msgconst.ComponentDatabase)
+
 	if _, err := pool.Exec(ctx, schemaSessions); err != nil {
 		return fmt.Errorf("failed to create sessions table: %w", err)
 	}
@@ -227,6 +244,12 @@ func Migrate(pool *pgxpool.Pool) error {
 	}
 	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('streaming', 'complete', 'interrupted'))"); err != nil {
 		slog.Error(msgconst.ErrAddStatusCol, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_status_check"); err != nil {
+		slog.Error(msgconst.ErrAddStatusCheck, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
+	}
+	if _, err := pool.Exec(ctx, "ALTER TABLE messages ADD CONSTRAINT messages_status_check CHECK (status IN ('streaming', 'complete', 'interrupted', 'error'))"); err != nil {
+		slog.Error(msgconst.ErrAddStatusCheck, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)
 	}
 	if _, err := pool.Exec(ctx, "CREATE INDEX IF NOT EXISTS idx_messages_session_status ON messages(session_id, status)"); err != nil {
 		slog.Error(msgconst.ErrCreateIdxMsgStatus, msgconst.ComponentKey, msgconst.ComponentDatabase, msgconst.KeyErr, err)

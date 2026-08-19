@@ -9,6 +9,11 @@
                     "type": "string",
                     "example": "gpt-4o"
                 },
+                "max_context_tokens": {
+                    "description": "MaxContextTokens is the model's maximum context length in tokens; 0\nmeans unknown (callers fall back to conservative defaults).",
+                    "type": "integer",
+                    "example": 1048576
+                },
                 "name": {
                     "description": "Name is the display name.",
                     "type": "string",

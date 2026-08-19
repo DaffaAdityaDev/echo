@@ -4,6 +4,7 @@ const (
 	HeaderAuthorization = "Authorization"
 	BearerPrefix        = "Bearer "
 	TokenCookie         = "auth_token"
+	RefreshCookie       = "refresh_token"
 )
 
 // JWT claim names used by the user token (signed with JWTSecret) and the

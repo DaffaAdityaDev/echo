@@ -225,7 +225,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/login": {
             "post": {
-                "description": "Authenticates a user and returns a JWT token",
+                "description": "Authenticates a user and returns an access/refresh token pair",
                 "consumes": [
                     "application/json"
                 ],
@@ -249,7 +249,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Token and user profile",
+                        "description": "Token pair and user profile",
                         "schema": {
                             "$ref": "#/definitions/internal_handler_auth.LoginResponse"
                         }
@@ -277,12 +277,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/logout": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Clears the authentication cookie",
+                "description": "Revokes the refresh token and clears the authentication cookies",
                 "produces": [
                     "application/json"
                 ],
@@ -290,6 +285,16 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Logout",
+                "parameters": [
+                    {
+                        "description": "Refresh token (optional when the refresh_token cookie is present)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_auth.refreshRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Logged out\\\"}",
@@ -355,9 +360,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "description": "Rotates the refresh token and issues a fresh access/refresh pair. The refresh token is read from the refresh_token cookie, falling back to the request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh the token pair",
+                "parameters": [
+                    {
+                        "description": "Refresh token (optional when the refresh_token cookie is present)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_auth.refreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New token pair",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_auth.LoginResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/register": {
             "post": {
-                "description": "Creates a new user account and returns a JWT token",
+                "description": "Creates a new user account and returns an access/refresh token pair",
                 "consumes": [
                     "application/json"
                 ],
@@ -381,7 +428,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Token and user profile",
+                        "description": "Token pair and user profile",
                         "schema": {
                             "$ref": "#/definitions/internal_handler_auth.LoginResponse"
                         }
@@ -493,6 +540,11 @@ const docTemplate = `{
         },
         "/api/v1/features": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the catalog of agent features with tier-based locking",
                 "produces": [
                     "application/json"
@@ -501,7 +553,6 @@ const docTemplate = `{
                     "Chat"
                 ],
                 "summary": "List available agent features",
-                "parameters": [],
                 "responses": {
                     "200": {
                         "description": "Catalog of agent features for the user's tier",
@@ -509,6 +560,15 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/echo-backend_internal_service_features.FeatureResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -1468,6 +1528,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/sessions/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requests cancellation of the currently streaming mission for a session. Idempotent: sessions without an active run return success without side effects. The turn is finalized as interrupted when the stream ends.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Interrupt an in-flight chat turn",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID with an in-flight mission. The session must belong to the authenticated user (403 otherwise).",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/sessions/{id}/deny": {
             "post": {
                 "security": [
@@ -2349,6 +2482,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "gpt-4o"
                 },
+                "max_context_tokens": {
+                    "description": "MaxContextTokens is the model's maximum context length in tokens; 0\nmeans unknown (callers fall back to conservative defaults).",
+                    "type": "integer",
+                    "example": 1048576
+                },
                 "name": {
                     "description": "Name is the display name.",
                     "type": "string",
@@ -2464,6 +2602,11 @@ const docTemplate = `{
                     "description": "User role (e.g. user, admin)",
                     "type": "string",
                     "example": "user"
+                },
+                "tier": {
+                    "description": "User subscription tier (free, pro)",
+                    "type": "string",
+                    "example": "free"
                 },
                 "updated_at": {
                     "description": "Time of the last update",
@@ -3015,9 +3158,6 @@ const docTemplate = `{
         },
         "internal_handler_admin.createAPIKeyRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
                 "name": {
                     "description": "Display name for the API key",
@@ -3052,8 +3192,16 @@ const docTemplate = `{
         "internal_handler_auth.LoginResponse": {
             "type": "object",
             "properties": {
-                "token": {
-                    "description": "JWT access token (also set as an HTTP-only cookie)",
+                "access_token": {
+                    "description": "JWT access token (15 minutes)",
+                    "type": "string"
+                },
+                "expires_in": {
+                    "description": "Access token lifetime in seconds",
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "description": "Refresh token (30 days)",
                     "type": "string"
                 },
                 "user": {
@@ -3068,10 +3216,6 @@ const docTemplate = `{
         },
         "internal_handler_auth.loginRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
             "properties": {
                 "email": {
                     "description": "User email address",
@@ -3085,13 +3229,18 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_handler_auth.refreshRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "description": "Refresh token (or send it as the refresh_token cookie)",
+                    "type": "string",
+                    "example": "..."
+                }
+            }
+        },
         "internal_handler_auth.registerRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "name",
-                "password"
-            ],
             "properties": {
                 "email": {
                     "description": "User email address",
