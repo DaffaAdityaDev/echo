@@ -166,6 +166,26 @@ describe("OpenCodeGoProvider", () => {
     await expect(collect(makeProvider(), [], [], "You are a test assistant.")).rejects.toThrow("boom");
   });
 
+  it("rejects with a classified usage-limit error for 429 GoUsageLimitError", async () => {
+    openAIMocks.create.mockRejectedValue({
+      status: 429,
+      message:
+        'Error code: 429 - {"type":"error","error":{"type":"GoUsageLimitError","message":"Monthly usage limit reached. Resets in 14 days."}}',
+      error: {
+        type: "error",
+        error: { type: "GoUsageLimitError", message: "Monthly usage limit reached. Resets in 14 days." },
+      },
+      headers: new Headers(),
+    });
+
+    await expect(collect(makeProvider(), [], [], "You are a test assistant.")).rejects.toMatchObject({
+      name: "UpstreamProviderError",
+      kind: "usage_limit",
+      code: "USAGE_LIMIT",
+      status: 429,
+    });
+  });
+
   it("serializes LangChain messages into OpenAI API messages", async () => {
     openAIMocks.create.mockReturnValue(sdkChunks([]));
     const messages = [

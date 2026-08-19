@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { langfuseStorage } from "../../../shared/utils/langfuse";
 import { logger } from "../../../shared/utils/logger";
-import { calculateUsageCost, ReasoningInterceptor, zodV4ToOpenAISchema } from "../utils";
+import { calculateUsageCost, classifyProviderError, ReasoningInterceptor, zodV4ToOpenAISchema } from "../utils";
 
 function contentToString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -186,7 +186,7 @@ export class OpenCodeGoProvider implements LLMProvider {
           };
           return;
         }
-        throw err;
+        throw classifyProviderError(err) ?? err;
       }
 
       for await (const chunk of responseStream) {
@@ -297,7 +297,7 @@ export class OpenCodeGoProvider implements LLMProvider {
         });
         isEnded = true;
       }
-      throw err;
+      throw classifyProviderError(err) ?? err;
     } finally {
       if (generation && !isEnded) {
         generation.end({ output: Array.from(accumulatedToolCalls.values()) });

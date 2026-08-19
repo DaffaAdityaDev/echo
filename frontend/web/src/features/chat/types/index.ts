@@ -73,7 +73,7 @@ export interface Message {
   meta?: MissionMeta;
   usage?: TokenUsage;
   id: string;
-  status?: "streaming" | "complete" | "interrupted";
+  status?: "streaming" | "complete" | "interrupted" | "error";
 }
 
 export interface HistoryMessage {
@@ -89,7 +89,7 @@ export interface DbMessage {
   token_count: number;
   turn_number: number;
   steps?: ThoughtStep[] | null;
-  status?: "streaming" | "complete" | "interrupted";
+  status?: "streaming" | "complete" | "interrupted" | "error";
   created_at: string;
 }
 

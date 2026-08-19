@@ -16,7 +16,103 @@ import (
 	agentmodel "echo-backend/internal/models/agent"
 
 	msgconst "echo-backend/internal/constants/msg"
+
+	domainconst "echo-backend/internal/constants/domain"
 )
+
+type ToolCallResult struct {
+	ToolName string
+	Content  string
+}
+type ToolCallCapture struct {
+	ToolName  string
+	ToolInput json.RawMessage
+}
+
+type AgentUsage struct {
+	PromptTokens     int `json:"promptTokens"`
+	CompletionTokens int `json:"completionTokens"`
+	TotalTokens      int `json:"totalTokens"`
+}
+
+type AgentSSEPacket struct {
+	Type       string          `json:"type"`
+	Content    string          `json:"content"`
+	Title      string          `json:"title"`
+	Summary    string          `json:"summary"`
+	ToolName   string          `json:"toolName"`
+	ToolInput  json.RawMessage `json:"toolInput"`
+	ToolResult string          `json:"toolResult"`
+	Usage      *AgentUsage     `json:"usage"`
+	Code       string          `json:"code"`
+	Detail     string          `json:"detail"`
+}
+
+// agentStreamError captures the agent's terminal error packet (code +
+// friendly content) so the stream can finalize the turn as errored without
+// polluting the assistant message content with raw error text.
+type agentStreamError struct {
+	Code    string
+	Content string
+}
+
+type streamContent struct {
+	mu               sync.RWMutex
+	content          strings.Builder
+	thinking         strings.Builder
+	toolCalls        []ToolCallCapture
+	toolResults      []ToolCallResult
+	completionTokens int
+	isComplete       bool
+	streamErr        *agentStreamError
+}
+
+// applyPacket records one decoded agent SSE packet into the accumulator.
+func (sc *streamContent) applyPacket(packet AgentSSEPacket) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	switch packet.Type {
+	case "content":
+		sc.content.WriteString(packet.Content)
+	case "reasoning":
+		sc.thinking.WriteString(packet.Content)
+	case "tool_call":
+		sc.toolCalls = append(sc.toolCalls, ToolCallCapture{
+			ToolName:  packet.ToolName,
+			ToolInput: packet.ToolInput,
+		})
+	case "tool_result":
+		sc.toolResults = append(sc.toolResults, ToolCallResult{
+			ToolName: packet.ToolName,
+			Content:  packet.Content,
+		})
+	case "error":
+		if packet.Code != "" || packet.Content != "" {
+			sc.streamErr = &agentStreamError{Code: packet.Code, Content: packet.Content}
+		}
+	case "usage":
+		if packet.Usage != nil && packet.Usage.CompletionTokens > 0 {
+			sc.completionTokens = packet.Usage.CompletionTokens
+		}
+	case "turn_complete":
+		sc.isComplete = true
+	}
+}
+
+// finalStatus decides the terminal turn status once the stream ends: a
+// provider failure reported by the agent wins over completion, and a stream
+// that ended without a terminal packet is interrupted.
+func (sc *streamContent) finalStatus() string {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+	if sc.streamErr != nil {
+		return domainconst.StatusError
+	}
+	if sc.isComplete {
+		return domainconst.StatusComplete
+	}
+	return domainconst.StatusInterrupted
+}
 
 // streamAgentResponse relays the agent's SSE stream to the client while
 // accumulating content, tool calls and usage for the final turn write. Runs
@@ -26,42 +122,6 @@ import (
 func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sessionID string, assistantMsgID int64, nextTurn int, redisLockToken string) {
 	reader := bufio.NewReader(resp.Body)
 	defer func() { _ = resp.Body.Close() }()
-
-	type ToolCallResult struct {
-		ToolName string
-		Content  string
-	}
-	type ToolCallCapture struct {
-		ToolName  string
-		ToolInput json.RawMessage
-	}
-
-	type AgentUsage struct {
-		PromptTokens     int `json:"promptTokens"`
-		CompletionTokens int `json:"completionTokens"`
-		TotalTokens      int `json:"totalTokens"`
-	}
-
-	type AgentSSEPacket struct {
-		Type       string          `json:"type"`
-		Content    string          `json:"content"`
-		Title      string          `json:"title"`
-		Summary    string          `json:"summary"`
-		ToolName   string          `json:"toolName"`
-		ToolInput  json.RawMessage `json:"toolInput"`
-		ToolResult string          `json:"toolResult"`
-		Usage      *AgentUsage     `json:"usage"`
-	}
-
-	type streamContent struct {
-		mu               sync.RWMutex
-		content          strings.Builder
-		thinking         strings.Builder
-		toolCalls        []ToolCallCapture
-		toolResults      []ToolCallResult
-		completionTokens int
-		isComplete       bool
-	}
 
 	sc := &streamContent{}
 
@@ -140,34 +200,7 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 
 				var packet AgentSSEPacket
 				if err := json.Unmarshal([]byte(dataStr), &packet); err == nil {
-					sc.mu.Lock()
-					switch packet.Type {
-					case "content":
-						sc.content.WriteString(packet.Content)
-					case "reasoning":
-						sc.thinking.WriteString(packet.Content)
-					case "tool_call":
-						sc.toolCalls = append(sc.toolCalls, ToolCallCapture{
-							ToolName:  packet.ToolName,
-							ToolInput: packet.ToolInput,
-						})
-					case "tool_result":
-						sc.toolResults = append(sc.toolResults, ToolCallResult{
-							ToolName: packet.ToolName,
-							Content:  packet.Content,
-						})
-					case "error":
-						if packet.Content != "" {
-							sc.content.WriteString(packet.Content)
-						}
-					case "usage":
-						if packet.Usage != nil && packet.Usage.CompletionTokens > 0 {
-							sc.completionTokens = packet.Usage.CompletionTokens
-						}
-					case "turn_complete":
-						sc.isComplete = true
-					}
-					sc.mu.Unlock()
+					sc.applyPacket(packet)
 				}
 			}
 		}
@@ -192,12 +225,13 @@ func (h *Handler) streamAgentResponse(w *bufio.Writer, resp *http.Response, sess
 	finalThinking := sc.thinking.String()
 	finalCalls := sc.toolCalls
 	finalResults := sc.toolResults
-	complete := sc.isComplete
+	streamErr := sc.streamErr
 	sc.mu.RUnlock()
 
-	status := "interrupted"
-	if complete {
-		status = "complete"
+	status := sc.finalStatus()
+
+	if streamErr != nil {
+		slog.Error(msgconst.ErrChatAgentStreamError, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErrorCode, streamErr.Code, msgconst.KeyContent, streamErr.Content)
 	}
 
 	steps := buildStepsJSON(finalThinking, finalCalls, finalResults)

@@ -1,4 +1,5 @@
 export * from "./reasoning-interceptor";
+export * from "./upstream-error";
 export * from "./zod-schema";
 
 import { LOCAL_URL_KEYWORDS, PRICING_MODELS } from "../constants";

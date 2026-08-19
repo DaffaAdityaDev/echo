@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { cancellationManager, type NlahHarness } from "../../../../core/agent/harness";
 import { PACKET_TYPES } from "../../../../core/agent/harness/constants";
 import type { HarnessEvent } from "../../../../core/agent/harness/types";
+import { classifyProviderError } from "../../../../infrastructure/providers/utils/upstream-error";
 import type { AgentState } from "../../../../shared/types";
 import { logger } from "../../../../shared/utils/logger";
 import { STREAM_CONSTANTS } from "./mission.constants";
@@ -34,15 +35,22 @@ export async function streamHarnessExecution(
         await transport.send(packet);
       });
     } catch (streamErr: unknown) {
-      const errorMessage = streamErr instanceof Error ? streamErr.message : String(streamErr);
-      logger.error(`${opts.executionLog} ${errorMessage}`);
+      const upstream = classifyProviderError(streamErr);
+      const errorMessage = upstream
+        ? upstream.message
+        : streamErr instanceof Error
+          ? streamErr.message
+          : String(streamErr);
+      logger.error(`${opts.executionLog} ${errorMessage}`, upstream ? { detail: upstream.detail } : undefined);
       try {
         const errorPacket = {
           type: PACKET_TYPES.ERROR,
           missionId: opts.missionId,
           step: STREAM_CONSTANTS.ERROR_STEP,
           content: errorMessage,
-          code: STREAM_CONSTANTS.ERROR_CODE,
+          code: upstream?.code ?? STREAM_CONSTANTS.ERROR_CODE,
+          ...(upstream?.detail ? { detail: upstream.detail } : {}),
+          ...(upstream?.status !== undefined ? { status: upstream.status } : {}),
         };
         await transport.send(errorPacket);
       } catch (sendErr) {

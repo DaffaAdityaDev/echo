@@ -221,6 +221,12 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
             Response was interrupted — send a reply to continue
           </div>
         )}
+        {isAssistant && msg.status === "error" && (
+          <div className="flex items-center gap-1.5 py-1 text-[10px] text-red-600 dark:text-red-400 italic border-t border-dashed border-red-300 dark:border-red-800 mt-1 font-mono">
+            <AlertTriangle className="h-3 w-3" />
+            Response failed — check the provider and retry
+          </div>
+        )}
 
         {/* Floating Action Toolbar on Assistant Messages */}
         {isAssistant && (msg.content || msg.steps.length > 0) && (
