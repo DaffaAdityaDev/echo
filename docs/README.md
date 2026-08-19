@@ -1,7 +1,7 @@
 ===============================================================================
   Echo Documentation Index
 ===============================================================================
-  Updated: 2026-07-25
+  Updated: 2026-08-19
 ===============================================================================
 
 ## Service Documentation
@@ -14,6 +14,7 @@
 | Frontend Web     | docs/frontend/web/README.md                              |
 | Frontend Desktop | docs/frontend/dekstop/README.md                          |
 | Frontend Discord | docs/frontend/discord/README.md                          |
+| KataraGnosis     | docs/frontend/katara-gnosis/README.md                    |
 | Infrastructure   | docs/infrastructure/README.md                            |
 +------------------+----------------------------------------------------------+
 
