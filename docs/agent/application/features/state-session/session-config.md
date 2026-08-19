@@ -57,8 +57,8 @@ config provides defaults that sessions can override.
   │  (server.env)  │               │  Created per request, discarded       │
   │                │               │  after mission completes              │
   │  PORT          │               │  Overrides persistent defaults        │
-  │  CHROMA_URL    │               │                                       │
-  │  LANGFUSE_KEY  │               │  Contains:                            │
+  │  LANGFUSE_KEY  │               │                                       │
+  │  ...           │               │  Contains:                            │
   │  ...           │               │  - Provider credentials (transient)   │
   └────────────────┘               │  - Tool/transport config              │
                                    │  - Skill assignment                   │
@@ -243,7 +243,7 @@ There are no `skill` / `skill_variables` fields — skills are passed as the
 │  Loaded once at agent startup                                            │
 │  Stored in .env, config files, env schema                                │
 │                                                                           │
-│  PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*                                 │
+│  PORT, GRPC_PORT, LANGFUSE_*                                             │
 │  Default model, default provider                                         │
 │  Internal auth tokens                                                    │
 │  Runtime mode (local/production)                                         │
@@ -386,7 +386,7 @@ There are no `skill` / `skill_variables` fields — skills are passed as the
 +----------------------------+------------------------------------------+---------------------------------------------+
 | Ref                        | File                                     | Key Lines                                   |
 +----------------------------+------------------------------------------+---------------------------------------------+
-| Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, CHROMA_URL, LANGFUSE_*    |
+| Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, LANGFUSE_*                 |
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts` | Full mission request validation            |
 | Provider config dispatch   | `infrastructure/providers/factory.ts:24-27`| `fromConfig()` reads session provider config|
 | Harness defaults           | `harness/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |

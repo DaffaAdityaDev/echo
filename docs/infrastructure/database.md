@@ -14,11 +14,8 @@ relational data and vector similarity search, and **Redis** for caching and
 ephemeral agent/mission state. Both are defined in `docker-compose.yml`
 (Docker) and have equivalent Kubernetes manifests.
 
-**ChromaDB and RabbitMQ are NOT deployed:**
-- **ChromaDB** — documented in the architecture and present only as a K8s
-  manifest (`infra/k8s/chroma.yaml`); it is NOT in any Docker Compose file
-  and is currently unused by code (the agent's `CHROMA_URL` env is a
-  backward-compat default).
+**Legacy vector store retired:**
+- Vector similarity search in Echo is handled via PostgreSQL (`pgvector`) and Qdrant in KataraGnosis.
 - **RabbitMQ** — exists nowhere in the repo (no compose service, no K8s
   manifest). The NUQ system uses PostgreSQL LISTEN/NOTIFY instead of
   RabbitMQ channels.
@@ -34,7 +31,6 @@ ephemeral agent/mission state. Both are defined in `docker-compose.yml`
 |   nuq.sql                   |                                                           |
 | infra/k8s/postgres.yaml     | ConfigMap (init SQL), PVC, Deployment, Service            |
 | infra/k8s/redis.yaml        | Deployment, Service                                       |
-| infra/k8s/chroma.yaml       | PVC, Deployment, Service                                  |
 +-----------------------------+-----------------------------------------------------------+
 
 ## ASCII Flow Diagram — Data Architecture
@@ -65,18 +61,7 @@ ephemeral agent/mission state. Both are defined in `docker-compose.yml`
           │  tool_catalog│                          │  Pub/Sub       │
           │  nuq.*       │                          │  (SaaS mode)   │
           │  group_crawl │                          └────────────────┘
-         └──────┬───────┘
-                │
-         ┌──────┴───────┐
-         │   ChromaDB   │
-         │    :8000      │
-         │              │
-         │  Collections:│
-         │  tool_       │
-         │  embeddings  │
-         │  document_   │
-         │  chunks      │
-         └──────────────┘
+         └───────────────┘
 
          ┌─────────────────┐
          │    RabbitMQ     │
@@ -115,19 +100,6 @@ ephemeral agent/mission state. Both are defined in `docker-compose.yml`
 | Connection       | redis://echo-redis:6379                                    |
 | Usage            | Features/skills cache (10m TTL), episodic memory (24h      |
 |                  |   TTL), prompt cache, session lock        |
-+------------------+------------------------------------------------------------+
-
-### ChromaDB `[Planned — not deployed]`
-
-+------------------+------------------------------------------------------------+
-| Property         | Value                                                      |
-+------------------+------------------------------------------------------------+
-| Image            | chromadb/chroma:latest                                     |
-| Internal Host    | echo-chroma (K8s only — no Docker Compose service)         |
-| Port             | 8000                                                       |
-| Usage            | Vector embedding storage for tool retrieval, document      |
-|                  |   chunk similarity (currently unused by code)              |
-| Data Volume      | /chroma/chroma (1Gi PVC in K8s)                            |
 +------------------+------------------------------------------------------------+
 
 ### RabbitMQ `[Planned — not deployed]`
@@ -220,8 +192,6 @@ Currently no automated backup strategy is configured. Recommended additions:
 +-----------+------------------------------+----------------------------+
 | Postgres  | Periodic pg_dump + WAL       | pg_dump, barman or wal-g   |
 |           |   archiving                  |                            |
-| ChromaDB  | Filesystem snapshot of       | Volume snapshot or restic  |
-|           |   /chroma/chroma             |                            |
 | Redis     | Periodic SAVE / BGSAVE to    | Redis RDB snapshots +      |
 |           |   disk                       |   volume backup            |
 +-----------+------------------------------+----------------------------+
@@ -236,11 +206,8 @@ Currently no automated backup strategy is configured. Recommended additions:
 | backend/scripts/init-nuq.sql                | NUQ queue schema, Postgres tuning,        |
 |                                             |   pg_cron maintenance jobs                |
 | docker-compose.yml                          | Postgres + Redis service definitions      |
-|                                             |   (no ChromaDB / RabbitMQ)                |
 | infra/k8s/postgres.yaml                     | K8s ConfigMap, PVC, Deployment, Service   |
 |                                             |   for Postgres                            |
-| infra/k8s/chroma.yaml                       | K8s PVC, Deployment, Service for ChromaDB |
-|                                             |   (NOT deployed — unused by code)         |
 | infra/k8s/redis.yaml                        | K8s Deployment, Service for Redis         |
 +---------------------------------------------+-------------------------------------------+
 

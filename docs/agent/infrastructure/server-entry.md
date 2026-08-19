@@ -61,7 +61,6 @@ src/
 // Zod schema fields
 PORT:                  z.string().default("3001")
 GRPC_PORT:             z.string().default("50051")
-CHROMA_URL:            z.string().default("http://localhost:8000")  <!-- PLANNED: No ChromaDB client is implemented yet -->
 LLM_MODEL_API_URL:     z.string().default("http://127.0.0.1:1234")
 STATE_BACKEND:         z.enum(["memory", "backend"]).default("memory")
 NODE_ENV:              z.enum(["development","production","test"]).default("development")
@@ -83,7 +82,7 @@ ENABLE_TELEMETRY:      z.string().default("true")
 
 ```
 ENV_DEFAULTS = {
-  PORT: "3001", GRPC_PORT: "50051", CHROMA_URL: "http://localhost:8000", ...
+  PORT: "3001", GRPC_PORT: "50051", LLM_MODEL_API_URL: "http://127.0.0.1:1234", ...
   SERVICE_JWT_SECRET: "",               // No default — must be configured in production
   BACKEND_URL: "http://localhost:8080",
 }
@@ -210,7 +209,7 @@ See the Environment Configuration section above for the complete schema.
 
 ```
 ENV_DEFAULTS = {
-  PORT: "3001", GRPC_PORT: "50051", CHROMA_URL: "http://localhost:8000",
+  PORT: "3001", GRPC_PORT: "50051",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234", LANGFUSE_BASE_URL: "http://localhost:3000",
     BACKEND_URL: "http://localhost:8080",
   ...

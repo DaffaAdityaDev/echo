@@ -151,11 +151,6 @@ Go Fiber handler managing chat requests. Validates input, checks tier gating on
 features, resolves model config, proxies SSE stream from Agent.
 *Source: `backend/internal/handler/chat/handler.go`*
 
-**Chroma**
-Open-source vector database used by agent for RAG (Retrieval Augmented
-Generation). Stores embeddings of topics/content for semantic search.
-*Source: agent `CHROMA_URL` env config*
-
 **Consolidation**
 See **Hard Consolidation**.
 

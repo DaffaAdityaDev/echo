@@ -4,7 +4,6 @@ import { envSchema } from "../env.schema";
 const validInput = {
   PORT: "3001",
   GRPC_PORT: "50051",
-  CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   STATE_BACKEND: "memory",
   NODE_ENV: "development",
@@ -77,7 +76,6 @@ describe("envSchema", () => {
 
     expect(result.data.PORT).toBe(ENV_DEFAULTS.PORT);
     expect(result.data.GRPC_PORT).toBe(ENV_DEFAULTS.GRPC_PORT);
-    expect(result.data.CHROMA_URL).toBe(ENV_DEFAULTS.CHROMA_URL);
     expect(result.data.LLM_MODEL_API_URL).toBe(ENV_DEFAULTS.LLM_MODEL_API_URL);
     expect(result.data.LANGFUSE_BASE_URL).toBe(ENV_DEFAULTS.LANGFUSE_BASE_URL);
     expect(result.data.BACKEND_URL).toBe(ENV_DEFAULTS.BACKEND_URL);

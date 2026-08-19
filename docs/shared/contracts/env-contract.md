@@ -179,7 +179,6 @@ Provider base URLs are now user-level defaults in service/aimodel/service.go / s
 ```env
 PORT=3001
 GRPC_PORT=50051              # RESERVED — no gRPC code in the agent; kept for schema compatibility
-CHROMA_URL=http://localhost:8000   # RESERVED — no ChromaDB client at runtime (chroma-retriever.md: PLANNED)
 STATE_BACKEND=memory
 INTERNAL_AUTH_TOKEN=default-internal-token-secret
 SERVICE_JWT_SECRET=replace-this-with-a-different-secret
@@ -210,7 +209,6 @@ REDIS_URL=redis://localhost:6379
 ```typescript
 PORT:                    z.string().default("3001")
 GRPC_PORT:               z.string().default("50051")   // RESERVED — no gRPC code
-CHROMA_URL:              z.string().default("http://localhost:8000")  // RESERVED — no runtime client
 LLM_MODEL_API_URL:       z.string().default("http://127.0.0.1:1234")  // Read by GET /api/v1/models proxy
 STATE_BACKEND:           z.enum(["memory", "backend"]).default("memory")
 NODE_ENV:                z.enum(["development","production","test"]).default("development")

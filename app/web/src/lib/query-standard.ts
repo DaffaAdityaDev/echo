@@ -2,7 +2,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 
 /**
  * Standard query server-state — must be used in every useQuery/useInfiniteQuery
- * (see docs/frontend/web/shared/tanstack-query-setup.md).
+ * (see docs/app/web/shared/tanstack-query-setup.md).
  *
  * - placeholderData: keepPreviousData — react-query v5 drops `data` when a
  *   refetch fails; without this the UI flashes empty (e.g. "No recent chats")

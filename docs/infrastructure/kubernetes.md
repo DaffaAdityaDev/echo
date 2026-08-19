@@ -10,8 +10,8 @@
 ## Description
 
 The Kubernetes manifests define the Echo application runtime within a single
-`default` namespace. Nine YAML files cover all application services (agent,
-backend, frontend), data stores (Postgres, ChromaDB, Redis), ingress routing,
+`default` namespace. Eight YAML files cover all application services (agent,
+backend, frontend), data stores (Postgres, Redis), ingress routing,
 observability (Prometheus, Grafana, Jaeger, OTel Collector), and ConfigMaps for
 init SQL and collector configuration. Horizontal Pod Autoscaling (HPA) is
 configured for the backend service.
@@ -26,7 +26,6 @@ configured for the backend service.
 |                    |   backend, SERVICE_JWT_SECRET, BACKEND_URL, ENABLE_REDIS     |
 | backend.yaml       | Deployment + Service + HPA (port 8080, cpu 70%)                 |
 | frontend.yaml      | Deployment + Service (port 3000)                                |
-| chroma.yaml        | Deployment + Service + PVC (port 8000, 1Gi)                     |
 | redis.yaml         | Deployment + Service (port 6379)                                |
 | postgres.yaml      | ConfigMap (init SQL) + PVC + Deployment + Service (port 5432,   |
 |                    |   1Gi)                                                          |
@@ -59,14 +58,14 @@ configured for the backend service.
     │echo-agent│ │echo-post │ │ echo-redis   │
     │  :3001   │ │gres:5432 │ │  :6379       │
     └────┬─────┘ └──────────┘ └──────────────┘
-         │                        ▲
-         │  LLM call              │
-         │  (host)                │
-         ▼                        │
-    ┌──────────┐            ┌────┴────────┐
-    │ LLM host │            │ echo-chroma │
-    │ (host)   │            │   :8000     │
-    └──────────┘            └─────────────┘
+         │
+         │  LLM call
+         │  (host)
+         ▼
+    ┌──────────┐
+    │ LLM host │
+    │ (host)   │
+    └──────────┘
 
          ┌──────────────────────────────────────────────────┐
          │              OBSERVABILITY PLANE                  │
@@ -98,7 +97,6 @@ configured for the backend service.
 | echo-agent            | 3001        | 3001                | app: echo-agent        |
 | echo-backend          | 8080        | 8080                | app: echo-backend      |
 | echo-frontend         | 3000        | 3000                | app: echo-frontend     |
-| echo-chroma           | 8000        | 8000                | app: echo-chroma       |
 | echo-redis            | 6379        | 6379                | app: echo-redis        |
 | echo-postgres         | 5432        | 5432                | app: echo-postgres     |
 | echo-otel-collector   | 4317/4318/  | gRPC, HTTP, metrics | app: echo-otel-        |
@@ -171,7 +169,6 @@ configured for the backend service.
 | PVC           | Size | Access Mode    | Mounted By      | Mount Path                 |
 +---------------+------+----------------+-----------------+----------------------------+
 | postgres-pvc  | 1Gi  | ReadWriteOnce  | echo-postgres   | /var/lib/postgresql/data   |
-| chroma-pvc    | 1Gi  | ReadWriteOnce  | echo-chroma     | /chroma/chroma             |
 +---------------+------+----------------+-----------------+----------------------------+
 
 ## Ingress
@@ -206,7 +203,6 @@ Next.js frontend.
 | backend.yaml       | Deployment, Service, HorizontalPodAutoscaler (SERVICE_JWT_   |
 |                    |   SECRET env)                                                |
 | frontend.yaml      | Deployment, Service                                       |
-| chroma.yaml        | PersistentVolumeClaim, Deployment, Service                |
 | redis.yaml         | Deployment, Service                                       |
 | postgres.yaml      | ConfigMap, PersistentVolumeClaim, Deployment, Service     |
 | ingress.yaml       | Ingress (Kong)                                            |

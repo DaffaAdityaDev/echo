@@ -30,6 +30,8 @@ go.work
 bin/
 /server
 /backend/server
+/app/KataraGnosis/backend/server
+/app/KataraGnosis/backend/bin/
 
 ### NextJS ###
 # dependencies

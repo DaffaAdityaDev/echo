@@ -1,23 +1,18 @@
 ================================================================================
-  Tool Retriever - Keyword-Based Tool Relevance Retrieval (ChromaDB planned)
+  Tool Retriever - Keyword-Based Tool Relevance Retrieval
 ================================================================================
   Module    : Tool Retriever
   Service   : agent
   Version   : 1.0
-  Updated   : 2026-07-09
+  Updated   : 2026-08-19
 ================================================================================
 
 ## Description
 
 The `ToolRetriever` class implements a lightweight, in-memory keyword-and-description
-scoring system to select the most relevant tools for a given user prompt. It is
-**not** a vector database retriever (no ChromaDB client is used at runtime);
-instead, it provides deterministic, zero-dependency tool selection with a fallback
-mechanism.
-
-> **Planned Enhancement:** `CHROMA_URL` is declared in `config/env.schema.ts` for
-> future ChromaDB-powered semantic retrieval, but no vector client is implemented yet.
-> The current runtime uses only the keyword-based `ToolRetriever`.
+scoring system to select the most relevant tools for a given user prompt. It provides
+deterministic, zero-dependency tool selection with an empty fallback mechanism
+(strict allowlist).
 
 ---
 
@@ -53,7 +48,7 @@ src/core/agent/services/
 │  │                                                                        │
 │  ┌─ Name matching (weight 0.1)                                           │
 │  │   prompt in name OR name in prompt → score += 0.1                     │
-│                                                                           │
+│  │                                                                        │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │
                                  ▼
@@ -106,9 +101,9 @@ src/core/agent/services/
 | `retriever.ts`              | 4-54                        | `ToolRetriever` — no constructor, no index state  |
 | `retriever.ts`              | 8-54                        | `getRelevantTools()` — full scoring and selection |
 | `retriever.ts`              | 48-51                       | Fallback — filters `allTools` by name; can return [] |
-| `constants.ts`    | 1-4                         | `RETRIEVER_CONFIG` — default limit and min score  |
-| `constants.ts`    | 6-10                        | `MATCH_WEIGHTS` — per-scoring-category weights    |
-| `constants.ts`    | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback name filter |
+| `constants.ts`              | 1-4                         | `RETRIEVER_CONFIG` — default limit and min score  |
+| `constants.ts`              | 6-10                        | `MATCH_WEIGHTS` — per-scoring-category weights    |
+| `constants.ts`              | 12                          | `RETRIEVER_FALLBACK_TOOLS` — fallback name filter |
 +-----------------------------+-----------------------------+---------------------------------------------------+
 
 ================================================================================

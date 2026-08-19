@@ -36,20 +36,6 @@ services:
     networks:
       - dokploy-network
 
-  chroma:
-    image: chromadb/chroma:0.5.23
-    container_name: echo_chroma
-    volumes:
-      - chroma_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-    networks:
-      - dokploy-network
-
   # --- AUTOMATED DATABASE MIGRATION & SEEDING ---
   echo-migrate:
     build:
@@ -104,7 +90,6 @@ services:
       - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
       - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
-      - CHROMA_URL=${CHROMA_URL:-http://chroma:8000}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-pk-lf-dummy}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-sk-lf-dummy}
       - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-http://localhost:3000}
@@ -186,7 +171,7 @@ services:
 
   echo-frontend:
     build:
-      context: ./frontend/web
+      context: ./app/web
       target: runner
       args:
         - BACKEND_URL=http://echo-backend:8080
@@ -217,7 +202,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  chroma_data:
 
 networks:
   dokploy-network:

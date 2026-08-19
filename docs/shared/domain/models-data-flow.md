@@ -198,7 +198,7 @@ skill_nodes table:                   skill_edges table:
 
 **Fields**: id, user_id, name, tag, difficulty, estimated_hours, content_path,
 created_at
-**Service**: Go Backend. Chroma DB (agent) for semantic indexing (planned).
+**Service**: Go Backend. Vector indexing in Qdrant (Katara).
 **Storage**: PostgreSQL `topics` table. Raw content in S3/local disk.
 
 ## Card (Spaced Repetition)
@@ -284,7 +284,7 @@ repetitions, last_score, priority, created_at
 1. User requests mission OR completes card -> triggers Go service
 2. Go calls Agent via HTTP: POST /api/v1/generate-mission
 3. Agent fetches user context (cards, weak topics) from Go API
-4. Agent queries Chroma for relevant content (RAG)
+4. Agent queries knowledge index for relevant content (RAG)
 5. Agent uses LLM to generate mission prompt
 6. Agent returns mission via HTTP SSE stream
 7. Go stores mission in missions table
@@ -318,7 +318,7 @@ created_at
        │                            │  new EF, interval, due        │
        │                            │──────────────────────────────►│
        │                            │                               │
-       │                            │  Embed answer -> Chroma       │
+       │                            │  Embed answer -> Vector Store │
        │                            │  (future similarity           │
        │                            │   search)                     │
        │                            │                               │

@@ -31,7 +31,6 @@ static export for frontend.
 |   frontend.yaml             | Deployment, Service                                   |
 |   postgres.yaml             | ConfigMap (init SQL), PVC, Deployment, Service        |
 |   redis.yaml                | Deployment, Service                                   |
-|   chroma.yaml               | PVC, Deployment, Service (port 8000, 1Gi)              |
 |   otel-collector.yaml       | ConfigMap, Deployment, Service (ports 4317, 4318, 8889)|
 |   monitoring.yaml           | Jaeger + Prometheus + Grafana (Deployments + Services) |
 |   ingress.yaml              | Kong Ingress (echo.local)                             |
@@ -42,14 +41,14 @@ static export for frontend.
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
 │                            DOCKER COMPOSE NETWORK                                      │
 │                                                                                       │
-│   ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐             │
-│   │    postgres      │     │     redis        │     │    chroma        │             │
-│   │    :5432         │     │    :6379         │     │    :8000         │             │
-│   │    ankane/       │     │    redis:7-       │     │    chromadb/     │             │
-│   │    pgvector      │     │    alpine         │     │    chroma        │             │
-│   └──────────────────┘     └──────────────────┘     └──────────────────┘             │
-│           │                       │                        │                          │
-│           └───────────┬───────────┴───────────┬────────────┘                          │
+│   ┌──────────────────┐     ┌──────────────────┐                                       │
+│   │    postgres      │     │     redis        │                                       │
+│   │    :5432         │     │    :6379         │                                       │
+│   │    ankane/       │     │    redis:7-       │                                       │
+│   │    pgvector      │     │    alpine         │                                       │
+│   └──────────────────┘     └──────────────────┘                                       │
+│           │                       │                                                   │
+│           └───────────┬───────────┴───────────────────────────────────┐               │
 │                       │                       │                                       │
 │                       ▼                       ▼                                       │
 │              ┌────────────────────┐  ┌────────────────────┐                           │
@@ -178,10 +177,9 @@ CMD ["bun", "run", "start"]
 Startup Order:
   1. postgres       -> (init SQL + pgvector)
   2. redis          -> (state store + pub/sub)
-  3. chroma         -> (RAG vector DB)
-  4. agent          -> (depends on redis)
-  5. backend        -> (depends on postgres + agent)
-  6. frontend       -> (depends on backend)
+  3. agent          -> (depends on redis)
+  4. backend        -> (depends on postgres + agent)
+  5. frontend       -> (depends on backend)
   7. otel-collector -> (depends on nothing)
   8. jaeger         -> (depends on otel-collector)
   9. prometheus     -> (depends on nothing)
@@ -244,8 +242,8 @@ kubectl apply -f infra/k8s/ingress.yaml
 | File                                        | Lines | Role                                 |
 +---------------------------------------------+-------+--------------------------------------+
 | docker-compose.yml                          | 1-84  | Infrastructure services (postgres,   |
-|                                             |       |   chroma, redis, rabbitmq, otel,     |
-|                                             |       |   jaeger, prometheus, grafana)       |
+|                                             |       |   redis, otel, jaeger,               |
+|                                             |       |   prometheus, grafana)               |
 | docker-compose.dev.yml                      | 1-67  | Dev service definitions (agent,      |
 |                                             |       |   backend, frontend)                 |
 | docker-compose.prod.yml                     | 1-56  | Production service definitions       |

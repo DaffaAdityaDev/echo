@@ -40,7 +40,6 @@ flowchart TB
     subgraph Infra["Infrastructure Layer"]
         K[(PostgreSQL + pgvector)]
         L[(Redis<br/>Pub/Sub + Cache)]
-        M[(ChromaDB<br/>Vector Store)]
         N[(RabbitMQ<br/>Message Queue)]
     end
 
@@ -55,10 +54,9 @@ flowchart TB
     E --> F & G
     F -->|POST /api/v1/generate-mission<br/>+ strategy_version| H
     S --> H
-    G <-->|Service JWT Auth| H
     H --> I --> J
     H -->|Memory Callback| G
-    G --> K & L & M & N
+    G --> K & L & N
     E & F & H -->|OTLP Traces / Metrics| O & P
     O & P --> Q
     H -->|LLM Spans| R
@@ -74,7 +72,7 @@ flowchart TB
 - **Multi-LLM Provider Support**: Dynamic model dispatch supporting OpenAI, Anthropic, and local LLM endpoints (LM Studio, Ollama) via LangChain & LangGraph.
 - **Hybrid Memory Architecture**:
   - *Episodic Memory*: Structured database storage via PostgreSQL.
-  - *Semantic Memory*: High-dimensional vector search powered by ChromaDB & `pgvector`.
+  - *Semantic Memory*: High-dimensional vector search powered by `pgvector` & Qdrant.
   - *Procedural & Transient Memory*: In-memory cache and real-time Pub/Sub via Redis.
 - **Real-Time SSE Streaming**: Native Server-Sent Events (SSE) proxy in Go Gateway for low-latency streaming of agent execution steps.
 - **Full Observability Suite**: End-to-end tracing and metric collection with Jaeger, Prometheus, Grafana, and LLM-specific telemetry via Langfuse.
@@ -90,7 +88,7 @@ flowchart TB
 | **Web Frontend** | Next.js 16 + React | Modern chat interface, session monitoring, and admin dashboard |
 | **Desktop Client** | Electron | Cross-platform desktop application wrapping client workflows |
 | **Discord Bot** | Go (`DiscordGo`) | Asynchronous agent interaction bot for Discord channels |
-| **Databases** | PostgreSQL (`pgvector`), ChromaDB, Redis | Relational storage, vector embeddings, and transient caching |
+| **Databases** | PostgreSQL (`pgvector`), Qdrant, Redis | Relational storage, vector embeddings, and transient caching |
 | **Message Queue** | RabbitMQ | Asynchronous task distribution and inter-service messaging |
 | **Observability** | Jaeger, Prometheus, Grafana, Langfuse | OpenTelemetry tracing, metrics collection, and LLM telemetry |
 
@@ -140,7 +138,6 @@ make dev-down
 | **Grafana Dashboard** | `http://localhost:3100` | Telemetry Dashboards |
 | **Jaeger UI** | `http://localhost:16686` | Distributed Tracing UI |
 | **Prometheus** | `http://localhost:9090` | Metrics Explorer |
-| **ChromaDB Vector Store** | `http://localhost:8000` | Vector Database |
 | **PostgreSQL** | `localhost:5432` | Database Connection |
 | **Redis** | `localhost:6379` | Cache / PubSub |
 

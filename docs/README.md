@@ -11,10 +11,10 @@
 +------------------+----------------------------------------------------------+
 | Agent (Hono/Bun) | docs/agent/README.md                                     |
 | Backend (Go)     | docs/backend/README.md                                   |
-| Frontend Web     | docs/frontend/web/README.md                              |
-| Frontend Desktop | docs/frontend/dekstop/README.md                          |
-| Frontend Discord | docs/frontend/discord/README.md                          |
-| KataraGnosis     | docs/frontend/katara-gnosis/README.md                    |
+| App Web          | docs/app/web/README.md                                   |
+| App Desktop      | docs/app/dekstop/README.md                               |
+| App Discord      | docs/app/discord/README.md                               |
+| KataraGnosis     | docs/app/katara-gnosis/README.md                         |
 | Infrastructure   | docs/infrastructure/README.md                            |
 +------------------+----------------------------------------------------------+
 

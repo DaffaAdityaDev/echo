@@ -51,12 +51,6 @@ blocks in both compose files.
 │                  │   pgvector   │    │   sessions   │    │   LLM call   │───────────┘ │
 │                  └──────────────┘    └──────────────┘    └──────────────┘             │
 │                                                                                       │
-│                  ┌──────────────┐    ┌──────────────┐                                 │
-│                  │  ChromaDB    │    │  RabbitMQ    │                                 │
-│                  │  (not in any│    │  (not in any │                                 │
-│                  │   compose)   │    │   compose)   │                                 │
-│                  └──────────────┘    └──────────────┘                                 │
-│                                                                                       │
 │                  ┌──────────────────────────────────────────────┐                     │
 │                  │ Observability (commented out in compose):    │                     │
 │                  │ Jaeger ◄─ OTel Collector ─► Prometheus ─►    │                     │
@@ -84,12 +78,9 @@ blocks in both compose files.
 | Frontend         | 3000           | **3000** (base)    | **3000** (prod)     |
 +------------------+----------------+--------------------+---------------------+
 
-> **Note:** ChromaDB and RabbitMQ are documented in the architecture but are
-> not present in any Docker Compose file (ChromaDB appears only in the K8s
-> manifests and is unused by code; RabbitMQ exists nowhere). The observability
-> stack (OTel Collector, Jaeger, Prometheus, Grafana) is defined but commented
-> out in all compose files — enable by uncommenting and setting
-> `ENABLE_OTEL=true`.
+> **Note:** The observability stack (OTel Collector, Jaeger, Prometheus,
+> Grafana) is defined but commented out in all compose files — enable by
+> uncommenting and setting `ENABLE_OTEL=true`.
 
 > **Lifecycle worker [Active]**: no new container. The consolidation/decay
 

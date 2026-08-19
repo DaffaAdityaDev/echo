@@ -20,7 +20,7 @@ retrieval, and server bootstrapping.
 | Document              | Description                                                  |
 +-----------------------+--------------------------------------------------------------+
 | api-routes.md         | Hono REST API route structure, middleware pipeline, endpoints |
-| chroma-retriever.md   | Tool relevance retrieval via keyword matching                |
+| retriever.md          | Tool relevance retrieval via keyword matching                |
 | telemetry.md          | OpenTelemetry integration and Langfuse observability         |
 | server-entry.md       | Application entry point, env config, bootstrap lifecycle     |
 +-----------------------+--------------------------------------------------------------+

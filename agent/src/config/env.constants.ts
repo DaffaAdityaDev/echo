@@ -1,7 +1,6 @@
 export const ENV_DEFAULTS = {
   PORT: "3001",
   GRPC_PORT: "50051",
-  CHROMA_URL: "http://localhost:8000",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   LANGFUSE_BASE_URL: "http://localhost:3000",
   BACKEND_URL: "http://localhost:8080",

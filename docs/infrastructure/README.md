@@ -25,7 +25,7 @@ initialization.
 | monitoring.md      | Observability pipeline — OTel,            | Completed               |
 |                    |   Prometheus, Grafana, Jaeger             |                         |
 | database.md        | Data store configuration — Postgres,      | Completed               |
-|                    |   Redis, ChromaDB, RabbitMQ               |                         |
+|                    |   Redis, Qdrant                           |                         |
 +--------------------+-------------------------------------------+-------------------------+
 
 ## Quick Reference

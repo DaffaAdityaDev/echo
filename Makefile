@@ -75,3 +75,34 @@ clean:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
 	docker system prune -f
+
+# Katara Targets
+katara-backend-build:
+	cd app/KataraGnosis/backend && go build ./...
+
+katara-backend-test:
+	cd app/KataraGnosis/backend && go test ./...
+
+katara-frontend-build:
+	cd app/KataraGnosis/frontend && bun run build
+
+katara-dev-up:
+	cd app/KataraGnosis && docker compose up -d --build
+
+katara-dev-down:
+	cd app/KataraGnosis && docker compose down -v
+
+katara-dev-logs:
+	cd app/KataraGnosis && docker compose logs -f
+
+katara-garage-init:
+	@echo "Initializing GarageHQ single-node cluster and bucket..."
+	@bash -c 'NODE_ID=$$(docker exec katara_garage /garage status 2>/dev/null | grep -E "^[0-9a-f]{16}" | awk "{print \$$1}" | head -n 1); \
+	if [ -n "$$NODE_ID" ]; then \
+		docker exec katara_garage /garage layout assign -z garage -c 1G $$NODE_ID; \
+		docker exec katara_garage /garage layout apply --version 1; \
+		docker exec katara_garage /garage bucket create inquizitive-docs 2>/dev/null || true; \
+		docker exec katara_garage /garage key create katara-key 2>/dev/null || true; \
+		docker exec katara_garage /garage bucket allow --read --write --key katara-key inquizitive-docs 2>/dev/null || true; \
+		echo "GarageHQ cluster, katara-key, and bucket inquizitive-docs initialized successfully."; \
+	fi'
