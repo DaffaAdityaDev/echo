@@ -117,11 +117,24 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
           event.usage.cachedTokens ?? 0,
         );
 
-        const enrichedUsage = {
-          ...event.usage,
+        const enrichedUsage: JsonObject = {
+          promptTokens: event.usage.promptTokens,
+          completionTokens: event.usage.completionTokens,
+          totalTokens: event.usage.totalTokens,
           estimatedCostUsd: stepCost,
-          maxContextTokens: provider.maxContextTokens,
         };
+
+        if (event.usage.cachedTokens !== undefined) {
+          enrichedUsage.cachedTokens = event.usage.cachedTokens;
+        }
+
+        if (event.usage.reasoningTokens !== undefined) {
+          enrichedUsage.reasoningTokens = event.usage.reasoningTokens;
+        }
+
+        if (provider.maxContextTokens !== undefined) {
+          enrichedUsage.maxContextTokens = provider.maxContextTokens;
+        }
 
         await emitter.emitUsage(onPacket, iteration, enrichedUsage);
         usageResult = {
