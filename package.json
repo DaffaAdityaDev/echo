@@ -1,0 +1,35 @@
+{
+  "name": "echo-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "agent",
+    "app/web",
+    "app/dekstop"
+  ],
+  "scripts": {
+    "dev": "turbo dev --filter=backend --filter=echo-agent --filter=web",
+    "dev:all": "turbo dev",
+    "dev:katara": "turbo dev --filter=katara-backend --filter=katara-gnosis",
+    "build": "turbo build --filter=backend --filter=echo-agent --filter=web",
+    "build:all": "turbo build",
+    "lint": "turbo lint --filter=backend --filter=echo-agent --filter=web",
+    "lint:all": "turbo lint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "security": "turbo run security",
+    "test": "turbo test --filter=backend --filter=echo-agent --filter=web",
+    "test:all": "turbo test",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.82.0",
+    "lefthook": "^2.1.12",
+    "oxfmt": "^0.67.0",
+    "oxlint": "1.82.0",
+    "turbo": "^2.10.12",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "bun@1.4.0"
+}

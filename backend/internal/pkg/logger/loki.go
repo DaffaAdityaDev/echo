@@ -145,8 +145,8 @@ func (w *lokiWriter) push(entries []lokiEntry) {
 	if err != nil {
 		return
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
 }
 
 // streamLabels returns the stream label set: the fixed base labels with any

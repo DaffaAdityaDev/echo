@@ -10,23 +10,32 @@ export const dynamic = "force-dynamic";
 function resolveSpecCandidates(): string[] {
   const envPath = process.env.NEXT_PUBLIC_SPEC_PATH || process.env.SPEC_PATH;
   const candidates = [];
+
   if (envPath) {
     candidates.push(path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath));
   }
-  candidates.push(
-    path.resolve(process.cwd(), "../../backend/api/docs/swagger.json"),
-    path.resolve(process.cwd(), "backend/api/docs/swagger.json"),
-    path.resolve(process.cwd(), "public/api/swagger.json"),
-  );
+
+  if (process.env.NODE_ENV === "development") {
+    candidates.push(
+      path.resolve(/*turbopackIgnore: true*/ process.cwd(), "../../backend/api/docs/swagger.json"),
+      path.resolve(/*turbopackIgnore: true*/ process.cwd(), "backend/api/docs/swagger.json"),
+    );
+  }
+
+  candidates.push(path.resolve(/*turbopackIgnore: true*/ process.cwd(), "public/api/swagger.json"));
+
   return candidates;
 }
 
 export async function GET() {
   const tried: string[] = [];
+
   for (const candidate of resolveSpecCandidates()) {
     tried.push(candidate);
+
     try {
       const spec = JSON.parse(fs.readFileSync(candidate, "utf-8"));
+
       return NextResponse.json(spec, {
         headers: { "Cache-Control": "no-store" },
       });

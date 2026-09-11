@@ -2,13 +2,15 @@ package middleware
 
 import (
 	"context"
-	authconst "echo-backend/internal/constants/auth"
-	domainconst "echo-backend/internal/constants/domain"
-	"echo-backend/internal/constants/locals"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/constants/locals"
+	authmodel "echo-backend/internal/models/auth"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -137,4 +139,42 @@ func TestAuthRequiredTier(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockAPIKeyGetter struct {
+	key *authmodel.ApiKey
+	err error
+}
+
+func (m *mockAPIKeyGetter) GetByHash(_ context.Context, _ string) (*authmodel.ApiKey, error) {
+	return m.key, m.err
+}
+
+func TestAuthRequiredAPIKey(t *testing.T) {
+	t.Parallel()
+
+	mockGetter := &mockAPIKeyGetter{
+		key: &authmodel.ApiKey{
+			ID:     "key-123",
+			UserID: "42",
+			Name:   "Katara Key",
+			Status: domainconst.StatusActive,
+			Scopes: []string{"read", "write"},
+		},
+	}
+
+	app := fiber.New()
+	app.Get("/test-apikey", AuthRequired("secret", func(_ context.Context, _ string) string { return "pro" }, mockGetter), func(c fiber.Ctx) error {
+		assert.Equal(t, "42", c.Locals(locals.UserID))
+		assert.Equal(t, "pro", c.Locals(locals.UserTier))
+		assert.Equal(t, "key-123", c.Locals(locals.APIKeyID))
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test-apikey", nil)
+	req.Header.Set(authconst.HeaderAuthorization, "Bearer echo_sk_test12345678")
+
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }

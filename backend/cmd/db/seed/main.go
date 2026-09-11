@@ -69,7 +69,7 @@ func countTokensViaAgent(text string) int {
 		slog.Warn(msgconst.WarnAgentTokenizeUnreachable, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyErr, err)
 		return estimateTokens(text)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Warn(msgconst.WarnAgentTokenizeFailed, msgconst.ComponentKey, msgconst.ComponentSeed, msgconst.KeyStatus, resp.StatusCode)

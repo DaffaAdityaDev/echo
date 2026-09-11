@@ -1,34 +1,73 @@
-"use client";
+"use client"; /* Header */ /* Tab Navigation */ /* Tab Content */ /* Footer */
 
-import { RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
+import { Key, RotateCcw, Save, Shield, Sliders, User, X, Zap } from "lucide-react";
+
 import { useState } from "react";
+
 import { Button } from "@/components/ui/Button";
+
 import { Tabs } from "@/components/ui/Tabs";
+
 import { useAuth } from "@/features/auth/hooks/useAuth";
+
 import { useToast } from "@/hooks/useToast";
+
 import { useSettingsPage } from "../hooks/useSettingsPage";
+
 import { AccountTab } from "./tabs/AccountTab";
+
+import { ApiKeysTab } from "./tabs/ApiKeysTab";
+
 import { CapabilitiesTab } from "./tabs/CapabilitiesTab";
+
 import { HarnessTab } from "./tabs/HarnessTab";
+
 import { PreferencesTab } from "./tabs/PreferencesTab";
 
 export interface SettingsModalProps {
   isOpen: boolean;
+
   onClose: () => void;
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "harness" | "account">("preferences");
-  const { config, loaded, features, skills, groupedModels, handleSave, setConfig, resetConfig } = useSettingsPage();
+  const [activeTab, setActiveTab] = useState<"preferences" | "capabilities" | "harness" | "api_keys" | "account">(
+    "preferences",
+  );
+
+  const {
+    config,
+
+    loaded,
+
+    features,
+
+    skills,
+
+    groupedModels,
+
+    handleSave,
+
+    setConfig,
+
+    resetConfig,
+  } = useSettingsPage();
+
   const { user, logout } = useAuth();
+
   const { showToast } = useToast();
 
   if (!isOpen) return null;
 
   const tabs = [
     { id: "preferences", label: "Preferences", icon: Sliders },
+
     { id: "capabilities", label: "Capabilities & Skills", icon: Zap },
+
     { id: "harness", label: "Harness Toggles", icon: Shield },
+
+    { id: "api_keys", label: "API Keys", icon: Key },
+
     { id: "account", label: "Account & Security", icon: User },
   ] as const;
 
@@ -42,7 +81,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       />
 
       <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 p-6 md:p-8 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-2xl transition-all duration-300 max-h-[85vh] flex flex-col select-none">
-        {/* Header */}
+        {}
         <div className="flex items-center justify-between pb-4 border-b border-zinc-200/80 dark:border-zinc-800/80 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
@@ -51,7 +90,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div>
               <h3 className="text-lg font-bold font-display tracking-tight">Agent Settings</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Manage default intelligence models, harness tools, and profile.
+                Manage default intelligence models, harness tools, API keys, and profile.
               </p>
             </div>
           </div>
@@ -76,12 +115,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {}
         <div className="pt-4 border-b border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
           <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} itemClassName="px-3.5 py-2.5 rounded-t-xl" />
         </div>
 
-        {/* Tab Content */}
+        {}
         <div className="flex-1 overflow-y-auto py-5 space-y-6 min-h-0">
           {!loaded ? (
             <div className="text-center py-10 text-xs text-zinc-400">Loading settings...</div>
@@ -91,12 +130,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <CapabilitiesTab config={config} features={features} skills={skills} setConfig={setConfig} />
           ) : activeTab === "harness" ? (
             <HarnessTab config={config} setConfig={setConfig} />
+          ) : activeTab === "api_keys" ? (
+            <ApiKeysTab />
           ) : (
             <AccountTab user={user} logout={logout} onClose={onClose} />
           )}
         </div>
 
-        {/* Footer */}
+        {}
         <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-end gap-3 shrink-0">
           <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
             Cancel
@@ -105,8 +146,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             size="sm"
             onClick={async () => {
               const ok = await handleSave();
+
               showToast(
                 ok ? "Settings successfully updated and saved!" : "Failed to save settings",
+
                 ok ? "success" : "error",
               );
             }}

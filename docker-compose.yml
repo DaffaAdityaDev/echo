@@ -82,6 +82,8 @@ services:
     build:
       context: ./agent
     container_name: echo_agent
+    ports:
+      - "${AGENT_PORT:-3001}:3001"
     environment:
       - PORT=${AGENT_PORT:-3001}
       - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
@@ -119,6 +121,8 @@ services:
       context: ./backend
       target: runner
     container_name: echo_backend
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
       - PORT=${BACKEND_PORT:-8080}
       - ENVIRONMENT=${ENVIRONMENT:-production}
@@ -177,6 +181,8 @@ services:
         - BACKEND_URL=http://echo-backend:8080
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     container_name: echo_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - PORT=${FRONTEND_PORT:-3000}
       - HOSTNAME=0.0.0.0

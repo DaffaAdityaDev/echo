@@ -1,10 +1,11 @@
 ================================================================================
-  Features - Business Feature Implementations
+Features - Business Feature Implementations
 ================================================================================
-  Module    : Features
-  Service   : backend
-  Version   : 1.1
-  Updated   : 2026-08-05 (governance: agent prompt delivery)
+
+Module : Features
+Service : backend
+Version : 1.1
+Updated : 2026-08-05 (governance: agent prompt delivery)
 ================================================================================
 
 This directory documents the business feature implementations of the Echo
@@ -14,25 +15,27 @@ Documentation Index
 -------------------
 
 +------------------------------------------+----------------------------------------------------+
-| Module                                   | Description                                        |
+| Module | Description |
 +------------------------------------------+----------------------------------------------------+
-| auth.md                                  | JWT authentication, registration stub, login flow, |
-|                                          | token signing, cookie management, middleware        |
-| chat-streaming.md                        | SSE streaming relay, agent communication, two      |
-|                                          | modes (local/SaaS), mission log streaming,         |
-| strategy/                                | Strategy catalog, 3-step resolution order,         |
-|                                          | resolution [Active]                                |
-| worker/                                  | Background lifecycle worker (consolidation, decay, |
-|                                          | rollout cache — in-process goroutine [Active]      |
-| model-management.md                      | Provider-agnostic model listing and resolution,    |
-|                                          | caching with double-checked locking, fallback      |
-|                                          | chain across OpenAI, Anthropic, LM Studio, OpenCode|
-| governance.md                            | Roles, RBAC, prompt governance & change management,   |
-|                                          | agent prompt delivery via internal endpoint [Active] |
-| lifecycle worker (in server-lifecycle.md)| Background consolidation, decay/GC, strategy       |
-|                                          | rollout cache — in-process goroutine [Active]      |
+| auth.md | JWT authentication, registration stub, login flow, |
+| | token signing, cookie management, middleware |
+| chat-streaming.md | SSE streaming relay, agent communication, two |
+| | modes (local/SaaS), mission log streaming, |
+| strategy/ | Strategy catalog, 3-step resolution order, |
+| | resolution [Active] |
+| worker/ | Background lifecycle worker (consolidation, decay, |
+| | rollout cache — in-process goroutine [Active] |
+| model-management.md | Provider-agnostic model listing and resolution, |
+| | caching with double-checked locking, fallback |
+| | chain across OpenAI, Anthropic, LM Studio, OpenCode|
+| governance.md | Roles, RBAC, prompt governance & change management, |
+| | agent prompt delivery via internal endpoint [Active] |
+| api-keys-and-integration.md | Developer API Keys, M2M authentication, one-way hash,|
+| | multi-tenant isolation, external integration [Active]|
+| lifecycle worker (in server-lifecycle.md)| Background consolidation, decay/GC, strategy |
+| | rollout cache — in-process goroutine [Active] |
 +------------------------------------------+----------------------------------------------------+
 
 ================================================================================
-  (c) 2026 Echo - All Rights Reserved
+(c) 2026 Echo - All Rights Reserved
 ================================================================================

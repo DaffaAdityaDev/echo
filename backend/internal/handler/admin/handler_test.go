@@ -2,17 +2,18 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/constants/locals"
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,14 @@ func (m *mockAPIKeyRepo) List(ctx context.Context) ([]authmodel.ApiKey, error) {
 	return args.Get(0).([]authmodel.ApiKey), args.Error(1)
 }
 
+func (m *mockAPIKeyRepo) ListByUserID(ctx context.Context, userID string) ([]authmodel.ApiKey, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]authmodel.ApiKey), args.Error(1)
+}
+
 func (m *mockAPIKeyRepo) GetByID(ctx context.Context, id string) (*authmodel.ApiKey, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
@@ -46,6 +55,11 @@ func (m *mockAPIKeyRepo) GetByID(ctx context.Context, id string) (*authmodel.Api
 
 func (m *mockAPIKeyRepo) Revoke(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *mockAPIKeyRepo) RevokeByUserID(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
 	return args.Error(0)
 }
 
@@ -132,4 +146,56 @@ func TestHandleCreateKey(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestHandleListUserKeys(t *testing.T) {
+	t.Parallel()
+
+	mockRepo := new(mockAPIKeyRepo)
+	mockRepo.On("ListByUserID", mock.Anything, "1").Return([]authmodel.ApiKey{
+		{ID: "k1", Name: "Key 1", UserID: "1", Prefix: "echo_sk_1234", Status: domainconst.StatusActive},
+	}, nil)
+
+	h := &Handler{
+		Cfg:        &cfgmodel.Config{},
+		APIKeyRepo: mockRepo,
+	}
+
+	app := fiber.New()
+	app.Get("/api-keys", func(c fiber.Ctx) error {
+		c.Locals(locals.UserID, "1")
+		return h.HandleListUserKeys(c)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api-keys", nil)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestHandleRevokeUserKey(t *testing.T) {
+	t.Parallel()
+
+	mockRepo := new(mockAPIKeyRepo)
+	mockRepo.On("RevokeByUserID", mock.Anything, "key-uuid", "1").Return(nil)
+
+	h := &Handler{
+		Cfg:        &cfgmodel.Config{},
+		APIKeyRepo: mockRepo,
+	}
+
+	app := fiber.New()
+	app.Delete("/api-keys/:id", func(c fiber.Ctx) error {
+		c.Locals(locals.UserID, "1")
+		return h.HandleRevokeUserKey(c)
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api-keys/key-uuid", nil)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	mockRepo.AssertExpectations(t)
 }

@@ -5,11 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "docs": "node api/merge.mjs",
-    "build": "bun run docs && bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "bun run docs && bun build ./src/index.ts --outdir ./dist --target bun --minify",
     "start": "bun run dist/index.js",
     "dev": "bun --watch src/index.ts",
-    "lint": "biome check --write .",
-    "format": "biome format --write .",
+    "lint": "oxlint .",
+    "format": "oxfmt .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

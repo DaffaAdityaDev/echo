@@ -217,3 +217,12 @@ agent/.echo/
 GEMINI.md
 skills-lock.json
 agent/langfuse/
+
+# Turborepo & Build caches
+.turbo/
+.turbo
+.eslintcache
+
+# Air temporary build output
+backend/tmp/
+tmp/

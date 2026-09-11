@@ -1,0 +1,14 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "air",
+    "build": "go build -ldflags=\"-s -w\" -trimpath -o ./bin/echo-backend.exe cmd/server/main.go",
+    "lint": "golangci-lint run ./...",
+    "format": "gofumpt -w .",
+    "format:check": "gofumpt -l .",
+    "security": "govulncheck ./...",
+    "test": "gotestsum --format pkgname -- ./..."
+  }
+}

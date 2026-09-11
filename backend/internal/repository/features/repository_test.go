@@ -3,14 +3,14 @@ package features
 import (
 	"bufio"
 	"context"
-	domainconst "echo-backend/internal/constants/domain"
-	envconst "echo-backend/internal/constants/env"
-	msgconst "echo-backend/internal/constants/msg"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	domainconst "echo-backend/internal/constants/domain"
+	envconst "echo-backend/internal/constants/env"
+	msgconst "echo-backend/internal/constants/msg"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -39,7 +39,7 @@ func TestFeatureRepository(t *testing.T) {
 	}
 	dbURL := os.Getenv(envconst.DatabaseURL)
 	if dbURL == "" {
-		t.Skip(fmt.Sprintf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL))
+		t.Skipf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL)
 	}
 
 	ctx := context.Background()

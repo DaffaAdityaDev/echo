@@ -3,13 +3,13 @@ package session
 import (
 	"bufio"
 	"context"
-	envconst "echo-backend/internal/constants/env"
-	msgconst "echo-backend/internal/constants/msg"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	envconst "echo-backend/internal/constants/env"
+	msgconst "echo-backend/internal/constants/msg"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,7 +38,7 @@ func TestSessionRepository(t *testing.T) {
 	}
 	dbURL := os.Getenv(envconst.DatabaseURL)
 	if dbURL == "" {
-		t.Skip(fmt.Sprintf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL))
+		t.Skipf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL)
 	}
 
 	ctx := context.Background()
@@ -62,7 +62,7 @@ func TestSessionRepository(t *testing.T) {
 		t.Skipf("Database unreachable, skipping integration test: %v", err)
 	}
 
-	fmt.Println("Connected to PostgreSQL successfully")
+	t.Log("Connected to PostgreSQL successfully")
 
 	repo := NewRepository(pool)
 
@@ -73,7 +73,6 @@ func TestSessionRepository(t *testing.T) {
 	}
 
 	session, err := repo.CreateSession(ctx, testUserID, "Test Session Title", "nlah:v1")
-
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
