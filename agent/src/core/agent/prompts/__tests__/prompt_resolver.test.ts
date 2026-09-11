@@ -32,11 +32,12 @@ const EXPECTED_PROMPT = {
 };
 
 function stubRedis(overrides: Partial<Pick<Redis, "get" | "set">> = {}): Redis {
+  // SAFETY: Test mock fixture satisfying Redis interface contract for prompt resolver
   return {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue("OK"),
     ...overrides,
-  } as unknown as Redis;
+  } as never;
 }
 
 describe("resolveBehaviorPrompt", () => {
@@ -105,6 +106,7 @@ describe("resolveBehaviorPrompt", () => {
     const redis = stubRedis({
       get: vi.fn().mockResolvedValueOnce(null).mockResolvedValue(JSON.stringify(EXPECTED_PROMPT)),
     });
+
     const adapter = new PromptAdapter({ baseUrl, redis });
     fetchMock.mockResolvedValue(new Response(JSON.stringify(SAMPLE_RESPONSE), { status: 200 }));
 

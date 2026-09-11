@@ -16,12 +16,14 @@ export class CancellationManager {
     if (!CancellationManager.instance) {
       CancellationManager.instance = new CancellationManager();
     }
+
     return CancellationManager.instance;
   }
 
   public register(missionId: string): AbortSignal {
     const controller = new AbortController();
     this.controllers.set(missionId, controller);
+
     return controller.signal;
   }
 
@@ -36,10 +38,13 @@ export class CancellationManager {
     this.cancelledIds.set(missionId, Date.now());
     this.pruneCancelledIds();
     const controller = this.controllers.get(missionId);
+
     if (!controller) {
       logger.info(`CancellationManager: Marking mission ${missionId} cancelled (no active controller)`);
+
       return;
     }
+
     logger.info(`CancellationManager: Cancelling mission ${missionId} locally`);
     controller.abort();
     this.controllers.delete(missionId);
@@ -48,6 +53,7 @@ export class CancellationManager {
   private pruneCancelledIds() {
     if (this.cancelledIds.size <= CANCELLED_IDS_CAP) return;
     let overflow = this.cancelledIds.size - CANCELLED_IDS_CAP;
+
     for (const missionId of this.cancelledIds.keys()) {
       if (overflow <= 0) break;
       this.cancelledIds.delete(missionId);

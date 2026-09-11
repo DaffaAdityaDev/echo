@@ -43,6 +43,9 @@ export function MaturityScoringGuide({
 }: MaturityScoringGuideProps) {
   const [subTab, setSubTab] = React.useState<"self" | "client">("self");
 
+  // SAFETY: clientAssessment.scores is an exhaustive record indexed by MaturityDimensionKey
+  const dimensionKeys = Object.keys(clientAssessment.scores) as MaturityDimensionKey[];
+
   return (
     <div className="space-y-6">
       {/* Sub-tab selection */}
@@ -77,6 +80,7 @@ export function MaturityScoringGuide({
           <div className="space-y-2 mt-4">
             {questions.map((q) => {
               const isChecked = !!questionAnswers[q.id];
+
               return (
                 <button
                   key={q.id}
@@ -166,8 +170,9 @@ export function MaturityScoringGuide({
               Dimension Level & Evidence Inputs
             </h4>
 
-            {(Object.keys(clientAssessment.scores) as MaturityDimensionKey[]).map((dimKey) => {
+            {dimensionKeys.map((dimKey) => {
               const item = clientAssessment.scores[dimKey];
+
               return (
                 <div key={dimKey} className="border border-zinc-800/60 bg-zinc-950/60 rounded-xl p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

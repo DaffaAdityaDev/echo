@@ -8,7 +8,7 @@ import { downloadJson } from "@/utils/download";
 import { PACKET_TYPES } from "../../constants";
 import { useChatStore } from "../../stores/chatStore";
 
-const typeBadgeColors: Record<string, string> = {
+const TYPE_BADGE_COLORS = {
   metadata: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
   reasoning: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   content: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -18,7 +18,16 @@ const typeBadgeColors: Record<string, string> = {
   usage: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
   swarm_status: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
   error: "bg-red-600/20 text-red-600 dark:text-red-400 border-red-500/30 font-bold",
-};
+} as const;
+
+function getTypeBadgeColor(type: string): string {
+  if (type in TYPE_BADGE_COLORS) {
+    // SAFETY: Verified type key exists in TYPE_BADGE_COLORS constant map
+    return TYPE_BADGE_COLORS[type as keyof typeof TYPE_BADGE_COLORS];
+  }
+
+  return "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700";
+}
 
 export function PacketLogsPanel() {
   const packetLogs = useChatStore((s) => s.packetLogs);
@@ -33,6 +42,7 @@ export function PacketLogsPanel() {
   const filteredPackets = packetLogs.filter((p) => {
     const matchesType = packetFilter === "all" || p.type === packetFilter;
     const matchesSearch = !packetSearch || JSON.stringify(p).toLowerCase().includes(packetSearch.toLowerCase());
+
     return matchesType && matchesSearch;
   });
 
@@ -97,9 +107,7 @@ export function PacketLogsPanel() {
           filteredPackets.map((pkt, idx) => {
             const isExpanded = expandedPacketIndex === idx;
             const pktType = pkt.type || "packet";
-            const badgeStyle =
-              typeBadgeColors[pktType] ||
-              "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700";
+            const badgeStyle = getTypeBadgeColor(pktType);
             const dateStr = new Date(pkt.timestamp).toLocaleTimeString();
 
             return (

@@ -10,11 +10,17 @@ type TodoInput = { id: string; description: string; status: string };
 
 function buildChecklist(todos: TodoInput[]): string {
   const lines = ["# Mission Plan", ""];
+
   for (const todo of todos) {
     const checked = todo.status === "done" ? "x" : " ";
     lines.push(`- [${checked}] ${todo.description}`);
   }
+
   return `${lines.join("\n")}\n`;
+}
+
+interface PlanningToolConfig {
+  missionId?: string;
 }
 
 export const writeTodosTool: ToolDefinition = {
@@ -32,17 +38,18 @@ export const writeTodosTool: ToolDefinition = {
       )
       .describe(SCHEMA_DESC.TODOS),
   }),
-  execute: async (input: { todos: TodoInput[] }, config?: unknown): Promise<Observation> => {
+  execute: async (input: { todos: TodoInput[] }, config?: PlanningToolConfig): Promise<Observation> => {
     try {
       logger.info(PLANNING_LOGS.UPDATING, { count: input.todos.length });
       const stateRoot = process.env.STATE_ROOT ?? "./.echo/state/";
       // Scope the plan file per mission so concurrent missions on one process
       // do not clobber each other's STATE.md.
-      const missionId = config && typeof config === "object" ? (config as { missionId?: string }).missionId : undefined;
+      const missionId = config?.missionId;
       const missionDir = missionId ? join(stateRoot, missionId.replace(/[^a-zA-Z0-9._-]/g, "_")) : stateRoot;
       mkdirSync(missionDir, { recursive: true });
       const stateFile = join(missionDir, "STATE.md");
       writeFileSync(stateFile, buildChecklist(input.todos), "utf8");
+
       return {
         status: OPERATION_STATUS.SUCCESS,
         summary: PLANNING_TEMPLATES.SUMMARY_SUCCESS(input.todos.length),
@@ -51,6 +58,7 @@ export const writeTodosTool: ToolDefinition = {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(PLANNING_LOGS.FAILED, error);
+
       return {
         status: OPERATION_STATUS.ERROR,
         summary: `${PLANNING_LOGS.ERROR_PREFIX}: ${errorMessage}`,

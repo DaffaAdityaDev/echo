@@ -4,5 +4,6 @@ import type { FeaturesResponse } from "./features.schema";
 
 export function getFeatures(c: Context) {
   const features: FeaturesResponse = getImplementedFeatures();
+
   return c.json(features);
 }

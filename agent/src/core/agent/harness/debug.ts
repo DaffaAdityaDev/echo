@@ -28,7 +28,7 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
       const shortMissionId = state.missionId.slice(0, 8);
 
       const sampleMsg = state.messages[0];
-      const isLangChainInstance = sampleMsg && typeof sampleMsg._getType === "function";
+      const isLangChainInstance = Boolean(sampleMsg && sampleMsg._getType instanceof Function);
       const storageStatus = isLangChainInstance ? "✅ HEALTHY" : "❌ OBJECT_CORRUPT";
 
       const messageHistoryString = state.messages
@@ -36,8 +36,11 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
           const rawType = m._getType ? m._getType().toUpperCase() : "UNKNOWN";
 
           let badge = "⚪ UNKNOWN";
+
           if (rawType === "HUMAN") badge = "🟢 HUMAN";
+
           if (rawType === "AI") badge = "🤖 AI_THOUGHT";
+
           if (rawType === "TOOL") badge = "⚙️ TOOL_OBSERVATION";
 
           return `**[MsgID: ${idx}] ${badge}:**\n${m.content}\n`;
@@ -63,6 +66,7 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
       const pureMessagesString = state.messages
         .map((m, idx) => {
           const rawType = m._getType ? m._getType() : "unknown";
+
           return `[Message ${idx}] [${rawType}]:\n${m.content}`;
         })
         .join("\n\n");

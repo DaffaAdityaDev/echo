@@ -44,9 +44,11 @@ export function TracesPanel() {
   // Selected Span
   const selectedSpan = useMemo(() => {
     if (!trace) return null;
+
     if (selectedSpanId) {
       return trace.spans.find((s) => s.id === selectedSpanId) || null;
     }
+
     return trace.spans[0] || null;
   }, [trace, selectedSpanId]);
 

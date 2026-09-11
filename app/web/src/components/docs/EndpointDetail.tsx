@@ -11,19 +11,29 @@ interface EndpointDetailProps {
   definitions?: Record<string, SchemaObject>;
 }
 
-const methodStyles: Record<string, string> = {
-  get: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30",
-  post: "bg-blue-500/10 text-blue-500 border border-blue-500/30",
-  put: "bg-amber-500/10 text-amber-500 border border-amber-500/30",
-  delete: "bg-rose-500/10 text-rose-500 border border-rose-500/30",
-  patch: "bg-purple-500/10 text-purple-500 border border-purple-500/30",
-};
+function getMethodStyle(method: string): string {
+  switch (method.toLowerCase()) {
+    case "get":
+      return "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30";
+    case "post":
+      return "bg-blue-500/10 text-blue-500 border border-blue-500/30";
+    case "put":
+      return "bg-amber-500/10 text-amber-500 border border-amber-500/30";
+    case "delete":
+      return "bg-rose-500/10 text-rose-500 border border-rose-500/30";
+    case "patch":
+      return "bg-purple-500/10 text-purple-500 border border-purple-500/30";
+    default:
+      return "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20";
+  }
+}
 
 function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
   const method = endpoint.method.toUpperCase();
   const rawBase = (baseUrl || "http://localhost:8080/api/v1").replace(/\/+$/, "");
 
   let cleanPath = endpoint.path.replace(/\{(\w+)\}/g, "<$1>");
+
   if (!cleanPath.startsWith("/")) {
     cleanPath = `/${cleanPath}`;
   }
@@ -32,6 +42,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
   try {
     const urlObj = new URL(rawBase);
     const basePrefix = urlObj.pathname.replace(/\/+$/, "");
+
     if (basePrefix && basePrefix !== "/" && cleanPath.startsWith(basePrefix)) {
       cleanPath = cleanPath.substring(basePrefix.length);
     }
@@ -47,6 +58,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
   const hasBody = endpoint.method === "post" || endpoint.method === "put" || endpoint.method === "patch";
 
   const headers: string[] = [];
+
   if (hasBody) {
     headers.push('-H "Content-Type: application/json"');
   }
@@ -73,6 +85,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
     const props = endpoint.requestBodySchema.properties
       ? Object.fromEntries(Object.keys(endpoint.requestBodySchema.properties).map((key) => [key, `<${key}>`] as const))
       : { message: "<string>" };
+
     lines.push(`  -d '${JSON.stringify(props, null, 2).replace(/\n/g, "\n  ")}'`);
   } else {
     lines[lines.length - 1] = lines[lines.length - 1].replace(/ \\$/, "");
@@ -83,7 +96,7 @@ function generateCurl(endpoint: Endpoint, baseUrl?: string): string {
 
 export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetailProps) {
   const curl = generateCurl(endpoint, baseUrl);
-  const methodColor = methodStyles[endpoint.method] || "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20";
+  const methodColor = getMethodStyle(endpoint.method);
 
   const pathParams = endpoint.parameters.filter((p) => p.in === "path");
   const queryParams = endpoint.parameters.filter((p) => p.in === "query");
@@ -184,6 +197,7 @@ function ResponseCard({
   sse?: boolean;
 }) {
   const statusNum = parseInt(response.statusCode, 10);
+
   const colorClass =
     statusNum >= 200 && statusNum < 300
       ? "text-emerald-600 font-bold"
@@ -194,6 +208,7 @@ function ResponseCard({
           : "text-muted font-bold";
 
   const hasProperties = !!response.schema?.properties;
+
   const example = sse
     ? SSE_SAMPLE
     : response.schema && hasProperties

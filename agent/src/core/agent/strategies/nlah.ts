@@ -16,6 +16,7 @@ export class NLAHStrategy implements AgentStrategy {
 
   buildSystemPrompt(state: AgentState, tools: ToolDefinition[], behaviorPrompt?: BehaviorPrompt | null): string {
     const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+
     const toolDescriptions =
       sortedTools.length > 0 ? sortedTools.map((t) => `- ${t.name}: ${t.description}`).join("\n") : "(none)";
 
@@ -29,24 +30,29 @@ export class NLAHStrategy implements AgentStrategy {
       : "DIRECT MODE (active): No delegation tools are enabled. Answer directly using the tools listed below. If no tools are available at all, respond from your own knowledge — do not attempt tool calls.";
 
     const protocolLines: string[] = [];
+
     if (hasDelegation) {
       protocolLines.push(
         "Orchestrator Only: You are prohibited from editing files directly unless synthesizing sub-agent results. Always delegate researcher tasks to sub-agents.",
       );
     }
+
     if (hasTodos) {
       protocolLines.push(
         "In-State Planning: Start by creating a plan using write_todos. Track progress (pending, in_progress, done, failed).",
       );
     }
+
     if (hasDelegation) {
       protocolLines.push(
         "Clear Validation: Before finishing, verify that the sub-agents successfully completed their tasks and generated appropriate files.",
       );
     }
+
     if (hasTodos) {
       protocolLines.push("Durable State: Your state is logged in STATE.md. Ensure write_todos updates this.");
     }
+
     if (hasResearchTools) {
       protocolLines.push("Evidence-backed: Support every claim with a cited tool result.");
     }
@@ -57,6 +63,7 @@ export class NLAHStrategy implements AgentStrategy {
         : "None. Proceed with execution.";
 
     let workflow = "";
+
     if (behaviorPrompt?.systemPrompt) {
       let substitutedPrompt = behaviorPrompt.systemPrompt
         .replace(/{tools}/g, () => toolDescriptions)
@@ -68,6 +75,7 @@ export class NLAHStrategy implements AgentStrategy {
           .replace(/SUB-AGENT DELEGATION PROTOCOL:[\s\S]*?(?=\n\n|\n[A-Z_]+:|$)/gi, "")
           .trim();
       }
+
       workflow = substitutedPrompt;
     } else if (hasDelegation) {
       workflow = DEFAULT_NLAH_BEHAVIOR;

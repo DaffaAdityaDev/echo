@@ -17,6 +17,7 @@ export function CapabilitiesTab({ config, features, skills, setConfig }: Capabil
     const next = config.defaultFeatures.includes(id)
       ? config.defaultFeatures.filter((f) => f !== id)
       : [...config.defaultFeatures, id];
+
     setConfig({ defaultFeatures: next });
   };
 
@@ -24,6 +25,7 @@ export function CapabilitiesTab({ config, features, skills, setConfig }: Capabil
     const next = config.defaultSkills.includes(name)
       ? config.defaultSkills.filter((s) => s !== name)
       : [...config.defaultSkills, name];
+
     setConfig({ defaultSkills: next });
   };
 

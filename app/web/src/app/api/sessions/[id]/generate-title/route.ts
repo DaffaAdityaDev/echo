@@ -9,6 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const token = await getRequestToken();
   const { id } = await params;
   const body = await req.json();
+
   return proxyFetch(`${BASE_URL}/sessions/${id}/generate-title`, {
     method: "POST",
     headers: {

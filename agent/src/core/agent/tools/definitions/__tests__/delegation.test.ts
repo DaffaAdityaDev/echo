@@ -1,9 +1,9 @@
-import type { LLMProvider } from "../../../../../shared/types";
+import type { AgentState, LLMProvider } from "../../../../../shared/types";
 import { delegate_task } from "../delegation";
 
 const mocks = vi.hoisted(() => ({
   harnessRunImpl: async (
-    _state: unknown,
+    _state: AgentState,
     _onPacket: (packet: { type: string; content?: string }) => Promise<void>,
   ): Promise<void> => {},
 }));
@@ -32,12 +32,13 @@ vi.mock("../../../../../shared/utils/langfuse", () => ({
 vi.mock("../../../harness", () => {
   class MockNlahHarness {
     async runMission(
-      state: unknown,
+      state: AgentState,
       onPacket: (packet: { type: string; content?: string }) => Promise<void>,
     ): Promise<void> {
       await mocks.harnessRunImpl(state, onPacket);
     }
   }
+
   return { NlahHarness: MockNlahHarness };
 });
 
@@ -48,16 +49,19 @@ describe("delegate_task", () => {
     systemPrompt: "You are a research analyst.",
     fork_context: false,
   };
-  const provider = { stream: vi.fn() } as unknown as LLMProvider;
+
+  // SAFETY: Test mock fixture implementing LLMProvider
+  const provider = { stream: vi.fn() } as LLMProvider;
 
   beforeEach(() => {
     mocks.harnessRunImpl = async (
-      _state: unknown,
+      _state: AgentState,
       onPacket: (packet: { type: string; content?: string }) => Promise<void>,
     ) => {
       await onPacket({ type: "content", content: "Child final output" });
       await onPacket({ type: "reasoning", content: "Child reasoning" });
     };
+
     vi.clearAllMocks();
   });
 
@@ -74,7 +78,9 @@ describe("delegate_task", () => {
         instruction: "Research",
         systemPrompt: "Be a researcher",
       });
+
       expect(parsed.success).toBe(true);
+
       if (parsed.success) {
         expect(parsed.data.fork_context).toBe(false);
       }
@@ -101,7 +107,7 @@ describe("delegate_task", () => {
 
     test("collects reasoning packets into the step logs", async () => {
       mocks.harnessRunImpl = async (
-        _state: unknown,
+        _state: AgentState,
         onPacket: (packet: { type: string; content?: string }) => Promise<void>,
       ) => {
         await onPacket({ type: "reasoning", content: "Step one" });

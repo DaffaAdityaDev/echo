@@ -6,6 +6,7 @@ import { useChatStore } from "@/features/chat/stores/chatStore";
 import type { StreamPacket } from "@/features/chat/types";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import type { AgentConfig } from "@/features/settings/types";
+import type { JsonObject, JsonValue } from "@/types/json";
 import { applyPacketToTrace } from "./trace-reducers";
 
 export interface Span {
@@ -18,9 +19,9 @@ export interface Span {
   startTime: number;
   endTime?: number;
   durationMs: number;
-  input?: unknown;
-  output?: unknown;
-  metadata?: Record<string, unknown>;
+  input?: JsonValue;
+  output?: JsonValue;
+  metadata?: JsonObject;
   tokens?: number;
   cost?: number;
 }
@@ -41,7 +42,7 @@ export interface Trace {
   costUsd: number;
   model?: string;
   output?: string;
-  metadata: Record<string, unknown>;
+  metadata: JsonObject;
   spans: Span[];
 }
 
@@ -50,6 +51,11 @@ interface TraceState {
   addOrUpdateTraceFromPacket: (packet: StreamPacket) => void;
   finalizeInterruptedForSession: (sessionId: string) => void;
   clearTraces: () => void;
+}
+
+interface InterruptedTracesResult {
+  traces: Trace[];
+  interruptedAny: boolean;
 }
 
 // Traces are ephemeral session telemetry: kept in memory only, never persisted
@@ -84,11 +90,13 @@ const interruptOtherStreamingTraces = (
   traceId: string,
   sessionId: string | null,
   timestamp: number,
-): { traces: Trace[]; interruptedAny: boolean } => {
+): InterruptedTracesResult => {
   let interruptedAny = false;
+
   const nextTraces = traces.map((t) => {
     if (sessionId && t.id !== traceId && t.status === "streaming" && t.sessionId === sessionId) {
       interruptedAny = true;
+
       return {
         ...t,
         status: "interrupted" as const,
@@ -106,8 +114,10 @@ const interruptOtherStreamingTraces = (
         ),
       };
     }
+
     return t;
   });
+
   return { traces: nextTraces, interruptedAny };
 };
 
@@ -119,8 +129,10 @@ export const useTraceStore = create<TraceState>((set) => ({
   finalizeInterruptedForSession: (sessionId) => {
     set((state) => {
       const timestamp = Date.now();
+
       const nextTraces = state.traces.map((t) => {
         if (t.status !== "streaming" || t.sessionId !== sessionId) return t;
+
         return {
           ...t,
           status: "interrupted" as const,
@@ -138,6 +150,7 @@ export const useTraceStore = create<TraceState>((set) => ({
           ),
         };
       });
+
       return { traces: nextTraces };
     });
   },
@@ -152,6 +165,7 @@ export const useTraceStore = create<TraceState>((set) => ({
       const sessionTitle = chatStore.sessions.find((s) => s.id === activeSessionId)?.title || "New Chat";
 
       const traceIndex = state.traces.findIndex((t) => t.id === traceId);
+
       const trace =
         traceIndex === -1
           ? createTrace(traceId, timestamp, activeSessionId, sessionTitle, useSettingsStore.getState().config)
@@ -165,6 +179,7 @@ export const useTraceStore = create<TraceState>((set) => ({
         timestamp,
         getActiveParentSpanId: (spans) => {
           const activeSubagent = [...spans].reverse().find((s) => s.type === "subagent" && s.status === "streaming");
+
           return activeSubagent ? activeSubagent.id : null;
         },
       });
@@ -179,6 +194,7 @@ export const useTraceStore = create<TraceState>((set) => ({
           : { traces: state.traces, interruptedAny: false };
 
       const nextTraces = interrupted.traces;
+
       if (traceIndex === -1) {
         nextTraces.unshift(trace);
       } else {

@@ -28,9 +28,10 @@ export function Modal({ isOpen, onClose, title, description, children, className
   React.useEffect(() => {
     if (!isOpen) return;
 
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const panel = panelRef.current;
+
     if (panel) {
       const focusables = getFocusableElements(panel);
       (focusables[0] ?? panel).focus();
@@ -39,14 +40,18 @@ export function Modal({ isOpen, onClose, title, description, children, className
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+
         return;
       }
+
       if (e.key !== "Tab" || !panel) return;
 
       const focusables = getFocusableElements(panel);
+
       if (focusables.length === 0) {
         e.preventDefault();
         panel.focus();
+
         return;
       }
 

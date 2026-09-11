@@ -8,6 +8,7 @@ const BASE_URL = getBackendApiUrl();
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
+
   return proxyFetch(`${BASE_URL}/studio/prompts/${id}/versions`, {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const token = await getRequestToken();
   const { id } = await params;
   const body = await req.json();
+
   return proxyFetch(`${BASE_URL}/studio/prompts/${id}/versions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

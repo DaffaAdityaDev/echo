@@ -19,6 +19,7 @@ const STATUS_MAP: Record<VersionStatus, { label: string; style: string }> = {
 
 export function VersionStatusBadge({ status }: { status: VersionStatus }) {
   const cfg = STATUS_MAP[status] ?? STATUS_MAP.draft;
+
   return (
     <span
       className={cn(

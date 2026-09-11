@@ -14,29 +14,40 @@ import { HITL_DECISIONS, MISSION_ERROR_MESSAGES, STREAM_LOG_MESSAGES } from "./m
 import { hitlDecisionSchema } from "./mission.schema";
 import { streamHarnessExecution } from "./mission-execution";
 
+function isPausedMissionState(val: AgentState | PausedMissionState | null): val is PausedMissionState {
+  return val != null && "pendingToolCall" in val && "harnessSnapshot" in val;
+}
+
 export async function handleHitlDecision(c: Context) {
-  const missionId = c.req.param("id") as string;
+  const missionId = c.req.param("id") ?? "";
 
   const parseResult = hitlDecisionSchema.safeParse(await c.req.json());
+
   if (!parseResult.success) {
     logger.error("Invalid HITL decision payload", parseResult.error.format());
+
     return c.json(
       { error: MISSION_ERROR_MESSAGES.INVALID_DECISION, details: parseResult.error.format() },
       HTTP_STATUS.BAD_REQUEST,
     );
   }
+
   const body = parseResult.data;
 
-  const pausedState = (await stateStorage.get(`paused:${body.approvalId}`)) as unknown as PausedMissionState | null;
-  if (!pausedState) {
+  const rawState = await stateStorage.get(`paused:${body.approvalId}`);
+
+  if (!isPausedMissionState(rawState)) {
     return c.json({ error: MISSION_ERROR_MESSAGES.APPROVAL_EXPIRED_OR_NOT_FOUND }, HTTP_STATUS.NOT_FOUND);
   }
+
+  const pausedState = rawState;
 
   // A cancelled mission must not be resumable: the run was stopped (user
   // interrupt or disconnect), so a late approval would otherwise resurrect a
   // dead execution on a fresh harness.
   if (cancellationManager.isCancelled(missionId)) {
     await stateStorage.delete(`paused:${body.approvalId}`);
+
     return c.json({ error: MISSION_ERROR_MESSAGES.MISSION_CANCELLED }, HTTP_STATUS.CONFLICT);
   }
 
@@ -46,15 +57,19 @@ export async function handleHitlDecision(c: Context) {
 
   if (body.decision === HITL_DECISIONS.APPROVE) {
     const toolMap = new Map<string, ToolDefinition>();
+
     for (const [name, tool] of toolRegistry.resolveToolsMap(harnessSnapshot.toolNames)) {
       toolMap.set(name, tool);
     }
+
     for (const restConfig of harnessSnapshot.restTools ?? []) {
       toolMap.set(restConfig.name, createRestTool(restConfig));
     }
+
     const tool = toolMap.get(pendingToolCall.name);
 
     let observation: Observation;
+
     if (tool) {
       observation = await tool.execute(pendingToolCall.args);
     } else {
@@ -80,6 +95,7 @@ export async function handleHitlDecision(c: Context) {
   const providerConfig =
     body.provider_config ??
     (isProviderConnectionConfig(harnessSnapshot.providerConfig) ? harnessSnapshot.providerConfig : null);
+
   if (!providerConfig) {
     return c.json({ error: MISSION_ERROR_MESSAGES.PROVIDER_CONFIG_REQUIRED }, HTTP_STATUS.BAD_REQUEST);
   }
@@ -90,14 +106,17 @@ export async function handleHitlDecision(c: Context) {
     model: providerConfig.model,
     api_key: providerConfig.api_key ?? undefined,
   });
+
   const strategy = StrategyFactory.create(harnessSnapshot.strategyName);
 
   const behaviorPrompt = harnessSnapshot.behaviorPrompt ?? null;
   const restoredRestTools = (harnessSnapshot.restTools ?? []).map(createRestTool);
+
   const restoredTools = applyBoundTools(
     Array.from(toolRegistry.resolveToolsMap(harnessSnapshot.toolNames).values()),
     behaviorPrompt?.boundTools ?? [],
   );
+
   if (restoredRestTools.length > 0) {
     restoredTools.push(...restoredRestTools);
   }

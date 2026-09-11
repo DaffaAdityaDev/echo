@@ -1,13 +1,17 @@
 import { HumanMessage } from "@langchain/core/messages";
 import type { Mock } from "vitest";
+import { z } from "zod";
 import type {
   AgentState,
   AgentStrategy,
   HarnessFeatureToggles,
+  JsonObject,
+  JsonValue,
   LLMProvider,
   ProviderEvent,
   ToolDefinition,
 } from "../../../../shared/types";
+import type { BehaviorPrompt } from "../../prompts";
 import { startAgentTrace } from "../../../../shared/utils/langfuse";
 import { stateStorage } from "../../storage/factory";
 import { cancellationManager } from "../cancel_manager";
@@ -30,7 +34,7 @@ vi.mock("../../../../shared/utils/logger", () => ({
 vi.mock("../../../../shared/utils/langfuse", () => ({
   langfuseStorage: {
     getStore: () => undefined,
-    run: async (_context: unknown, fn: () => Promise<void>) => fn(),
+    run: async (_context: JsonValue, fn: () => Promise<void>) => fn(),
   },
   startAgentTrace: vi.fn(() => null),
 }));
@@ -43,13 +47,13 @@ vi.mock("../../storage/factory", () => ({
   },
 }));
 
-const FAKE_TOOL = vi.hoisted(() => ({
+const FAKE_TOOL: ToolDefinition = {
   name: "fake_tool",
   description: "Fake tool used by harness tests",
   keywords: ["fake"],
-  schema: {},
-  execute: vi.fn(async () => ({ status: "success", summary: "did it", data: { ok: true } }) as Record<string, unknown>),
-}));
+  schema: z.object({}),
+  execute: vi.fn(async () => ({ status: "success" as const, summary: "did it", data: { ok: true } })),
+};
 
 vi.mock("../tools/registry", () => ({
   toolRegistry: { getAllTools: vi.fn(() => [FAKE_TOOL]) },
@@ -57,7 +61,26 @@ vi.mock("../tools/registry", () => ({
 
 interface TestPacket {
   type: string;
-  [key: string]: unknown;
+  [key: string]: JsonValue | undefined;
+}
+
+interface MockProviderResult {
+  provider: LLMProvider;
+  stream: Mock;
+}
+
+interface HarnessInternals {
+  missionId: string;
+  tenantId: string;
+  featureToggles: HarnessFeatureToggles;
+}
+
+interface ApprovalPayload {
+  approvalId: string;
+  toolName: string;
+  args: JsonObject;
+  riskLevel: string;
+  expiresAt: number;
 }
 
 function fakeStrategy(): AgentStrategy {
@@ -67,20 +90,20 @@ function fakeStrategy(): AgentStrategy {
   };
 }
 
-function makeProvider(
-  script: Array<ProviderEvent[]>,
-  options: { maxContextTokens?: number } = {},
-): { provider: LLMProvider; stream: Mock } {
+function makeProvider(script: Array<ProviderEvent[]>, options: { maxContextTokens?: number } = {}): MockProviderResult {
   let call = 0;
+
   const stream = vi.fn(() => {
     const events = script[Math.min(call, script.length - 1)] ?? [];
     call += 1;
+
     return (async function* () {
       for (const event of events) {
         yield event;
       }
     })();
   });
+
   const provider: LLMProvider = {
     modelName: "fake-model",
     baseURL: "http://fake.local",
@@ -89,6 +112,7 @@ function makeProvider(
     cleanupReasoning: vi.fn(async () => {}),
     validate: vi.fn(async () => {}),
   };
+
   return { provider, stream };
 }
 
@@ -102,7 +126,7 @@ function makeHarness(
     missionId: string;
     tenantId: string;
     strategy: AgentStrategy;
-    harnessConfig: Record<string, unknown>;
+    harnessConfig: JsonObject;
   }> = {},
 ): NlahHarness {
   return new NlahHarness({
@@ -110,7 +134,7 @@ function makeHarness(
     strategy: overrides.strategy ?? fakeStrategy(),
     missionId: overrides.missionId ?? "mission-1",
     tenantId: overrides.tenantId ?? "tenant-1",
-    tools: [FAKE_TOOL as unknown as ToolDefinition],
+    tools: [FAKE_TOOL],
     harnessConfig: overrides.harnessConfig,
   });
 }
@@ -121,12 +145,15 @@ async function runHarness(
   onPacket?: (packet: TestPacket) => Promise<void>,
 ): Promise<TestPacket[]> {
   const packets: TestPacket[] = [];
+
   const handler =
     onPacket ??
     (async (packet: TestPacket) => {
       packets.push(packet);
     });
+
   await harness.runMission(state, handler);
+
   return packets;
 }
 
@@ -146,11 +173,13 @@ describe("NlahHarness", () => {
   describe("constructor", () => {
     it("defaults missionId to a uuid and tenantId to DEFAULT_TENANT_ID", () => {
       const { provider } = makeProvider([]);
+
+      // SAFETY: Inspect internal harness constructor properties
       const harness = new NlahHarness({
         provider,
         strategy: fakeStrategy(),
-        tools: [FAKE_TOOL as unknown as ToolDefinition],
-      }) as unknown as { missionId: string; tenantId: string };
+        tools: [FAKE_TOOL],
+      }) as NlahHarness & HarnessInternals;
 
       expect(harness.missionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
       expect(harness.tenantId).toBe(HARNESS_CONFIG.DEFAULT_TENANT_ID);
@@ -158,12 +187,14 @@ describe("NlahHarness", () => {
 
     it("keeps explicit missionId and tenantId", () => {
       const { provider } = makeProvider([]);
+
+      // SAFETY: Inspect internal harness constructor properties
       const harness = new NlahHarness({
         provider,
         strategy: fakeStrategy(),
         missionId: "mission-custom",
         tenantId: "tenant-custom",
-      }) as unknown as { missionId: string; tenantId: string };
+      }) as NlahHarness & HarnessInternals;
 
       expect(harness.missionId).toBe("mission-custom");
       expect(harness.tenantId).toBe("tenant-custom");
@@ -171,11 +202,13 @@ describe("NlahHarness", () => {
 
     it("merges partial harnessConfig over DEFAULT_HARNESS_TOGGLES", () => {
       const { provider } = makeProvider([]);
+
+      // SAFETY: Inspect internal feature toggles after config merging
       const harness = new NlahHarness({
         provider,
         strategy: fakeStrategy(),
         harnessConfig: { systemNotices: { enabled: true, emitBudgetWarnings: false } },
-      }) as unknown as { featureToggles: HarnessFeatureToggles };
+      }) as NlahHarness & HarnessInternals;
 
       expect(harness.featureToggles.systemNotices.enabled).toBe(true);
       expect(harness.featureToggles.systemNotices.emitBudgetWarnings).toBe(false);
@@ -195,6 +228,7 @@ describe("NlahHarness", () => {
         ],
         [{ content: "COMPLETE" }],
       ]);
+
       const state = makeState("mission-1");
       const harness = makeHarness(provider, { missionId: "mission-1" });
       const packets = await runHarness(harness, state);
@@ -238,6 +272,7 @@ describe("NlahHarness", () => {
         [{ content: "Contact <support@example.com> for help. Note: a<b." }],
         [{ content: "CLEAR" }],
       ]);
+
       const state = makeState("mission-escalate-free");
       const harness = makeHarness(provider, { missionId: "mission-escalate-free" });
       const packets = await runHarness(harness, state);
@@ -258,6 +293,7 @@ describe("NlahHarness", () => {
         [{ content: "OK" }],
         [{ content: "CLEAR" }],
       ]);
+
       const state = makeState("mission-escalate");
       const harness = makeHarness(provider, { missionId: "mission-escalate" });
       const packets = await runHarness(harness, state);
@@ -273,6 +309,7 @@ describe("NlahHarness", () => {
         [{ content: "done" }],
         [{ content: "COMPLETE" }],
       ]);
+
       const harness = makeHarness(provider, { missionId: "mission-2" });
       const packets = await runHarness(harness, makeState("mission-2"));
 
@@ -308,13 +345,16 @@ describe("NlahHarness", () => {
         [{ content: "final answer" }],
         [{ content: "COMPLETE" }],
       ]);
+
       FAKE_TOOL.execute.mockImplementation(async () => {
         throw new Error("boom");
       });
+
       const harness = makeHarness(provider, {
         missionId: "mission-3",
         harnessConfig: { loopDetection: { enabled: false } },
       });
+
       const packets = await runHarness(harness, makeState("mission-3"));
 
       expect(FAKE_TOOL.execute).toHaveBeenCalledTimes(3);
@@ -338,11 +378,14 @@ describe("NlahHarness", () => {
         [{ content: "ok" }],
         [{ content: "COMPLETE" }],
       ]);
+
       FAKE_TOOL.execute.mockResolvedValue({ status: "error", summary: "nope", error: "X" });
+
       const harness = makeHarness(provider, {
         missionId: "mission-4",
         harnessConfig: { loopDetection: { enabled: false } },
       });
+
       const packets = await runHarness(harness, makeState("mission-4"));
 
       expect(FAKE_TOOL.execute).toHaveBeenCalledTimes(1);
@@ -357,21 +400,19 @@ describe("NlahHarness", () => {
         [{ content: "final answer" }],
         [{ content: "COMPLETE" }],
       ]);
+
       const harness = makeHarness(provider, {
         missionId: "mission-5",
         harnessConfig: { hitlGuard: { protectedTools: ["fake_tool"], ttlMinutes: 5 } },
       });
+
       const packets = await runHarness(harness, makeState("mission-5"));
 
       const approval = packets.find((p) => p.type === "hitl_approval_required");
       expect(approval).toBeDefined();
-      const approvalPayload = approval?.payload as {
-        approvalId: string;
-        toolName: string;
-        args: Record<string, unknown>;
-        riskLevel: string;
-        expiresAt: number;
-      };
+
+      const approvalPayload = approval?.payload as ApprovalPayload;
+
       expect(String(approvalPayload.approvalId)).toMatch(/^appr_/);
       expect(approvalPayload.toolName).toBe("fake_tool");
       expect(approvalPayload.args).toEqual({ query: "delete it" });
@@ -400,6 +441,7 @@ describe("NlahHarness", () => {
 
     it("aborts on budget maxSteps exceeded before calling the provider", async () => {
       const { provider, stream } = makeProvider([[{ toolCall: { name: "fake_tool", args: { query: "x" } } }]]);
+
       const harness = makeHarness(provider, {
         missionId: "mission-6",
         harnessConfig: {
@@ -414,6 +456,7 @@ describe("NlahHarness", () => {
           },
         },
       });
+
       const packets = await runHarness(harness, makeState("mission-6"));
 
       expect(stream).not.toHaveBeenCalled();
@@ -440,12 +483,15 @@ describe("NlahHarness", () => {
       const { provider } = makeProvider([[{ toolCall: { name: "fake_tool", args: { query: "x" } } }]]);
       const harness = makeHarness(provider, { missionId: "mission-7" });
       const packets: TestPacket[] = [];
+
       const onPacket = async (packet: TestPacket) => {
         packets.push(packet);
+
         if (packet.type === "tool_result") {
           cancelled = true;
         }
       };
+
       await harness.runMission(makeState("mission-7"), onPacket);
 
       expect(FAKE_TOOL.execute).toHaveBeenCalledTimes(1);
@@ -461,6 +507,7 @@ describe("NlahHarness", () => {
         [{ toolCall: { name: "fake_tool", args: { query: "x" } } }],
         [{ content: "COMPLETE" }],
       ]);
+
       const harness = makeHarness(provider, { missionId: "mission-8" });
       const packets = await runHarness(harness, makeState("mission-8"));
 
@@ -475,10 +522,12 @@ describe("NlahHarness", () => {
     it("restoreLoopDetectorHistory preloads the loop ring buffer", async () => {
       const detector = new LoopDetector();
       const hash = detector.generateHash("fake_tool", { query: "x" });
+
       const { provider } = makeProvider([
         [{ toolCall: { name: "fake_tool", args: { query: "x" } } }],
         [{ content: "COMPLETE" }],
       ]);
+
       const harness = makeHarness(provider, { missionId: "mission-9" });
       expect(() => harness.restoreLoopDetectorHistory([hash, hash, hash])).not.toThrow();
 
@@ -493,29 +542,34 @@ describe("NlahHarness", () => {
 
     it("passes the behaviorPrompt through to the strategy", async () => {
       const { provider } = makeProvider([[{ content: "COMPLETE" }]]);
-      let received: unknown = null;
+      let received: BehaviorPrompt | undefined = undefined;
+
       const strategy: AgentStrategy = {
         name: "agent",
-        buildSystemPrompt: (_state: AgentState, _tools: ToolDefinition[], behaviorPrompt?: unknown) => {
-          received = behaviorPrompt;
+        buildSystemPrompt: (_state: AgentState, _tools: ToolDefinition[], behaviorPrompt?: BehaviorPrompt | null) => {
+          received = behaviorPrompt ?? undefined;
+
           return "behavior-aware prompt";
         },
       };
-      const behaviorPrompt = {
+
+      const behaviorPrompt: BehaviorPrompt = {
         templateName: "custom-template",
         version: 1,
         systemPrompt: "custom system prompt",
         boundTools: ["fake_tool"],
         variables: [],
       };
+
       const harness = new NlahHarness({
         provider,
         strategy,
         missionId: "mission-bp",
         tenantId: "tenant-1",
-        tools: [FAKE_TOOL as unknown as ToolDefinition],
+        tools: [FAKE_TOOL],
         behaviorPrompt,
       });
+
       const packets = await runHarness(harness, makeState("mission-bp"));
 
       expect(received).toEqual(behaviorPrompt);
@@ -524,12 +578,13 @@ describe("NlahHarness", () => {
 
     it("filters explicit tools down to the behavior prompt bound tools", async () => {
       const { provider, stream } = makeProvider([[{ content: "COMPLETE" }]]);
+
       const harness = new NlahHarness({
         provider,
         strategy: fakeStrategy(),
         missionId: "mission-bp2",
         tenantId: "tenant-1",
-        tools: [FAKE_TOOL as unknown as ToolDefinition],
+        tools: [FAKE_TOOL],
         behaviorPrompt: {
           templateName: "custom-template",
           version: 1,
@@ -538,6 +593,7 @@ describe("NlahHarness", () => {
           variables: [],
         },
       });
+
       const packets = await runHarness(harness, makeState("mission-bp2"));
 
       expect(stream.mock.calls[0][1]).toEqual([]);
@@ -546,6 +602,7 @@ describe("NlahHarness", () => {
 
     it("compacts context when the token ratio crosses the threshold", async () => {
       const longMessage = "a".repeat(800);
+
       const state: AgentState = {
         missionId: "mission-10",
         objective: "Test objective",
@@ -560,6 +617,7 @@ describe("NlahHarness", () => {
           new HumanMessage(longMessage),
         ],
       };
+
       const { provider, stream } = makeProvider(
         [
           [
@@ -573,6 +631,7 @@ describe("NlahHarness", () => {
         ],
         { maxContextTokens: 1000 },
       );
+
       const harness = makeHarness(provider, { missionId: "mission-10" });
       const packets = await runHarness(harness, state);
 

@@ -20,9 +20,11 @@ describe("ContentSanitizer", () => {
 
   test("strips DSML invoke blocks", () => {
     const s = new ContentSanitizer();
+
     const out = s.sanitize(
       '<dsml><tool_calls><dsml><invoke name="write_todos"><dsml><parameter name="todos" string="false">[]</parameter></dsml></invoke></dsml></tool_calls> hello',
     );
+
     expect(out).not.toContain("dsml");
     expect(out).not.toContain("invoke");
     expect(out).toContain("hello");
@@ -56,6 +58,7 @@ describe("ContentSanitizer", () => {
   test("handles single-character chunks (streamed tag)", () => {
     const s = new ContentSanitizer();
     let out = "";
+
     for (const ch of [
       "<",
       "w",
@@ -93,6 +96,7 @@ describe("ContentSanitizer", () => {
     ]) {
       out += s.sanitize(ch);
     }
+
     out += s.flush();
     expect(out).not.toContain("write_todos");
     expect(out).toContain("clean");
@@ -100,9 +104,11 @@ describe("ContentSanitizer", () => {
 
   test("strips leaked T5-style trace (write_todos + markdown list body)", () => {
     const s = new ContentSanitizer();
+
     const out = s.sanitize(
       "I'll run through the workflow. <write_todos> - [pending] Record objective - [pending] Delegate task </write_todos> The harness is operational.",
     );
+
     expect(out).not.toContain("write_todos");
     expect(out).not.toContain("[pending]");
     expect(out).toContain("The harness is operational.");

@@ -6,5 +6,6 @@ const FAKE_TRACE_PATTERNS: RegExp[] = [
 
 export function isFakeToolTrace(content: string): boolean {
   if (!content) return false;
+
   return FAKE_TRACE_PATTERNS.some((pattern) => pattern.test(content));
 }

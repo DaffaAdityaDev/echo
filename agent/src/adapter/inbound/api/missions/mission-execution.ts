@@ -9,6 +9,16 @@ import { logger } from "../../../../shared/utils/logger";
 import { STREAM_CONSTANTS } from "./mission.constants";
 import { HttpStreamTransport } from "./stream.transport";
 
+interface StreamErrorPacket {
+  type: string;
+  missionId: string;
+  step: number;
+  content: string;
+  code: string;
+  detail?: string;
+  status?: number;
+}
+
 export async function streamHarnessExecution(
   c: Context,
   opts: {
@@ -32,26 +42,37 @@ export async function streamHarnessExecution(
         if (signal.aborted) {
           throw new Error(STREAM_CONSTANTS.CANCELLED_MESSAGE);
         }
+
         await transport.send(packet);
       });
     } catch (streamErr: unknown) {
       const upstream = classifyProviderError(streamErr);
+
       const errorMessage = upstream
         ? upstream.message
         : streamErr instanceof Error
           ? streamErr.message
           : String(streamErr);
+
       logger.error(`${opts.executionLog} ${errorMessage}`, upstream ? { detail: upstream.detail } : undefined);
+
       try {
-        const errorPacket = {
+        const errorPacket: StreamErrorPacket = {
           type: PACKET_TYPES.ERROR,
           missionId: opts.missionId,
           step: STREAM_CONSTANTS.ERROR_STEP,
           content: errorMessage,
           code: upstream?.code ?? STREAM_CONSTANTS.ERROR_CODE,
-          ...(upstream?.detail ? { detail: upstream.detail } : {}),
-          ...(upstream?.status !== undefined ? { status: upstream.status } : {}),
         };
+
+        if (upstream?.detail) {
+          errorPacket.detail = upstream.detail;
+        }
+
+        if (upstream?.status !== undefined) {
+          errorPacket.status = upstream.status;
+        }
+
         await transport.send(errorPacket);
       } catch (sendErr) {
         logger.warn(`${opts.sendErrorLog} ${sendErr}`);

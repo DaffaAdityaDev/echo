@@ -20,6 +20,7 @@ describe("createMissionSchema Validation", () => {
 
     const result = createMissionSchema.safeParse(rawInput);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.prompt).toBe("test");
       expect(result.data.config.harness).toBeDefined();
@@ -40,6 +41,7 @@ describe("createMissionSchema Validation", () => {
 
     const result = createMissionSchema.safeParse(rawInput);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.prompt).toBe("hello");
       expect(result.data.config.harness).toBeDefined();
@@ -60,6 +62,7 @@ describe("createMissionSchema Validation", () => {
 
     const result = createMissionSchema.safeParse(rawInput);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.prompt_template).toBe("behavior_test");
       expect(result.data.tenantId).toBe("local");
@@ -78,6 +81,7 @@ describe("createMissionSchema Validation", () => {
 
     const result = createMissionSchema.safeParse(rawInput);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.prompt_template).toBeUndefined();
       expect(result.data.tenantId).toBe("local-developer");

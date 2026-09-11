@@ -10,6 +10,7 @@ import type { SystemMaturityAssessment } from "../types";
 
 export function useMaturityAssessment() {
   const setMaturity = useStudioStore((s) => s.setMaturity);
+
   const query = useQuery<SystemMaturityAssessment>({
     queryKey: STUDIO_QUERY_KEYS.MATURITY,
     queryFn: studioApi.getMaturity,
@@ -28,6 +29,7 @@ export function useMaturityAssessment() {
 
 export function useSaveClientAssessment() {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: studioApi.saveClientAssessment,
     onSuccess: () => {

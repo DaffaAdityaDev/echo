@@ -1,4 +1,5 @@
 vi.stubEnv("SERVICE_JWT_SECRET", "test-service-jwt-secret-min-32-chars!!");
+
 const jwt = await import("../jwt");
 
 describe("jwt", () => {

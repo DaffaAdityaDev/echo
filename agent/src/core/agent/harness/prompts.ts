@@ -28,13 +28,16 @@ Return ONLY this structured JSON.`,
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
+
       const parsed = JSON.parse(cleaned);
+
       const nextSteps = Array.isArray(parsed.next_course_of_action)
         ? parsed.next_course_of_action
-            .map(
-              (item: string | { action: string }, i: number) =>
-                `${i + 1}. ${typeof item === "string" ? item : item.action}`,
-            )
+            .map((item: string | { action: string }, i: number) => {
+              const actionText = item instanceof Object && "action" in item ? String(item.action) : String(item);
+
+              return `${i + 1}. ${actionText}`;
+            })
             .join("\n")
         : "";
 

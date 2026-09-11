@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	authconst "echo-backend/internal/constants/auth"
-	domainconst "echo-backend/internal/constants/domain"
-	"echo-backend/internal/models/auth"
-	"echo-backend/internal/models/config"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
+
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -184,7 +186,9 @@ func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken, deviceLa
 	}
 
 	if rt.RevokedAt != nil {
-		_ = s.userRepo.RevokeRefreshTokensByUser(ctx, rt.UserID)
+		if err := s.userRepo.RevokeRefreshTokensByUser(ctx, rt.UserID); err != nil {
+			slog.Warn("failed to cascade revoke tokens on revoked token reuse", "user_id", rt.UserID, "err", err)
+		}
 		return nil, ErrRefreshTokenRevoked
 	}
 

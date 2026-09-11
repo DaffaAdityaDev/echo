@@ -9,4 +9,4 @@ export const MATCH_WEIGHTS = {
   NAME: 0.1,
 } as const;
 
-export const RETRIEVER_FALLBACK_TOOLS = [] as const;
+export const RETRIEVER_FALLBACK_TOOLS: readonly string[] = [];

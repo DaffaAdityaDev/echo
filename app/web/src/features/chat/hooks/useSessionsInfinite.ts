@@ -30,6 +30,7 @@ export function useSessionsInfinite() {
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.pagination.offset + lastPage.pagination.limit;
+
       return nextOffset < lastPage.pagination.total ? nextOffset : undefined;
     },
     enabled: isAuthenticated,
@@ -40,6 +41,7 @@ export function useSessionsInfinite() {
   const flattenedSessions = useMemo(() => {
     const seen = new Set<string>();
     const unique: Session[] = [];
+
     for (const page of sessionsData?.pages ?? []) {
       for (const session of page.sessions) {
         if (!seen.has(session.id)) {
@@ -48,6 +50,7 @@ export function useSessionsInfinite() {
         }
       }
     }
+
     return unique;
   }, [sessionsData]);
 
@@ -55,10 +58,13 @@ export function useSessionsInfinite() {
     if (flattenedSessions.length === 0) return;
     setSessions(flattenedSessions);
     const store = useChatStore.getState();
+
     if (store.newChatPending) return;
     const currentId = store.activeSessionId;
     const urlSessionMatch = pathname.match(/^\/session\/([^/]+)/);
+
     if (urlSessionMatch) return;
+
     if (!currentId || !flattenedSessions.some((s) => s.id === currentId)) {
       setActiveSession(flattenedSessions[0].id);
     }
@@ -68,6 +74,7 @@ export function useSessionsInfinite() {
 
   useEffect(() => {
     if (initialised.current) return;
+
     if (sessionsData && sessionsData.pages[0]?.sessions.length === 0) {
       initialised.current = true;
       sessionApi

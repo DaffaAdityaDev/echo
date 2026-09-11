@@ -2,17 +2,28 @@
 
 import React from "react";
 import type { SchemaObject } from "@/lib/docs/types";
+import type { JsonValue } from "@/types/json";
 
-function flattenProperties(
-  schema: SchemaObject | null,
-  definitions?: Record<string, SchemaObject>,
-): { name: string; type: string; required: boolean; description: string; example?: unknown; nested?: SchemaObject }[] {
+function isSchemaObject(val: unknown): val is SchemaObject {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+export interface SchemaFieldItem {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+  example?: JsonValue;
+  nested?: SchemaObject;
+}
+
+function flattenProperties(schema: SchemaObject | null, definitions?: Record<string, SchemaObject>): SchemaFieldItem[] {
   if (!schema?.properties) return [];
 
   const requiredFields = new Set<string>(schema.required || []);
 
   return Object.entries(schema.properties).map(([name, raw]) => {
-    const prop = raw as SchemaObject;
+    const prop: SchemaObject = isSchemaObject(raw) ? raw : {};
 
     let typeStr = prop.type || "object";
     let nested: SchemaObject | undefined;
@@ -20,6 +31,7 @@ function flattenProperties(
     if (prop.$ref) {
       const refName = prop.$ref.replace("#/definitions/", "").replace("#/components/schemas/", "");
       const resolved = definitions?.[refName];
+
       if (resolved) {
         nested = resolved;
         typeStr = resolved.type || "object";
@@ -33,7 +45,8 @@ function flattenProperties(
     }
 
     if (prop.items) {
-      const items = prop.items as SchemaObject;
+      const items: SchemaObject = isSchemaObject(prop.items) ? prop.items : {};
+
       if (items.$ref) {
         const refName = items.$ref.replace("#/definitions/", "").replace("#/components/schemas/", "");
         typeStr = `array<${refName}>`;
@@ -47,7 +60,9 @@ function flattenProperties(
     }
 
     if (prop.additionalProperties) {
-      typeStr = `map<string, ${typeof prop.additionalProperties === "object" ? (prop.additionalProperties as SchemaObject).type || "any" : "any"}>`;
+      const addProps = isSchemaObject(prop.additionalProperties) ? prop.additionalProperties.type || "any" : "any";
+
+      typeStr = `map<string, ${addProps}>`;
     }
 
     return {
@@ -72,6 +87,7 @@ export function SchemaViewer({ schema, title, definitions, maxDepth = 2 }: Schem
   if (!schema) return null;
 
   const fields = flattenProperties(schema, definitions);
+
   if (fields.length === 0) return null;
 
   return <SchemaTable fields={fields} title={title} definitions={definitions} depth={0} maxDepth={maxDepth} />;
@@ -84,14 +100,7 @@ export function SchemaTable({
   depth,
   maxDepth,
 }: {
-  fields: {
-    name: string;
-    type: string;
-    required: boolean;
-    description: string;
-    example?: unknown;
-    nested?: SchemaObject;
-  }[];
+  fields: SchemaFieldItem[];
   title?: string;
   definitions?: Record<string, SchemaObject>;
   depth: number;

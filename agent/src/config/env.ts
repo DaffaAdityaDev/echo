@@ -9,13 +9,9 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.error("❌ [CONFIG ERROR] Environment Variables validation failed:");
 
-  const formattedErrors = parsedEnv.error.format();
-  Object.keys(formattedErrors).forEach((key) => {
-    if (key !== "_errors") {
-      const entry = (formattedErrors as unknown as Record<string, { _errors: string[] }>)[key];
-      console.error(`   👉  ${key}: ${entry?._errors.join(", ")}`);
-    }
-  });
+  for (const issue of parsedEnv.error.issues) {
+    console.error(`   👉  ${issue.path.join(".")}: ${issue.message}`);
+  }
 
   process.exit(1);
 }
@@ -28,4 +24,5 @@ if (parsedEnv.data.INTERNAL_AUTH_TOKEN === KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN) {
 }
 
 export const ENV = parsedEnv.data;
+
 export default ENV;

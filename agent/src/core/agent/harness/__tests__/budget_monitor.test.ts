@@ -17,6 +17,7 @@ describe("BudgetMonitor", () => {
       maxDurationMs: 60000,
       maxCostUsd: 1.0,
     });
+
     expect(m.checkBudget(5, 0.5)).toEqual({ exceeded: false });
   });
 
@@ -78,6 +79,7 @@ describe("BudgetMonitor", () => {
 
   it("steps are checked before timeout and cost", () => {
     vi.spyOn(Date, "now").mockReturnValue(Date.now() + 999_999);
+
     const m = new BudgetMonitor({
       enabled: true,
       maxSteps: 5,
@@ -87,6 +89,7 @@ describe("BudgetMonitor", () => {
       enforceTimeout: true,
       enforceCostCap: true,
     });
+
     const r = m.checkBudget(5, 999);
     expect(r.reason).toBe("MAX_STEPS_EXCEEDED");
   });

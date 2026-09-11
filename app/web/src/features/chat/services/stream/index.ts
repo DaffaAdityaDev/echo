@@ -34,9 +34,11 @@ export function applyStreamPacket(data: StreamPacket): void {
   store.appendPacketLog(data);
 
   const currentMsgs = store.messages;
+
   if (currentMsgs.length === 0) return;
 
   const lastIdx = currentMsgs.length - 1;
+
   const lastMessage: Message = {
     ...currentMsgs[lastIdx],
     steps: [...(currentMsgs[lastIdx].steps || [])],

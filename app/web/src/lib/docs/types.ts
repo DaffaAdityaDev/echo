@@ -6,12 +6,13 @@ export interface SpecInfo {
   basePath?: string;
 }
 
+import type { JsonValue } from "@/types/json";
+
 export interface SchemaProperty {
   name: string;
   type: string;
-  required: boolean;
   description?: string;
-  example?: unknown;
+  required?: boolean;
   enum?: string[];
   items?: SchemaProperty;
   properties?: SchemaProperty[];
@@ -21,10 +22,10 @@ export interface SchemaProperty {
 export interface SchemaObject {
   type?: string;
   description?: string;
-  properties?: Record<string, unknown>;
+  properties?: Record<string, SchemaObject | JsonValue>;
   required?: string[];
   items?: unknown;
-  example?: unknown;
+  example?: JsonValue;
   enum?: string[];
   additionalProperties?: unknown;
   $ref?: string;
@@ -55,7 +56,7 @@ export interface Endpoint {
   parameters: Parameter[];
   requestBodySchema: SchemaObject | null;
   responses: Response[];
-  security: Record<string, string[]>[];
+  security: Array<{ [key: string]: string[] }>;
   produces?: string[];
 }
 

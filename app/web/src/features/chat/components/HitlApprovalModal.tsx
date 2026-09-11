@@ -1,8 +1,31 @@
 "use client";
+
 import { Check, Clock, Shield, ShieldAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useHitlApproval } from "../hooks/useHitlApproval";
+
+const RISK_COLORS = {
+  medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
+  high: "bg-orange-500/10 text-orange-500 border-orange-500/30",
+  critical: "bg-red-500/10 text-red-500 border-red-500/30",
+} as const;
+
+function getRiskColor(riskLevel: string): string {
+  if (riskLevel === "high") return RISK_COLORS.high;
+
+  if (riskLevel === "critical") return RISK_COLORS.critical;
+
+  return RISK_COLORS.medium;
+}
+
+function renderRiskIcon(riskLevel: string) {
+  if (riskLevel === "high" || riskLevel === "critical") {
+    return <ShieldAlert className="h-4 w-4" />;
+  }
+
+  return <Shield className="h-4 w-4" />;
+}
 
 export function HitlApprovalModal() {
   const { pending, clearPending, approve, deny } = useHitlApproval();
@@ -13,13 +36,17 @@ export function HitlApprovalModal() {
 
   useEffect(() => {
     if (!pending) return;
+
     const update = () => {
       const left = Math.max(0, Math.floor((pending.expiresAt - Date.now()) / 1000));
       setCountdown(`${left}s`);
+
       if (left <= 0) clearPending();
     };
+
     update();
     const id = setInterval(update, 1000);
+
     return () => clearInterval(id);
   }, [pending, clearPending]);
 
@@ -38,21 +65,7 @@ export function HitlApprovalModal() {
     setLoading(false);
   }, [pending, reason, deny]);
 
-  const riskColors: Record<string, string> = {
-    medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
-    high: "bg-orange-500/10 text-orange-500 border-orange-500/30",
-    critical: "bg-red-500/10 text-red-500 border-red-500/30",
-  };
-
-  const riskIcons: Record<string, typeof Shield> = {
-    medium: Shield,
-    high: ShieldAlert,
-    critical: ShieldAlert,
-  };
-
   if (!pending) return null;
-
-  const RiskIcon = riskIcons[pending.riskLevel] || Shield;
 
   return (
     <Modal
@@ -75,9 +88,9 @@ export function HitlApprovalModal() {
           <code className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">{pending.toolName}</code>
         </div>
 
-        <div className={`p-3 rounded-lg border ${riskColors[pending.riskLevel] || riskColors.medium}`}>
+        <div className={`p-3 rounded-lg border ${getRiskColor(pending.riskLevel)}`}>
           <div className="flex items-center gap-2">
-            <RiskIcon className="h-4 w-4" />
+            {renderRiskIcon(pending.riskLevel)}
             <span className="text-xs font-bold uppercase tracking-wider">{pending.riskLevel} Risk</span>
           </div>
         </div>

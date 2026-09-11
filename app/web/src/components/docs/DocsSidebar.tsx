@@ -18,6 +18,7 @@ interface NavSection {
 export function DocsSidebar() {
   const { spec } = useSpec();
   const pathname = usePathname();
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     "getting-started": true,
     guides: true,
@@ -88,6 +89,7 @@ export function DocsSidebar() {
       <div className="p-4 space-y-3">
         {navSections.map((section) => {
           const isExpanded = expanded[section.id];
+
           return (
             <div key={section.id} className="space-y-1">
               <button

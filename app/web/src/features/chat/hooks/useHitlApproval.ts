@@ -10,6 +10,7 @@ export function useHitlApproval() {
   const approve = useCallback(async () => {
     if (!pending) return;
     const controller = new AbortController();
+
     try {
       await sessionApi.approve(
         pending.sessionId,
@@ -28,6 +29,7 @@ export function useHitlApproval() {
     async (reason?: string) => {
       if (!pending) return;
       const controller = new AbortController();
+
       try {
         await sessionApi.deny(
           pending.sessionId,

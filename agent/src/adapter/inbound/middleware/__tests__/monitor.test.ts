@@ -12,6 +12,7 @@ function buildApp() {
   app.get("/ok", (c) => c.text("fine"));
   app.post("/echo", (c) => c.text("done"));
   app.notFound((c) => c.text("not found", 404));
+
   return app;
 }
 
@@ -33,11 +34,13 @@ describe("monitorMiddleware", () => {
 
   test("strips the history field from logged POST payloads", async () => {
     const app = buildApp();
+
     const res = await app.request("/echo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: "hello", history: [{ role: "user", content: "old message" }] }),
     });
+
     expect(res.status).toBe(200);
 
     const infoCalls = vi.mocked(logger.info).mock.calls;

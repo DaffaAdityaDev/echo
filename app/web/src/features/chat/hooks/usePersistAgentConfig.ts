@@ -13,6 +13,7 @@ export function usePersistAgentConfig() {
     async (partial: Partial<AgentConfig>) => {
       const merged = { ...useSettingsStore.getState().config, ...partial };
       useSettingsStore.getState().setConfig(partial);
+
       try {
         await settingsApi.update(merged);
       } catch {

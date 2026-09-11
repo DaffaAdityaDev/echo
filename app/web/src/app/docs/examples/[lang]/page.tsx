@@ -7,6 +7,7 @@ import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function LanguageExamplePage() {
   const params = useParams();
+  // SAFETY: Next.js route parameter matches [lang] dynamic slug segment
   const lang = ((params?.lang as string) || "curl").toLowerCase();
 
   if (lang === "python") {

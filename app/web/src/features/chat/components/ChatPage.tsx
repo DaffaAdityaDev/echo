@@ -53,6 +53,7 @@ export function ChatPage() {
     isMessagesError,
     refetchMessages,
   } = useChatPage();
+
   const { user } = useAuth();
   const { models } = useModels();
   const messages = useChatStore((s) => s.messages);
@@ -81,7 +82,9 @@ export function ChatPage() {
         setIsDebugDrawerOpen((prev) => !prev);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
@@ -92,8 +95,10 @@ export function ChatPage() {
   const handleExportChat = () => {
     if (messages.length === 0) {
       showToast("No chat history available to export.", "info");
+
       return;
     }
+
     downloadJson(`echo-chat-session-${Date.now()}.json`, messages);
     showToast("Chat session exported to JSON!", "success");
   };
@@ -103,8 +108,10 @@ export function ChatPage() {
   const handleShareSession = () => {
     if (!activeSessionId) {
       showToast("No active session selected.", "info");
+
       return;
     }
+
     void copy(`${window.location.origin}/session/${activeSessionId}`);
     showToast("Session URL copied to clipboard!", "success");
   };

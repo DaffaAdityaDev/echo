@@ -17,18 +17,22 @@ export function PromptInspectorPanel() {
     selectedDebugIdx < 0 || selectedDebugIdx >= debugPacketHistory.length
       ? debugPacketHistory.length - 1
       : selectedDebugIdx;
+
   const activeDebugInfo = debugPacketHistory[effectiveDebugIdx] || null;
 
   const systemPromptText = activeDebugInfo?.systemPrompt || "";
   const isDirectMode = systemPromptText.includes("DIRECT MODE");
   const isCoordinatorMode = systemPromptText.includes("COORDINATOR MODE");
   const executionModeLabel = isCoordinatorMode ? "COORDINATOR MODE" : isDirectMode ? "DIRECT MODE" : "STANDARD";
+
   const hasCustomBehavior =
     systemPromptText.length > 0 && !systemPromptText.includes("RESEARCH WORKFLOW INSTRUCTIONS:");
 
   const filteredPromptLines = useMemo(() => {
     const needle = promptSearch.trim().toLowerCase();
+
     if (!needle) return null;
+
     return systemPromptText.split("\n").filter((line) => line.toLowerCase().includes(needle));
   }, [systemPromptText, promptSearch]);
 

@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { zodV4ToOpenAISchema } from "../zod-schema";
 
-type JsonSchema = Record<string, unknown> & {
+interface JsonSchema {
   type?: string;
-  properties: Record<string, JsonSchema>;
-  items: JsonSchema;
-  required?: unknown[];
-  enum?: unknown[];
-  $schema?: unknown;
-};
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  enum?: string[];
+  $schema?: string;
+}
 
 function toOpenAISchema(schema: z.ZodType): JsonSchema {
   return zodV4ToOpenAISchema(schema) as JsonSchema;

@@ -26,9 +26,11 @@ export function useSettingsPage() {
     try {
       const savedConfig = await settingsApi.update(config);
       setConfig(savedConfig);
+
       return true;
     } catch (err) {
       console.warn("[Settings] Failed to save settings:", err);
+
       return false;
     }
   };
@@ -36,6 +38,7 @@ export function useSettingsPage() {
   const groupedModels = models.reduce<Record<string, typeof models>>((acc, m) => {
     const group = acc[m.provider_name] ?? [];
     acc[m.provider_name] = [...group, m];
+
     return acc;
   }, {});
 

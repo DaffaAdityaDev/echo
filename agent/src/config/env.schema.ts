@@ -12,6 +12,7 @@ const DEV_SERVICE_JWT_SECRET = "change-this-to-a-secure-service-jwt-secret-min32
 
 function isNonProductionEnv(): boolean {
   const nodeEnv = process.env.NODE_ENV;
+
   return nodeEnv === undefined || nodeEnv === "development" || nodeEnv === "test";
 }
 

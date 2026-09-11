@@ -1,5 +1,11 @@
 import type { AgentStatus } from "../../../shared/types";
 
+export interface StatusTransition {
+  changed: boolean;
+  from: string;
+  to: string;
+}
+
 export class AgentStatusTracker {
   private status: AgentStatus;
 
@@ -23,28 +29,34 @@ export class AgentStatusTracker {
     };
   }
 
-  update(updates: Partial<AgentStatus>): { changed: boolean; from: string; to: string } {
+  update(updates: Partial<AgentStatus>): StatusTransition {
     const from = this.status.state;
+
     this.status = {
       ...this.status,
       ...updates,
       lastActivity: new Date().toISOString(),
     };
+
     const to = this.status.state;
     const changed = from !== to;
+
     return { changed, from, to };
   }
 
-  markStalled(): { changed: boolean; from: string; to: string } {
+  markStalled(): StatusTransition {
     const from = this.status.state;
+
     if (from === "completed" || from === "aborted" || from === "stalled") {
       return { changed: false, from, to: from };
     }
+
     this.status = {
       ...this.status,
       state: "stalled",
       lastActivity: new Date().toISOString(),
     };
+
     return { changed: true, from, to: "stalled" };
   }
 }

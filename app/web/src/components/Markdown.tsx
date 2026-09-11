@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -15,12 +15,8 @@ interface MarkdownProps {
   isStreaming?: boolean;
 }
 
-interface TokenWithSource {
-  text: string;
-  source: number;
-}
-
 const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
 const SPECIAL_GLYPHS = "!@#$%^&*()_+-=[]{}|;:,.<>?/~";
 
 function getRandomGlyph(): string {
@@ -28,6 +24,7 @@ function getRandomGlyph(): string {
   if (Math.random() < 0.8) {
     return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
   }
+
   return SPECIAL_GLYPHS[Math.floor(Math.random() * SPECIAL_GLYPHS.length)];
 }
 
@@ -38,12 +35,18 @@ function scrambleString(target: string, noiseFactor: number): string {
     .split("")
     .map((char) => {
       if (/\s/.test(char)) return char;
+
       if (Math.random() < noiseFactor) {
         return getRandomGlyph();
       }
+
       return char;
     })
     .join("");
+}
+
+function isString(value: React.ReactNode): value is string {
+  return typeof value === "string";
 }
 
 // 3-Step Robot Denoising Neural Diffusion Token Reveal
@@ -51,12 +54,7 @@ const DenoiseToken = React.memo(({ text, isStreaming }: { text: string; isStream
   const [denoiseStep, setDenoiseStep] = React.useState<number>(isStreaming ? 0 : 2);
 
   React.useEffect(() => {
-    if (!isStreaming) {
-      setDenoiseStep(2);
-      return;
-    }
-
-    setDenoiseStep(0);
+    if (!isStreaming) return;
 
     const t1 = setTimeout(() => setDenoiseStep(1), 70);
     const t2 = setTimeout(() => setDenoiseStep(2), 140);
@@ -70,6 +68,7 @@ const DenoiseToken = React.memo(({ text, isStreaming }: { text: string; isStream
   const displayText = React.useMemo(() => {
     if (denoiseStep >= 2) return text;
     const noiseFactor = denoiseStep === 0 ? 0.85 : 0.4;
+
     return scrambleString(text, noiseFactor);
   }, [text, denoiseStep]);
 
@@ -95,46 +94,19 @@ DenoiseToken.displayName = "DenoiseToken";
 
 // FlowToken Diff-Based Tokenized Text Component
 const FlowTokenText = React.memo(({ input, isStreaming }: { input: string; isStreaming?: boolean }) => {
-  const prevInputRef = useRef<string>("");
-  const tokensWithSources = useRef<TokenWithSource[]>([]);
-  const fullTextRef = useRef<string>("");
-
   const tokens = React.useMemo(() => {
     if (!isStreaming || !input) {
       return [{ text: input, source: 0 }];
     }
 
-    // Reset if input is empty or shrank
-    if (!prevInputRef.current || input.length < prevInputRef.current.length) {
-      tokensWithSources.current = [];
-      fullTextRef.current = "";
-    }
+    const matches = input.match(/\S+|\s+/g);
+    const chunks = matches || [input];
 
-    // Process unique appended diff content
-    if (input !== prevInputRef.current) {
-      if (fullTextRef.current && input.includes(fullTextRef.current)) {
-        const uniqueNewContent = input.slice(fullTextRef.current.length);
-        if (uniqueNewContent.length > 0) {
-          tokensWithSources.current.push({
-            text: uniqueNewContent,
-            source: tokensWithSources.current.length,
-          });
-          fullTextRef.current = input;
-        }
-      } else {
-        tokensWithSources.current = [{ text: input, source: 0 }];
-        fullTextRef.current = input;
-      }
-    }
-
-    return tokensWithSources.current.length > 0 ? tokensWithSources.current : [{ text: input, source: 0 }];
+    return chunks.map((chunk, index) => ({
+      text: chunk,
+      source: index,
+    }));
   }, [input, isStreaming]);
-
-  useEffect(() => {
-    if (typeof input === "string") {
-      prevInputRef.current = input;
-    }
-  }, [input]);
 
   if (!isStreaming) {
     return <>{input}</>;
@@ -161,12 +133,17 @@ function animateMarkdownText(children: React.ReactNode, isStreaming?: boolean): 
         <React.Fragment key={`${keyPrefix}-${index}`}>{processInput(element, `${keyPrefix}-${index}`)}</React.Fragment>
       ));
     }
-    if (typeof input === "string") {
+
+    if (isString(input)) {
       return <FlowTokenText input={input} isStreaming={isStreaming} />;
     }
+
     if (React.isValidElement(input)) {
+      // SAFETY: Valid React elements expose props object containing optional children.
       const props = input.props as { children?: React.ReactNode };
+
       if (props?.children) {
+        // SAFETY: Cloned element maintains component identity and props while swapping processed children.
         return React.cloneElement(
           input as React.ReactElement<{ children?: React.ReactNode }>,
           {},
@@ -174,6 +151,7 @@ function animateMarkdownText(children: React.ReactNode, isStreaming?: boolean): 
         );
       }
     }
+
     return input;
   };
 
@@ -183,6 +161,7 @@ function animateMarkdownText(children: React.ReactNode, isStreaming?: boolean): 
 const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps) => {
   const processedContent = React.useMemo(() => {
     if (!content) return "";
+
     return content
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")

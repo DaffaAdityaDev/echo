@@ -68,6 +68,7 @@ describe("mapHistoryToMessages", () => {
       { role: "user", content: "b" },
       { role: "ai", content: "c" },
     ]);
+
     expect(messages.map((m) => m.content)).toEqual(["a", "b", "c"]);
   });
 
@@ -78,6 +79,7 @@ describe("mapHistoryToMessages", () => {
       { role: "tool", content: "result" },
       { role: "ai", content: "answer" },
     ]);
+
     expect(messages).toHaveLength(5);
     expect(messages[0]).toBeInstanceOf(SystemMessage);
     expect(messages[1]).toBeInstanceOf(HumanMessage);

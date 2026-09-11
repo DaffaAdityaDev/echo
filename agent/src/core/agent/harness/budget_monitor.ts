@@ -1,3 +1,11 @@
+export type BudgetExceededReason = "MAX_STEPS_EXCEEDED" | "TIMEOUT_EXCEEDED" | "COST_CAP_EXCEEDED";
+
+export interface BudgetCheckResult {
+  exceeded: boolean;
+  reason?: BudgetExceededReason;
+  message?: string;
+}
+
 export interface BudgetConfig {
   enabled: boolean;
   enforceMaxSteps: boolean;
@@ -25,14 +33,7 @@ export class BudgetMonitor {
     };
   }
 
-  public checkBudget(
-    currentStep: number,
-    accumulatedCostUsd: number,
-  ): {
-    exceeded: boolean;
-    reason?: "MAX_STEPS_EXCEEDED" | "TIMEOUT_EXCEEDED" | "COST_CAP_EXCEEDED";
-    message?: string;
-  } {
+  public checkBudget(currentStep: number, accumulatedCostUsd: number): BudgetCheckResult {
     if (!this.config.enabled) {
       return { exceeded: false };
     }

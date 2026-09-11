@@ -6,6 +6,7 @@ import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function ChatGuide() {
   const { spec } = useSpec();
+
   const chatEndpoint = spec?.tags
     .flatMap((t) => t.endpoints)
     .find((ep) => ep.path === "/api/v1/chat" && ep.method === "post");

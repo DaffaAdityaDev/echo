@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client";
-import type { AgentConfig, HarnessFeatureToggles } from "../types";
+import type { AgentConfig, AgentConfigDTO, HarnessFeatureToggles } from "../types";
 import { DEFAULT_AGENT_CONFIG } from "../types";
 
 interface UserPreferencesDTO {
@@ -28,8 +28,8 @@ function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
   };
 }
 
-function toDTO(config: AgentConfig): Record<string, unknown> {
-  const body: Record<string, unknown> = {
+function toDTO(config: AgentConfig): AgentConfigDTO {
+  const body: AgentConfigDTO = {
     default_mode: config.defaultMode,
     default_model: config.defaultModel,
     default_features: config.defaultFeatures,
@@ -55,11 +55,13 @@ function toDTO(config: AgentConfig): Record<string, unknown> {
 export const settingsApi = {
   get: async (): Promise<AgentConfig> => {
     const data = await api.get<UserPreferencesDTO>("/settings");
+
     return toAgentConfig(data);
   },
 
   update: async (config: AgentConfig): Promise<AgentConfig> => {
     const data = await api.put<UserPreferencesDTO>("/settings", toDTO(config));
+
     return toAgentConfig(data);
   },
 };

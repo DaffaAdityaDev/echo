@@ -15,12 +15,20 @@ export interface ModelSelectorModalProps {
   onClose: () => void;
 }
 
-const providerIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  OpenAI: Bot,
-  Anthropic: Sparkles,
-  "LM Studio": Cpu,
-  "OpenCode Go": Cloud,
-};
+function getProviderIcon(provider: string): React.ComponentType<{ className?: string }> | null {
+  switch (provider) {
+    case "OpenAI":
+      return Bot;
+    case "Anthropic":
+      return Sparkles;
+    case "LM Studio":
+      return Cpu;
+    case "OpenCode Go":
+      return Cloud;
+    default:
+      return null;
+  }
+}
 
 export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,16 +48,19 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
   // Filter models by search term and selected provider filter pill
   const filteredModels = models.filter((m) => {
     const matchesProvider = selectedProvider === "All" || m.provider_name === selectedProvider;
+
     const matchesSearch =
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.provider_name.toLowerCase().includes(searchTerm.toLowerCase());
+
     return matchesProvider && matchesSearch;
   });
 
   // Helper to derive model metadata tags
   const getModelTags = (m: Model) => {
     const tags: Array<{ label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = [];
+
     if (m.supports_multimodal) {
       tags.push({
         label: "Multimodal",
@@ -57,6 +68,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
         color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
       });
     }
+
     return tags;
   };
 
@@ -114,7 +126,8 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
         <div className="flex items-center gap-2 pt-3 pb-2 overflow-x-auto scrollbar-hide shrink-0">
           {providers.map((p) => {
             const active = selectedProvider === p;
-            const Icon = providerIcons[p];
+            const Icon = getProviderIcon(p);
+
             return (
               <button
                 key={p}
@@ -141,7 +154,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
           ) : (
             filteredModels.map((m) => {
               const isSelected = isDefaultModel(m);
-              const ProviderIcon = providerIcons[m.provider_name] || Cpu;
+              const ProviderIcon = getProviderIcon(m.provider_name) || Cpu;
               const tags = getModelTags(m);
 
               return (
@@ -196,6 +209,7 @@ export function ModelSelectorModal({ isOpen, onClose }: ModelSelectorModalProps)
                     </span>
                     {tags.map((tag) => {
                       const TagIcon = tag.icon;
+
                       return (
                         <span
                           key={tag.label}

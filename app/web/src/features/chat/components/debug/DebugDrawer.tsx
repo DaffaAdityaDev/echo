@@ -109,8 +109,11 @@ export function DebugDrawer({ isOpen, onClose }: DebugDrawerProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
+          // SAFETY: tab.count corresponds to key in tabData when count property is present
           const count = "count" in tab ? tabData[tab.count as keyof typeof tabData] : undefined;
+          // SAFETY: tab.badge corresponds to key in tabData when badge property is present
           const badge = "badge" in tab ? tabData[tab.badge as keyof typeof tabData] : undefined;
+
           return (
             <button
               key={tab.id}

@@ -5,11 +5,14 @@ import { ENV } from "../../config/env";
 import { logger } from "../../shared/utils/logger";
 
 const publicKey = ENV.LANGFUSE_PUBLIC_KEY;
+
 const secretKey = ENV.LANGFUSE_SECRET_KEY;
+
 const baseUrl = ENV.LANGFUSE_BASE_URL;
 
 const isDummyKey =
   !publicKey || publicKey.startsWith("pk-lf-dummy") || !secretKey || secretKey.startsWith("sk-lf-dummy");
+
 const isExplicitlyDisabled = ENV.ENABLE_TELEMETRY === "false";
 
 if (isDummyKey || isExplicitlyDisabled) {
@@ -23,7 +26,7 @@ if (isDummyKey || isExplicitlyDisabled) {
     info: (message, ...args) => logger.info(`[OTEL] ${message}`, ...args),
     warn: (message, ...args) => logger.warn(`[OTEL] ${message}`, ...args),
     error: (message, ...args) => {
-      if (typeof message === "string" && (message.includes("OTLPExporterError") || message.includes("Export failed"))) {
+      if (message.includes("OTLPExporterError") || message.includes("Export failed")) {
         logger.debug(`[OTEL] Export warning (Langfuse server offline/404 at ${baseUrl}): ${message}`);
       } else {
         logger.error(`[OTEL] ${message}`, ...args);

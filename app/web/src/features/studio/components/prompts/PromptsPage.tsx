@@ -225,6 +225,7 @@ export function PromptsPage(props: Props) {
                       await handleRollback(confirmAction.version);
                       showToast(`Rolled back to version ${confirmAction.version}`, "success");
                     }
+
                     setConfirmAction(null);
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : "Action failed";

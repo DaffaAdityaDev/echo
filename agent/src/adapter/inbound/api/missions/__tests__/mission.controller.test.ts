@@ -4,16 +4,19 @@ import { cancellationManager } from "../../../../../core/agent/harness";
 import { stateStorage } from "../../../../../core/agent/storage";
 import { toolRegistry } from "../../../../../core/agent/tools";
 import { ProviderFactory } from "../../../../../infrastructure/providers/factory";
-import type { ToolDefinition } from "../../../../../shared/types";
+import type { JsonValue, ToolDefinition } from "../../../../../shared/types";
+import type { RestToolConfig } from "../../../../../infrastructure/transports/rest/types";
 import { MISSION_ERROR_MESSAGES } from "../mission.constants";
 import { createMission, handleHitlDecision } from "../mission.controller";
 
 const mocks = vi.hoisted(() => {
   const runMission = vi.fn();
+
   class MockNlahHarness {
     runMission = runMission;
     restoreLoopDetectorHistory = vi.fn();
   }
+
   return {
     runMission,
     MockNlahHarness,
@@ -27,7 +30,7 @@ const mocks = vi.hoisted(() => {
     stateStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     toolRegistry: { resolveTools: vi.fn(), resolveToolsMap: vi.fn(), addRestTool: vi.fn() },
     getImplementedFeatures: vi.fn(),
-    createRestTool: vi.fn((_config: unknown) => ({
+    createRestTool: vi.fn((_config: RestToolConfig) => ({
       name: "api_tool",
       description: "",
       schema: {},
@@ -36,15 +39,11 @@ const mocks = vi.hoisted(() => {
     StrategyFactory: { create: vi.fn() },
     strategyRegistry: { resolve: vi.fn() },
     ProviderFactory: { fromConfig: vi.fn() },
-    isProviderConnectionConfig: (value: unknown) => {
-      const cfg = value as Record<string, unknown> | null;
-      return (
-        typeof cfg === "object" &&
-        cfg !== null &&
-        typeof cfg.type === "string" &&
-        typeof cfg.base_url === "string" &&
-        typeof cfg.model === "string"
-      );
+    isProviderConnectionConfig: (value: JsonValue | null | undefined) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+      const cfg = value as Record<string, JsonValue>;
+
+      return typeof cfg.type === "string" && typeof cfg.base_url === "string" && typeof cfg.model === "string";
     },
     fakeProvider: {
       stream: vi.fn(),
@@ -91,10 +90,11 @@ function buildApp() {
   app.post("/missions/generate-mission", createMission);
   app.post("/v1/sessions/:id/approve", handleHitlDecision);
   app.post("/v1/sessions/:id/deny", handleHitlDecision);
+
   return app;
 }
 
-function postJson(body: unknown) {
+function postJson(body: JsonValue) {
   return {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -136,9 +136,8 @@ describe("createMission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stateStorage.get).mockResolvedValue(null);
-    vi.mocked(ProviderFactory.fromConfig).mockReturnValue(
-      mocks.fakeProvider as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>,
-    );
+    // SAFETY: Mock provider for mission creation test
+    vi.mocked(ProviderFactory.fromConfig).mockReturnValue(mocks.fakeProvider as never);
     vi.mocked(mocks.strategyRegistry.resolve).mockReturnValue({ name: "nlah" });
     vi.mocked(mocks.runMission).mockImplementation(async (_state, onPacket) => {
       await onPacket({ type: "content", missionId: "mission-123", step: 1, content: "hello" });
@@ -148,6 +147,7 @@ describe("createMission", () => {
 
   test("returns 400 with error and details for an invalid body", async () => {
     const app = buildApp();
+
     const res = await app.request(
       "/missions/generate-mission",
       postJson({ provider_config: VALID_BODY.provider_config }),
@@ -164,6 +164,7 @@ describe("createMission", () => {
       { id: "web_search", name: "Web Search", description: "" },
     ]);
     const app = buildApp();
+
     const res = await app.request(
       "/missions/generate-mission",
       postJson({ ...VALID_BODY, features: ["unknown-feature"] }),
@@ -199,6 +200,7 @@ describe("createMission", () => {
 
   test("scopes REST tools to the mission instead of registering them globally", async () => {
     const app = buildApp();
+
     const res = await app.request(
       "/missions/generate-mission",
       postJson({
@@ -233,9 +235,8 @@ describe("handleHitlDecision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(stateStorage.get).mockResolvedValue(null);
-    vi.mocked(ProviderFactory.fromConfig).mockReturnValue(
-      mocks.fakeProvider as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>,
-    );
+    // SAFETY: Mock provider for mission approval test
+    vi.mocked(ProviderFactory.fromConfig).mockReturnValue(mocks.fakeProvider as never);
     vi.mocked(mocks.StrategyFactory.create).mockReturnValue({ name: "nlah" });
     vi.mocked(toolRegistry.resolveTools).mockResolvedValue([]);
     vi.mocked(toolRegistry.resolveToolsMap).mockReturnValue(new Map());
@@ -256,6 +257,7 @@ describe("handleHitlDecision", () => {
 
   test("returns 404 when the approval has expired or is not found", async () => {
     const app = buildApp();
+
     const res = await app.request(
       "/v1/sessions/mission-123/approve",
       postJson({ approvalId: "approval-1", decision: "approve" }),
@@ -267,9 +269,8 @@ describe("handleHitlDecision", () => {
   });
 
   test("resumes execution when an approval is approved", async () => {
-    vi.mocked(stateStorage.get).mockResolvedValue(
-      makePausedState() as unknown as Awaited<ReturnType<typeof stateStorage.get>>,
-    );
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
     const toolExecute = vi.fn(async () => ({ status: "success", summary: "search result" }));
     vi.mocked(toolRegistry.resolveToolsMap).mockReturnValue(
       new Map<string, ToolDefinition>([
@@ -280,13 +281,15 @@ describe("handleHitlDecision", () => {
             description: "",
             keywords: [],
             schema: z.object({ query: z.string() }),
-            execute: toolExecute as unknown as ToolDefinition["execute"],
+            // SAFETY: Mock tool execute implementation
+            execute: toolExecute as never,
           },
         ],
       ]),
     );
 
     const app = buildApp();
+
     const res = await app.request(
       "/v1/sessions/mission-123/approve",
       postJson({ approvalId: "approval-1", decision: "approve" }),
@@ -302,11 +305,11 @@ describe("handleHitlDecision", () => {
   });
 
   test("resumes execution when an approval is denied", async () => {
-    vi.mocked(stateStorage.get).mockResolvedValue(
-      makePausedState() as unknown as Awaited<ReturnType<typeof stateStorage.get>>,
-    );
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
 
     const app = buildApp();
+
     const res = await app.request(
       "/v1/sessions/mission-123/deny",
       postJson({ approvalId: "approval-1", decision: "deny", reason: "not allowed" }),

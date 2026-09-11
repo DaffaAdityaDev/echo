@@ -7,8 +7,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/utils/cn";
+
+export interface LoginFormErrors {
+  email?: string;
+  password?: string;
+}
+
 export interface LoginFormProps {
-  loginAsync: (data: { email: string; password: string }) => Promise<unknown>;
+  loginAsync: (data: { email: string; password: string }) => Promise<void>;
   isLoggingIn: boolean;
   loginError: Error | null;
 }
@@ -30,24 +36,29 @@ export function LoginForm({ loginAsync, isLoggingIn, loginError }: LoginFormProp
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<LoginFormErrors>({});
 
   const validate = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: LoginFormErrors = {};
+
     if (!email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = "Invalid email format";
     }
+
     if (!password) {
       newErrors.password = "Password is required";
     }
+
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     try {

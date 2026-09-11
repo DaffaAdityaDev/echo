@@ -175,6 +175,7 @@ export function AgentProgress({ progress, state }: AgentProgressProps) {
 
 function SmoothTextReveal({ text, className }: { text: string; className?: string }) {
   const words = text.split(" ");
+
   return (
     <span className={cn("inline-flex flex-wrap gap-x-1.5 items-center", className)}>
       {words.map((word, index) => (

@@ -13,6 +13,7 @@ export function DegradationToast() {
   useEffect(() => {
     if (visible) {
       const timer = setTimeout(() => setDismissed(true), 8000);
+
       return () => clearTimeout(timer);
     }
   }, [visible]);

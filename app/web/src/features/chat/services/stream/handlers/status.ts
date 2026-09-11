@@ -11,6 +11,7 @@ export function handleTurnComplete(
     lastMessage.usage = data.usage;
     store.setCumulativeUsage(data.usage);
   }
+
   lastMessage.status = "complete";
   store.setAgentState("completed");
 }
@@ -24,6 +25,7 @@ export function handleError(lastMessage: Message, data: StreamPacket & { type: "
     // stays, the UI offers to continue — not as a completed error.
     lastMessage.status = "interrupted";
     store.setAgentState("completed");
+
     return;
   }
 
@@ -56,12 +58,16 @@ export function handleHeartbeat(
   }
 }
 
+function isNumber(val: number | undefined): val is number {
+  return typeof val === "number";
+}
+
 export function handleProgress(
   _lastMessage: Message,
   data: StreamPacket & { type: "progress" },
   store: StreamStore,
 ): void {
-  if (typeof data.step === "number") {
+  if (isNumber(data.step)) {
     const step = data.step;
     store.setAgentProgress((prev) => (prev ? { ...prev, iteration: step } : { iteration: step, totalIterations: 0 }));
   }

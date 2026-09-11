@@ -8,6 +8,7 @@ import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function TagReferencePage() {
   const params = useParams();
+  // SAFETY: Next.js route parameter matches [tag] dynamic slug segment
   const rawTag = (params?.tag as string) || "";
   const { spec, loading, error } = useSpec();
 

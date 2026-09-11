@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { JsonObject } from "../../../shared/types";
 
 export interface LoopDetectorConfig {
   enabled: boolean;
@@ -28,12 +29,13 @@ export class LoopDetector {
     return this.config.enabled;
   }
 
-  public generateHash(toolName: string, args: Record<string, unknown>): string {
+  public generateHash(toolName: string, args: JsonObject): string {
     const canonicalArgs = JSON.stringify(args, Object.keys(args ?? {}).sort());
+
     return createHash("md5").update(`${toolName}:${canonicalArgs}`).digest("hex");
   }
 
-  public recordAndCheck(toolName: string, args: Record<string, unknown>): LoopCheckResult {
+  public recordAndCheck(toolName: string, args: JsonObject): LoopCheckResult {
     if (!this.config.enabled) {
       return { isLoop: false, count: 0, hash: "" };
     }
@@ -46,6 +48,7 @@ export class LoopDetector {
     }
 
     let count = 0;
+
     for (let i = this.history.length - 1; i >= 0; i--) {
       if (this.history[i] === hash) {
         count++;

@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { CallbackHandler } from "@langfuse/langchain";
 import { propagateAttributes, startObservation } from "@langfuse/tracing";
-import type { Mock } from "vitest";
 import { getLangChainCallbacks, langfuseStorage, startAgentTrace } from "../langfuse";
 import { logger } from "../logger";
 
@@ -9,6 +8,7 @@ vi.mock("@langfuse/langchain", () => {
   function makeHandler() {
     return { type: "callback-handler" };
   }
+
   return { CallbackHandler: vi.fn(makeHandler) };
 });
 
@@ -40,7 +40,8 @@ describe("langfuse utils", () => {
 
   describe("startAgentTrace", () => {
     test("returns the observation from startObservation", () => {
-      (startObservation as unknown as Mock).mockReturnValue({ traceId: "trace-1" });
+      // SAFETY: Cast mock return value for test observation
+      vi.mocked(startObservation).mockReturnValue({ traceId: "trace-1" } as never);
       const trace = startAgentTrace("trace-1", "m1", "u1", "strategy-a", "objective");
       expect(startObservation).toHaveBeenCalledWith(
         "agent-run-mission",

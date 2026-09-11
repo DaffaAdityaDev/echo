@@ -7,7 +7,9 @@ export interface TraceReducerContext {
 }
 
 type MetadataPacket = Extract<StreamPacket, { type: "metadata" }>;
+
 type SubagentPacket = Extract<StreamPacket, { type: "subagent_call" | "subagent_result" }>;
+
 type StatePacket = Extract<StreamPacket, { type: "state_change" | "degraded" }>;
 
 function addSpanIfMissing(trace: Trace, spanId: string, create: () => Omit<Span, "id" | "traceId">): void {
@@ -17,6 +19,7 @@ function addSpanIfMissing(trace: Trace, spanId: string, create: () => Omit<Span,
 
 function updateSpanIfExists(trace: Trace, spanId: string, update: (existing: Span) => Span): void {
   const index = trace.spans.findIndex((s) => s.id === spanId);
+
   if (index > -1) {
     trace.spans[index] = update(trace.spans[index]);
   }
@@ -30,10 +33,13 @@ function upsertSpan(
   update: (existing: Span, timestamp: number) => Span,
 ): void {
   const index = trace.spans.findIndex((s) => s.id === spanId);
+
   if (index > -1) {
     trace.spans[index] = update(trace.spans[index], ctx.timestamp);
+
     return;
   }
+
   trace.spans.push({ id: spanId, traceId: trace.id, ...create() });
 }
 
@@ -53,16 +59,20 @@ function finalizeStreamingSpans(trace: Trace, timestamp: number): void {
 function reduceMetadata(trace: Trace, packet: MetadataPacket, ctx: TraceReducerContext): void {
   if (packet.meta) {
     trace.metadata = { ...trace.metadata, ...packet.meta };
+
     if (packet.meta.objective) {
       trace.name =
         packet.meta.objective.length > 60 ? `${packet.meta.objective.slice(0, 60)}...` : packet.meta.objective;
     }
   }
+
   if (packet.strategy) trace.metadata.strategy = packet.strategy;
+
   if (packet.objective) {
     trace.metadata.objective = packet.objective;
     trace.name = packet.objective.length > 60 ? `${packet.objective.slice(0, 60)}...` : packet.objective;
   }
+
   if (packet.title) trace.name = packet.title;
 
   addSpanIfMissing(trace, `${trace.id}-metadata-${packet.step}-${packet.seq}`, () => ({
@@ -220,6 +230,7 @@ function reduceTodo(trace: Trace, packet: Extract<StreamPacket, { type: "todo" }
 
 function reduceSubagent(trace: Trace, packet: SubagentPacket, ctx: TraceReducerContext): void {
   const spanId = `${trace.id}-subagent-${packet.subagent.name}-${packet.step}`;
+
   if (packet.type === "subagent_call") {
     addSpanIfMissing(trace, spanId, () => ({
       parentId: ctx.getActiveParentSpanId(trace.spans),
@@ -230,8 +241,10 @@ function reduceSubagent(trace: Trace, packet: SubagentPacket, ctx: TraceReducerC
       durationMs: 0,
       input: packet.subagent.instruction,
     }));
+
     return;
   }
+
   updateSpanIfExists(trace, spanId, (span) => ({
     ...span,
     status: packet.subagent.status === "completed" ? "complete" : "failed",
@@ -288,6 +301,7 @@ function reduceUsage(trace: Trace, packet: Extract<StreamPacket, { type: "usage"
   trace.totalTokens = packet.usage.totalTokens;
   trace.promptTokens = packet.usage.promptTokens;
   trace.completionTokens = packet.usage.completionTokens;
+
   if (packet.usage.cachedTokens !== undefined) {
     trace.cachedTokens = packet.usage.cachedTokens;
   }
@@ -297,9 +311,11 @@ function reduceTokenMetrics(trace: Trace, packet: Extract<StreamPacket, { type: 
   trace.totalTokens = packet.payload.totalTokens;
   trace.promptTokens = packet.payload.promptTokens;
   trace.completionTokens = packet.payload.completionTokens;
+
   if (packet.payload.cachedTokens !== undefined) {
     trace.cachedTokens = packet.payload.cachedTokens;
   }
+
   if (packet.payload.estimatedCostUsd !== undefined) {
     trace.costUsd = Number(packet.payload.estimatedCostUsd);
   }
@@ -394,14 +410,17 @@ function reduceTurnComplete(
   ctx: TraceReducerContext,
 ): void {
   trace.status = "complete";
+
   if (packet.totalCost !== undefined) {
     trace.costUsd = Number(packet.totalCost);
   }
+
   if (packet.usage) {
     trace.totalTokens = packet.usage.totalTokens;
     trace.promptTokens = packet.usage.promptTokens;
     trace.completionTokens = packet.usage.completionTokens;
   }
+
   trace.endTime = ctx.timestamp;
   trace.durationMs = Math.max(0, ctx.timestamp - trace.startTime);
   finalizeStreamingSpans(trace, ctx.timestamp);
@@ -413,16 +432,21 @@ function reduceMissionCompleted(
   ctx: TraceReducerContext,
 ): void {
   trace.status = "complete";
+
   if (packet.payload) {
     trace.costUsd = Number(packet.payload.totalCostUsd);
+
     if (packet.payload.durationMs) {
       trace.durationMs = packet.payload.durationMs;
     }
   }
+
   trace.endTime = ctx.timestamp;
+
   if (!trace.durationMs) {
     trace.durationMs = Math.max(0, ctx.timestamp - trace.startTime);
   }
+
   finalizeStreamingSpans(trace, ctx.timestamp);
 }
 

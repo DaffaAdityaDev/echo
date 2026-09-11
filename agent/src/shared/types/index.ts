@@ -1,6 +1,14 @@
 import type { BaseMessage } from "@langchain/core/messages";
 import type { z } from "zod";
 
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+
+export type JsonObject = { [key: string]: JsonValue };
+
+export type JsonArray = JsonValue[];
+
 export interface HarnessFeatureToggles {
   loopDetection: {
     enabled: boolean;
@@ -141,8 +149,8 @@ export type HarnessPacket =
     })
   | (HarnessPacketBase & { type: "reasoning"; content: string })
   | (HarnessPacketBase & { type: "content"; content: string })
-  | (HarnessPacketBase & { type: "tool_call"; toolName: string; toolInput: Record<string, unknown> })
-  | (HarnessPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: unknown })
+  | (HarnessPacketBase & { type: "tool_call"; toolName: string; toolInput: JsonObject })
+  | (HarnessPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: JsonValue })
   | (HarnessPacketBase & { type: "tool_skip"; toolName: string })
   | (HarnessPacketBase & { type: "todo"; todos: Array<{ id: string; description: string; status: string }> })
   | (HarnessPacketBase & { type: "subagent_call"; subagent: { name: string; instruction: string; status: "calling" } })
@@ -172,7 +180,7 @@ export type HarnessPacket =
       rawMessages: Array<{ role: string; content: string }>;
     })
   | (HarnessPacketBase & { type: "error"; content: string; code?: string })
-  | (HarnessPacketBase & { type: "swarm_status"; swarm: Record<string, unknown> })
+  | (HarnessPacketBase & { type: "swarm_status"; swarm: JsonObject })
   | (HarnessPacketBase & {
       type: "system_notice";
       payload: { level: "info" | "warning" | "error"; code: string; message: string };
@@ -192,7 +200,7 @@ export type HarnessPacket =
       payload: {
         approvalId: string;
         toolName: string;
-        args: Record<string, unknown>;
+        args: JsonObject;
         riskLevel: "medium" | "high" | "critical";
         expiresAt: number;
       };
@@ -221,7 +229,7 @@ export interface AgentState {
   objective: string;
   tasks: Task[];
   currentTaskId?: string;
-  memory: Record<string, unknown>;
+  memory: JsonObject;
   messages: BaseMessage[];
 }
 
@@ -232,7 +240,7 @@ export interface PausedMissionState {
   pendingToolCall: {
     id: string;
     name: string;
-    args: Record<string, unknown>;
+    args: JsonObject;
   };
   state: AgentState;
   harnessSnapshot: HarnessSnapshot;
@@ -292,8 +300,8 @@ export interface StrategyRegistry {
 export interface ToolDefinition {
   name: string;
   description: string;
-  schema: z.ZodObject<z.ZodRawShape>;
-  execute(input: unknown, config?: unknown): Promise<Observation>;
+  schema: z.ZodTypeAny;
+  execute(input: JsonValue, config?: JsonValue): Promise<Observation>;
   keywords?: string[];
 }
 
@@ -308,7 +316,7 @@ export interface ProviderEvent {
   /** When set, the model wants to invoke a tool instead of replying. */
   toolCall?: {
     name: string;
-    args: Record<string, unknown>;
+    args: JsonObject;
   };
   /** Token usage stats from the final chunk — emitted once after stream ends */
   usage?: {

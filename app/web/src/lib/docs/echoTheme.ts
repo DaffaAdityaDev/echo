@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 // Custom syntax highlighting theme using Echo design tokens.
-const echoTheme: Record<string, CSSProperties> = {
+const echoTheme = {
   'code[class*="language-"]': {
     color: "#e6edf3",
     fontSize: "0.835rem",
@@ -74,6 +74,6 @@ const echoTheme: Record<string, CSSProperties> = {
   italic: { fontStyle: "italic", background: "transparent" },
   "tag.punctuation": { color: "#8b949e", background: "transparent" },
   "attr-value.punctuation": { color: "#a5d6ff", background: "transparent" },
-};
+} satisfies Record<string, CSSProperties>;
 
 export default echoTheme;

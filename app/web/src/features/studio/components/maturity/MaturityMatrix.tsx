@@ -45,6 +45,7 @@ export function MaturityMatrix({ dimensions, levels, weakestDimension }: Maturit
             <tbody className="divide-y divide--border">
               {dimensions.map((dim) => {
                 const isWeakest = dim.key === weakestDimension;
+
                 return (
                   <tr
                     key={dim.key}

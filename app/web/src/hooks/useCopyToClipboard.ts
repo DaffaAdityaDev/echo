@@ -11,6 +11,7 @@ export function useCopyToClipboard(resetMs = 2000) {
       try {
         await navigator.clipboard.writeText(text);
         setCopied(true);
+
         if (timerRef.current) window.clearTimeout(timerRef.current);
         timerRef.current = window.setTimeout(() => setCopied(false), resetMs);
       } catch {

@@ -24,6 +24,7 @@ export function PromptVersionTimeline({
       {sorted.map((v) => {
         const isSelected = selectedVersion === v.version;
         const isLive = activeVersion === v.version;
+
         return (
           <button
             key={v.id}

@@ -11,6 +11,10 @@ import { logger } from "../../../shared/utils/logger";
 import { CredentialManager } from "../credentials/manager";
 import { LAZY_TOOLS } from "./lazy-tools";
 
+function isFunction<T>(val: T): val is T & ((...args: never[]) => void) {
+  return typeof val === "function";
+}
+
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
   private mcpClients: Map<string, MCPClient> = new Map();
@@ -30,6 +34,7 @@ export class ToolRegistry {
       this.credentialManager = new CredentialManager();
       logger.warn("CredentialManager not set — using default fallback instance");
     }
+
     return this.credentialManager;
   }
 
@@ -47,18 +52,22 @@ export class ToolRegistry {
 
     if (!existsSync(definitionsPath)) {
       logger.info("⏭️ Dynamic definitions directory not found — relying on static LAZY_TOOLS catalog");
+
       return;
     }
 
     try {
       const entries = await readdir(definitionsPath, { withFileTypes: true });
+
       for (const entry of entries) {
         let importPath = "";
+
         if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
           // Ignore deprecated redirect files that have been relocated
           if (entry.name === "delegation.ts") {
             continue;
           }
+
           importPath = join(definitionsPath, entry.name);
         } else if (entry.isDirectory()) {
           importPath = join(definitionsPath, entry.name, "index.ts");
@@ -94,30 +103,33 @@ export class ToolRegistry {
   async resolveTools(features?: string[]): Promise<ToolDefinition[]> {
     if (!features || features.length === 0) {
       logger.info(`[resolveTools] No features provided (features=${JSON.stringify(features)}) — returning empty`);
+
       return [];
     }
 
     logger.info(`[resolveTools] Resolving features: ${JSON.stringify(features)}`);
     const resolved: ToolDefinition[] = [];
+
     for (const featureId of features) {
       const loadFn = LAZY_TOOLS[featureId];
+
       if (loadFn) {
         try {
           const module = await loadFn();
+          // SAFETY: Lazy loaded module exports a ToolDefinition default or named object
           const tool = ("default" in module ? module.default : module) as ToolDefinition;
+
           if (tool?.name && tool.schema) {
             resolved.push(tool);
-            logger.info(
-              `[resolveTools] Loaded tool: ${tool.name} (has execute: ${typeof tool.execute === "function"})`,
-            );
+            logger.info(`[resolveTools] Loaded tool: ${tool.name} (has execute: ${isFunction(tool.execute)})`);
           } else {
             logger.warn(
               `[resolveTools] Tool '${featureId}' loaded but missing name/schema: ${JSON.stringify({ name: tool?.name, hasSchema: !!tool?.schema })}`,
             );
           }
         } catch (err: unknown) {
-          const loadError = err as { message?: string };
-          logger.error(`[resolveTools] Failed to lazy load tool '${featureId}': ${loadError.message}`);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logger.error(`[resolveTools] Failed to lazy load tool '${featureId}': ${errMsg}`);
         }
       } else {
         logger.warn(
@@ -125,14 +137,19 @@ export class ToolRegistry {
         );
       }
     }
+
     logger.info(`[resolveTools] Resolved ${resolved.length} tools: ${resolved.map((t) => t.name).join(", ")}`);
+
     return resolved;
   }
 
   async connectMCPServer(config: McpServerConfig): Promise<MCPClient> {
-    if (this.mcpClients.has(config.name)) {
+    const existing = this.mcpClients.get(config.name);
+
+    if (existing) {
       logger.warn(`MCP server "${config.name}" already connected`);
-      return this.mcpClients.get(config.name) as MCPClient;
+
+      return existing;
     }
 
     if (config.credentials) {
@@ -145,13 +162,16 @@ export class ToolRegistry {
 
     this.mcpClients.set(config.name, client);
     logger.info(`MCP server connected: ${config.name}`);
+
     return client;
   }
 
   async disconnectMCPServer(name: string): Promise<void> {
     const client = this.mcpClients.get(name);
+
     if (!client) {
       logger.warn(`MCP server "${name}" not found`);
+
       return;
     }
 
@@ -169,6 +189,7 @@ export class ToolRegistry {
     if (config.headers) {
       cm.registerToolCredentials(config.name, config.headers);
     }
+
     if (config.params) {
       cm.registerToolCredentials(config.name, config.params);
     }
@@ -186,19 +207,25 @@ export class ToolRegistry {
 
   getAllTools(): ToolDefinition[] {
     const all = Array.from(this.tools.values());
+
     for (const client of this.mcpClients.values()) {
       all.push(...client.getTools());
     }
+
     all.push(...this.restTools);
+
     return all;
   }
 
   resolveToolsMap(names: string[]): Map<string, ToolDefinition> {
     const map = new Map<string, ToolDefinition>();
+
     for (const name of names) {
       const tool = this.getTool(name);
+
       if (tool) map.set(name, tool);
     }
+
     return map;
   }
 }

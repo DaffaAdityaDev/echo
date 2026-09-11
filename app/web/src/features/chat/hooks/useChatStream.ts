@@ -16,13 +16,16 @@ import type { Message, StreamPacket } from "../types";
 async function generateSessionTitle(sid: string): Promise<void> {
   const state = useChatStore.getState();
   const model = useSettingsStore.getState().config.defaultModel;
+
   if (!sid || !model) return;
 
   const activeSess = state.sessions.find((s) => s.id === sid);
+
   if (activeSess?.title && activeSess.title !== "New Chat") return;
 
   try {
     const { title, summary } = await sessionApi.generateTitle(sid, model);
+
     if (!title) return;
     const store = useChatStore.getState();
     store.setSessions(
@@ -53,12 +56,14 @@ export function useChatStream() {
 
   const stopStreaming = useCallback(() => {
     const controller = activeAbortRef.current;
+
     if (!controller) return;
     interruptedTurnRef.current = true;
     controller.abort();
     activeAbortRef.current = null;
 
     const sid = useChatStore.getState().activeSessionId;
+
     if (sid) {
       // Finalize any streaming trace for this session immediately, and tell
       // the backend to interrupt the mission (aborts the in-flight LLM
@@ -69,9 +74,9 @@ export function useChatStream() {
       const cancelTimeout = setTimeout(() => cancelController.abort(), 5000);
       sessionApi
         .cancel(sid, cancelController.signal)
-        .catch((err: unknown) => {
+        .catch((err: { code?: string; name?: string } | null | undefined) => {
           // The 5s timeout aborts the request via the controller; not a failure.
-          if ((err as { code?: string } | null)?.code !== "ERR_CANCELED") {
+          if (err?.code !== "ERR_CANCELED" && err?.name !== "AbortError") {
             notifySystem("warning", "CANCEL_FAILED", "Failed to cancel the in-flight mission.");
           }
         })
@@ -87,6 +92,7 @@ export function useChatStream() {
     if (!input.trim() || isLoading) return;
 
     interruptedTurnRef.current = false;
+
     const userMessage: Message = {
       role: CHAT_ROLES.USER,
       content: input,
@@ -113,11 +119,9 @@ export function useChatStream() {
 
       activeAbortRef.current = new AbortController();
 
-      const payload: Record<string, unknown> = { message: input };
       const activeSessionId = useChatStore.getState().activeSessionId;
-      if (activeSessionId) {
-        payload.sessionId = activeSessionId;
-      }
+
+      const payload = activeSessionId ? { message: input, sessionId: activeSessionId } : { message: input };
 
       await chatApi.sendMessage(
         payload,
@@ -127,6 +131,7 @@ export function useChatStream() {
         activeAbortRef.current.signal,
         (response: Response) => {
           const sessionId = response.headers.get("X-Session-ID");
+
           if (sessionId && useChatStore.getState().activeSessionId === null) {
             useChatStore.getState().setActiveSession(sessionId);
             useChatStore.getState().setNewChatPending(false);
@@ -143,22 +148,27 @@ export function useChatStream() {
       const store = useChatStore.getState();
       store.setAgentState("error");
       const currentMsgs = store.messages;
+
       if (currentMsgs.length === 0) return;
       const lastIdx = currentMsgs.length - 1;
       const errorMessage = extractErrorMessage(err, "Failed to fetch response from agent.");
       notifySystem("error", "STREAM_FAILED", errorMessage);
       const prevContent = currentMsgs[lastIdx]?.content || "";
       const updatedContent = prevContent ? `${prevContent}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`;
+
       const lastMessage = {
         ...currentMsgs[lastIdx],
         content: updatedContent,
       };
+
       store.setMessages([...currentMsgs.slice(0, -1), lastMessage]);
     } finally {
       const store = useChatStore.getState();
       const currentMsgs = store.messages;
+
       if (currentMsgs.length > 0) {
         const lastIdx = currentMsgs.length - 1;
+
         if (currentMsgs[lastIdx].role === CHAT_ROLES.ASSISTANT && currentMsgs[lastIdx].status === "streaming") {
           const updated = [...currentMsgs];
           updated[lastIdx] = {
@@ -170,6 +180,7 @@ export function useChatStream() {
       }
 
       const sid = store.activeSessionId;
+
       if (sid) {
         try {
           await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(sid) });
@@ -183,6 +194,7 @@ export function useChatStream() {
 
       const pendingSid = pendingNavigationRef.current;
       pendingNavigationRef.current = null;
+
       if (pendingSid && store.activeSessionId === pendingSid) {
         router.push(`/session/${pendingSid}`);
       }

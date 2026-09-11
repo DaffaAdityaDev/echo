@@ -16,13 +16,14 @@ interface MockChatInstance {
   config?: MockChatConfig;
   apiKey?: string;
   anthropicApiKey?: string;
-  bindTools: (tools: unknown) => unknown;
-  stream: (messages: unknown, options: unknown) => unknown;
+  bindTools: (tools: ToolDefinition[]) => MockChatInstance;
+  stream: (messages: BaseMessage[], options?: { signal?: AbortSignal }) => AsyncIterable<AIMessageChunk>;
 }
 
 const openAIMocks = vi.hoisted(() => {
   const create = vi.fn();
   const list = vi.fn();
+
   return {
     create,
     list,
@@ -36,6 +37,7 @@ const openAIMocks = vi.hoisted(() => {
 const langchainOpenAIMocks = vi.hoisted(() => {
   const stream = vi.fn();
   const bindTools = vi.fn();
+
   return {
     stream,
     bindTools,
@@ -51,6 +53,7 @@ const langchainOpenAIMocks = vi.hoisted(() => {
 const langchainAnthropicMocks = vi.hoisted(() => {
   const stream = vi.fn();
   const bindTools = vi.fn();
+
   return {
     stream,
     bindTools,
@@ -74,13 +77,17 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("openai", () => ({ default: openAIMocks.OpenAI }));
+
 vi.mock("@langchain/openai", () => ({ ChatOpenAI: langchainOpenAIMocks.ChatOpenAI }));
+
 vi.mock("@langchain/anthropic", () => ({ ChatAnthropic: langchainAnthropicMocks.ChatAnthropic }));
+
 vi.mock("../../../shared/utils/langfuse", () => ({
   langfuseStorage: { getStore: langfuseMocks.getStore },
   getLangChainCallbacks: langfuseMocks.getLangChainCallbacks,
   startAgentTrace: langfuseMocks.startAgentTrace,
 }));
+
 vi.mock("../../../shared/utils/logger", () => loggerMocks);
 
 async function* sdkChunks(chunks: unknown[]): AsyncGenerator<unknown> {
@@ -90,7 +97,12 @@ async function* sdkChunks(chunks: unknown[]): AsyncGenerator<unknown> {
 }
 
 function makeTool(name: string, description: string, schema: z.ZodTypeAny): ToolDefinition {
-  return { name, description, schema } as unknown as ToolDefinition;
+  return {
+    name,
+    description,
+    schema,
+    execute: async () => ({ status: "success", summary: "ok" }),
+  };
 }
 
 async function collect(
@@ -100,9 +112,11 @@ async function collect(
   systemPrompt = "You are a test assistant.",
 ): Promise<ProviderEvent[]> {
   const events: ProviderEvent[] = [];
+
   for await (const event of provider.stream(messages, tools, systemPrompt)) {
     events.push(event);
   }
+
   return events;
 }
 
@@ -188,6 +202,7 @@ describe("OpenCodeGoProvider", () => {
 
   it("serializes LangChain messages into OpenAI API messages", async () => {
     openAIMocks.create.mockReturnValue(sdkChunks([]));
+
     const messages = [
       new SystemMessage("system detail"),
       new HumanMessage("hi there"),

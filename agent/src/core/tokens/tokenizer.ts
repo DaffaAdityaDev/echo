@@ -8,5 +8,6 @@ export function countTokens(text: string): number {
   if (!encoding) {
     encoding = get_encoding(ENCODING);
   }
+
   return encoding.encode(text).length;
 }

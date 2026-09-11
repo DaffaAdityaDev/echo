@@ -20,6 +20,7 @@ const mockSdk = vi.hoisted(() => {
   function makeNodeSDK() {
     return { start: vi.fn() };
   }
+
   return {
     LangfuseSpanProcessor: vi.fn(),
     NodeSDK: vi.fn(makeNodeSDK),

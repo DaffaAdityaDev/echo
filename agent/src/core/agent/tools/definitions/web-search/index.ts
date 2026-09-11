@@ -53,6 +53,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
     if (title && snippet) {
       results.push({ title, url: cleanUrl, snippet });
     }
+
     match = resultPattern.exec(html);
   }
 
@@ -88,6 +89,7 @@ export const webSearchTool: ToolDefinition = {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
       return {
         status: OPERATION_STATUS.ERROR,
         summary: SEARCH_SUMMARIES.GENERIC_ERROR(input.query, errorMessage),

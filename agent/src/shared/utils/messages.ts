@@ -7,8 +7,10 @@ export function mapHistoryToMessages(history?: Array<{ role: string; content: st
   if (!history) return [];
   const result: BaseMessage[] = [];
   let toolCallSeq = 0;
+
   for (const m of history) {
     const role = m.role.toLowerCase();
+
     if (role === "user" || role === "human") {
       result.push(new HumanMessage(m.content));
     } else if (role === "system") {
@@ -39,5 +41,6 @@ export function mapHistoryToMessages(history?: Array<{ role: string; content: st
       result.push(new AIMessage(m.content));
     }
   }
+
   return result;
 }

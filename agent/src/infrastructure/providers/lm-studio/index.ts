@@ -1,9 +1,18 @@
 import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { LLM_CONFIG } from "../../../shared/constants";
-import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
+import type { JsonObject, LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { getLangChainCallbacks } from "../../../shared/utils/langfuse";
 import { ReasoningInterceptor } from "../utils";
+
+function isString<T>(val: T): val is T & string {
+  return typeof val === "string";
+}
+
+interface LMStudioStreamOptions {
+  callbacks: unknown;
+  signal?: AbortSignal;
+}
 
 /**
  * LM Studio Provider.
@@ -57,6 +66,7 @@ export class LMStudioProvider implements LLMProvider {
         `LMStudioProvider: an API key is required but was not provided (baseURL=${this.baseURL}). Pass api_key in the provider config.`,
       );
     }
+
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({
@@ -67,10 +77,14 @@ export class LMStudioProvider implements LLMProvider {
 
     const chatWithTools = this.chat.bindTools(lcTools);
     const callbacks = await getLangChainCallbacks();
-    const langchainStream = await chatWithTools.stream(fullMessages, {
-      callbacks,
-      ...(signal ? { signal } : {}),
-    });
+
+    const streamOptions: LMStudioStreamOptions = { callbacks };
+
+    if (signal) {
+      streamOptions.signal = signal;
+    }
+
+    const langchainStream = await chatWithTools.stream(fullMessages, streamOptions);
 
     const sentReasoningMap = new Map<string, string>();
     let accumulatedChunk: AIMessageChunk | null = null;
@@ -83,7 +97,7 @@ export class LMStudioProvider implements LLMProvider {
       const messageId = chunk.id;
       const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
 
-      const textContent = typeof chunk.content === "string" ? chunk.content : "";
+      const textContent = isString(chunk.content) ? chunk.content : "";
 
       if (textContent || deltaReasoning) {
         yield {
@@ -97,18 +111,21 @@ export class LMStudioProvider implements LLMProvider {
     // Phase 2: Extract tool calls from the fully-accumulated final message
     if (accumulatedChunk) {
       const toolCalls = accumulatedChunk.tool_calls;
+
       if (toolCalls && toolCalls.length > 0) {
         const tc = toolCalls[0];
+        // SAFETY: Tool call arguments parsed from model output are valid JSON objects
         yield {
           toolCall: {
             name: tc.name,
-            args: tc.args as Record<string, unknown>,
+            args: tc.args as JsonObject,
           },
         };
       }
 
       // Emit token usage from the final chunk
       const usage = accumulatedChunk.usage_metadata;
+
       if (usage) {
         const lastId = accumulatedChunk.id;
         const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);

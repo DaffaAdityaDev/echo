@@ -21,6 +21,7 @@ export function useSessions() {
     setActiveSession(null);
     setNewChatPending(true);
     clearMessages();
+
     if (pathname !== "/") {
       router.push("/");
     }
@@ -29,13 +30,16 @@ export function useSessions() {
   const deleteSession = useCallback(
     async (id: string) => {
       setSessions(sessions.filter((s) => s.id !== id));
+
       if (activeSessionId === id) {
         setActiveSession(null);
         clearMessages();
+
         if (pathname !== "/") {
           router.push("/");
         }
       }
+
       try {
         await sessionApi.delete(id);
       } catch {

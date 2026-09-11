@@ -7,6 +7,7 @@ const STORAGE_KEY = "echo_agent_config";
 
 function loadConfig(): AgentConfig {
   const stored = getStorageJSON<Partial<AgentConfig>>(STORAGE_KEY);
+
   return stored ? { ...DEFAULT_AGENT_CONFIG, ...stored } : DEFAULT_AGENT_CONFIG;
 }
 
@@ -29,6 +30,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       // The backend stores the key encrypted and only re-exposes hasApiKey;
       // never persist the plaintext key — memory only.
       setStorageJSON(STORAGE_KEY, { ...next, apiKey: undefined });
+
       return { config: next, mutations: state.mutations + 1 };
     }),
   resetConfig: () => {
@@ -37,9 +39,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   hydrate: async () => {
     set({ loaded: false });
+
     try {
       const mutationsBefore = get().mutations;
       const serverConfig = await settingsApi.get();
+
       // Skip if the user changed config while the request was in flight —
       // the server response may predate the newer local mutation.
       if (get().mutations === mutationsBefore) {

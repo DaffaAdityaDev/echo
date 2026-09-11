@@ -6,6 +6,7 @@ import { LoginForm, useAuth } from "@/features/auth";
 
 function LoginContent() {
   const { loginAsync, isLoggingIn, loginError } = useAuth();
+
   return <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />;
 }
 

@@ -9,6 +9,14 @@ import { OPERATION_STATUS, PACKET_TYPES } from "../../../harness/constants";
 import type { HarnessEvent } from "../../../harness/types";
 import { DELEGATION_CONFIG, DELEGATION_DEFAULTS, SCHEMA_DESC } from "./constants";
 
+interface DelegationConfig {
+  parentMessages?: BaseMessage[];
+  onPacket?: (p: HarnessEvent) => Promise<void>;
+  provider?: LLMProvider;
+  tools?: ToolDefinition[];
+  delegationDepth?: number;
+}
+
 export const delegate_task: ToolDefinition = {
   name: DELEGATION_CONFIG.NAME,
   description: DELEGATION_CONFIG.DESCRIPTION,
@@ -21,13 +29,7 @@ export const delegate_task: ToolDefinition = {
   }),
   execute: async (
     input: { agentName: string; instruction: string; systemPrompt: string; fork_context: boolean },
-    config?: {
-      parentMessages?: BaseMessage[];
-      onPacket?: (p: HarnessEvent) => Promise<void>;
-      provider?: LLMProvider;
-      tools?: ToolDefinition[];
-      delegationDepth?: number;
-    },
+    config?: DelegationConfig,
   ): Promise<Observation> => {
     const store = langfuseStorage.getStore();
     const parentMissionId = store?.sessionId || "standalone";
@@ -35,6 +37,7 @@ export const delegate_task: ToolDefinition = {
 
     try {
       const provider = config?.provider;
+
       if (!provider) {
         throw new Error("LLMProvider is required for delegation");
       }
@@ -52,6 +55,7 @@ export const delegate_task: ToolDefinition = {
 
       // Reconstruct history if fork_context is true
       let historyMessages: BaseMessage[] = [];
+
       if (input.fork_context && config?.parentMessages) {
         historyMessages = config.parentMessages;
       }
@@ -63,6 +67,7 @@ export const delegate_task: ToolDefinition = {
       };
 
       const childDepth = (config?.delegationDepth ?? 0) + 1;
+
       const childHarness = new NlahHarness({
         provider,
         strategy: subagentStrategy,
@@ -96,7 +101,7 @@ export const delegate_task: ToolDefinition = {
             { childMissionId },
           );
         } else if (packet.type === PACKET_TYPES.TOOL_CALL) {
-          stepLogs.push(DELEGATION_DEFAULTS.LOG_ACTION_PREFIX(packet.toolName as string, packet.toolInput));
+          stepLogs.push(DELEGATION_DEFAULTS.LOG_ACTION_PREFIX(packet.toolName ?? "", packet.toolInput));
           logger.agentActivity(
             parentMissionId,
             "DELEGATE_TOOL_CALL",
@@ -104,11 +109,12 @@ export const delegate_task: ToolDefinition = {
             { childMissionId, toolName: packet.toolName, toolInput: packet.toolInput },
           );
         } else if (packet.type === PACKET_TYPES.TOOL_RESULT) {
-          stepLogs.push(DELEGATION_DEFAULTS.LOG_OBSERVATION_PREFIX(packet.content as string));
+          const content = packet.content ?? "";
+          stepLogs.push(DELEGATION_DEFAULTS.LOG_OBSERVATION_PREFIX(content));
           logger.agentActivity(
             parentMissionId,
             "DELEGATE_TOOL_RESULT",
-            `[Sub-Agent ${input.agentName}] Tool returned: ${(packet.content as string).trim().slice(0, 100)}...`,
+            `[Sub-Agent ${input.agentName}] Tool returned: ${content.trim().slice(0, 100)}...`,
             { childMissionId },
           );
         } else if (packet.type === PACKET_TYPES.CONTENT && packet.content) {
@@ -148,6 +154,7 @@ export const delegate_task: ToolDefinition = {
         { childMissionId, error: errorMessage },
       );
       logger.error(DELEGATION_DEFAULTS.LOG_ERROR_FAIL(input.agentName), error);
+
       return {
         status: OPERATION_STATUS.ERROR,
         summary: DELEGATION_DEFAULTS.SUMMARY_FAILURE(input.agentName, errorMessage),

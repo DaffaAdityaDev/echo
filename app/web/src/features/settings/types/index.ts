@@ -59,6 +59,19 @@ export interface AgentConfig {
   harnessToggles?: HarnessFeatureToggles;
 }
 
+export interface AgentConfigDTO {
+  default_mode?: string;
+  default_model?: string;
+  default_features?: string[];
+  default_skills?: string[];
+  provider_type?: string;
+  api_key?: string;
+  has_api_key?: boolean;
+  keep_api_key?: boolean;
+  base_url?: string;
+  harness_toggles?: HarnessFeatureToggles;
+}
+
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   defaultMode: "standard",
   defaultModel: "",

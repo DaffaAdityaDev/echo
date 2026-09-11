@@ -19,6 +19,7 @@ export async function authMiddleware(c: Context, next: Next) {
   const xInternalHeader = c.req.header(AUTH_CONSTANTS.HEADER_INTERNAL_TOKEN);
 
   let receivedToken = "";
+
   if (authHeader?.startsWith(AUTH_CONSTANTS.BEARER_PREFIX)) {
     receivedToken = authHeader.substring(AUTH_CONSTANTS.BEARER_PREFIX.length);
   } else if (xInternalHeader) {
@@ -29,6 +30,7 @@ export async function authMiddleware(c: Context, next: Next) {
     logger.warn(
       `Unauthorized access attempt to Agent endpoint: ${c.req.path} from IP: ${c.req.header(AUTH_CONSTANTS.HEADER_FORWARDED_FOR) || AUTH_CONSTANTS.DEFAULT_IP}`,
     );
+
     return c.json(
       {
         status: ERROR_STATUS,

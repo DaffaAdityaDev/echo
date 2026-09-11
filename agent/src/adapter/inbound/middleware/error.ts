@@ -13,8 +13,11 @@ type UpstreamErrorKind = "rate_limit" | "timeout" | null;
 // matching is the fallback of last resort. Ordered by specificity.
 function classifyUpstreamError(err: Error): UpstreamErrorKind {
   const msg = err.message || "";
+
   if (/rate\s*limit/i.test(msg) || msg.includes("429")) return "rate_limit";
+
   if (/timeout|deadline/i.test(msg) || msg.includes("504") || msg.includes("408")) return "timeout";
+
   return null;
 }
 
@@ -26,6 +29,7 @@ export function errorHandler(err: Error, c: Context) {
       statusCode: err.statusCode,
       details: err.errors,
     });
+
     return c.json(
       {
         status: ERROR_STATUS,
@@ -33,13 +37,16 @@ export function errorHandler(err: Error, c: Context) {
         message: err.message,
         ...(err.errors && { details: err.errors }),
       },
+      // SAFETY: AppError.statusCode is a valid HTTP status code in the contentful range
       err.statusCode as ContentfulStatusCode,
     );
   }
 
   const upstreamKind = classifyUpstreamError(err);
+
   if (upstreamKind === "rate_limit") {
     logger.error(`LLM Rate Limit encountered [Request: ${requestId}]: ${err.message}`);
+
     return c.json(
       {
         status: ERROR_STATUS,
@@ -52,6 +59,7 @@ export function errorHandler(err: Error, c: Context) {
 
   if (upstreamKind === "timeout") {
     logger.error(`Upstream timeout encountered [Request: ${requestId}]: ${err.message}`);
+
     return c.json(
       {
         status: ERROR_STATUS,
@@ -64,6 +72,7 @@ export function errorHandler(err: Error, c: Context) {
 
   if (err instanceof SyntaxError && err.message.includes("JSON")) {
     logger.warn(`Invalid JSON payload submitted [Request: ${requestId}]: ${err.message}`);
+
     return c.json(
       {
         status: ERROR_STATUS,
@@ -75,6 +84,7 @@ export function errorHandler(err: Error, c: Context) {
   }
 
   logger.error(`Unhandled system exception caught [Request: ${requestId}]`, err);
+
   return c.json(
     {
       status: "error",

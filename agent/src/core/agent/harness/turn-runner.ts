@@ -5,7 +5,7 @@ import { ProviderFactory } from "../../../infrastructure/providers/factory";
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import { CANCELLED_MESSAGE } from "../../../shared/constants/errors";
-import type { AgentState, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
+import type { AgentState, HarnessFeatureToggles, JsonObject, LLMProvider, ToolDefinition } from "../../../shared/types";
 import { getCosineSimilarity } from "../../../shared/utils/harness";
 import { langfuseStorage } from "../../../shared/utils/langfuse";
 import { logger } from "../../../shared/utils/logger";
@@ -75,13 +75,14 @@ export class TurnRunner {
     if (!ENV.DEBUG_PROMPT && ENV.NODE_ENV !== DEBUG_CONFIG.ENV) return;
     queuePromptDebug({ state, iteration, strategyName: this.deps.strategyRef.current.name, systemPrompt });
     logger.info(`📓 Prompt debug operations queued in background`);
+
     try {
       await this.deps.emitter.emitDebug(
         onPacket,
         iteration,
         systemPrompt,
         state.messages.length,
-        state.messages.map((m) => ({ role: m._getType(), content: m.content as string })),
+        state.messages.map((m) => ({ role: m._getType(), content: String(m.content) })),
       );
     } catch (emitErr) {
       logger.error("Failed to emit debug packet", emitErr);
@@ -117,19 +118,23 @@ export class TurnRunner {
           iteration,
           onPacket,
         );
+
         if (result.systemPrompt) runtime.currentSystemPrompt = result.systemPrompt;
+
         if (result.toolMap.size > 0 || result.lastDegradationLevel !== runtime.lastDegradationLevel)
           runtime.currentToolMap = result.toolMap;
         runtime.lastDegradationLevel = result.lastDegradationLevel;
 
         const currentLevel = degradation.getLevel();
         const activeCircuitBreakers = circuit.getAllOpenCircuits();
+
         const currentStrategyStr =
           this.deps.strategyRef.current.name === "standard"
             ? "standard"
             : currentLevel === "restricted"
               ? "restricted"
               : "agent";
+
         await this.deps.emitter.updateStatus(
           onPacket,
           {
@@ -151,8 +156,10 @@ export class TurnRunner {
 
         // BUDGET CHECK
         const budgetCheck = budgetMonitor.checkBudget(iteration, this.deps.getTotalCostUsd());
+
         if (budgetCheck.exceeded) {
           logger.warn(`[NlahHarness] Budget threshold crossed: ${budgetCheck.message}`);
+
           if (
             this.deps.featureToggles.systemNotices.enabled &&
             this.deps.featureToggles.systemNotices.emitBudgetWarnings
@@ -161,16 +168,20 @@ export class TurnRunner {
               onPacket,
               iteration,
               "BUDGET_WARNING",
-              budgetCheck.message as string,
+              budgetCheck.message ?? "",
               "error",
             );
           }
+
           await this.deps.emitter.updateStatus(onPacket, { state: "aborted" }, iteration);
+
           if (span) {
             span.update({ output: { status: "budget_aborted", reason: budgetCheck.reason } });
             span.end();
           }
+
           runtime.isComplete = true;
+
           return;
         }
 
@@ -179,11 +190,13 @@ export class TurnRunner {
 
         const activeTools = currentLevel !== "normal" ? [] : tools;
         const dynamicEnvContext = `Current Time: ${new Date().toISOString()} | Session: ${state.missionId}`;
+
         const preparedMessages = this.deps.contextManager.prepareMessagesPayload(
           runtime.currentSystemPrompt,
           dynamicEnvContext,
           state.messages,
         );
+
         const eventStream = this.deps.provider.stream(
           preparedMessages,
           activeTools,
@@ -212,6 +225,7 @@ export class TurnRunner {
             usage.completionTokens,
             usage.cachedTokens ?? 0,
           );
+
           this.deps.addTotalCostUsd(stepCost);
           runtime.totalInputTokensSum += usage.promptTokens;
         }
@@ -220,6 +234,7 @@ export class TurnRunner {
         if (runtime.previousThought && assistantContent) {
           const sim = getCosineSimilarity(runtime.previousThought, assistantContent);
           logger.info(`Semantic cosine similarity calculated: ${sim.toFixed(4)}`);
+
           if (this.deps.getLoopDetectionEnabled() && sim >= HARNESS_CONFIG.SIMILARITY_THRESHOLD) {
             logger.langfuse(
               "WARN",
@@ -229,9 +244,10 @@ export class TurnRunner {
             await this.deps.emitter.updateStatus(onPacket, { state: "looping" }, iteration);
           }
         }
+
         runtime.previousThought = assistantContent;
 
-        let toolCallResult: { name: string; args: Record<string, unknown> } | null = pendingToolCall;
+        let toolCallResult: { name: string; args: JsonObject } | null = pendingToolCall;
 
         // LAYER 1: EXACT TOOL CALL LOOP DETECTION (MD5 Hash Ring Buffer)
         if (
@@ -240,8 +256,10 @@ export class TurnRunner {
           this.deps.featureToggles.loopDetection.enableExactMatch
         ) {
           const loopResult = this.deps.loopDetector.recordAndCheck(toolCallResult.name, toolCallResult.args);
+
           if (loopResult.isLoop) {
             logger.warn(`[NlahHarness] Exact tool call loop detected for ${toolCallResult.name}`);
+
             if (
               this.deps.featureToggles.systemNotices.enabled &&
               this.deps.featureToggles.systemNotices.emitLoopWarnings
@@ -254,6 +272,7 @@ export class TurnRunner {
                 "warning",
               );
             }
+
             state.messages.push(
               new ToolMessage({
                 tool_call_id: `loop_warn_${Date.now()}`,
@@ -267,11 +286,13 @@ export class TurnRunner {
         // HITL PROTECTION GUARD
         if (toolCallResult && this.deps.hitlGuard.isProtected(toolCallResult.name)) {
           logger.info(`[NlahHarness] HITL approval required for protected tool: ${toolCallResult.name}`);
+
           const approval = this.deps.hitlGuard.createApprovalPayload(this.deps.getMissionId(), state.missionId, {
             id: `tool_${Date.now()}`,
             name: toolCallResult.name,
             args: toolCallResult.args,
           });
+
           await stateStorage.set(
             `paused:${approval.approvalId}`,
             {
@@ -320,10 +341,12 @@ export class TurnRunner {
               expiresAt: approval.expiresAt,
             },
           });
+
           if (span) {
             span.update({ output: { status: "PAUSED_AWAITING_APPROVAL", toolName: toolCallResult.name } });
             span.end();
           }
+
           return;
         }
 
@@ -348,6 +371,7 @@ export class TurnRunner {
           logger.info(
             `[runMission] Iter ${iteration}: no toolCall — entering autoRecovery (contentLen=${assistantContent.length}, hasContentEmitted=${hasContentEmitted})`,
           );
+
           const { isComplete: turnComplete, retryWithTool } = await this.deps.recovery.handleAutoRecovery(
             assistantContent,
             reasoningContent,
@@ -355,7 +379,9 @@ export class TurnRunner {
             state,
             runtime.currentToolMap,
           );
+
           runtime.isComplete = turnComplete;
+
           if (retryWithTool) {
             await this.deps.toolExecutor.execute(
               retryWithTool,
@@ -371,6 +397,7 @@ export class TurnRunner {
               maxContextTokens,
             );
           }
+
           if (!runtime.isComplete && !hasContentEmitted && assistantContent) {
             await this.deps.emitter.emitContent(onPacket, iteration, assistantContent);
           }
@@ -385,6 +412,7 @@ export class TurnRunner {
           });
           span.end();
         }
+
         await stateStorage.set(state.missionId, state, HARNESS_CONFIG.STATE_TTL_SECONDS);
       } catch (err: unknown) {
         if (
@@ -392,23 +420,29 @@ export class TurnRunner {
           cancellationManager.isCancelled(this.deps.getMissionId())
         ) {
           logger.info(`NlahHarness: Mission ${this.deps.getMissionId()} aborted mid-turn, surfacing as cancellation.`);
+
           if (span) {
             span.update({ output: { status: "interrupted", reason: CANCELLED_MESSAGE } });
             span.end();
           }
+
           throw new Error(CANCELLED_MESSAGE);
         }
-        const turnError = err as { message?: string; stack?: string };
-        logger.langfuse("ERROR", `Turn execution failed: ${turnError.message}`, {
-          error: turnError.stack || turnError.message,
+
+        const errMessage = err instanceof Error ? err.message : String(err);
+        const errStack = err instanceof Error ? err.stack : undefined;
+        logger.langfuse("ERROR", `Turn execution failed: ${errMessage}`, {
+          error: errStack || errMessage,
         });
+
         if (span) {
           span.update({
             level: "ERROR",
-            statusMessage: turnError.message,
+            statusMessage: errMessage,
           });
           span.end();
         }
+
         throw err;
       }
     });

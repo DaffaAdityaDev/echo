@@ -7,6 +7,7 @@ const BASE_URL = getBackendApiUrl();
 
 export async function GET(_req: NextRequest) {
   const token = await getRequestToken();
+
   return proxyFetch(`${BASE_URL}/settings`, {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
@@ -15,6 +16,7 @@ export async function GET(_req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const token = await getRequestToken();
   const body = await req.json();
+
   return proxyFetch(`${BASE_URL}/settings`, {
     method: "PUT",
     headers: {

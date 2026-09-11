@@ -29,4 +29,5 @@ export const SummarizeResponseSchema = z.object({
 });
 
 export type SummarizeRequest = z.infer<typeof SummarizeRequestSchema>;
+
 export type SummarizeResponse = z.infer<typeof SummarizeResponseSchema>;

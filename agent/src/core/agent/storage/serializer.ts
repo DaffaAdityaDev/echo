@@ -1,32 +1,42 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { AgentState } from "../../../shared/types";
+import type { BaseMessage } from "@langchain/core/messages";
+import type { AgentState, JsonObject, JsonValue, Task } from "../../../shared/types";
+
+interface SerializedToolCall {
+  name: string;
+  args: JsonObject;
+  id: string;
+  type?: "tool_call";
+}
 
 interface SerializedMessage {
   type: string;
   content?: string;
   name?: string;
   id?: string;
-  additional_kwargs?: Record<string, unknown>;
-  response_metadata?: Record<string, unknown>;
+  additional_kwargs?: JsonObject;
+  response_metadata?: JsonObject;
   tool_call_id?: string;
-  tool_calls?: Array<{ name: string; args: Record<string, unknown>; id: string; type?: "tool_call" }>;
+  tool_calls?: SerializedToolCall[];
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+function isPlainObject(value: JsonValue | undefined | null): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isSerializedMessage(value: unknown): value is SerializedMessage {
+function isSerializedMessage(value: JsonValue): value is SerializedMessage & JsonObject {
   return isPlainObject(value) && typeof value.type === "string";
 }
 
-export function isSerializedAgentState(value: unknown): value is Record<string, unknown> & {
+export interface SerializedAgentState extends JsonObject {
   missionId: string;
   objective: string;
-  tasks: unknown[];
-  memory: Record<string, unknown>;
+  tasks: Task[];
+  memory: JsonObject;
   messages: SerializedMessage[];
-} {
+}
+
+export function isSerializedAgentState(value: JsonValue): value is SerializedAgentState {
   return (
     isPlainObject(value) &&
     typeof value.missionId === "string" &&
@@ -38,10 +48,34 @@ export function isSerializedAgentState(value: unknown): value is Record<string, 
   );
 }
 
-function isSerializedPausedState(
-  value: Record<string, unknown>,
-): value is Record<string, unknown> & { approvalId: string; state: unknown } {
+export interface SerializedPausedState extends JsonObject {
+  approvalId: string;
+  state: JsonValue;
+}
+
+function isSerializedPausedState(value: JsonObject): value is SerializedPausedState {
   return typeof value.approvalId === "string" && "state" in value && isSerializedAgentState(value.state);
+}
+
+function isString(val: unknown): val is string {
+  return typeof val === "string";
+}
+
+function getToolCallId(msg: BaseMessage): string | undefined {
+  if ("tool_call_id" in msg && isString(msg.tool_call_id)) {
+    return msg.tool_call_id;
+  }
+
+  return undefined;
+}
+
+function getToolCalls(msg: BaseMessage): SerializedToolCall[] | undefined {
+  if ("tool_calls" in msg && Array.isArray(msg.tool_calls)) {
+    // SAFETY: LangChain tool_calls attribute conforms to SerializedToolCall structure
+    return msg.tool_calls as SerializedToolCall[];
+  }
+
+  return undefined;
 }
 
 export function serializeAgentState(state: AgentState) {
@@ -53,10 +87,12 @@ export function serializeAgentState(state: AgentState) {
           content: msg.content,
           name: msg.name,
           id: msg.id,
-          additional_kwargs: msg.additional_kwargs,
-          response_metadata: msg.response_metadata,
-          tool_call_id: (msg as { tool_call_id?: string }).tool_call_id,
-          tool_calls: (msg as { tool_calls?: unknown }).tool_calls,
+          // SAFETY: LangChain message kwargs and metadata are JSON-serializable dictionaries
+          additional_kwargs: msg.additional_kwargs as JsonObject | undefined,
+          // SAFETY: LangChain response_metadata conforms to JsonObject dictionary
+          response_metadata: msg.response_metadata as JsonObject | undefined,
+          tool_call_id: getToolCallId(msg),
+          tool_calls: getToolCalls(msg),
         }))
       : [],
   };
@@ -95,7 +131,7 @@ function deserializeMessages(messages: SerializedMessage[]) {
           content: msg.content,
           name: msg.name,
           id: msg.id,
-          tool_call_id: msg.tool_call_id as string,
+          tool_call_id: msg.tool_call_id ?? "",
           additional_kwargs: msg.additional_kwargs,
           response_metadata: msg.response_metadata,
         });
@@ -107,12 +143,17 @@ function deserializeMessages(messages: SerializedMessage[]) {
   });
 }
 
-export function deserializeAgentState(serialized: unknown): AgentState | null {
+export function deserializeAgentState(serialized: JsonValue | null | undefined): AgentState | null {
   if (!isPlainObject(serialized)) return null;
 
   if (isSerializedAgentState(serialized)) {
+    // SAFETY: Deserialized state restores typed messages while preserving optional state fields
     return {
       ...serialized,
+      missionId: serialized.missionId,
+      objective: serialized.objective,
+      tasks: serialized.tasks,
+      memory: serialized.memory,
       messages: deserializeMessages(serialized.messages),
     } as AgentState;
   }
@@ -121,8 +162,19 @@ export function deserializeAgentState(serialized: unknown): AgentState | null {
     // The paused-state payload embeds an AgentState under `state`; restore its
     // messages so HITL resume hands the harness real LangChain messages.
     const restored = deserializeAgentState(serialized.state);
+
     if (!restored) return null;
-    return { ...serialized, state: restored } as unknown as AgentState;
+
+    // SAFETY: HITL PausedMissionState merges nested AgentState fields for backward compatibility
+    return {
+      ...serialized,
+      missionId: restored.missionId,
+      objective: restored.objective,
+      tasks: restored.tasks,
+      memory: restored.memory,
+      messages: restored.messages,
+      state: restored,
+    } as AgentState;
   }
 
   return null;

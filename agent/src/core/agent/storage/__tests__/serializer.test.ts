@@ -42,6 +42,7 @@ describe("serializeAgentState", () => {
         name: "search",
       }),
     ];
+
     const state = makeState({ messages });
 
     const serialized = serializeAgentState(state);
@@ -88,6 +89,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages).toHaveLength(2);
     expect(state.messages[0]).toBeInstanceOf(HumanMessage);
@@ -111,6 +113,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages[0]).toBeInstanceOf(SystemMessage);
     expect(state.messages[1]).toBeInstanceOf(HumanMessage);
@@ -129,6 +132,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages[0]).toBeInstanceOf(HumanMessage);
     expect(state.messages[0].content).toBe("fallback");
@@ -176,7 +180,8 @@ describe("deserializeAgentState", () => {
 
     const restored = deserializeAgentState(paused);
     expect(restored).not.toBeNull();
-    const nested = (restored as unknown as { state: AgentState }).state;
+    // SAFETY: Access nested state preserved on paused execution states
+    const nested = (restored as AgentState & { state: AgentState }).state;
     expect(nested.messages).toHaveLength(3);
     expect(nested.messages[0]).toBeInstanceOf(HumanMessage);
     expect(nested.messages[1]).toBeInstanceOf(AIMessage);
@@ -188,6 +193,7 @@ describe("deserializeAgentState", () => {
   test("handles empty messages array", () => {
     const serialized = { missionId: "m1", objective: "O1", tasks: [], memory: {}, messages: [] };
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages).toEqual([]);
   });
@@ -218,6 +224,7 @@ describe("round-trip", () => {
 
     const serialized = serializeAgentState(original);
     const deserialized = deserializeAgentState(serialized);
+
     if (!deserialized) throw new Error("expected deserialized state");
     const state = deserialized;
 

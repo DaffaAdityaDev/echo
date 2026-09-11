@@ -81,6 +81,7 @@ describe("jsonSchemaToZod", () => {
         },
         required: ["name"],
       };
+
       const zodSchema = jsonSchemaToZod(schema);
       expect(zodSchema).toBeInstanceOf(z.ZodObject);
 
@@ -116,10 +117,13 @@ describe("jsonSchemaToZod", () => {
         },
         required: ["user"],
       };
+
       const zodSchema = jsonSchemaToZod(schema);
+
       const valid = zodSchema.safeParse({
         user: { name: "Alice", address: { city: "NYC", zip: "10001" } },
       });
+
       expect(valid.success).toBe(true);
 
       const invalid = zodSchema.safeParse({ user: { address: { city: "NYC" } } });
@@ -132,6 +136,7 @@ describe("jsonSchemaToZod", () => {
         description: "A user profile",
         properties: { name: { type: "string" } },
       };
+
       const zodSchema = jsonSchemaToZod(schema);
       expect(zodSchema.description).toBe("A user profile");
     });
@@ -161,6 +166,7 @@ describe("jsonSchemaToZod", () => {
           required: ["id"],
         },
       };
+
       const zodSchema = jsonSchemaToZod(schema);
       const valid = zodSchema.safeParse([{ id: 1, label: "A" }, { id: 2 }]);
       expect(valid.success).toBe(true);
@@ -175,6 +181,7 @@ describe("jsonSchemaToZod", () => {
         description: "A list of items",
         items: { type: "string" },
       };
+
       const zodSchema = jsonSchemaToZod(schema);
       expect(zodSchema.description).toBe("A list of items");
     });
@@ -206,10 +213,11 @@ describe("jsonSchemaToZod", () => {
         },
         required: ["a"],
       };
+
       const zodSchema = jsonSchemaToZod(schema);
-      const shape = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
-      expect(shape.a).not.toBeInstanceOf(z.ZodOptional);
-      expect(shape.b).toBeInstanceOf(z.ZodOptional);
+      const schemaFields = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
+      expect(schemaFields.a).not.toBeInstanceOf(z.ZodOptional);
+      expect(schemaFields.b).toBeInstanceOf(z.ZodOptional);
     });
 
     test("all properties are optional when required is absent", () => {
@@ -220,10 +228,11 @@ describe("jsonSchemaToZod", () => {
           b: { type: "number" },
         },
       };
+
       const zodSchema = jsonSchemaToZod(schema);
-      const shape = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
-      expect(shape.a).toBeInstanceOf(z.ZodOptional);
-      expect(shape.b).toBeInstanceOf(z.ZodOptional);
+      const schemaFields = (zodSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
+      expect(schemaFields.a).toBeInstanceOf(z.ZodOptional);
+      expect(schemaFields.b).toBeInstanceOf(z.ZodOptional);
     });
   });
 });

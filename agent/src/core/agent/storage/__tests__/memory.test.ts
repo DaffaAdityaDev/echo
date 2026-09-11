@@ -82,6 +82,7 @@ describe("InMemoryStateProvider", () => {
 
   test("expired ttl entries are evicted and get returns null", async () => {
     vi.useFakeTimers();
+
     try {
       await provider.set("m1", makeState(), 60);
       await expect(provider.get("m1")).resolves.not.toBeNull();
@@ -97,6 +98,7 @@ describe("InMemoryStateProvider", () => {
   test("a ttl of 0 or undefined never expires", async () => {
     await provider.set("m1", makeState(), 0);
     vi.useFakeTimers();
+
     try {
       vi.advanceTimersByTime(86_400_000);
       await expect(provider.get("m1")).resolves.not.toBeNull();
@@ -107,6 +109,7 @@ describe("InMemoryStateProvider", () => {
 
   test("an expired entry can be overwritten into a fresh state", async () => {
     vi.useFakeTimers();
+
     try {
       await provider.set("m1", makeState(), 60);
       vi.advanceTimersByTime(60_000);

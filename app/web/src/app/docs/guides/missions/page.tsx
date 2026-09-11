@@ -7,6 +7,7 @@ import { useSpec } from "@/components/docs/OpenApiSpecProvider";
 
 export default function MissionsGuide() {
   const { spec } = useSpec();
+
   const missionEndpoints = spec?.tags
     .flatMap((t) => t.endpoints)
     .filter((ep) => ep.path.endsWith("/approve") || ep.path.endsWith("/deny") || ep.path.endsWith("/stream"));

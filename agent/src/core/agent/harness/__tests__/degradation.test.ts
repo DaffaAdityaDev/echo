@@ -10,6 +10,7 @@ describe("DegradationManager", () => {
 
   it("3 failures makes level restricted", () => {
     const manager = new DegradationManager({ degradeAfter: 3, abortAfter: 7 });
+
     for (let i = 0; i < 3; i++) manager.recordToolError();
     expect(manager.getLevel()).toBe("restricted");
     expect(manager.isDegraded()).toBe(true);
@@ -18,6 +19,7 @@ describe("DegradationManager", () => {
 
   it("5 failures makes level standard", () => {
     const manager = new DegradationManager({ degradeAfter: 3, abortAfter: 7 });
+
     for (let i = 0; i < 5; i++) manager.recordToolError();
     expect(manager.getLevel()).toBe("standard");
     expect(manager.isDegraded()).toBe(true);
@@ -26,12 +28,14 @@ describe("DegradationManager", () => {
 
   it("7 failures triggers abort", () => {
     const manager = new DegradationManager({ degradeAfter: 3, abortAfter: 7 });
+
     for (let i = 0; i < 7; i++) manager.recordToolError();
     expect(manager.shouldAbort()).toBe(true);
   });
 
   it("reset restores level to normal", () => {
     const manager = new DegradationManager({ degradeAfter: 3, abortAfter: 7 });
+
     for (let i = 0; i < 4; i++) manager.recordToolError();
     expect(manager.getLevel()).toBe("restricted");
 
@@ -44,6 +48,7 @@ describe("DegradationManager", () => {
 
   it("keeps restricted reachable when degradeAfter >= 5", () => {
     const manager = new DegradationManager({ degradeAfter: 5, abortAfter: 9 });
+
     for (let i = 0; i < 5; i++) manager.recordToolError();
     expect(manager.getLevel()).toBe("restricted");
     expect(manager.isDegraded()).toBe(true);
@@ -59,6 +64,7 @@ describe("DegradationManager", () => {
 
   it("still fires standard before abort when abortAfter < 5", () => {
     const manager = new DegradationManager({ degradeAfter: 2, abortAfter: 4 });
+
     for (let i = 0; i < 2; i++) manager.recordToolError();
     expect(manager.getLevel()).toBe("restricted");
 

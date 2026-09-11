@@ -1,10 +1,23 @@
-export function extractErrorMessage(err: unknown, fallback = "Unexpected error"): string {
+export type ErrorContext = Error | string | { message?: string; error?: string } | null | undefined;
+
+function isString(value: ErrorContext): value is string {
+  return typeof value === "string";
+}
+
+function isErrorObject(value: ErrorContext): value is { message?: string; error?: string } {
+  return typeof value === "object" && value !== null && !(value instanceof Error);
+}
+
+export function extractErrorMessage(err: ErrorContext, fallback = "Unexpected error"): string {
   if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  if (err && typeof err === "object") {
-    const rec = err as Record<string, unknown>;
-    if (typeof rec.message === "string") return rec.message;
-    if (typeof rec.error === "string") return rec.error;
+
+  if (isString(err)) return err;
+
+  if (isErrorObject(err)) {
+    if (err.message) return err.message;
+
+    if (err.error) return err.error;
   }
+
   return fallback;
 }

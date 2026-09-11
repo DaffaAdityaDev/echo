@@ -24,6 +24,7 @@ describe("Models Endpoint", () => {
         { status: 200 },
       ),
     );
+
     vi.stubGlobal("fetch", fetchMock);
 
     const app = new Hono();

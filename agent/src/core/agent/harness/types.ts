@@ -1,5 +1,12 @@
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
-import type { AgentStrategy, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
+import type {
+  AgentStrategy,
+  HarnessFeatureToggles,
+  JsonObject,
+  JsonValue,
+  LLMProvider,
+  ToolDefinition,
+} from "../../../shared/types";
 import type { BehaviorPrompt } from "../prompts";
 
 export type HarnessEventType =
@@ -32,9 +39,9 @@ export type HarnessEvent = {
   step?: number;
   content?: string;
   toolName?: string;
-  toolInput?: Record<string, unknown>;
-  payload?: Record<string, unknown>;
-  [key: string]: unknown;
+  toolInput?: JsonObject;
+  payload?: JsonObject;
+  [key: string]: JsonValue | undefined;
 };
 
 export interface HarnessRuntimeConfig {

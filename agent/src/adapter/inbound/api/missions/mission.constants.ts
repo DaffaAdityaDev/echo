@@ -2,17 +2,28 @@ import { CANCELLED_MESSAGE } from "../../../../shared/constants/errors";
 
 export const MISSION_STRATEGIES = ["standard", "agent"] as const;
 
-export const DEFAULT_MISSION_VALUES = {
-  STRATEGY: "agent" as (typeof MISSION_STRATEGIES)[number],
+export type MissionStrategy = (typeof MISSION_STRATEGIES)[number];
+
+export interface DefaultMissionValues {
+  readonly STRATEGY: MissionStrategy;
+  readonly TENANT_ID: string;
+  readonly USER_ID: string;
+  readonly ORG_ID: string;
+}
+
+export const DEFAULT_MISSION_VALUES: DefaultMissionValues = {
+  STRATEGY: "agent",
   TENANT_ID: "local-developer",
   USER_ID: "local-dev-user",
   ORG_ID: "local-org",
-} as const;
+};
 
-export const STRATEGY_MAPPING = {
-  standard: ["standard", "chat"] as readonly string[],
-  agent: ["agent", "nlah", "deep-research", "react", "sequential"] as readonly string[],
-} as const;
+export type StrategyMapping = Record<MissionStrategy, readonly string[]>;
+
+export const STRATEGY_MAPPING: StrategyMapping = {
+  standard: ["standard", "chat"],
+  agent: ["agent", "nlah", "deep-research", "react", "sequential"],
+};
 
 export const VALIDATION_MESSAGES = {
   PROMPT_REQUIRED: "Either 'prompt' or 'message' field is required",

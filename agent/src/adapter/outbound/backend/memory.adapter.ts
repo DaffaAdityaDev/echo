@@ -1,6 +1,6 @@
 import { ENV } from "../../../config/env";
 import { deserializeAgentState, serializeAgentState } from "../../../core/agent/storage";
-import type { AgentState } from "../../../shared/types";
+import type { AgentState, JsonValue } from "../../../shared/types";
 import { signServiceJwt } from "../../../shared/utils/jwt";
 import { logger } from "../../../shared/utils/logger";
 
@@ -9,20 +9,35 @@ const ENDPOINTS = {
   recall: "/api/v1/internal/memory/episodic/recall",
 };
 
-function parseRecallContent(content: string): unknown {
+interface MemoryRecallResponse {
+  session_id?: string;
+  entries?: Array<{ content?: JsonValue } | string>;
+  content?: JsonValue;
+}
+
+function isString<T>(val: T): val is T & string {
+  return typeof val === "string";
+}
+
+function parseRecallContent(content: string): JsonValue | null {
   try {
-    return JSON.parse(content);
+    // SAFETY: JSON parse output is a valid JSON value structure
+    return JSON.parse(content) as JsonValue;
   } catch {
     logger.debug(`Memory recall content is not a single JSON document, falling back to fragment parsing`);
-    let last: unknown = null;
+    let last: JsonValue | null = null;
+
     for (const fragment of content.split("\n")) {
       if (fragment === "") continue;
+
       try {
-        last = JSON.parse(fragment);
+        // SAFETY: JSON fragment parse output is a valid JSON value structure
+        last = JSON.parse(fragment) as JsonValue;
       } catch {
         // Skip fragments that are not standalone JSON documents
       }
     }
+
     return last;
   }
 }
@@ -51,8 +66,10 @@ export class MemoryAdapter {
 
   async health() {
     const start = Date.now();
+
     try {
       await this.request("GET", "/health");
+
       return { ok: true, latency: Date.now() - start };
     } catch {
       return { ok: false, latency: Date.now() - start };
@@ -67,8 +84,9 @@ export class MemoryAdapter {
     return this.baseUrl;
   }
 
-  private async request(method: string, path: string, body?: unknown): Promise<unknown> {
+  private async request(method: string, path: string, body?: JsonValue): Promise<JsonValue> {
     const token = signServiceJwt();
+
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
@@ -77,48 +95,56 @@ export class MemoryAdapter {
       },
       body: body ? JSON.stringify(body) : undefined,
     });
+
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(`Memory request failed: ${res.status} ${text}`);
     }
-    return res.json();
+
+    // SAFETY: fetch response JSON adheres to valid JsonValue representation
+    return (await res.json()) as JsonValue;
   }
 
   async get(missionId: string): Promise<AgentState | null> {
     try {
+      // SAFETY: Backend recall response body adheres to MemoryRecallResponse structure
       const data = (await this.request("POST", ENDPOINTS.recall, {
         session_id: missionId,
-      })) as {
-        session_id?: string;
-        entries?: Array<{ content?: unknown } | string>;
-        content?: unknown;
-      } | null;
+      })) as MemoryRecallResponse | null;
+
       if (!data) return null;
 
       let content = "";
+
       if (Array.isArray(data.entries) && data.entries.length > 0) {
         content = data.entries
           .map((entry) => {
-            if (typeof entry === "string") return entry;
+            if (isString(entry)) return entry;
             const entryContent = entry?.content;
-            if (typeof entryContent === "string") return entryContent;
+
+            if (isString(entryContent)) return entryContent;
+
             if (entryContent == null) return "";
+
             return JSON.stringify(entryContent);
           })
           .filter((part) => part !== "")
           .join("\n");
-      } else if (typeof data.content === "string") {
+      } else if (isString(data.content)) {
         content = data.content;
       }
 
       if (!content) return null;
       const parsed = parseRecallContent(content);
+
       if (parsed == null) return null;
+
       return deserializeAgentState(parsed);
     } catch (err) {
       logger.error(
         `Memory state recall failed for mission ${missionId}: ${err instanceof Error ? err.message : String(err)}`,
       );
+
       return null;
     }
   }

@@ -1,9 +1,11 @@
 import type { NextResponse } from "next/server";
 
 export const ACCESS_COOKIE = "auth_token";
+
 export const REFRESH_COOKIE = "refresh_token";
 
 export const ACCESS_COOKIE_TTL = 15 * 60; // seconds — matches the access token TTL
+
 export const REFRESH_COOKIE_TTL = 30 * 24 * 60 * 60; // seconds — matches the refresh token TTL
 
 const BASE_OPTIONS = {

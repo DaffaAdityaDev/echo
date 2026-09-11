@@ -1,3 +1,5 @@
+import type { JsonObject } from "../../../shared/types";
+
 export const DEFAULT_PROTECTED_TOOLS = new Set([
   "execute_sql_write",
   "delete_file",
@@ -12,15 +14,17 @@ export interface HitlGuardConfig {
   ttlMinutes?: number;
 }
 
+export interface ApprovalToolCall {
+  id: string;
+  name: string;
+  args: JsonObject;
+}
+
 export interface PendingApprovalState {
   approvalId: string;
   missionId: string;
   sessionId: string;
-  toolCall: {
-    id: string;
-    name: string;
-    args: Record<string, unknown>;
-  };
+  toolCall: ApprovalToolCall;
   createdAt: number;
   expiresAt: number;
 }
@@ -42,15 +46,13 @@ export class HitlGuard {
 
   public isProtected(toolName: string): boolean {
     if (!this.enabled) return false;
+
     return this.protectedTools.has(toolName);
   }
 
-  public createApprovalPayload(
-    missionId: string,
-    sessionId: string,
-    toolCall: { id: string; name: string; args: Record<string, unknown> },
-  ): PendingApprovalState {
+  public createApprovalPayload(missionId: string, sessionId: string, toolCall: ApprovalToolCall): PendingApprovalState {
     const now = Date.now();
+
     return {
       approvalId: `appr_${crypto.randomUUID()}`,
       missionId,

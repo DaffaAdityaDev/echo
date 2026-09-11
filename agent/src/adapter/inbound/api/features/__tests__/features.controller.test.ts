@@ -26,6 +26,7 @@ describe("Features Endpoint", () => {
 
     const res = await app.request("/features");
     const body = (await res.json()) as FeatureItem[];
+
     for (const feature of body) {
       expect(typeof feature.id).toBe("string");
       expect(typeof feature.name).toBe("string");

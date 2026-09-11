@@ -1,6 +1,6 @@
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import type { AgentState, LLMProvider, Observation, ToolDefinition } from "../../../shared/types";
+import type { AgentState, JsonObject, LLMProvider, Observation, ToolDefinition } from "../../../shared/types";
 import { logger } from "../../../shared/utils/logger";
 import type { CircuitBreaker } from "./circuit_breaker";
 import { compressObservation } from "./compressor";
@@ -32,7 +32,7 @@ export class ToolExecutor {
   constructor(private readonly deps: ToolExecutorDeps) {}
 
   async execute(
-    pendingToolCall: { name: string; args: Record<string, unknown> },
+    pendingToolCall: { name: string; args: JsonObject },
     toolMap: Map<string, ToolDefinition>,
     assistantContent: string,
     reasoningContent: string,
@@ -55,10 +55,12 @@ export class ToolExecutor {
           `Tool ${pendingToolCall.name} is currently unavailable due to repeated failures. It has been skipped.`,
         ),
       );
+
       return { isComplete: false };
     }
 
     const tool = toolMap.get(pendingToolCall.name);
+
     if (!tool) {
       const reason = this.deps.getPacingForced() ? "pacing forced synthesis" : "tool not in map";
       logger.warn(`Tool not found: ${pendingToolCall.name} (${reason})`, { missionId: state.missionId });
@@ -68,6 +70,7 @@ export class ToolExecutor {
           additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
         }),
       );
+
       return { isComplete: false };
     }
 
@@ -78,6 +81,7 @@ export class ToolExecutor {
 
     if (pendingToolCall.name === "write_todos") {
       const parsedTodos = todosSchema.safeParse(pendingToolCall.args.todos);
+
       if (parsedTodos.success) {
         await this.deps.emitter.emitTodos(onPacket, iteration, parsedTodos.data);
         state.tasks = parsedTodos.data;
@@ -87,15 +91,14 @@ export class ToolExecutor {
         });
       }
     } else if (pendingToolCall.name === "delegate_task") {
-      await this.deps.emitter.emitSubagentCall(
-        onPacket,
-        iteration,
-        pendingToolCall.args.agentName as string,
-        pendingToolCall.args.instruction as string,
-      );
+      const agentName = String(pendingToolCall.args.agentName ?? "");
+      const instruction = String(pendingToolCall.args.instruction ?? "");
+
+      await this.deps.emitter.emitSubagentCall(onPacket, iteration, agentName, instruction);
     }
 
     let observation: Observation;
+
     try {
       observation = await tool.execute(pendingToolCall.args, {
         parentMessages: state.messages,
@@ -106,8 +109,8 @@ export class ToolExecutor {
         missionId: state.missionId,
       });
     } catch (err: unknown) {
-      const toolError = err as { message?: string };
-      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${toolError.message}`, err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${errMsg}`, err);
       observation = {
         status: OPERATION_STATUS.ERROR,
         summary: `Tool execution failed: Failed to perform ${pendingToolCall.name}. Please try again later or refine the request.`,
@@ -116,13 +119,16 @@ export class ToolExecutor {
     }
 
     const isError = observation.status === OPERATION_STATUS.ERROR;
+
     if (isError) {
       circuit.recordFailure(pendingToolCall.name);
       degradation.recordToolError();
       const failures = circuit.getState(pendingToolCall.name)?.failures ?? 1;
+
       const maxRetries =
         this.deps.harnessConfig?.circuitBreaker?.maxRetriesPerTool ??
         HARNESS_CONFIG.CIRCUIT_BREAKER.MAX_RETRIES_PER_TOOL;
+
       const isOpen = circuit.isOpen(pendingToolCall.name);
       observation = compressObservation(observation, failures, maxRetries, isOpen);
     } else {
@@ -131,11 +137,14 @@ export class ToolExecutor {
     }
 
     if (pendingToolCall.name === "delegate_task") {
+      const agentName = String(pendingToolCall.args.agentName ?? "");
+      const instruction = String(pendingToolCall.args.instruction ?? "");
+
       await this.deps.emitter.emitSubagentResult(
         onPacket,
         iteration,
-        pendingToolCall.args.agentName as string,
-        pendingToolCall.args.instruction as string,
+        agentName,
+        instruction,
         observation.summary,
         observation.status === "success" ? "completed" : "failed",
       );

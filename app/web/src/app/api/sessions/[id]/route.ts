@@ -8,6 +8,7 @@ const BASE_URL = getBackendApiUrl();
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
+
   return proxyFetch(`${BASE_URL}/sessions/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -17,6 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const token = await getRequestToken();
   const { id } = await params;
   const body = await req.json();
+
   return proxyFetch(`${BASE_URL}/sessions/${id}`, {
     method: "PATCH",
     headers: {
@@ -30,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getRequestToken();
   const { id } = await params;
+
   return proxyFetch(`${BASE_URL}/sessions/${id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },

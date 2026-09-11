@@ -12,6 +12,7 @@ describe("HitlGuard", () => {
 
   it("isProtected returns true for default protected tools", () => {
     const g = new HitlGuard();
+
     for (const tool of DEFAULT_PROTECTED_TOOLS) {
       expect(g.isProtected(tool)).toBe(true);
     }
@@ -44,6 +45,7 @@ describe("HitlGuard", () => {
 
   it("createApprovalPayload generates correct structure", () => {
     const g = new HitlGuard({ ttlMinutes: 10 });
+
     const payload = g.createApprovalPayload("mission_1", "session_1", {
       id: "call_abc",
       name: "execute_sql_write",

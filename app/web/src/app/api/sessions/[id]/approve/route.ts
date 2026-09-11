@@ -20,6 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!upstream.ok) {
     const errorText = await upstream.text();
+
     return new Response(errorText, {
       status: upstream.status,
       headers: { "Content-Type": upstream.headers.get("Content-Type") || "application/json" },

@@ -1,6 +1,7 @@
+import type { JsonValue } from "../../../../shared/types";
 import { RestAdapter } from "../adapter";
 
-function jsonResponse(status: number, body: unknown, statusText = "OK") {
+function jsonResponse(status: number, body: JsonValue, statusText = "OK") {
   return {
     status,
     ok: status < 400,

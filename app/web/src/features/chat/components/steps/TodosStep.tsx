@@ -9,11 +9,7 @@ interface TodosStepProps {
 }
 
 export function TodosStep({ step }: TodosStepProps) {
-  const todosList = Array.isArray(step.todos)
-    ? step.todos
-    : typeof step.todos === "object" && step.todos !== null
-      ? [step.todos]
-      : [];
+  const todosList = Array.isArray(step.todos) ? step.todos : [];
 
   if (todosList.length === 0) return null;
 

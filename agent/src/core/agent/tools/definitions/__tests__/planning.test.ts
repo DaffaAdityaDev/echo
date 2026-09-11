@@ -28,6 +28,7 @@ describe("writeTodosTool", () => {
       const parsed = writeTodosTool.schema.safeParse({
         todos: [{ id: "t1", description: "Research", status: "pending" }],
       });
+
       expect(parsed.success).toBe(true);
     });
 
@@ -35,6 +36,7 @@ describe("writeTodosTool", () => {
       const parsed = writeTodosTool.schema.safeParse({
         todos: [{ id: "t1", description: "Research", status: "bogus" }],
       });
+
       expect(parsed.success).toBe(false);
     });
 
@@ -92,7 +94,8 @@ describe("writeTodosTool", () => {
     });
 
     test("returns an error observation when execution throws", async () => {
-      const observation = await writeTodosTool.execute({} as unknown as Parameters<typeof writeTodosTool.execute>[0]);
+      // SAFETY: Intentionally pass invalid arguments to test error handling branch
+      const observation = await writeTodosTool.execute({} as never);
 
       expect(observation.status).toBe("error");
       expect(observation.error).toBeDefined();
@@ -106,6 +109,7 @@ describe("writeTodosTool", () => {
 
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "state-test-"));
       process.env.STATE_ROOT = tmpDir;
+
       try {
         const observation = await writeTodosTool.execute({
           todos: [
@@ -134,6 +138,7 @@ describe("writeTodosTool", () => {
       const fileAsDir = path.join(tmpDir, "blocked");
       fs.writeFileSync(fileAsDir, "occupied");
       process.env.STATE_ROOT = fileAsDir;
+
       try {
         const observation = await writeTodosTool.execute({
           todos: [{ id: "t1", description: "Research", status: "pending" }],

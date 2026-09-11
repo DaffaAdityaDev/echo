@@ -1,4 +1,5 @@
 const OPENING_TAG = (names: string[]) => new RegExp(`<(?:${names.join("|")})\\b[^>]*>`, "gi");
+
 const CLOSING_TAG = (name: string) => new RegExp(`</${name}\\s*>`, "gi");
 
 const PROTOCOL_PATTERNS: RegExp[] = [
@@ -40,12 +41,14 @@ export class ContentSanitizer {
 
   sanitize(chunk: string): string {
     this.buffer += chunk;
+
     return this.process();
   }
 
   flush(): string {
     const out = this.strip(this.buffer);
     this.buffer = "";
+
     return out;
   }
 
@@ -55,21 +58,27 @@ export class ContentSanitizer {
     let holdFrom = -1;
 
     let m: RegExpExecArray | null = opening.exec(text);
+
     while (m) {
       if (m[0].endsWith("/>")) {
         m = opening.exec(text);
         continue; // self-closing — complete
       }
+
       const nameMatch = m[0].match(/<(\w+)/);
+
       if (!nameMatch) {
         m = opening.exec(text);
         continue;
       }
+
       const closer = CLOSING_TAG(nameMatch[1]);
       closer.lastIndex = m.index + m[0].length;
+
       if (!closer.exec(text)) {
         holdFrom = holdFrom === -1 ? m.index : Math.min(holdFrom, m.index);
       }
+
       m = opening.exec(text);
     }
 
@@ -77,8 +86,10 @@ export class ContentSanitizer {
     // split mid-tag by a chunk boundary) so it is not emitted half-open.
     // Once anything is held, never emit past the earliest unresolved "<".
     const lastOpen = text.lastIndexOf("<");
+
     if (lastOpen >= 0) {
       const tail = text.slice(lastOpen);
+
       if (tail === "<" || (/^<\/?[a-z_]/.test(tail) && !tail.includes(">"))) {
         holdFrom = holdFrom === -1 ? lastOpen : Math.min(holdFrom, lastOpen);
       }
@@ -86,6 +97,7 @@ export class ContentSanitizer {
 
     if (holdFrom === -1) {
       this.buffer = "";
+
       return this.strip(text);
     }
 
@@ -93,26 +105,32 @@ export class ContentSanitizer {
     // characters without a closing ">" is not a split tag — flush it as text.
     if (holdFrom === 0 && this.buffer.length > MAX_HOLD_LENGTH) {
       this.buffer = "";
+
       return this.strip(text);
     }
 
     const ready = text.slice(0, holdFrom);
     this.buffer = text.slice(holdFrom);
+
     return this.strip(ready);
   }
 
   private strip(text: string): string {
     let out = text;
+
     for (const re of PROTOCOL_PATTERNS) {
       out = out.replace(re, "");
     }
+
     for (const name of this.names) {
       out = out.replace(new RegExp(`<${name}>[\\s\\S]*?<\\/${name}>`, "gi"), "");
       out = out.replace(new RegExp(`</?${name}\\b[^>]*>`, "gi"), "");
     }
+
     // Remove a dangling partial tag that never closed (e.g. "<write_todos").
     // Restricted to known tag names so legitimate text like "a < b" is kept.
     const names = this.names.join("|");
+
     return out.replace(new RegExp(`</?(?:${names})\\b[^>]*$`, "i"), "");
   }
 }

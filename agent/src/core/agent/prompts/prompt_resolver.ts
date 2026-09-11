@@ -16,12 +16,14 @@ export interface ResolveBehaviorPromptOptions {
 
 export async function resolveBehaviorPrompt(opts: ResolveBehaviorPromptOptions = {}): Promise<BehaviorPrompt | null> {
   const templateName = opts.templateName;
+
   if (!templateName) return null;
 
   const adapter = opts.adapter ?? new PromptAdapter();
   const tenantId = opts.tenantId ?? "local";
 
   const prompt = await adapter.getActivePrompt(templateName, tenantId);
+
   if (!prompt) return null;
 
   return { ...prompt, templateName };

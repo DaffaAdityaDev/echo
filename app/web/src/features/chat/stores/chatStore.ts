@@ -13,6 +13,10 @@ import type {
 
 export type LoggedPacket = StreamPacket & { timestamp: number };
 
+function isUpdaterFunction<T>(updater: T | ((prev: T) => T)): updater is (prev: T) => T {
+  return typeof updater === "function";
+}
+
 export interface DebugInfo {
   systemPrompt?: string;
   historyLength?: number;
@@ -81,12 +85,12 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setMessages: (updater) =>
     set((state) => ({
-      messages: typeof updater === "function" ? updater(state.messages) : updater,
+      messages: isUpdaterFunction(updater) ? updater(state.messages) : updater,
     })),
   setIsLoading: (isLoading) => set({ isLoading }),
   setAgentProgress: (updater) =>
     set((state) => ({
-      agentProgress: typeof updater === "function" ? updater(state.agentProgress) : updater,
+      agentProgress: isUpdaterFunction(updater) ? updater(state.agentProgress) : updater,
     })),
   setSessions: (sessions) => set({ sessions }),
   setActiveSession: (id) => set({ activeSessionId: id }),
@@ -110,9 +114,11 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => {
       const logged: LoggedPacket = { ...packet, timestamp: packet.timestamp ?? Date.now() };
       const nextLogs = [...state.packetLogs, logged];
+
       if (nextLogs.length > state.maxPacketLogSize) {
         nextLogs.splice(0, nextLogs.length - state.maxPacketLogSize);
       }
+
       return { packetLogs: nextLogs };
     }),
   clearPacketLogs: () => set({ packetLogs: [] }),
@@ -120,6 +126,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setCumulativeUsage: (usage) =>
     set((state) => {
       if (!state.cumulativeUsage) return { cumulativeUsage: usage };
+
       return {
         cumulativeUsage: {
           promptTokens: (state.cumulativeUsage.promptTokens || 0) + (usage.promptTokens || 0),
@@ -135,7 +142,9 @@ export const useChatStore = create<ChatState>((set) => ({
   appendDebugInfo: (info) =>
     set((state) => {
       const next = [...state.debugPacketHistory, info];
+
       if (next.length > 50) next.splice(0, next.length - 50);
+
       return { debugPacketHistory: next };
     }),
   setMissionMeta: (missionMeta) => set({ missionMeta }),
@@ -144,7 +153,9 @@ export const useChatStore = create<ChatState>((set) => ({
   appendSystemNotice: (notice) =>
     set((state) => {
       const next = [...state.systemNotices, notice];
+
       if (next.length > 20) next.splice(0, next.length - 20);
+
       return { systemNotices: next };
     }),
   dismissSystemNotice: (id) =>

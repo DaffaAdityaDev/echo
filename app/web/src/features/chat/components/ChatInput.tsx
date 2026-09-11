@@ -38,26 +38,33 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
     const nextFeatures = isWebSearchActive
       ? selectedFeatures.filter((f) => f !== "web_search")
       : [...selectedFeatures, "web_search"];
+
     void persistConfig({ defaultFeatures: nextFeatures });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (file) {
       setAttachedFileName(file.name);
       const reader = new FileReader();
+
       reader.onload = (event) => {
-        const content = event.target?.result as string;
+        // SAFETY: FileReader readAsText produces a string result upon completion
+        const content = (event.target?.result as string) || "";
+
         setInput((prev) =>
           prev ? `${prev}\n\n[Attached File: ${file.name}]\n${content}` : `[Attached File: ${file.name}]\n${content}`,
         );
       };
+
       reader.readAsText(file);
     }
   };
 
   const adjustHeight = () => {
     const el = textareaRef.current;
+
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
@@ -77,10 +84,12 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
+
     if (!input.trim() || isLoading) return;
     onSend(input);
     setInput("");
     setAttachedFileName(null);
+
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }

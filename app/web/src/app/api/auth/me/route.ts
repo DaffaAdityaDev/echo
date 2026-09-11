@@ -7,6 +7,7 @@ const BASE_URL = getBackendApiUrl();
 
 export async function GET(_req: NextRequest) {
   const token = await getRequestToken();
+
   return proxyFetch(`${BASE_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });

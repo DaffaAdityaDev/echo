@@ -1,11 +1,17 @@
-import type { BaseMessage } from "@langchain/core/messages";
+import { type BaseMessage, ToolMessage } from "@langchain/core/messages";
+
+function isString<T>(val: T): val is T & string {
+  return typeof val === "string";
+}
 
 export function getCosineSimilarity(text1: string, text2: string): number {
   const tokenize = (text: string) => {
     return text.toLowerCase().match(/\b\w+\b/g) || [];
   };
+
   const tokens1 = tokenize(text1);
   const tokens2 = tokenize(text2);
+
   if (tokens1.length === 0 || tokens2.length === 0) return 0;
 
   const freq1: Record<string, number> = {};
@@ -16,6 +22,7 @@ export function getCosineSimilarity(text1: string, text2: string): number {
     freq1[w] = (freq1[w] || 0) + 1;
     allWords.add(w);
   }
+
   for (const w of tokens2) {
     freq2[w] = (freq2[w] || 0) + 1;
     allWords.add(w);
@@ -34,6 +41,7 @@ export function getCosineSimilarity(text1: string, text2: string): number {
   }
 
   if (mag1 === 0 || mag2 === 0) return 0;
+
   return dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2));
 }
 
@@ -47,27 +55,23 @@ export function getHistoryTokens(msgs: BaseMessage[]): number {
 
 export function selectiveTruncateToolResults(messages: BaseMessage[], threshold: number): BaseMessage[] {
   return messages.map((msg) => {
-    if (msg._getType() === "tool") {
-      const contentStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+    if (msg instanceof ToolMessage || msg._getType() === "tool") {
+      const contentStr = isString(msg.content) ? msg.content : JSON.stringify(msg.content);
+
       if (contentStr.length > threshold) {
-        const ToolMsgClass = msg.constructor as unknown as new (init: {
-          content: string;
-          name?: string;
-          id?: string;
-          tool_call_id?: string;
-          additional_kwargs?: Record<string, unknown>;
-          response_metadata?: Record<string, unknown>;
-        }) => BaseMessage;
-        return new ToolMsgClass({
+        const toolCallId = "tool_call_id" in msg && isString(msg.tool_call_id) ? msg.tool_call_id : "";
+
+        return new ToolMessage({
           content: `[Tool output truncated: original length ${contentStr.length} chars exceeding threshold ${threshold}]`,
           name: msg.name,
           id: msg.id,
-          tool_call_id: (msg as BaseMessage & { tool_call_id?: string }).tool_call_id,
+          tool_call_id: toolCallId,
           additional_kwargs: msg.additional_kwargs,
           response_metadata: msg.response_metadata,
         });
       }
     }
+
     return msg;
   });
 }

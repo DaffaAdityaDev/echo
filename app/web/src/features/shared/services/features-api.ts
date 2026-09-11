@@ -4,7 +4,9 @@ import type { AgentFeature } from "../types";
 export const featuresApi = {
   list: async (): Promise<AgentFeature[]> => {
     const data = await api.get<AgentFeature[] | { features: AgentFeature[] }>("/features");
+
     if (Array.isArray(data)) return data;
+
     return data.features ?? [];
   },
 };

@@ -1,31 +1,45 @@
-import type { z } from "zod";
 import type { CredentialManager } from "../../../core/agent/credentials";
 import { ERROR_STATUS } from "../../../shared/constants/errors";
-import type { Observation, ToolDefinition } from "../../../shared/types";
+import type { JsonObject, JsonValue, Observation, ToolDefinition } from "../../../shared/types";
 import { jsonSchemaToZod } from "../mcp/schema-converter";
 import type { RestAuthConfig, RestToolConfig } from "./types";
 
-function resolveEnvRefs(input: Record<string, unknown>): Record<string, string> {
-  const resolved: Record<string, string> = {};
+export interface HeaderMap {
+  [key: string]: string;
+}
+
+function isString(val: JsonValue | undefined): val is string {
+  return typeof val === "string";
+}
+
+function isJsonObject(val: JsonValue | undefined | null): val is JsonObject {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+function resolveEnvRefs(input: JsonObject): HeaderMap {
+  const resolved: HeaderMap = {};
+
   for (const [key, value] of Object.entries(input)) {
-    if (typeof value === "string" && value.startsWith("$env.")) {
+    if (isString(value) && value.startsWith("$env.")) {
       const envVar = value.slice(5);
       resolved[key] = process.env[envVar] ?? "";
     } else {
       resolved[key] = value != null ? String(value) : "";
     }
   }
+
   return resolved;
 }
 
-function interpolateUrl(template: string, params: Record<string, unknown>): string {
+function interpolateUrl(template: string, params: JsonObject): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => {
     const val = params[key];
+
     return val !== undefined ? String(val) : `{${key}}`;
   });
 }
 
-function buildAuthHeaders(auth: RestAuthConfig): Record<string, string> {
+function buildAuthHeaders(auth: RestAuthConfig): HeaderMap {
   switch (auth.type) {
     case "bearer":
       return { Authorization: `Bearer ${auth.credentials.token ?? ""}` };
@@ -33,39 +47,46 @@ function buildAuthHeaders(auth: RestAuthConfig): Record<string, string> {
       const encoded = Buffer.from(`${auth.credentials.username ?? ""}:${auth.credentials.password ?? ""}`).toString(
         "base64",
       );
+
       return { Authorization: `Basic ${encoded}` };
     }
+
     case "header": {
       return { ...auth.credentials };
     }
+
     default:
       return {};
   }
 }
 
-function resolveHeaders(
-  headers: Record<string, unknown>,
-  credentialManager?: CredentialManager,
-): Record<string, string> {
+function resolveHeaders(headers: HeaderMap | JsonObject, credentialManager?: CredentialManager): HeaderMap {
   if (credentialManager) {
-    const resolved = credentialManager.resolveForRequest(headers);
-    const result: Record<string, string> = {};
+    // SAFETY: headers dictionary conforms to JsonObject key-value structure
+    const resolved = credentialManager.resolveForRequest(headers as JsonObject);
+    const result: HeaderMap = {};
+
     for (const [k, v] of Object.entries(resolved)) {
       result[k] = String(v ?? "");
     }
+
     return result;
   }
-  return resolveEnvRefs(headers);
+
+  // SAFETY: headers object conforms to key-value string/JsonValue mappings
+  return resolveEnvRefs(headers as JsonObject);
 }
 
-function traversePath(obj: unknown, path: string): unknown {
+function traversePath(obj: JsonValue | undefined | null, path: string): JsonValue | undefined {
   const keys = path.split(".");
-  let current: unknown = obj;
+  let current: JsonValue | undefined | null = obj;
+
   for (const key of keys) {
-    if (current == null || typeof current !== "object") return undefined;
-    current = (current as Record<string, unknown>)[key];
+    if (!isJsonObject(current)) return undefined;
+    current = current[key];
   }
-  return current;
+
+  return current ?? undefined;
 }
 
 class RestAdapter {
@@ -76,23 +97,25 @@ class RestAdapter {
   }
 
   createTool(config: RestToolConfig): ToolDefinition {
-    const rawSchema = (config.schema ?? { type: "object" }) as Record<string, unknown>;
+    const rawSchema: JsonObject = config.schema ?? { type: "object" };
     const converted = jsonSchemaToZod(rawSchema);
 
     return {
       name: config.name,
       description: config.description,
-      schema: converted as unknown as z.ZodObject<z.ZodRawShape>,
-      execute: async (input: unknown): Promise<Observation> => {
+      schema: converted,
+      execute: async (input: JsonValue): Promise<Observation> => {
         try {
-          const headers: Record<string, string> = {
+          const headers: HeaderMap = {
             ...resolveHeaders(config.global_headers ?? {}, this.credentialManager),
             ...resolveHeaders(config.headers ?? {}, this.credentialManager),
           };
+
           headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
 
-          const rawInput = (input ?? {}) as Record<string, unknown>;
-          const resolvedInput: Record<string, unknown> = this.credentialManager
+          const rawInput: JsonObject = isJsonObject(input) ? input : {};
+
+          const resolvedInput: JsonObject = this.credentialManager
             ? this.credentialManager.resolveForRequest(rawInput)
             : resolveEnvRefs(rawInput);
 
@@ -101,6 +124,7 @@ class RestAdapter {
           }
 
           let url = config.url ?? config.endpoint ?? "";
+
           if (config.url_interpolation) {
             url = interpolateUrl(url, resolvedInput);
           }
@@ -108,12 +132,15 @@ class RestAdapter {
           const method = config.method ?? "POST";
           const isGetOrDelete = method === "GET" || method === "DELETE";
 
-          if (isGetOrDelete && resolvedInput && typeof resolvedInput === "object") {
+          if (isGetOrDelete && isJsonObject(resolvedInput)) {
             const params = new URLSearchParams();
+
             for (const [k, v] of Object.entries(resolvedInput)) {
               params.set(k, String(v));
             }
+
             const qs = params.toString();
+
             if (qs) url += (url.includes("?") ? "&" : "?") + qs;
           }
 
@@ -135,11 +162,12 @@ class RestAdapter {
               signal: controller.signal,
             };
 
-            if (!isGetOrDelete && resolvedInput) {
+            if (!isGetOrDelete && isJsonObject(resolvedInput)) {
               fetchInit.body = JSON.stringify(resolvedInput);
             }
 
             let response: Response;
+
             try {
               response = await fetch(url, fetchInit);
             } finally {
@@ -153,6 +181,7 @@ class RestAdapter {
 
             if (!response.ok) {
               const body = await response.text().catch(() => "");
+
               return {
                 status: ERROR_STATUS,
                 summary: `HTTP ${response.status}: ${response.statusText}`,
@@ -160,16 +189,20 @@ class RestAdapter {
               };
             }
 
-            const data = await response.json().catch(() => null);
+            // SAFETY: JSON response body parsed into JsonValue or null on failure
+            const data = (await response.json().catch(() => null)) as JsonValue | null;
 
             if (config.response_mapping) {
-              const mapped: Record<string, unknown> = {};
+              const mapped: JsonObject = {};
+
               if (config.response_mapping.status_path) {
-                mapped.status = traversePath(data, config.response_mapping.status_path);
+                mapped.status = traversePath(data, config.response_mapping.status_path) ?? null;
               }
+
               if (config.response_mapping.data_path) {
-                mapped.data = traversePath(data, config.response_mapping.data_path);
+                mapped.data = traversePath(data, config.response_mapping.data_path) ?? null;
               }
+
               return {
                 status: "success",
                 summary: `${method} ${config.url ?? config.endpoint} → ${response.status}`,
@@ -190,11 +223,12 @@ class RestAdapter {
             error: lastError ?? "Unknown error",
           };
         } catch (err: unknown) {
-          const callError = err as { message?: string };
+          const errMsg = err instanceof Error ? err.message : "Unknown error";
+
           return {
             status: ERROR_STATUS,
-            summary: callError.message ?? "Unknown error",
-            error: callError.message ?? "Unknown error",
+            summary: errMsg,
+            error: errMsg,
           };
         }
       },

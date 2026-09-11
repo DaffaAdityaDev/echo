@@ -98,6 +98,7 @@ describe("NLAHStrategy.buildSystemPrompt", () => {
       boundTools: ["write_todos"],
       variables: [],
     };
+
     const tools = [makeTool("delegate_task", "Delegates to sub-agent")];
     const prompt = strategy.buildSystemPrompt(makeState("Find the answer"), tools, behavior);
 
@@ -130,6 +131,7 @@ describe("NLAHStrategy.buildSystemPrompt", () => {
       boundTools: [],
       variables: [],
     };
+
     const prompt = strategy.buildSystemPrompt(makeState("Custom objective"), [], behavior);
 
     expect(prompt).toContain("<user_objective>Custom objective</user_objective>");

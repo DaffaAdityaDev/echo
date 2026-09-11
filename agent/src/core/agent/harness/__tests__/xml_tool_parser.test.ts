@@ -62,6 +62,7 @@ describe("parseXmlToolCall", () => {
   test("prefers <function=...> over a generic known tag", () => {
     const content =
       '<delegate_task>{"agentName":"x"}</delegate_task><function=web_search><parameter=query>q</parameter></function>';
+
     expect(parseXmlToolCall(content, KNOWN)).toEqual({ name: "web_search", args: { query: "q" } });
   });
 

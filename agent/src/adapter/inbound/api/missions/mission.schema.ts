@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { JsonObject } from "../../../../shared/types";
 import {
   DEFAULT_MISSION_VALUES,
   HITL_DECISIONS,
@@ -6,6 +7,10 @@ import {
   STRATEGY_MAPPING,
   VALIDATION_MESSAGES,
 } from "./mission.constants";
+
+function isPlainObject<T>(val: T): val is T & JsonObject {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
 
 export const ProviderConfigSchema = z.object({
   type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
@@ -221,17 +226,20 @@ export const AgentConfigSchema = z
   });
 
 export const createMissionSchema = z.preprocess(
-  (input: unknown) => {
-    if (!input || typeof input !== "object") return input;
-    const raw = input as Record<string, unknown>;
+  (input) => {
+    if (!isPlainObject(input)) return input;
+    const raw = input;
 
     const rawStrategyVersion = String(raw.strategy_version || raw.strategyVersion || "")
       .toLowerCase()
       .trim();
+
     const rawStrategy = String(
       raw.strategy_version || raw.strategyVersion || raw.strategy || raw.mode || DEFAULT_MISSION_VALUES.STRATEGY,
     ).toLowerCase();
+
     let strategy: (typeof MISSION_STRATEGIES)[number] = DEFAULT_MISSION_VALUES.STRATEGY;
+
     if (STRATEGY_MAPPING.standard.includes(rawStrategy)) {
       strategy = "standard";
     } else {
@@ -287,6 +295,7 @@ export const createMissionSchema = z.preprocess(
 );
 
 export type CreateMissionInput = z.infer<typeof createMissionSchema>;
+
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
 export const hitlDecisionSchema = z.object({

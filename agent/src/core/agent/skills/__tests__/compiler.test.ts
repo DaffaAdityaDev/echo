@@ -11,6 +11,7 @@ describe("SkillCompiler", () => {
       systemPrompt: "Use {language} and follow {style} guidelines",
       variables: ["language", "style"],
     };
+
     const result = compiler.compile(skill, { language: "TypeScript", style: "Clean Code" });
     expect(result).toBe("Use TypeScript and follow Clean Code guidelines");
     expect(result).not.toContain("{language}");
@@ -24,6 +25,7 @@ describe("SkillCompiler", () => {
       systemPrompt: "Use {language} and follow {style} guidelines",
       variables: ["language", "style"],
     };
+
     const result = compiler.compile(skill, { language: "TypeScript" });
     expect(result).toContain("Use TypeScript");
     expect(result).toContain("{style}");
@@ -35,6 +37,7 @@ describe("SkillCompiler", () => {
       description: "Simple skill",
       systemPrompt: "You are a helpful assistant",
     };
+
     const result = compiler.compile(skill);
     expect(result).toBe("You are a helpful assistant");
   });
@@ -46,6 +49,7 @@ describe("SkillCompiler", () => {
       systemPrompt: "Use {language}",
       variables: ["language"],
     };
+
     const result = compiler.compile(skill, undefined);
     expect(result).toBe("Use {language}");
   });
@@ -55,6 +59,7 @@ describe("SkillCompiler", () => {
       name: "empty",
       description: "No prompt",
     };
+
     const result = compiler.compile(skill, { x: "y" });
     expect(result).toBe("");
   });
@@ -66,6 +71,7 @@ describe("SkillCompiler", () => {
       systemPrompt: "{name}, your task is {name}",
       variables: ["name"],
     };
+
     const result = compiler.compile(skill, { name: "Agent" });
     expect(result).toBe("Agent, your task is Agent");
   });

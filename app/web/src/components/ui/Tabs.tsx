@@ -33,6 +33,7 @@ export function Tabs<T extends string>({
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = active === tab.id;
+
         return (
           <button
             key={tab.id}

@@ -24,6 +24,7 @@ export default function TracesPage() {
     for (const t of traces) {
       totalCost += t.costUsd || 0;
       totalTokens += t.totalTokens || 0;
+
       if (t.status === "streaming") {
         activeCount++;
       }
@@ -40,11 +41,14 @@ export default function TracesPage() {
   // Extract unique models for filtering
   const models = useMemo(() => {
     const set = new Set<string>();
+
     for (const t of traces) {
       if (t.metadata?.model) {
+        // SAFETY: Telemetry model metadata is recorded as a string model ID
         set.add(t.metadata.model as string);
       }
     }
+
     return Array.from(set);
   }, [traces]);
 
@@ -247,6 +251,9 @@ export default function TracesPage() {
                     second: "2-digit",
                   });
 
+                  // SAFETY: Telemetry model metadata is recorded as a string model ID
+                  const traceModel = (trace.metadata?.model as string | undefined) || trace.model || "—";
+
                   return (
                     <tr
                       key={trace.id}
@@ -311,7 +318,7 @@ export default function TracesPage() {
                         {formatCost(trace.costUsd)}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap text-zinc-500 dark:text-zinc-400 max-w-xs truncate">
-                        {(trace.metadata?.model as string) || trace.model || "—"}
+                        {traceModel}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap text-right text-zinc-400 dark:text-zinc-500 font-mono text-[10px]">
                         <div className="flex items-center justify-end gap-2">

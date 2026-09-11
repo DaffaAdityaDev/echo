@@ -1,6 +1,8 @@
+import type { JsonObject } from "../../../shared/types";
+
 export interface ParsedXmlToolCall {
   name: string;
-  args: Record<string, unknown>;
+  args: JsonObject;
 }
 
 // Generic protocol tags that are never legitimate in an assistant's final
@@ -9,6 +11,10 @@ const PROTOCOL_TAG_NAMES = ["dsml", "tool_call", "tool_calls", "invoke", "parame
 
 function escapeRegExp(name: string): string {
   return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isJsonObject(val: unknown): val is JsonObject {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
 }
 
 /**
@@ -21,24 +27,28 @@ function escapeRegExp(name: string): string {
  */
 export function hasProtocolMarkup(content: string, knownToolNames: Set<string>): boolean {
   const names = [...PROTOCOL_TAG_NAMES, ...knownToolNames];
+
   return new RegExp(`</?(?:${names.map(escapeRegExp).join("|")})[\\s\\S]*?>`).test(content);
 }
 
-function parseArgs(body: string): Record<string, unknown> {
+function parseArgs(body: string): JsonObject {
   const trimmed = body.trim();
+
   if (!trimmed) return {};
 
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+    const parsed: unknown = JSON.parse(trimmed);
+
+    return isJsonObject(parsed) ? parsed : {};
   } catch {
     // Fall through to the brace-stripped attempt below.
   }
 
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
     try {
-      const parsed = JSON.parse(trimmed.slice(1, -1)) as unknown;
-      return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+      const parsed: unknown = JSON.parse(trimmed.slice(1, -1));
+
+      return isJsonObject(parsed) ? parsed : {};
     } catch {
       // Unparseable body — degrade to empty args.
     }
@@ -49,19 +59,24 @@ function parseArgs(body: string): Record<string, unknown> {
 
 function parseLegacyFunctionCall(content: string): ParsedXmlToolCall | null {
   const funcMatch = content.match(/<function=(.*?)>/);
+
   if (!funcMatch) return null;
 
   const name = funcMatch[1].trim();
-  const args: Record<string, unknown> = {};
+  const args: JsonObject = {};
   const paramRegex = /<parameter=(.*?)>\s*([\s\S]*?)\s*<\/parameter>/g;
   let match = paramRegex.exec(content);
+
   while (match !== null) {
     let value: string | boolean = match[2].trim();
+
     if (value === "false") value = false;
+
     if (value === "true") value = true;
     args[match[1].trim()] = value;
     match = paramRegex.exec(content);
   }
+
   return { name, args };
 }
 
@@ -76,6 +91,7 @@ function parseLegacyFunctionCall(content: string): ParsedXmlToolCall | null {
  */
 export function parseXmlToolCall(content: string, knownToolNames: Set<string>): ParsedXmlToolCall | null {
   const legacy = parseLegacyFunctionCall(content);
+
   if (legacy) return legacy;
 
   const candidates: Array<{ index: number; result: ParsedXmlToolCall }> = [];
@@ -84,23 +100,27 @@ export function parseXmlToolCall(content: string, knownToolNames: Set<string>): 
     const escaped = escapeRegExp(name);
 
     const full = new RegExp(`<${escaped}>([\\s\\S]*?)<\\/${escaped}>`).exec(content);
+
     if (full) {
       candidates.push({ index: full.index, result: { name, args: parseArgs(full[1]) } });
       continue;
     }
 
     const selfClosing = new RegExp(`<${escaped}\\s*\\/>`).exec(content);
+
     if (selfClosing) {
       candidates.push({ index: selfClosing.index, result: { name, args: {} } });
       continue;
     }
 
     const bare = new RegExp(`<${escaped}>`).exec(content);
+
     if (bare) {
       candidates.push({ index: bare.index, result: { name, args: {} } });
     }
   }
 
   candidates.sort((a, b) => a.index - b.index);
+
   return candidates[0]?.result ?? null;
 }

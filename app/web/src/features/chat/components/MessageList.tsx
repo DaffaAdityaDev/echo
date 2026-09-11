@@ -30,7 +30,9 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
 
   const isNearBottom = useCallback(() => {
     const el = containerRef.current;
+
     if (!el) return true;
+
     return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
   }, []);
 
@@ -54,6 +56,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
 
       if (justSent) {
         scrollToBottom();
+
         return;
       }
     }
@@ -67,6 +70,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     onScrollBtnChange?.(!isNearBottom());
 
     const el = containerRef.current;
+
     if (el && el.scrollTop < 50 && hasNextPage && !isFetchingNextPage && fetchNextPage) {
       fetchNextPage();
     }

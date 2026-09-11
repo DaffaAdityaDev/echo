@@ -17,9 +17,11 @@ import { cn } from "@/utils/cn";
 
 export default function TraceDetailPage() {
   const params = useParams();
+  // SAFETY: Next.js route parameter matches [traceId] single slug segment
   const traceId = params?.traceId as string | undefined;
 
   const traces = useTraceStore((state) => state.traces);
+
   const trace = useMemo(() => {
     return traces.find((t) => t.id === traceId);
   }, [traces, traceId]);
@@ -27,12 +29,13 @@ export default function TraceDetailPage() {
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
   const [collapsedSpans, setCollapsedSpans] = useState<Set<string>>(new Set());
 
-  // Selected span detail query
   const selectedSpan = useMemo(() => {
     if (!trace) return null;
+
     if (selectedSpanId) {
       return trace.spans.find((s) => s.id === selectedSpanId) || null;
     }
+
     // Default to the first span
     return trace.spans[0] || null;
   }, [trace, selectedSpanId]);

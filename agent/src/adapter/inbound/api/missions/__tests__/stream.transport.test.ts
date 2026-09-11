@@ -41,6 +41,7 @@ describe("HttpStreamTransport", () => {
         throw new Error("stream closed");
       }),
     };
+
     const transport = new HttpStreamTransport(stream);
 
     await expect(transport.send({ type: "content", content: "x" })).resolves.toMatchObject({

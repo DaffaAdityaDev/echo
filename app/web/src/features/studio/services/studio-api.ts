@@ -34,12 +34,12 @@ export const studioApi = {
     return api.post<PromptVersion>(STUDIO_ENDPOINTS.PROMPT_VERSIONS(id), body);
   },
 
-  promotePromptVersion: async (id: string, version: number): Promise<unknown> => {
-    return api.post(STUDIO_ENDPOINTS.PROMPT_PROMOTE(id, version), {});
+  promotePromptVersion: async (id: string, version: number): Promise<void> => {
+    await api.post(STUDIO_ENDPOINTS.PROMPT_PROMOTE(id, version), {});
   },
 
-  rollbackPromptVersion: async (id: string, version: number): Promise<unknown> => {
-    return api.post(STUDIO_ENDPOINTS.PROMPT_ROLLBACK(id, version), {});
+  rollbackPromptVersion: async (id: string, version: number): Promise<void> => {
+    await api.post(STUDIO_ENDPOINTS.PROMPT_ROLLBACK(id, version), {});
   },
 
   getMaturity: async (): Promise<SystemMaturityAssessment> => {

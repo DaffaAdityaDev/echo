@@ -10,11 +10,17 @@ import strategiesRouter from "./strategies/strategies.routes";
 const router = new Hono();
 
 router.route("/v1", missionRouter);
+
 router.route("/v1", modelRouter);
+
 router.route("/v1", featuresRouter);
+
 router.route("/v1", skillsRouter);
+
 router.route("/v1", strategiesRouter);
+
 router.route("/v1/internal", internalRouter);
+
 router.route("/docs", docsRouter);
 
 export default router;

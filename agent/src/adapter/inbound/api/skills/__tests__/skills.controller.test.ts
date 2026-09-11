@@ -19,6 +19,7 @@ describe("Skills Endpoint", () => {
     const body = (await res.json()) as SkillItem[];
     expect(body).toHaveLength(standardSkills.length);
     const names = body.map((skill) => skill.name);
+
     for (const skill of standardSkills) {
       expect(names).toContain(skill.name);
     }
@@ -30,6 +31,7 @@ describe("Skills Endpoint", () => {
 
     const res = await app.request("/skills");
     const body = (await res.json()) as SkillItem[];
+
     for (const skill of body) {
       expect(typeof skill.name).toBe("string");
       expect(typeof skill.description).toBe("string");

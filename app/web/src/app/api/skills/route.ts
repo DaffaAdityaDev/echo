@@ -7,6 +7,7 @@ const BASE_URL = getBackendApiUrl();
 
 export async function GET(_req: NextRequest) {
   const token = await getRequestToken();
+
   return proxyFetch(`${BASE_URL}/skills`, {
     headers: { Authorization: `Bearer ${token}` },
   });

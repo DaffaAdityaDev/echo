@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { LLMProvider } from "../../shared/types";
 import { AnthropicProvider } from "./anthropic";
 import { LMStudioProvider } from "./lm-studio";
@@ -13,15 +14,16 @@ export interface ProviderConnectionConfig {
   max_context_tokens?: number;
 }
 
-export function isProviderConnectionConfig(value: unknown): value is ProviderConnectionConfig {
-  if (typeof value !== "object" || value === null) return false;
-  const cfg = value as Record<string, unknown>;
-  if (cfg.type !== "openai" && cfg.type !== "anthropic" && cfg.type !== "lm-studio" && cfg.type !== "opencode-go") {
-    return false;
-  }
-  if (typeof cfg.base_url !== "string" || typeof cfg.model !== "string") return false;
-  if (cfg.api_key !== undefined && cfg.api_key !== null && typeof cfg.api_key !== "string") return false;
-  return true;
+const providerConnectionSchema = z.object({
+  type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
+  base_url: z.string(),
+  api_key: z.string().nullish(),
+  model: z.string(),
+  max_context_tokens: z.number().optional(),
+});
+
+export function isProviderConnectionConfig<T>(value: T): value is T & ProviderConnectionConfig {
+  return providerConnectionSchema.safeParse(value).success;
 }
 
 type ProviderCtor = new (baseUrl: string, modelName: string, apiKey?: string) => LLMProvider;
@@ -36,18 +38,26 @@ export const ProviderFactory = {
 
   fromConfig(config: ProviderConnectionConfig): LLMProvider {
     const Provider = ProviderFactory.registry.get(config.type);
+
     if (!Provider) {
       throw new Error(
         `Unknown provider type: "${config.type}". Supported types: ${[...ProviderFactory.registry.keys()].join(", ")}`,
       );
     }
-    return new Provider(config.base_url, config.model, config.api_key, config.max_context_tokens || undefined);
+
+    return new Provider(
+      config.base_url,
+      config.model,
+      config.api_key ?? undefined,
+      config.max_context_tokens || undefined,
+    );
   },
 
   resolveType(provider: LLMProvider): string | undefined {
     for (const [type, Ctor] of ProviderFactory.registry) {
       if (provider instanceof Ctor) return type;
     }
+
     return undefined;
   },
 };

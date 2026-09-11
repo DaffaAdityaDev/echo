@@ -31,12 +31,16 @@ export function SessionList({
 }: SessionListProps) {
   // Group sessions by recency
   const now = new Date();
+
   const todaySessions = sessions.filter((s) => {
     const d = new Date(s.createdAt);
+
     return d.toDateString() === now.toDateString();
   });
+
   const olderSessions = sessions.filter((s) => {
     const d = new Date(s.createdAt);
+
     return d.toDateString() !== now.toDateString();
   });
 

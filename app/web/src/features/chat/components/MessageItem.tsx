@@ -51,14 +51,18 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
   const hasContent = activeContent && activeContent.trim().length > 0;
 
   // Filter steps: if reasoning content was promoted to main body, don't duplicate it in accordion
-  const displaySteps = isContentFromReasoning
-    ? msg.steps.filter((s) => s.type !== PACKET_TYPES.REASONING)
-    : msg.steps;
+  const displaySteps = isContentFromReasoning ? msg.steps.filter((s) => s.type !== PACKET_TYPES.REASONING) : msg.steps;
 
   const thoughtOpen = isThoughtOpen ?? ((isStreaming && isLast) || !hasContent);
 
   const handleCopy = () => {
-    const textToCopy = rawContent || msg.steps?.map((s) => s.content).filter(Boolean).join("\n\n");
+    const textToCopy =
+      rawContent ||
+      msg.steps
+        ?.map((s) => s.content)
+        .filter(Boolean)
+        .join("\n\n");
+
     if (!textToCopy) return;
     copy(textToCopy);
   };
@@ -73,6 +77,7 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
           </div>
         );
       }
+
       return null;
     }
 
@@ -189,7 +194,7 @@ export const MessageItem = memo(function MessageItem({ msg, context }: MessageIt
           <details
             className="group/thinking mb-1"
             open={thoughtOpen}
-            onToggle={(e) => setIsThoughtOpen((e.target as HTMLDetailsElement).open)}
+            onToggle={(e) => setIsThoughtOpen(e.currentTarget.open)}
           >
             <summary className="flex items-center gap-2 text-[10px] font-bold text-gb-blue cursor-pointer list-none hover:opacity-80 transition-opacity uppercase tracking-widest bg-blue-50 p-2 rounded-xs border border-gb-bright-blue/30">
               <Lightbulb className="h-3 w-3 text-amber-500" aria-hidden="true" />

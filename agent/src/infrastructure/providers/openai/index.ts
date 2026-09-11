@@ -1,9 +1,24 @@
 import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { LLM_CONFIG } from "../../../shared/constants";
-import type { LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
+import type { JsonObject, LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { getLangChainCallbacks } from "../../../shared/utils/langfuse";
 import { ReasoningInterceptor } from "../utils";
+
+function isString<T>(val: T): val is T & string {
+  return typeof val === "string";
+}
+
+interface OpenAIStreamOptions {
+  callbacks: unknown;
+  signal?: AbortSignal;
+}
+
+interface OpenAIUsageWithCache {
+  input_token_details?: {
+    cache_read?: number;
+  };
+}
 
 export class OpenAIProvider implements LLMProvider {
   private chat: ChatOpenAI;
@@ -41,6 +56,7 @@ export class OpenAIProvider implements LLMProvider {
         `OpenAIProvider: an API key is required but was not provided (baseURL=${this.baseURL}). Pass api_key in the provider config.`,
       );
     }
+
     const fullMessages = [new SystemMessage(systemPrompt), ...messages];
 
     const lcTools = tools.map((t) => ({
@@ -51,20 +67,25 @@ export class OpenAIProvider implements LLMProvider {
 
     const chatWithTools = this.chat.bindTools(lcTools);
     const callbacks = await getLangChainCallbacks();
-    const langchainStream = await chatWithTools.stream(fullMessages, {
-      callbacks,
-      ...(signal ? { signal } : {}),
-    });
+
+    const streamOptions: OpenAIStreamOptions = { callbacks };
+
+    if (signal) {
+      streamOptions.signal = signal;
+    }
+
+    const langchainStream = await chatWithTools.stream(fullMessages, streamOptions);
 
     const sentReasoningMap = new Map<string, string>();
     let accumulatedChunk: AIMessageChunk | null = null;
+
     for await (const chunk of langchainStream) {
       accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
 
       const messageId = chunk.id;
       const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
 
-      const textContent = typeof chunk.content === "string" ? chunk.content : "";
+      const textContent = isString(chunk.content) ? chunk.content : "";
 
       if (textContent || deltaReasoning) {
         yield {
@@ -77,18 +98,23 @@ export class OpenAIProvider implements LLMProvider {
 
     if (accumulatedChunk) {
       const toolCalls = accumulatedChunk.tool_calls;
+
       if (toolCalls && toolCalls.length > 0) {
         const tc = toolCalls[0];
-        yield { toolCall: { name: tc.name, args: tc.args as Record<string, unknown> } };
+        // SAFETY: Tool call arguments parsed from model output are valid JSON objects
+        yield { toolCall: { name: tc.name, args: tc.args as JsonObject } };
       }
 
       const usage = accumulatedChunk.usage_metadata;
+
       if (usage) {
         const lastId = accumulatedChunk.id;
         const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
 
-        const cachedTokens =
-          (usage as { input_token_details?: { cache_read?: number } }).input_token_details?.cache_read ?? 0;
+        // SAFETY: LangChain ChatOpenAI usage metadata provides input_token_details cache_read count
+        const usageDetails = usage as OpenAIUsageWithCache;
+        const cachedTokens = usageDetails.input_token_details?.cache_read ?? 0;
+
         yield {
           usage: {
             promptTokens: usage.input_tokens ?? 0,
@@ -109,7 +135,6 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async validate(): Promise<void> {
-    // Create a minimal client to test connectivity + API key
     const { default: OpenAI } = await import("openai");
     const client = new OpenAI({ baseURL: this.baseURL, apiKey: this.chat.apiKey });
     await client.models.list();

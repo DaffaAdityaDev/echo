@@ -36,6 +36,7 @@ const promptSuggestions = [
 
 export function WelcomeHero({ userName, onSend, onStop, isLoading, onOpenHelp, onOpenSettings }: WelcomeHeroProps) {
   const { showToast } = useToast();
+
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-10 flex flex-col justify-between items-center text-center">
       <div className="w-full max-w-5xl my-auto space-y-8 flex flex-col items-center">
@@ -84,6 +85,7 @@ export function WelcomeHero({ userName, onSend, onStop, isLoading, onOpenHelp, o
         <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
           {promptSuggestions.map((item) => {
             const Icon = item.icon;
+
             return (
               <button
                 key={item.title}

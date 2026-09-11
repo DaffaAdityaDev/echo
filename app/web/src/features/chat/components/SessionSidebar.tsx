@@ -30,6 +30,7 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+
   const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isInitialLoading, refetch } =
     useSessionsInfinite();
 
@@ -39,6 +40,7 @@ export function SessionSidebar({
     deleteSession: storeDeleteSession,
     selectSession: storeSelectSession,
   } = useSessions();
+
   const { stopStream } = useChatStream();
   const isLoading = useChatStore((s) => s.isLoading);
   const { user, logout } = useAuth();
@@ -55,7 +57,9 @@ export function SessionSidebar({
         searchInputRef.current?.focus();
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
@@ -67,6 +71,7 @@ export function SessionSidebar({
 
   useEffect(() => {
     const el = loadMoreRef.current;
+
     if (!el) return;
 
     const observer = new IntersectionObserver(
@@ -106,6 +111,7 @@ export function SessionSidebar({
     } else {
       await storeSelectSession(id);
     }
+
     router.push(`/session/${id}`);
   };
 
@@ -209,6 +215,7 @@ export function SessionSidebar({
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+
             return (
               <Link
                 key={item.href}

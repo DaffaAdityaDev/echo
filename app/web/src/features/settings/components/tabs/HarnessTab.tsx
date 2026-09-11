@@ -105,9 +105,17 @@ const sections: HarnessSection[] = [
   },
 ];
 
-function asToggleGroup(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
+type SectionValueMap = {
+  [key: string]: boolean | number | string | string[] | undefined;
+};
+
+function readSectionValues(
+  sectionConfig: HarnessFeatureToggles[keyof HarnessFeatureToggles] | undefined,
+): SectionValueMap {
+  if (!sectionConfig) return {};
+
+  // SAFETY: Casting strongly typed section configuration object into uniform key-value lookup map
+  return sectionConfig as SectionValueMap;
 }
 
 export function HarnessTab({ config, setConfig }: HarnessTabProps) {
@@ -121,17 +129,23 @@ export function HarnessTab({ config, setConfig }: HarnessTabProps) {
       </p>
 
       {sections.map((section) => {
-        const groupConfig = asToggleGroup(config.harnessToggles?.[section.key]);
-        const defaultGroup = asToggleGroup(DEFAULT_HARNESS_TOGGLES[section.key]);
+        const groupConfig = readSectionValues(config.harnessToggles?.[section.key]);
+        const defaultGroup = readSectionValues(DEFAULT_HARNESS_TOGGLES[section.key]);
         const enabled = Boolean(groupConfig.enabled ?? defaultGroup.enabled ?? true);
         const SectionIcon = section.icon;
 
-        const updateToggles = (patchGroup: (group: Record<string, unknown>) => Record<string, unknown>) => {
-          const toggles: Record<string, unknown> = {
-            ...(config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES),
-          };
-          toggles[section.key] = patchGroup(asToggleGroup(toggles[section.key]));
-          setConfig({ harnessToggles: toggles as HarnessFeatureToggles });
+        const updateSection = (patch: SectionValueMap) => {
+          const currentToggles = config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES;
+          const currentSection = readSectionValues(currentToggles[section.key]);
+          const nextSection = { ...currentSection, ...patch };
+
+          // SAFETY: Merging patched section object back into feature toggles
+          const nextToggles = {
+            ...currentToggles,
+            [section.key]: nextSection,
+          } as HarnessFeatureToggles;
+
+          setConfig({ harnessToggles: nextToggles });
         };
 
         return (
@@ -151,7 +165,7 @@ export function HarnessTab({ config, setConfig }: HarnessTabProps) {
               </div>
               <button
                 type="button"
-                onClick={() => updateToggles((group) => ({ ...group, enabled: !enabled }))}
+                onClick={() => updateSection({ enabled: !enabled })}
                 aria-label={`Toggle ${section.label}`}
                 aria-pressed={enabled}
                 className={cn(
@@ -176,9 +190,7 @@ export function HarnessTab({ config, setConfig }: HarnessTabProps) {
                     {field.type === "toggle" ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          updateToggles((group) => ({ ...group, [field.key]: !(group[field.key] ?? field.default) }))
-                        }
+                        onClick={() => updateSection({ [field.key]: !(groupConfig[field.key] ?? field.default) })}
                         aria-label={`Toggle ${field.label}`}
                         aria-pressed={Boolean(groupConfig[field.key] ?? field.default)}
                         className={cn(
@@ -197,9 +209,7 @@ export function HarnessTab({ config, setConfig }: HarnessTabProps) {
                       <input
                         type="number"
                         value={Number(groupConfig[field.key] ?? field.default)}
-                        onChange={(e) =>
-                          updateToggles((group) => ({ ...group, [field.key]: parseFloat(e.target.value) }))
-                        }
+                        onChange={(e) => updateSection({ [field.key]: parseFloat(e.target.value) })}
                         step={field.step ?? 1}
                         min={field.min ?? 0}
                         max={field.max ?? 999999}

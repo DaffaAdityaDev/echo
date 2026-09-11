@@ -1,19 +1,31 @@
 import { ReasoningInterceptor } from "../reasoning-interceptor";
 
 function stubFetch(handler: () => Response | Promise<Response>): typeof fetch {
-  return handler as unknown as typeof fetch;
+  // SAFETY: Mock fetch handler for testing interceptFetch
+  return handler as never;
+}
+
+async function waitForStream(interceptor: ReasoningInterceptor): Promise<void> {
+  // SAFETY: Await internal stream promise during test execution
+  const active = (interceptor as ReasoningInterceptor & { activeStreamPromise?: Promise<void> | null })
+    .activeStreamPromise;
+
+  if (active) await active;
 }
 
 function sseResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
     start(controller) {
       for (const chunk of chunks) {
         controller.enqueue(encoder.encode(chunk));
       }
+
       controller.close();
     },
   });
+
   return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } });
 }
 
@@ -39,9 +51,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
-
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     const sent = new Map<string, string>();
     const result = interceptor.getDelta("msg_1", sent);
@@ -57,8 +67,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     const sent = new Map<string, string>();
     const result = interceptor.getDelta("msg_2", sent);
@@ -78,8 +87,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     const sent = new Map<string, string>();
     const result = interceptor.getDelta("msg_3", sent);
@@ -97,8 +105,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     const sent = new Map<string, string>();
     const first = interceptor.getDelta("msg_4", sent);
@@ -119,8 +126,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/messages", {});
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     const sent = new Map<string, string>();
     const result = interceptor.getDelta("msg_5", sent);
@@ -145,8 +151,7 @@ describe("ReasoningInterceptor", () => {
     );
 
     await interceptor.interceptFetch("http://test/v1/chat/completions", {});
-    const active = Reflect.get(interceptor, "activeStreamPromise") as Promise<void> | null;
-    if (active) await active;
+    await waitForStream(interceptor);
 
     expect(interceptor.getReasoningTokenCount("msg_t")).toBe(4);
     expect(interceptor.getReasoningTokenCount("nonexistent")).toBeUndefined();

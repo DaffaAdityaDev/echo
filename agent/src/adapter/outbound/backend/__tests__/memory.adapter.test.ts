@@ -100,6 +100,7 @@ describe("MemoryAdapter", () => {
         ...makeState(),
         messages: [new HumanMessage({ content: "hi" }), new AIMessage({ content: "yo" })],
       });
+
       fetchMock.mockResolvedValue(
         new Response(
           JSON.stringify({

@@ -65,6 +65,7 @@ describe("envSchema", () => {
     vi.stubEnv("NODE_ENV", "development");
     const result = envSchema.safeParse({ ...validInput, NODE_ENV: "development", SERVICE_JWT_SECRET: undefined });
     expect(result.success).toBe(true);
+
     if (!result.success) return;
     expect(result.data.SERVICE_JWT_SECRET.length).toBeGreaterThanOrEqual(32);
   });
@@ -72,6 +73,7 @@ describe("envSchema", () => {
   test("defaults are applied when fields are omitted", () => {
     const result = envSchema.safeParse({ INTERNAL_AUTH_TOKEN: "test-token" });
     expect(result.success).toBe(true);
+
     if (!result.success) return;
 
     expect(result.data.PORT).toBe(ENV_DEFAULTS.PORT);

@@ -1,4 +1,5 @@
 export * from "./api";
+
 export * from "./query-keys";
 
 export const QUERY_CONFIG = {
@@ -11,5 +12,5 @@ export const QUERY_CONFIG = {
 } as const;
 
 export const UI_CONFIG = {
-  SCROLL_BEHAVIOR: "smooth" as ScrollBehavior,
-};
+  SCROLL_BEHAVIOR: "smooth",
+} as const;
