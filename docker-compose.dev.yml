@@ -9,9 +9,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
-      - ./backend/scripts/init-nuq.sql:/docker-entrypoint-initdb.d/init-nuq.sql
     ports:
       - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -23,6 +27,11 @@ services:
       - redis_data:/data
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -53,6 +62,7 @@ services:
     container_name: echo_backend_seed
     command: ["./seed"]
     environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
       - DB_HOST=${DB_HOST:-echo-postgres}
       - DB_PORT=${DB_PORT:-5432}

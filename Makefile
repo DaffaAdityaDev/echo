@@ -8,9 +8,15 @@ help:
 	@echo "                     ECHO APP BUILD & DEPLOYMENT SYSTEM"
 	@echo "======================================================================="
 	@echo "Development Stack:"
+	@echo "  make dev-echo          - Run backend, agent and web on the host (infra in Docker)"
 	@echo "  make dev-up            - Start Echo development stack"
 	@echo "  make dev-infra         - Start Echo infrastructure (postgres + redis)"
 	@echo "  make dev-down          - Stop Echo stack and remove volumes"
+	@echo ""
+	@echo "Production:"
+	@echo "  make prod-up           - Build and start the production stack"
+	@echo "  make deploy            - Rebuild and restart production (keeps data volumes)"
+	@echo "  make prod-down         - Stop production (keeps data volumes)"
 	@echo ""
 	@echo "KataraGnosis Stack (Hot-Reloading):"
 	@echo "  make katara-dev        - Run Katara locally with auto-infra (Concurrently)"
@@ -54,7 +60,7 @@ prod-up:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 prod-down:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 prod-logs:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
@@ -63,8 +69,7 @@ prod-logs:
 deploy:
 	@echo "Deploying production stack..."
 	-docker network create dokploy-network
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
 	@echo "Deployment complete. Production containers are running."
 
 # Utilities
