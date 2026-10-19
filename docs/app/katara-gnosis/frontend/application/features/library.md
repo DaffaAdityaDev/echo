@@ -76,7 +76,7 @@ Reader (flashcard view)
 
 - Read-only markdown rendering via shared Markdown component (react-
   markdown + remark-gfm + remark-math + rehype-katex — same stack as
-  frontend/web).
+  app/web).
 - "Pelajari" button per flashcard: opens a quick single-card drill
   (spawns a 1-question drill session) — the bridge between reading and
   testing.

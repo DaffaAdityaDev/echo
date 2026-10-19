@@ -134,7 +134,7 @@ missions/
 | `toolRegistry`         | Conditional tool resolution — only when features explicitly set |
 | `stateStorage`         | State persistence (core/agent/storage/factory.ts)            |
 | `StandardContextAnchor`| Context anchor builder (core/agent/anchors/standard.ts)      |
-| `cancellationManager`  | Abort signal management (core/agent/harness/cancel_manager.ts)|
+| `cancellationManager`  | Abort signal management (core/agent/harness/cancel-manager.ts)|
 | `mapHistoryToMessages` | LangChain message reconstruction                             |
 | `@langchain/core/messages` | Message types (`HumanMessage`)                           |
 +------------------------+--------------------------------------------------------------+

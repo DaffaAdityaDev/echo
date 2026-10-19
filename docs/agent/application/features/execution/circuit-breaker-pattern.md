@@ -228,7 +228,7 @@ DEGRADATION = {
 +-----------------------------+----------------------------------+--------------------------------------------+
 | Export                      | Source                           | Type                                       |
 +-----------------------------+----------------------------------+--------------------------------------------+
-| `CircuitBreaker`            | `circuit_breaker.ts`        | Class (Map-based state per mission)        |
+| `CircuitBreaker`            | `circuit-breaker.ts`        | Class (Map-based state per mission)        |
 | `DegradationManager`        | `degradation.ts`            | Class (tracks consecutive failures)        |
 | `compressObservation()`     | `compressor.ts`         | Function (Observation → compressed)        |
 +-----------------------------+----------------------------------+--------------------------------------------+

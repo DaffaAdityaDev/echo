@@ -3,8 +3,8 @@
 ================================================================================
   Module    : Memory Gateway
   Service   : backend
-  Version   : 1.1
-  Updated   : 2026-07-31 (planned: memory lifecycle & GC)
+  Version   : 1.2
+  Updated   : 2026-10-19 (memory scoped to the session owner)
 ================================================================================
 
 Overview
@@ -62,12 +62,14 @@ Architecture Flow
   │  ┌──────────────────▼───────────────────────────┐  │
   │  │  2. Route handler                             │  │
   │  │     - Parse body                              │  │
-  │  │     - Read/write store directly               │  │
+  │  │     - Resolve owner: sessions.user_id         │  │
+  │  │       for session_id (404 if unknown/deleted) │  │
+  │  │     - Read/write store scoped to that owner   │  │
   │  └──────────────────┬───────────────────────────┘  │
   │                     │                              │
   │  ┌──────────────────▼───────────────────────────┐  │
   │  │  3. Data layer                                │  │
-  │  │     Episodic ──► Redis (list per session)     │  │
+  │  │     Episodic ──► Redis (list per owner+session)│  │
   │  │     Semantic ──► Postgres (text/vector)       │  │
   │  │     Procedural ──► Postgres (structured)      │  │
   │  └──────────────────────────────────────────────┘  │
@@ -93,6 +95,34 @@ Three Memory Types
 |            |                  | with schemas      | task execution records     |
 +------------+------------------+-------------------+----------------------------+
 
+Ownership & Isolation
+---------------------
+
+Every memory request carries the `session_id` of the chat session the agent is
+running. The backend never accepts an owner from the request body: it resolves
+the owning `user_id` from the `sessions` table and scopes every read and write
+by it. A model that is prompt-injected into sending a different value can at
+most name a session id, and only sessions the backend knows map to an owner.
+
++-----------------------------+------------------------------------------------+
+| Case                        | Behaviour                                      |
++-----------------------------+------------------------------------------------+
+| session_id missing          | 400                                            |
+| session_id unknown,         | 404 "Session not found" (before any store is   |
+| malformed or deleted        | touched)                                       |
+| Episodic key                | memory:episodic:{user_id}:{session_id}[:{slot}]|
+| Semantic / procedural rows  | user_id column; reads filter user_id = owner   |
+| Rows written before scoping | user_id IS NULL — orphaned, never returned     |
+| Semantic id owned by another| 409 (upsert only overwrites the owner's row)   |
+| user                        |                                                |
+| Procedural name             | unique per user (user_id, name)                |
++-----------------------------+------------------------------------------------+
+
+`slot` (episodic only, optional, `^[A-Za-z0-9_.:-]{1,128}$`) names a separate
+list inside the session; the agent uses `paused:<approvalId>` for HITL pause
+state. Because the key always embeds the owner and the session UUID, a slot
+cannot reach another session's list.
+
 Endpoint Reference
 ------------------
 
@@ -107,7 +137,8 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
-      "session_id":  "sess_abc123",
+      "session_id":  "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
+      "slot":        "paused:appr_1", // optional
       "content":     { ... },        // opaque JSON payload
       "metadata":    { ... },        // optional
       "ttl_seconds": 86400           // optional, default 24h
@@ -124,13 +155,14 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
-      "session_id": "sess_abc123",
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
+      "slot":       "paused:appr_1", // optional
       "limit":      20               // optional, default 50
   }
 
   Response (200):
   {
-      "session_id": "sess_abc123",
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
       "entries": [
           { "content": {...}, "timestamp": "2026-07-09T12:00:00Z" }
       ],
@@ -144,6 +176,7 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
       "id":         "mem_sm_b4c2",
       "content":    "The user prefers dark mode in all applications",
       "embedding":  [0.012, -0.034, ...],   // optional
@@ -161,6 +194,7 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
       "query":      "user preference dark mode",
       "limit":      5,               // optional, default 10
       "embedding":  [ ... ],         // accepted but unused
@@ -179,7 +213,8 @@ All memory routes are POST-only, registered under the internal group
       ]
   }
 
-  Note: search is an ILIKE substring match on `content`. The embedding and
+  Note: search is an ILIKE substring match on `content`, restricted to the
+  session owner's rows (`user_id = owner`). The embedding and
   threshold fields exist in the schema but are not used by the current
   implementation.
 
@@ -190,6 +225,7 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
       "id":        "mem_pr_d1e6",
       "name":      "execute_sql",
       "content":   "SELECT * FROM users",
@@ -207,6 +243,7 @@ All memory routes are POST-only, registered under the internal group
 
   Request:
   {
+      "session_id": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12",
       "name": "execute_sql"          // or "id"
   }
 
@@ -250,6 +287,7 @@ Backend Responsibilities
 +---------------------------+------------------------------------------------+
 | Responsibility            | Implementation                                 |
 +---------------------------+------------------------------------------------+
+| Ownership                 | SessionLookup (session repo) resolves owner   |
 | Redis connection          | redis.Client passed into memory.NewHandler    |
 | pgvector / Postgres       | pgxpool.Pool passed into memory.NewHandler    |
 | Connection pooling        | pgxpool + Redis client config                 |
@@ -298,13 +336,14 @@ Entry Points & Exports
 +------------------------------+----------+----------------------------------------+
 | SetupRoutes(fbApp, cfg)      | Function | router/router.go:193-204               |
 | InternalAuthRequired(cfg)    | MW       | middleware/internal_auth.go:12         |
-| NewHandler(rdb, pool)        | Function | handler/memory/handler.go:25           |
-| HandleStoreEpisodic          | Handler  | handler/memory/handler.go:52           |
-| HandleGetEpisodic            | Handler  | handler/memory/handler.go:109          |
-| HandleStoreSemantic          | Handler  | handler/memory/handler.go:174          |
-| HandleSemanticSearch         | Handler  | handler/memory/handler.go:243          |
-| HandleStoreProcedural        | Handler  | handler/memory/handler.go:317          |
-| HandleGetProcedural          | Handler  | handler/memory/handler.go:367          |
+| NewHandler(rdb, pool, sess)  | Function | handler/memory/handler.go              |
+| sessionOwner                 | Method   | handler/memory/ownership.go            |
+| HandleStoreEpisodic          | Handler  | handler/memory/episodic.go             |
+| HandleGetEpisodic            | Handler  | handler/memory/episodic.go             |
+| HandleStoreSemantic          | Handler  | handler/memory/semantic.go             |
+| HandleSemanticSearch         | Handler  | handler/memory/semantic.go             |
+| HandleStoreProcedural        | Handler  | handler/memory/procedural.go           |
+| HandleGetProcedural          | Handler  | handler/memory/procedural.go           |
 +------------------------------+----------+----------------------------------------+
 
 Dependencies
@@ -329,7 +368,8 @@ Source References
 
 - internal/router/router.go:193-204 - Internal route group registration
 - internal/middleware/internal_auth.go - InternalAuthRequired middleware
-- internal/handler/memory/handler.go - Memory handlers
+- internal/handler/memory/*.go - Memory handlers (ownership.go: owner resolution)
+- internal/database/schema.go - schemaMemoryOwnership (user_id columns, indexes)
 - internal/handler/handlerutil/helpers.go - Response/error envelope
 - internal/database/infrastructure.go - Redis + Postgres pools
 

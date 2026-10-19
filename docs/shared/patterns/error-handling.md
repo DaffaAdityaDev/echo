@@ -32,9 +32,9 @@ the shared error contract.
 | agent/src/adapter/inbound/middleware/auth.ts   | 403 response shape                         |
 | agent/src/adapter/inbound/api/missions/        |                                            |
 |   mission.controller.ts            | Validation + execution errors              |
-| frontend/web/src/lib/              |                                            |
+| app/web/src/lib/              |                                            |
 |   api-client.ts                    | Standard request error                     |
-| frontend/web/src/features/chat/   |                                            |
+| app/web/src/features/chat/   |                                            |
 |   api/useChatStream.ts             | Stream error handler                       |
 +------------------------------------+--------------------------------------------+
 
@@ -252,8 +252,8 @@ thought steps.
 - **Agent HTTP status codes**: `agent/src/shared/constants/http.ts` — `HTTP_STATUS`
 - **Agent auth error**: `agent/src/shared/constants/middleware.ts` —
   `FORBIDDEN_MESSAGE`
-- **Frontend error handler**: `frontend/web/src/lib/api-client.ts:42-44`
-- **Frontend stream error**: `frontend/web/src/features/chat/api/
+- **Frontend error handler**: `app/web/src/lib/api-client.ts:42-44`
+- **Frontend stream error**: `app/web/src/features/chat/api/
   useChatStream.ts:235-246`
 
 ## Source References
@@ -278,8 +278,8 @@ thought steps.
 | agent/src/adapter/inbound/api/missions/mission.controller.ts      | 37-42,| Validation + execution errors         |
 |                                                       | 126-  |                                       |
 |                                                       | 128   |                                       |
-| frontend/web/src/lib/api-client.ts                    | 42-44 | Standard request error                |
-| frontend/web/src/features/chat/api/useChatStream.ts   | 235-  | Stream error handler                  |
+| app/web/src/lib/api-client.ts                    | 42-44 | Standard request error                |
+| app/web/src/features/chat/api/useChatStream.ts   | 235-  | Stream error handler                  |
 |                                                       | 246   |                                       |
 +-------------------------------------------------------+-------+---------------------------------------+
 

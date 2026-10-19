@@ -429,7 +429,7 @@ L2 in API Security is a L2 system overall.
 +------------------------------------------+-----------------------------------------+
 | Reference                                | Role                                    |
 +------------------------------------------+-----------------------------------------+
-| docs/AGENTS.md                           | Agent routing, skill references         |
+| AGENTS.md                                | Agent routing, skill references         |
 | docs/shared/patterns/acid-solid-         | Validation rules that enable L4         |
 | clean-code.md                            | enforceability                          |
 | docs/shared/patterns/observability.md    | Structured observability dimensions     |

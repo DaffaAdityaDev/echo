@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# web
 
-## Getting Started
+Next.js 16 front end for Echo (React 19, TanStack Query, Zustand, Tailwind 4).
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun run dev       # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+It needs the backend running. `BACKEND_URL` sets where it lives and defaults to `http://localhost:8080`; set it in `.env.local` if yours differs.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How requests flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Components never call the backend directly. Everything goes through route handlers in `src/app/api/**`, which:
 
-## Learn More
+- store the access and refresh tokens in httpOnly cookies on login and refresh,
+- forward each call to `${BACKEND_URL}/api/v1/...` with the token as a bearer header (`src/lib/backend-proxy.ts`),
+- pass the chat SSE stream through unchanged (`/api/chat/stream`).
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/app           routes: chat (/ and /session/[id]), traces, prompts, maturity, docs, login
+src/features      one folder per area: chat, settings, studio, debug, docs, auth
+src/components    shared UI primitives (components/ui) and markdown rendering
+src/lib           API client, proxy helpers, cookies
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Colours, type sizes and radii come from the tokens in `src/app/globals.css`. Light and dark themes follow the OS setting. The token reference is in [`docs/app/web/design-system/tokens.md`](../../docs/app/web/design-system/tokens.md).
 
-## Deploy on Vercel
+## Checks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+bun test src
+bunx tsc --noEmit
+bun run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`next build` skips type checking (`ignoreBuildErrors`), so run `tsc` yourself before pushing.

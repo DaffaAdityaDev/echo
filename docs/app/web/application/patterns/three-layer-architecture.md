@@ -161,7 +161,7 @@ export function ChatPage({ messages, isLoading, models, onSend, ...rest }: ChatP
 │                 NEXT.JS API ROUTE (MIDDLEWARE) LAYER                │
 │  src/app/api/**/route.ts                                            │
 │    getRequestToken()  ← auth dari httpOnly cookie (server-side)     │
-│    proxyFetch(gatewayUrl, { Authorization: Bearer <token> })        │
+│    proxyToBackend(path) ← lib/backend-proxy: Bearer + proxyFetch    │
 │    → return NextResponse.json (JSON saja; SSE pakai relay khusus)   │
 └──────────────────────────────┼─────────────────────────────────────┘
                                │ fetch (X-Internal)
@@ -178,7 +178,7 @@ fetcher** — satu-satunya yang memanggil `@/lib/api-client`. Hanya custom hooks
 yang menggunakannya.
 
 `app/api/**` adalah **lapisan middleware**: membaca token dari httpOnly cookie
-(`getRequestToken()`), meneruskan ke Go gateway (`proxyFetch()`), dan mengembalikan
+(`getRequestToken()`), meneruskan ke Go gateway (`proxyToBackend()`), dan mengembalikan
 JSON. Semua panggilan backend WAJIB lewat route ini — **TIDAK ada akses langsung
 ke gateway** (no `/api/v1` rewrite bypass).
 
@@ -261,10 +261,10 @@ return <ChatPage messages={messages} isLoading={isLoading} />;
 | src/features/chat/components/            | 1-80    | Component — stateless, pure UI     |
 | ChatPage.tsx                             |         |                                    |
 +------------------------------------------+---------+------------------------------------+
-| docs/frontend/web/infrastructure/        | 1-330   | Detailed state management pattern  |
+| docs/app/web/infrastructure/        | 1-330   | Detailed state management pattern  |
 | state-management.md                      |         |                                    |
 +------------------------------------------+---------+------------------------------------+
-| docs/frontend/web/infrastructure/        | 1-290   | Detailed routing page pattern      |
+| docs/app/web/infrastructure/        | 1-290   | Detailed routing page pattern      |
 | routing.md                               |         |                                    |
 +------------------------------------------+---------+------------------------------------+
 

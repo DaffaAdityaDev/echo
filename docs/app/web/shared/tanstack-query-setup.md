@@ -164,7 +164,7 @@ break silently when a key changes.
 
 ## Predefined Queries
 
-### `modelQueries` (`src/lib/queries.ts`)
+### `modelQueries` (`src/features/chat/services/model-queries.ts`)
 
 ```typescript
 export const modelQueries = {
@@ -356,7 +356,8 @@ Referensi: `SessionList.tsx` (sidebar), `ChatPage.tsx` (messages),
 +----------------------------------+---------+----------------------------------------------------+
 | src/lib/get-query-client.ts      | 4-19    | Default options: staleTime, dehydrate config       |
 +----------------------------------+---------+----------------------------------------------------+
-| src/lib/queries.ts               | 1-21    | modelQueries — reusable list query with Model type |
+| src/features/chat/services/      | 5-13    | modelQueries — reusable list query (Model type in  |
+|   model-queries.ts               |         | src/features/chat/types)                           |
 +----------------------------------+---------+----------------------------------------------------+
 | src/constants/query-keys.ts      | 1-5     | QUERY_KEYS definition                              |
 +----------------------------------+---------+----------------------------------------------------+

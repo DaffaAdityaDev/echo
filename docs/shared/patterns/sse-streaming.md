@@ -24,16 +24,16 @@ SSE stream, relayed by the gateway); missions are cancelled on disconnect
 |   mission-execution.ts              | streamHarnessExecution (run + SSE stream)   |
 |   stream.transport.ts               | HttpStreamTransport packet writer           |
 | agent/src/core/agent/harness/       |                                             |
-|   cancel_manager.ts                 | Abort signal per mission                    |
+|   cancel-manager.ts                 | Abort signal per mission                    |
 | backend/internal/handler/           |                                             |
 |   chat/handler.go                   | HandleChat SSE proxy                        |
 | backend/internal/router/router.go   | Route wiring                                |
-| frontend/web/src/features/chat/     |                                             |
+| app/web/src/features/chat/     |                                             |
 |   hooks/useChatStream.ts            | SSE packet dispatch                         |
 |   services/stream/index.ts          | Shared packet dispatcher                    |
-| frontend/web/src/lib/api-client.ts  | ReadableStream SSE parser (stream)          |
-| frontend/web/src/app/api/chat/      | Next route handlers (chat stream)           |
-| frontend/web/src/features/chat/     |                                             |
+| app/web/src/lib/api-client.ts  | ReadableStream SSE parser (stream)          |
+| app/web/src/app/api/chat/      | Next route handlers (chat stream)           |
+| app/web/src/features/chat/     |                                             |
 |   types/index.ts                    | StreamPacket type                           |
 +-------------------------------------+---------------------------------------------+
 
@@ -246,11 +246,11 @@ disconnect: refresh → messages rebuild from `GET /sessions/:id/messages`.
 | agent/src/adapter/inbound/api/missions/mission.controller.ts      | 152-158| SSE stream creation                   |
 | agent/src/adapter/inbound/api/missions/mission-execution.ts      | 1-70  | streamHarnessExecution (run + stream) |
 | agent/src/adapter/inbound/api/missions/stream.transport.ts        | 1-26  | HttpStreamTransport packet writer     |
-| agent/src/core/agent/harness/cancel_manager.ts        | 1-40  | Abort signal per mission              |
+| agent/src/core/agent/harness/cancel-manager.ts        | 1-40  | Abort signal per mission              |
 | backend/internal/handler/chat/handler.go              | 148-540| HandleChat SSE proxy                  |
-| frontend/web/src/features/chat/hooks/useChatStream.ts | 38-270| SSE packet dispatch, AbortController   |
-| frontend/web/src/lib/api-client.ts                    | 56-121| ReadableStream SSE parser             |
-| frontend/web/src/features/chat/types/index.ts         | 130-243| StreamPacket type                     |
+| app/web/src/features/chat/hooks/useChatStream.ts | 38-270| SSE packet dispatch, AbortController   |
+| app/web/src/lib/api-client.ts                    | 56-121| ReadableStream SSE parser             |
+| app/web/src/features/chat/types/index.ts         | 130-243| StreamPacket type                     |
 +-------------------------------------------------------+-------+---------------------------------------+
 
 ================================================================================

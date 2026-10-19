@@ -13,7 +13,7 @@ Overview
 --------
 
 Tailwind v4, CSS-first configuration (no tailwind.config.js) — identical
-to frontend/web. PostCSS plugin @tailwindcss/postcss only.
+to app/web. PostCSS plugin @tailwindcss/postcss only.
 
 Files
 -----

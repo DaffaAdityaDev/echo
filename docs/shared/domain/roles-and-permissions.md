@@ -55,9 +55,9 @@ is reserved for planned admin functionality. Two services cooperate:
 | agent/src/adapter/inbound/api/     |                                            |
 |   missions/mission.constants.ts    | Mission defaults (strategy, tenant/user/   |
 |                                    |   org) — NOT feature constants             |
-| frontend/web/src/features/shared/  |                                            |
+| app/web/src/features/shared/  |                                            |
 |   hooks/useFeatures.ts             | Client-side feature discovery hook         |
-| frontend/web/src/lib/api-client.ts | API client                                 |
+| app/web/src/lib/api-client.ts | API client                                 |
 +------------------------------------+--------------------------------------------+
 
 ## Role Model
@@ -313,7 +313,7 @@ backend `features` table (migration 009_create_features); the agent's
 - **Internal endpoint**:
   `agent/src/adapter/inbound/api/v1/features/features.routes.ts:6-8`
 - **Frontend feature discovery**:
-  `frontend/web/src/features/shared/hooks/useFeatures.ts`
+  `app/web/src/features/shared/hooks/useFeatures.ts`
 - **User role field**: `backend/internal/models/auth/user.go:5-13`
 
 ## Source References
@@ -337,7 +337,7 @@ backend `features` table (migration 009_create_features); the agent's
 | agent/src/adapter/inbound/api/missions/               | 87-97 | Unknown feature -> 400 validation      |
 |   mission.controller.ts                              |       |                                        |
 | backend/internal/models/auth/user.go                  | 5-13  | User struct with role field            |
-| frontend/web/src/features/shared/hooks/useFeatures.ts | 1-28  | Client-side feature discovery hook     |
+| app/web/src/features/shared/hooks/useFeatures.ts | 1-28  | Client-side feature discovery hook     |
 +-------------------------------------------------------+-------+----------------------------------------+
 
 ================================================================================

@@ -24,7 +24,7 @@ File Structure
 | internal/middleware/auth.go              | AuthRequired - User JWT validation         |
 | internal/middleware/internal_auth.go     | InternalAuthRequired - Service JWT         |
 | internal/middleware/api_key.go           | APIKeyRequired - validates against API keys|
-| internal/middleware/auth_or_apikey.go    | AuthOrAPIKeyRequired - JWT fallback to API |
+| internal/middleware/session_auth.go      | RequireSessionAuth - rejects API-key auth  |
 | internal/middleware/common.go            | Logger, ErrorHandler                       |
 | internal/middleware/rbac.go              | RequireRoles - role-based access control   |
 | internal/server/server.go                | Global middleware registration             |
@@ -181,8 +181,7 @@ Entry Points & Exports
 | Logger()                | Middleware factory | middleware/common.go                |
 | ErrorHandler(c, err)    | Error handler     | middleware/common.go                |
 | RequireRoles(roles...)  | Middleware factory | middleware/rbac.go                  |
-| AuthOrAPIKeyRequired    | Middleware factory | middleware/auth_or_apikey.go        |
-| (cfg, apiKeyRepo)       |                   |                                    |
+| RequireSessionAuth()    | Middleware factory | middleware/session_auth.go          |
 +-------------------------+-------------------+------------------------------------+
 
 Dependencies

@@ -172,7 +172,7 @@ export type { Message, StreamPacket, ... } from "./types";
 
 ### Internal
 
-- Feature modules depend on `@/lib/api-client`, `@/lib/queries`, `@/utils/cn`, `@/constants`
+- Feature modules depend on `@/lib/api-client`, `@/lib/query-standard`, `@/utils/cn`, `@/constants`
 - Feature modules **should not** import from other features to avoid cross-feature coupling.
   Exceptions exist where sharing is necessary (settings module imports chat hooks for
   feature/skill/model lists).

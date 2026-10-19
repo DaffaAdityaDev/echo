@@ -33,7 +33,7 @@ convention.
 |   index.ts                    | HarnessPacket, MissionPayload type         |
 | agent/src/shared/constants/   |                                            |
 |   errors.ts                   | ERROR_TYPES taxonomy                       |
-| frontend/web/src/features/    |                                            |
+| app/web/src/features/    |                                            |
 |   chat/types/index.ts         | StreamPacket frontend type                 |
 |   chat/api/useChatStream.ts   | SSE packet handling                        |
 +-------------------------------+--------------------------------------------+
@@ -573,8 +573,8 @@ offset-based:
 | agent/src/adapter/inbound/api/missions/mission.controller.ts      | 29-130| Schema usage, error format           |
 | agent/src/shared/types/index.ts                       | 56-80 | HarnessPacket discriminated union    |
 | agent/src/shared/constants/errors.ts                  | 1-14  | Error type taxonomy                  |
-| frontend/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket frontend type           |
-| frontend/web/src/features/chat/api/useChatStream.ts   | 48-234| SSE packet handling                  |
+| app/web/src/features/chat/types/index.ts         | 62-95 | StreamPacket frontend type           |
+| app/web/src/features/chat/api/useChatStream.ts   | 48-234| SSE packet handling                  |
 +-------------------------------------------------------+-------+--------------------------------------+
 
 ================================================================================

@@ -277,7 +277,7 @@ With Credential Manager:
 +----------------------+--------------------------------------------------------------+
 | Dependency           | Purpose                                                      |
 +----------------------+--------------------------------------------------------------+
-| `dotenv`             | Load `.env` file into `process.env` if present               |
+| Bun runtime          | Loads `.env` into `process.env` natively at startup          |
 | `shared/utils/logger`| Log validation warnings (never log resolved values)           |
 +----------------------+--------------------------------------------------------------+
 

@@ -30,8 +30,8 @@ Iterative Agent mode).
 ```
 src/core/agent/prompts/
   index.ts                # Barrel — re-exports resolveBehaviorPrompt + PromptAdapter types
-  prompt_resolver.ts      # resolveBehaviorPrompt — BehaviorPrompt | null (fallback-safe)
-  bound_tools.ts          # applyBoundTools — bound tool allowlist filter
+  prompt-resolver.ts      # resolveBehaviorPrompt — BehaviorPrompt | null (fallback-safe)
+  bound-tools.ts          # applyBoundTools — bound tool allowlist filter
 src/core/agent/strategies/
   index.ts                # Barrel — re-exports all strategies + factory + constants
   prompts.ts              # Templates: STANDARD, NLAH CORE + DEFAULT_NLAH_BEHAVIOR
@@ -42,7 +42,7 @@ src/core/agent/strategies/
 src/adapter/outbound/backend/
   prompt.adapter.ts       # PromptAdapter — GET /internal/prompts/active + 60s Redis cache
 src/core/agent/harness/
-  xml_tool_parser.ts      # parseXmlToolCall — soft-recovery XML tool extraction
+  xml-tool-parser.ts      # parseXmlToolCall — soft-recovery XML tool extraction
 ```
 
 ---
@@ -198,7 +198,7 @@ Defense in depth against protocol markup leaking into user-visible content:
 
 1. **Prompt rule** — CORE PROTOCOL 5: "Never write tool-call syntax
    (XML tags such as <write_todos>, <dsml>, <invoke>) in your visible reply."
-2. **Stream sanitizer** — `harness/content_sanitizer.ts` strips fake tool
+2. **Stream sanitizer** — `harness/content-sanitizer.ts` strips fake tool
    traces, DSML invoke blocks, and echoed `<user_objective>` tags from content
    chunks before emission (chunk-boundary safe).
 3. **Frontend filter** — `MessageItem.tsx` strips the same markup before
@@ -229,7 +229,7 @@ tools = (explicitFeatures / skills resolved tools) ∩ bound_tools
   1. Mission controller — `applyBoundTools(resolvedTools, behaviorPrompt.boundTools)` (`mission.controller.ts:172-174`).
   2. Harness `selectTools` — `applyBoundTools(tools, bound)` before the loop (`harness.ts:135`).
 - Empty `boundTools` = **no restriction** — `applyBoundTools` returns the tools
-  unchanged (`bound_tools.ts:5-8`).
+  unchanged (`bound-tools.ts:5-8`).
 - The HITL resume path re-applies the filter from the harness snapshot
   (`mission.controller.ts:273-288`).
 
@@ -292,14 +292,14 @@ StrategyFactory.create(mode: string): AgentStrategy
 | `strategies/nlah.ts`                   | 17-90                       | buildSystemPrompt — dynamic capability-aware builder (COORDINATOR vs DIRECT mode; dynamic protocols and completion contract; SUB-AGENT DELEGATION strip when delegation inactive) |
 | `strategies/standard.ts`               | 14-19                       | StandardStrategy — static prompt only             |
 | `strategies/factory.ts`                | 5-9                         | Strategy selection by mode string (standard/chat → Standard; else NLAH) |
-| `prompts/prompt_resolver.ts`           | 17-28                       | resolveBehaviorPrompt — null on missing template/error; default tenant "local" |
-| `prompts/bound_tools.ts`               | 5-8                         | applyBoundTools — filter to boundTools; empty = no restriction |
+| `prompts/prompt-resolver.ts`           | 17-28                       | resolveBehaviorPrompt — null on missing template/error; default tenant "local" |
+| `prompts/bound-tools.ts`               | 5-8                         | applyBoundTools — filter to boundTools; empty = no restriction |
 | `adapter/outbound/backend/prompt.adapter.ts` | 7-9                   | Endpoint path, cache TTL 60s, request timeout 5s  |
 | `adapter/outbound/backend/prompt.adapter.ts` | 39-48                | getActivePrompt — cache-first, fetch on miss      |
 | `adapter/outbound/backend/prompt.adapter.ts` | 50-72                | cacheKey `agent:prompts:<tenant>:<name>` + silent read/write |
 | `adapter/outbound/backend/prompt.adapter.ts` | 74-110               | fetchActivePrompt — GET + X-Tenant-ID + Bearer signServiceJwt (HS256 sub:"agent" 60s); null on any failure |
-| `harness/xml_tool_parser.ts`           | 33-49                       | Legacy `<function=…>`/`<parameter=…>` parser       |
-| `harness/xml_tool_parser.ts`           | 60-89                       | parseXmlToolCall — legacy first, then `<N>…</N>`/`<N/>`/bare `<N>`; JSON body, malformed → {} |
+| `harness/xml-tool-parser.ts`           | 33-49                       | Legacy `<function=…>`/`<parameter=…>` parser       |
+| `harness/xml-tool-parser.ts`           | 60-89                       | parseXmlToolCall — legacy first, then `<N>…</N>`/`<N/>`/bare `<N>`; JSON body, malformed → {} |
 | `harness/harness.ts`                   | 51, 77                      | behaviorPrompt stored from HarnessConfig           |
 | `harness/harness.ts`                   | 346-355                     | selectTools bound-tools filter (applyBoundTools)   |
 | `harness/harness.ts`                   | 361-372                     | buildSystemPrompt passes behaviorPrompt to strategy|

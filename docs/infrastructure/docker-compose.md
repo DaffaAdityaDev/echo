@@ -103,7 +103,7 @@ services:
   echo-seed:      build ./backend (builder)       # command ["./seed"]
   echo-agent:     build ./agent
   echo-backend:   build ./backend (runner)
-  echo-frontend:  build ./frontend/web
+  echo-frontend:  build ./app/web
   # echo-otel-collector / echo-jaeger / echo-prometheus / echo-grafana: commented out
 ```
 
@@ -145,7 +145,7 @@ Layers env overrides and published app ports on the base file:
 | agent     | ./agent              | agent/Dockerfile            | bun dist/index.js         |
 | backend   | ./backend            | backend/Dockerfile          | ./server (compiled Go     |
 |           |                      |                             |   binary)                 |
-| frontend  | ./frontend/web       | frontend/web/Dockerfile     | bun run start             |
+| frontend  | ./app/web       | app/web/Dockerfile     | bun run start             |
 +-----------+----------------------+-----------------------------+---------------------------+
 
 **Environment differences from dev:**
@@ -211,7 +211,7 @@ host address explicitly.
 | docker-compose.prod.yml                     | Prod overlay — env defaults, no published DB ports   |
 | backend/Dockerfile                          | Multi-stage Go build → runner image                  |
 | agent/Dockerfile                            | Bun runtime + Chromium for Playwright                |
-| frontend/web/Dockerfile                     | Bun build → Next.js server                           |
+| app/web/Dockerfile                     | Bun build → Next.js server                           |
 | backend/scripts/init-pgvector.sql           | Postgres initial schema (vector extension,           |
 |                                             |   tool_catalog)                                      |
 | backend/scripts/init-nuq.sql                | Postgres initial schema (NUQ queue, cron jobs)       |

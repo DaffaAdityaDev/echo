@@ -80,7 +80,7 @@ Route Table
 +--------+-----------------------------------------------------+----------------------------+------+-----------------+
 
 Auth legend: `No` public · `Yes` JWT (`AuthRequired`) · `Int` service JWT
-(`InternalAuthRequired`). Admin group uses `AuthOrAPIKeyRequired`. Studio
+(`InternalAuthRequired`). Admin group uses `AuthRequired` + `RequireRoles("admin")`. Studio
 prompt mutating routes additionally use `RequireRoles("admin",
 "prompt_engineer", ...)`.
 
@@ -172,7 +172,7 @@ Route Grouping
       │   ├── POST /:id/approve
       │   └── POST /:id/deny
       │
-      ├── /admin                       (AuthOrAPIKeyRequired group)
+      ├── /admin                       (AuthRequired + RequireRoles admin)
       │   ├── GET  /api-keys
       │   ├── POST /api-keys
       │   ├── DELETE /api-keys/:id
@@ -249,8 +249,8 @@ SetupRoutes. Route-level middleware is applied per group.
       api.Get(routes.V1PathSettings, middleware.AuthRequired(cfg.JWTSecret), settingsHandler.HandleGetSettings)
       api.Put(routes.V1PathSettings, middleware.AuthRequired(cfg.JWTSecret), settingsHandler.HandleUpdateSettings)
 
-      // Admin routes (JWT or API key)
-      adminGroup := api.Group(routes.V1AdminGroup, middleware.AuthOrAPIKeyRequired(cfg, apiKeyRepo))
+      // Admin routes (JWT or API key, admin role)
+      adminGroup := api.Group(routes.V1AdminGroup, authRequired, middleware.RequireRoles(domainconst.RoleAdmin))
 
       // Internal routes (service JWT)
       internalGroup := api.Group(routes.V1InternalGroup, middleware.InternalAuthRequired(cfg))

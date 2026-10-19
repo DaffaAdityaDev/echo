@@ -19,7 +19,7 @@ semantic mastery colors. Typography: Inter for UI, JetBrains Mono for
 numbers/code.
 
 Tokens live in src/app/globals.css under @theme inline (Tailwind v4)
-mapped to utilities (bg-_, text-_, border-*) exactly like frontend/web
+mapped to utilities (bg-_, text-_, border-*) exactly like app/web
 tokens.md.
 
 Color Tokens
@@ -88,7 +88,7 @@ Motion
 ------
 
 - 150ms ease-out transitions on buttons/badges; 250ms for panels.
-- Respect prefers-reduced-motion (global kill-switch like frontend/web).
+- Respect prefers-reduced-motion (global kill-switch like app/web).
 - Micro-interactions only: progress bar fill, score ring sweep,
   streak flame pop.
 

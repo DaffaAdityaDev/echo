@@ -32,7 +32,7 @@ backend -> agent -> database.
 |   index.ts                  | MissionPayload, HarnessPacket, etc.         |
 | agent/src/core/agent/       |                                             |
 |   strategies/prompts.ts      | Prompt templates                            |
-| frontend/web/src/features/              |                                             |
+| app/web/src/features/              |                                             |
 |   chat/hooks/useChatStream.ts | Chat stream hook                           |
 +-----------------------------+---------------------------------------------+
 
@@ -390,7 +390,7 @@ Ownership:
 
 - **Go models**: `backend/internal/models/models.go`
 - **Agent types**: `agent/src/shared/types/index.ts`
-- **Frontend types**: `frontend/web/src/features/chat/types/index.ts`
+- **Frontend types**: `app/web/src/features/chat/types/index.ts`
 - **Planned schema**: `docs/architecture-plan.md`
 
 ## Source References
@@ -403,7 +403,7 @@ Ownership:
 | docs/requirment_base.md                               | 5-48  | Topic ingestion, spaced rep, agent   |
 |                                                       |       |   mission gen, evaluation            |
 | agent/src/shared/types/index.ts                       | 10-15 | MissionPayload type                  |
-| frontend/web/src/features/chat/types/index.ts         | 48-95 | Message, StreamPacket types          |
+| app/web/src/features/chat/types/index.ts         | 48-95 | Message, StreamPacket types          |
 +-------------------------------------------------------+-------+--------------------------------------+
 
 ================================================================================

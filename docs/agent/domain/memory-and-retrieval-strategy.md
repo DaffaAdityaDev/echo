@@ -101,14 +101,14 @@ Go Backend (PostgreSQL + Redis)                    Agent (Hono)
 ┌────────────────────────────────────┐             ┌──────────────────┐
 │                                    │             │                  │
 │  memory_semantic (PostgreSQL)      │◄──Service──│  MemoryAdapter   │
-│  - content, embedding, metadata    │    JWT      │  (adapter/       │
+│  - user_id, content, embedding     │    JWT      │  (adapter/       │
 │  - pgvector HNSW index (planned)   │             │  outbound/       │
 │                                    │             │  backend/        │
 │  memory_procedural (PostgreSQL)    │             │  memory.adapter  │
-│  - id, name, content, metadata     │             │  .ts)            │
+│  - id, user_id, name, content      │             │  .ts)            │
 │                                    │             │  → HTTP calls    │
 │  memory:episodic (Redis)           │             │                  │
-│  - session_id → list               │             │  ToolRegistry    │
+│  - {user_id}:{session_id} → list   │             │  ToolRegistry    │
 │  - 24h TTL                         │             │  → tool defs     │
 │                                    │             │                  │
 │                                    │             │  Classifier      │
@@ -381,6 +381,10 @@ Agent-side implications:
 - The agent remains **stateless** — it never decides retention.
 - Episodic memory POSTed to `/api/v1/internal/memory/episodic/store` already
   carries TTL (600s per turn); Redis GC is TTL-only, no agent change.
+- Every memory call carries the running `session_id`; the backend resolves the
+  owning user from the `sessions` table and scopes reads/writes to it (unknown
+  sessions → 404, legacy NULL-owner rows never returned). See
+  `docs/backend/application/patterns/memory-gateway.md` (Ownership & Isolation).
 - Summarize endpoint (`POST /api/v1/internal/sessions/summarize`) is reused by
   the worker exactly as the chat fast-path uses it today — no signature change.
 

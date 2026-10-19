@@ -184,8 +184,8 @@ compared against `ENV.INTERNAL_AUTH_TOKEN`; failure returns 403.
 | Auth middleware    | `middleware/auth.ts:8-42`   | X-Internal-Token vs INTERNAL_AUTH_TOKEN      |
 | Route wiring       | `api/routes.ts:14`          | `router.route("/", featuresRouter)`          |
 | App wiring         | `index.ts:48,52`            | auth on /api/*, routes at /api               |
-| Backend catalog    | `backend/migrations/009_    | features table (tier_requirement, ui_schema, |
-|                    |   create_features.up.sql`   |   status)                                    |
+| Backend catalog    | `backend/internal/database/ | features table (tier_requirement, ui_schema, |
+|                    |   schema.go` schemaFeatures |   status)                                    |
 | Backend proxy      | `service/features/service.go:71-117`  | GetImplementedSet — Redis cache 10m, merge + proxy |
 | Backend response   | `handler/features/handler.go:27-39`   | HandleGetFeatures — FeatureResponse locked   |
 | Backend tier gate  | `chat/handler.go:170-180` → `service/features/service.go:155-192` | ValidateRequest — 403 when free tier requests pro feature |

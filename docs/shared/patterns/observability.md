@@ -25,7 +25,7 @@ for infrastructure monitoring, and Grafana dashboards for visualization.
 | agent/src/shared/utils/             |                                             |
 |   telemetry.ts                      | OTel SDK with LangfuseSpanProcessor         |
 |   langfuse.ts                       | Langfuse tracing, LangChain callbacks       |
-| frontend/web/src/lib/               |                                             |
+| app/web/src/lib/               |                                             |
 |   api-client.ts                     | Frontend traceparent generation             |
 | infra/                              |                                             |
 |   prometheus.yml                    | Prometheus scrape config                    |
@@ -333,7 +333,7 @@ service:
 - **Agent OTel SDK**: `agent/src/shared/utils/telemetry.ts:1-39`
 - **Agent Langfuse**: `agent/src/shared/utils/langfuse.ts:1-65`
 - **Agent LangChain callbacks**: `agent/src/shared/utils/langfuse.ts:16-29`
-- **Frontend trace context**: `frontend/web/src/lib/api-client.ts:27-29`
+- **Frontend trace context**: `app/web/src/lib/api-client.ts:27-29`
 
 ## Dependencies
 
@@ -359,7 +359,7 @@ service:
 | agent/src/shared/utils/telemetry.ts                   | 1-39  | OTel SDK with LangfuseSpanProcessor  |
 | agent/src/shared/utils/langfuse.ts                    | 34-63 | startAgentTrace                      |
 | agent/src/shared/utils/langfuse.ts                    | 16-29 | getLangChainCallbacks                |
-| frontend/web/src/lib/api-client.ts                    | 65-69 | Frontend traceparent generation      |
+| app/web/src/lib/api-client.ts                    | 65-69 | Frontend traceparent generation      |
 | docker-compose.yml                                    | 42-80 | Observability infra services         |
 +-------------------------------------------------------+-------+--------------------------------------+
 

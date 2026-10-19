@@ -35,7 +35,7 @@ File Structure
 | backend/internal/constants/auth/apikey.go | API key prefixes, header names, error messages |
 | backend/internal/repository/admin/repository.go | Database operations (Create, ListByUserID, Revoke) |
 | backend/internal/handler/admin/handler.go | HTTP endpoints: List, Create, Revoke API keys |
-| backend/internal/middleware/auth_or_apikey.go | Dual-mode middleware (JWT Cookie / Bearer API Key) |
+| backend/internal/middleware/auth.go | Dual-mode AuthRequired (JWT Cookie / Bearer API Key) |
 | backend/internal/router/router.go | API route mounting (/api/v1/api-keys, chat auth) |
 | app/web/src/features/settings/types/apiKey.ts | TypeScript type definitions for API keys |
 | app/web/src/features/settings/services/apiKeyService.ts | Frontend API client for managing keys |

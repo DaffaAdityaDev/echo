@@ -43,7 +43,7 @@
 - **Status**: Accepted
 - **Context**: Monorepo applications reside under `app/`.
 - **Decision**: Katara is located at `app/KataraGnosis/` containing `frontend/` (Next.js) and `backend/` (Go service).
-- **Consequences**: Clean organization consistent with other monorepo apps (`app/web`, `app/dekstop`, `app/discord`).
+- **Consequences**: Clean organization consistent with other monorepo apps (`app/web`, `app/desktop`, `app/discord`).
 
 ---
 

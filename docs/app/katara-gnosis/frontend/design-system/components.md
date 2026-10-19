@@ -12,7 +12,7 @@ Status : Design (pre-implementation)
 Overview
 --------
 
-Hand-rolled UI kit in src/components/ui/ (same approach as frontend/web:
+Hand-rolled UI kit in src/components/ui/ (same approach as app/web:
 no shadcn/radix). All components are dark-first, use design tokens from
 tokens.md, and are typed with strict TS.
 
