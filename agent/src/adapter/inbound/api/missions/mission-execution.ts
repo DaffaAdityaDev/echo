@@ -5,11 +5,12 @@ import { PACKET_TYPES } from "../../../../core/agent/harness/constants";
 import type { HarnessEvent } from "../../../../core/agent/harness/types";
 import { classifyProviderError } from "../../../../infrastructure/providers/utils/upstream-error";
 import type { AgentState } from "../../../../shared/types";
+import { HTTP_STATUS } from "../../../../shared/constants/http";
 import { logger } from "../../../../shared/utils/logger";
-import { STREAM_CONSTANTS } from "./mission.constants";
+import { MISSION_ERROR_MESSAGES, STREAM_CONSTANTS } from "./mission.constants";
 import { HttpStreamTransport } from "./stream.transport";
 
-interface StreamErrorPacket {
+type StreamErrorPacket = {
   type: string;
   missionId: string;
   step: number;
@@ -17,6 +18,13 @@ interface StreamErrorPacket {
   code: string;
   detail?: string;
   status?: number;
+};
+
+/** Claims the mission's single active-run slot; null when a run for it is already in progress. */
+export function reserveMissionRun(missionId: string): AbortSignal | null {
+  if (cancellationManager.isActive(missionId)) return null;
+
+  return cancellationManager.register(missionId);
 }
 
 export async function streamHarnessExecution(
@@ -27,12 +35,19 @@ export async function streamHarnessExecution(
     harness: NlahHarness;
     executionLog: string;
     sendErrorLog: string;
+    /** A run slot already claimed with reserveMissionRun; the stream takes ownership of releasing it. */
+    reservedSignal?: AbortSignal;
   },
 ) {
+  const signal = opts.reservedSignal ?? reserveMissionRun(opts.missionId);
+
+  if (!signal) {
+    return c.json({ error: MISSION_ERROR_MESSAGES.MISSION_ALREADY_RUNNING }, HTTP_STATUS.CONFLICT);
+  }
+
   return streamSSE(c, async (streamInstance) => {
     const transport = new HttpStreamTransport(streamInstance);
 
-    const signal = cancellationManager.register(opts.missionId);
     streamInstance.onAbort(() => {
       cancellationManager.cancelLocal(opts.missionId);
     });
@@ -78,7 +93,7 @@ export async function streamHarnessExecution(
         logger.warn(`${opts.sendErrorLog} ${sendErr}`);
       }
     } finally {
-      cancellationManager.unregister(opts.missionId);
+      cancellationManager.unregister(opts.missionId, signal);
     }
   });
 }

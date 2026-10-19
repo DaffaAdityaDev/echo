@@ -1,6 +1,6 @@
-import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ObservationLevel } from "@langfuse/tracing";
+import { LogFileSink } from "./log-file-sink";
 
 const RESET = "\x1b[0m";
 
@@ -26,7 +26,7 @@ export type LogMeta = { [key: string]: LogMetaValue };
 
 export type LogContext = LogMeta | Error | string | number | boolean;
 
-function isLogRecord(value?: LogContext): value is LogMeta {
+function isLogRecord(value?: LogMetaValue): value is LogMeta {
   return typeof value === "object" && value !== null && !(value instanceof Error) && !Array.isArray(value);
 }
 
@@ -49,12 +49,7 @@ function serializeMeta(meta?: LogContext): LogMeta | undefined {
     const result: LogMeta = {};
 
     for (const [key, value] of Object.entries(meta)) {
-      if (value instanceof Error) {
-        result[key] = { name: value.name, message: value.message, stack: value.stack };
-      } else {
-        // SAFETY: Object.entries values on LogMeta conform to LogMetaValue.
-        result[key] = value as LogMetaValue;
-      }
+      result[key] = value instanceof Error ? { name: value.name, message: value.message, stack: value.stack } : value;
     }
 
     return result;
@@ -102,26 +97,25 @@ function formatMeta(meta?: LogContext): string {
   }
 }
 
+const AGENT_ACTIVITY_LOG_FILE = "agent-activity.log";
+
+const fileSink = new LogFileSink(join(process.cwd(), "logs"));
+
+function serializeMetaSuffix(meta?: LogContext): string {
+  const cleanMeta = serializeMeta(meta);
+
+  return cleanMeta && isLogRecord(cleanMeta) ? ` ${JSON.stringify(cleanMeta)}` : "";
+}
+
+let currentDailyFile: string | undefined;
+
 function writeToFile(level: string, msg: string, meta?: LogContext) {
-  try {
-    const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
-    const logDir = join(process.cwd(), "logs");
-    mkdirSync(logDir, { recursive: true });
-    const logPath = join(logDir, `${dateStr}.log`);
+  const dailyFile = `${new Date().toISOString().split("T")[0]}.log`;
 
-    let metaStr = "";
-    const cleanMeta = serializeMeta(meta);
+  if (currentDailyFile && currentDailyFile !== dailyFile) void fileSink.close(currentDailyFile);
 
-    if (cleanMeta && isLogRecord(cleanMeta)) {
-      metaStr = ` ${JSON.stringify(cleanMeta)}`;
-    }
-
-    const line = `[${level}] [${getTimestamp()}] ${msg}${metaStr}\n`;
-    appendFileSync(logPath, line, "utf-8");
-  } catch {
-    // Fail silently to prevent crashing application
-  }
+  currentDailyFile = dailyFile;
+  fileSink.write(dailyFile, `[${level}] [${getTimestamp()}] ${msg}${serializeMetaSuffix(meta)}\n`);
 }
 
 const LEVEL_CONFIG = {
@@ -220,23 +214,10 @@ export class Logger {
 }
 
 function writeToAgentActivityFile(missionId: string, event: string, msg: string, meta?: LogContext) {
-  try {
-    const logDir = join(process.cwd(), "logs");
-    mkdirSync(logDir, { recursive: true });
-    const logPath = join(logDir, "agent-activity.log");
-
-    let metaStr = "";
-    const cleanMeta = serializeMeta(meta);
-
-    if (cleanMeta && isLogRecord(cleanMeta)) {
-      metaStr = ` ${JSON.stringify(cleanMeta)}`;
-    }
-
-    const line = `[${getTimestamp()}] [Mission:${missionId.slice(0, 8)}] [${event}] ${msg}${metaStr}\n`;
-    appendFileSync(logPath, line, "utf-8");
-  } catch {
-    // Fail silently
-  }
+  fileSink.write(
+    AGENT_ACTIVITY_LOG_FILE,
+    `[${getTimestamp()}] [Mission:${missionId.slice(0, 8)}] [${event}] ${msg}${serializeMetaSuffix(meta)}\n`,
+  );
 }
 
 export const logger = new Logger();

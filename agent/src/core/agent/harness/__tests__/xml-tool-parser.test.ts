@@ -1,4 +1,4 @@
-import { hasProtocolMarkup, parseXmlToolCall } from "../xml_tool_parser";
+import { hasProtocolMarkup, parseXmlToolCall } from "../xml-tool-parser";
 
 const KNOWN = new Set(["write_todos", "delegate_task", "web_search"]);
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { JsonObject } from "../../../../shared/types";
+import type { JsonObject, JsonValue } from "../../../../shared/types";
 import {
   DEFAULT_MISSION_VALUES,
   HITL_DECISIONS,
@@ -12,11 +12,23 @@ function isPlainObject<T>(val: T): val is T & JsonObject {
   return typeof val === "object" && val !== null && !Array.isArray(val);
 }
 
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ]),
+);
+
 export const ProviderConfigSchema = z.object({
   type: z.enum(["openai", "anthropic", "lm-studio", "opencode-go"]),
   base_url: z.string(),
   api_key: z.string().nullable().optional(),
   model: z.string(),
+  max_context_tokens: z.number().int().nonnegative().optional(),
 });
 
 const MemoryConfigSchema = z
@@ -194,7 +206,7 @@ export const AgentConfigSchema = z
           description: z.string(),
           headers: z.record(z.string(), z.string()).optional(),
           global_headers: z.record(z.string(), z.string()).optional(),
-          inputSchema: z.record(z.string(), z.unknown()),
+          inputSchema: z.record(z.string(), jsonValueSchema),
           auth: z
             .object({
               type: z.enum(["bearer", "basic", "header"]),

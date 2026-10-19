@@ -1,13 +1,16 @@
+import { randomUUID } from "node:crypto";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { AgentState, JsonObject, LLMProvider, Observation, ToolDefinition } from "../../../shared/types";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
-import type { CircuitBreaker } from "./circuit_breaker";
+import type { CircuitBreaker } from "./circuit-breaker";
 import { compressObservation } from "./compressor";
 import { HARNESS_CONFIG, OPERATION_STATUS } from "./constants";
 import type { DegradationManager } from "./degradation";
 import type { HarnessEventEmitter } from "./events";
 import type { AgentStatusTracker } from "./status-tracker";
+import { validateToolArgs } from "./tool-args";
 import type { HarnessEvent, HarnessRuntimeConfig } from "./types";
 
 const todosSchema = z.array(
@@ -26,10 +29,50 @@ export interface ToolExecutorDeps {
   getPacingForced: () => boolean;
   getStatusTracker: () => AgentStatusTracker | undefined;
   emitter: HarnessEventEmitter;
+  addTotalCostUsd: (stepCost: number) => void;
 }
 
 export class ToolExecutor {
   constructor(private readonly deps: ToolExecutorDeps) {}
+
+  private async runTool(
+    tool: ToolDefinition,
+    pendingToolCall: { name: string; args: JsonObject },
+    toolMap: Map<string, ToolDefinition>,
+    onPacket: (p: HarnessEvent) => Promise<void>,
+    state: AgentState,
+  ): Promise<Observation> {
+    const invalidArgs = validateToolArgs(tool, pendingToolCall.args);
+
+    if (invalidArgs) {
+      logger.warn(`Rejected invalid arguments for ${pendingToolCall.name}: ${invalidArgs.summary}`, {
+        missionId: state.missionId,
+      });
+
+      return invalidArgs;
+    }
+
+    try {
+      return await tool.execute(pendingToolCall.args, {
+        parentMessages: state.messages,
+        onPacket,
+        provider: this.deps.provider,
+        tools: [...toolMap.values()],
+        delegationDepth: this.deps.delegationDepth,
+        missionId: state.missionId,
+        addCostUsd: this.deps.addTotalCostUsd,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${errMsg}`, toLogCause(err));
+
+      return {
+        status: OPERATION_STATUS.ERROR,
+        summary: `Tool execution failed: Failed to perform ${pendingToolCall.name}. Please try again later or refine the request.`,
+        error: "TOOL_EXECUTION_FAILED",
+      };
+    }
+  }
 
   async execute(
     pendingToolCall: { name: string; args: JsonObject },
@@ -41,7 +84,7 @@ export class ToolExecutor {
     state: AgentState,
     circuit: CircuitBreaker,
     degradation: DegradationManager,
-    totalInputTokensSum: number,
+    contextTokensUsed: number,
     maxContextTokens: number,
   ): Promise<{ isComplete: boolean }> {
     if (circuit.isOpen(pendingToolCall.name)) {
@@ -97,26 +140,7 @@ export class ToolExecutor {
       await this.deps.emitter.emitSubagentCall(onPacket, iteration, agentName, instruction);
     }
 
-    let observation: Observation;
-
-    try {
-      observation = await tool.execute(pendingToolCall.args, {
-        parentMessages: state.messages,
-        onPacket,
-        provider: this.deps.provider,
-        tools: [...toolMap.values()],
-        delegationDepth: this.deps.delegationDepth,
-        missionId: state.missionId,
-      });
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      logger.error(`Tool execution failed for ${pendingToolCall.name}: ${errMsg}`, err);
-      observation = {
-        status: OPERATION_STATUS.ERROR,
-        summary: `Tool execution failed: Failed to perform ${pendingToolCall.name}. Please try again later or refine the request.`,
-        error: "TOOL_EXECUTION_FAILED",
-      };
-    }
+    let observation = await this.runTool(tool, pendingToolCall, toolMap, onPacket, state);
 
     const isError = observation.status === OPERATION_STATUS.ERROR;
 
@@ -150,7 +174,7 @@ export class ToolExecutor {
       );
     }
 
-    const toolCallId = `tool_${Date.now()}`;
+    const toolCallId = `tool_${randomUUID()}`;
     state.messages.push(
       new AIMessage({
         content: assistantContent,
@@ -168,7 +192,7 @@ export class ToolExecutor {
       observation.data,
     );
 
-    await this.deps.emitter.emitProgress(onPacket, iteration, "tool_execution", totalInputTokensSum, maxContextTokens);
+    await this.deps.emitter.emitProgress(onPacket, iteration, "tool_execution", contextTokensUsed, maxContextTokens);
     this.deps.getStatusTracker()?.update({ currentTool: undefined });
 
     return { isComplete: false };

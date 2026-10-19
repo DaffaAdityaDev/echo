@@ -145,7 +145,7 @@ describe("Agent Summarization Endpoint", () => {
   });
 
   test("truncates and caps giant message payloads within the model context budget", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
 
@@ -180,8 +180,7 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    // SAFETY: Inspect first argument passed to streamMock
-    const sent = streamMock.mock.calls[0][0] as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     const budget = Math.floor(128000 * 0.6);
     const perMsgChars = Math.max(budget * 2, 100000);
     let totalTokens = 0;
@@ -195,7 +194,7 @@ describe("Agent Summarization Endpoint", () => {
   });
 
   test("keeps the full payload when the model context window is large", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
 
@@ -230,15 +229,14 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    // SAFETY: Inspect first argument passed to streamMock
-    const sent = streamMock.mock.calls[0][0] as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     expect(sent.length).toBe(2);
     expect(sent[0].content).toBe(giant);
     expect(sent[1].content).toBe(giant);
   });
 
   test("falls back to fixed caps when the context window is unknown", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
 
@@ -271,8 +269,7 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    // SAFETY: Inspect first argument passed to streamMock
-    const sent = streamMock.mock.calls[0][0] as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     expect(sent.length).toBeLessThan(2);
 
     for (const m of sent) {

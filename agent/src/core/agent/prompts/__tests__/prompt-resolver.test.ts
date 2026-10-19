@@ -1,6 +1,6 @@
 import type Redis from "ioredis";
 import { PromptAdapter } from "../../../../adapter/outbound/backend/prompt.adapter";
-import { resolveBehaviorPrompt } from "../prompt_resolver";
+import { resolveBehaviorPrompt } from "../prompt-resolver";
 
 vi.mock("../../../../shared/utils/jwt", () => ({
   signServiceJwt: vi.fn(() => "fake-token"),

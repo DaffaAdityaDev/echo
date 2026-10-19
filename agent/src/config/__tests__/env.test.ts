@@ -3,7 +3,6 @@ import { envSchema } from "../env.schema";
 
 const validInput = {
   PORT: "3001",
-  GRPC_PORT: "50051",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234",
   STATE_BACKEND: "memory",
   NODE_ENV: "development",
@@ -45,9 +44,6 @@ describe("envSchema", () => {
   test("invalid type fails", () => {
     const portResult = envSchema.safeParse({ ...validInput, PORT: 3001 });
     expect(portResult.success).toBe(false);
-
-    const grpcResult = envSchema.safeParse({ ...validInput, GRPC_PORT: 50051 });
-    expect(grpcResult.success).toBe(false);
   });
 
   test("invalid url fails", () => {
@@ -77,7 +73,6 @@ describe("envSchema", () => {
     if (!result.success) return;
 
     expect(result.data.PORT).toBe(ENV_DEFAULTS.PORT);
-    expect(result.data.GRPC_PORT).toBe(ENV_DEFAULTS.GRPC_PORT);
     expect(result.data.LLM_MODEL_API_URL).toBe(ENV_DEFAULTS.LLM_MODEL_API_URL);
     expect(result.data.LANGFUSE_BASE_URL).toBe(ENV_DEFAULTS.LANGFUSE_BASE_URL);
     expect(result.data.BACKEND_URL).toBe(ENV_DEFAULTS.BACKEND_URL);
@@ -88,5 +83,36 @@ describe("envSchema", () => {
     expect(result.data.ENABLE_MCP).toBe(false);
     expect(result.data.ENABLE_REST_TOOLS).toBe(false);
     expect(result.data.ENABLE_TELEMETRY).toBe("true");
+  });
+
+  test.each([
+    ["false", false],
+    ["FALSE", false],
+    ["0", false],
+    ["true", true],
+    ["1", true],
+  ])("ENABLE_MCP=%s parses to %s", (raw, expected) => {
+    const result = envSchema.safeParse({ ...validInput, ENABLE_MCP: raw, ENABLE_REST_TOOLS: raw, DEBUG_PROMPT: raw });
+    expect(result.success).toBe(true);
+
+    if (!result.success) return;
+    expect(result.data.ENABLE_MCP).toBe(expected);
+    expect(result.data.ENABLE_REST_TOOLS).toBe(expected);
+    expect(result.data.DEBUG_PROMPT).toBe(expected);
+  });
+
+  test("an empty boolean flag assignment falls back to false", () => {
+    const result = envSchema.safeParse({ ...validInput, ENABLE_MCP: "", ENABLE_REST_TOOLS: "  ", DEBUG_PROMPT: "" });
+    expect(result.success).toBe(true);
+
+    if (!result.success) return;
+    expect(result.data.ENABLE_MCP).toBe(false);
+    expect(result.data.ENABLE_REST_TOOLS).toBe(false);
+    expect(result.data.DEBUG_PROMPT).toBe(false);
+  });
+
+  test("an unrecognised boolean flag value fails validation", () => {
+    const result = envSchema.safeParse({ ...validInput, ENABLE_MCP: "yes-please" });
+    expect(result.success).toBe(false);
   });
 });

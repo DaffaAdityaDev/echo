@@ -1,10 +1,11 @@
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { Hono } from "hono";
 import { z } from "zod";
 import { cancellationManager } from "../../../../../core/agent/harness";
 import { stateStorage } from "../../../../../core/agent/storage";
 import { toolRegistry } from "../../../../../core/agent/tools";
 import { ProviderFactory } from "../../../../../infrastructure/providers/factory";
-import type { JsonValue, ToolDefinition } from "../../../../../shared/types";
+import type { AgentState, JsonValue, ToolDefinition } from "../../../../../shared/types";
 import type { RestToolConfig } from "../../../../../infrastructure/transports/rest/types";
 import { MISSION_ERROR_MESSAGES } from "../mission.constants";
 import { createMission, handleHitlDecision } from "../mission.controller";
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => {
     cancellationManager: {
       register: vi.fn(() => new AbortController().signal),
       unregister: vi.fn(),
+      isActive: vi.fn(() => false),
       cancelLocal: vi.fn(),
       clearCancelled: vi.fn(),
       isCancelled: vi.fn(() => false),
@@ -114,6 +116,7 @@ const VALID_BODY = {
 
 function makePausedState() {
   return {
+    missionId: "mission-123",
     state: { missionId: "mission-123", objective: "Write a plan", tasks: [], memory: {}, messages: [] },
     pendingToolCall: { id: "call-1", name: "web_search", args: { query: "news" } },
     harnessSnapshot: {
@@ -195,7 +198,19 @@ describe("createMission", () => {
       expect.any(Function),
     );
     expect(cancellationManager.register).toHaveBeenCalledWith("mission-123");
-    expect(cancellationManager.unregister).toHaveBeenCalledWith("mission-123");
+    expect(cancellationManager.unregister).toHaveBeenCalledWith("mission-123", expect.any(AbortSignal));
+  });
+
+  test("rejects a second concurrent run on the same session with 409", async () => {
+    vi.mocked(cancellationManager.isActive).mockReturnValueOnce(true);
+    const app = buildApp();
+    const res = await app.request("/missions/generate-mission", postJson(VALID_BODY));
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe(MISSION_ERROR_MESSAGES.MISSION_ALREADY_RUNNING);
+    expect(cancellationManager.register).not.toHaveBeenCalled();
+    expect(mocks.runMission).not.toHaveBeenCalled();
   });
 
   test("scopes REST tools to the mission instead of registering them globally", async () => {
@@ -228,6 +243,40 @@ describe("createMission", () => {
     });
     // The process-global registry must never be mutated by a mission.
     expect(mocks.toolRegistry.addRestTool).not.toHaveBeenCalled();
+  });
+
+  test("appends a repeated prompt when it is not the latest message", async () => {
+    const existing: AgentState = {
+      missionId: "mission-123",
+      objective: "yes",
+      tasks: [],
+      memory: {},
+      messages: [new HumanMessage("yes"), new AIMessage("Shall I continue?")],
+    };
+    vi.mocked(stateStorage.get).mockResolvedValue(existing);
+
+    const res = await buildApp().request("/missions/generate-mission", postJson({ ...VALID_BODY, prompt: "yes" }));
+    await res.text();
+
+    const state = vi.mocked(mocks.runMission).mock.calls[0][0] as AgentState;
+    expect(state.messages.map((m) => String(m.content))).toEqual(["yes", "Shall I continue?", "yes"]);
+  });
+
+  test("does not duplicate a retried prompt that is already the latest message", async () => {
+    const existing: AgentState = {
+      missionId: "mission-123",
+      objective: "yes",
+      tasks: [],
+      memory: {},
+      messages: [new HumanMessage("yes")],
+    };
+    vi.mocked(stateStorage.get).mockResolvedValue(existing);
+
+    const res = await buildApp().request("/missions/generate-mission", postJson({ ...VALID_BODY, prompt: "yes" }));
+    await res.text();
+
+    const state = vi.mocked(mocks.runMission).mock.calls[0][0] as AgentState;
+    expect(state.messages).toHaveLength(1);
   });
 });
 
@@ -268,6 +317,152 @@ describe("handleHitlDecision", () => {
     expect(body.error).toBe(MISSION_ERROR_MESSAGES.APPROVAL_EXPIRED_OR_NOT_FOUND);
   });
 
+  function mockWebSearchTool(execute: ToolDefinition["execute"]) {
+    vi.mocked(toolRegistry.resolveToolsMap).mockReturnValue(
+      new Map<string, ToolDefinition>([
+        [
+          "web_search",
+          { name: "web_search", description: "", keywords: [], schema: z.object({ query: z.string() }), execute },
+        ],
+      ]),
+    );
+  }
+
+  test("returns a retryable 409 without consuming the approval while the session's run is still active", async () => {
+    vi.mocked(cancellationManager.isActive).mockReturnValueOnce(true);
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
+
+    const app = buildApp();
+
+    const res = await app.request(
+      "/v1/sessions/mission-123/approve",
+      postJson({ approvalId: "approval-busy", decision: "approve" }),
+    );
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe(MISSION_ERROR_MESSAGES.MISSION_ALREADY_RUNNING);
+    expect(stateStorage.get).not.toHaveBeenCalled();
+    expect(stateStorage.delete).not.toHaveBeenCalled();
+    expect(cancellationManager.register).not.toHaveBeenCalled();
+  });
+
+  test("releases the reserved run slot when the approval is not found", async () => {
+    const app = buildApp();
+
+    const res = await app.request(
+      "/v1/sessions/mission-123/approve",
+      postJson({ approvalId: "approval-missing", decision: "approve" }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(cancellationManager.register).toHaveBeenCalledWith("mission-123");
+    expect(cancellationManager.unregister).toHaveBeenCalledWith("mission-123", expect.any(AbortSignal));
+  });
+
+  test("keeps the approval claimable when deleting the paused state fails", async () => {
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
+    vi.mocked(stateStorage.delete).mockRejectedValueOnce(new Error("backend down"));
+    const toolExecute = vi.fn(async () => ({ status: "success" as const, summary: "search result" }));
+    mockWebSearchTool(toolExecute);
+
+    const app = buildApp();
+    const request = () =>
+      app.request("/v1/sessions/mission-123/approve", postJson({ approvalId: "approval-retry", decision: "approve" }));
+
+    const failed = await request();
+    expect(failed.status).toBe(500);
+    expect(cancellationManager.unregister).toHaveBeenCalledWith("mission-123", expect.any(AbortSignal));
+
+    const retried = await request();
+    await retried.text();
+    expect(retried.status).toBe(200);
+    expect(toolExecute).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns 404 when the approval belongs to another session", async () => {
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
+    const toolExecute = vi.fn(async () => ({ status: "success" as const, summary: "search result" }));
+    mockWebSearchTool(toolExecute);
+
+    const app = buildApp();
+
+    const res = await app.request(
+      "/v1/sessions/other-session/approve",
+      postJson({ approvalId: "approval-cross", decision: "approve" }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(toolExecute).not.toHaveBeenCalled();
+    expect(stateStorage.delete).not.toHaveBeenCalled();
+  });
+
+  test("executes the approved tool once when two decisions race for the same approval", async () => {
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
+    const toolExecute = vi.fn(async () => ({ status: "success" as const, summary: "search result" }));
+    mockWebSearchTool(toolExecute);
+
+    const app = buildApp();
+    const request = () =>
+      app.request("/v1/sessions/mission-123/approve", postJson({ approvalId: "approval-race", decision: "approve" }));
+
+    const [first, second] = await Promise.all([request(), request()]);
+    await Promise.all([first.text(), second.text()]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 404]);
+    expect(toolExecute).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects approved tool arguments that violate the tool schema", async () => {
+    const paused = makePausedState();
+    paused.pendingToolCall.args = { query: 7 } as never;
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(paused as never);
+    const toolExecute = vi.fn(async () => ({ status: "success" as const, summary: "search result" }));
+    mockWebSearchTool(toolExecute);
+
+    const app = buildApp();
+
+    const res = await app.request(
+      "/v1/sessions/mission-123/approve",
+      postJson({ approvalId: "approval-invalid", decision: "approve" }),
+    );
+
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(toolExecute).not.toHaveBeenCalled();
+    const resumedState = vi.mocked(mocks.runMission).mock.calls[0][0] as AgentState;
+    const toolMessage = resumedState.messages[resumedState.messages.length - 1];
+    expect(String(toolMessage.content)).toContain("Invalid arguments for tool web_search");
+  });
+
+  test("resumes with an error observation when the approved tool throws", async () => {
+    // SAFETY: Mock paused execution state fixture
+    vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
+    mockWebSearchTool(
+      vi.fn(async () => {
+        throw new Error("upstream exploded");
+      }),
+    );
+
+    const app = buildApp();
+
+    const res = await app.request(
+      "/v1/sessions/mission-123/approve",
+      postJson({ approvalId: "approval-throws", decision: "approve" }),
+    );
+
+    expect(res.status).toBe(200);
+    await res.text();
+    const resumedState = vi.mocked(mocks.runMission).mock.calls[0][0] as AgentState;
+    const toolMessage = resumedState.messages[resumedState.messages.length - 1];
+    expect(String(toolMessage.content)).toContain("upstream exploded");
+  });
+
   test("resumes execution when an approval is approved", async () => {
     // SAFETY: Mock paused execution state fixture
     vi.mocked(stateStorage.get).mockResolvedValue(makePausedState() as never);
@@ -292,14 +487,15 @@ describe("handleHitlDecision", () => {
 
     const res = await app.request(
       "/v1/sessions/mission-123/approve",
-      postJson({ approvalId: "approval-1", decision: "approve" }),
+      postJson({ approvalId: "approval-approve", decision: "approve" }),
     );
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     const text = await res.text();
     expect(text).toContain("resumed");
-    expect(stateStorage.delete).toHaveBeenCalledWith("paused:approval-1");
+    expect(stateStorage.get).toHaveBeenCalledWith({ sessionId: "mission-123", slot: "paused:approval-approve" });
+    expect(stateStorage.delete).toHaveBeenCalledWith({ sessionId: "mission-123", slot: "paused:approval-approve" });
     expect(toolExecute).toHaveBeenCalledWith({ query: "news" });
     expect(mocks.StrategyFactory.create).toHaveBeenCalledWith("nlah");
   });
@@ -312,13 +508,13 @@ describe("handleHitlDecision", () => {
 
     const res = await app.request(
       "/v1/sessions/mission-123/deny",
-      postJson({ approvalId: "approval-1", decision: "deny", reason: "not allowed" }),
+      postJson({ approvalId: "approval-deny", decision: "deny", reason: "not allowed" }),
     );
 
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("resumed");
-    expect(stateStorage.delete).toHaveBeenCalledWith("paused:approval-1");
+    expect(stateStorage.delete).toHaveBeenCalledWith({ sessionId: "mission-123", slot: "paused:approval-deny" });
     // Both approve and deny resumes restore the pre-pause tool allowlist
     // (strict allowlist: resumed harness must not fall back to retriever tools).
     expect(toolRegistry.resolveToolsMap).toHaveBeenCalledWith(["web_search"]);

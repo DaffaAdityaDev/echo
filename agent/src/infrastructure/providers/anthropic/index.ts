@@ -1,3 +1,4 @@
+import type { Callbacks } from "@langchain/core/callbacks/manager";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { LLM_CONFIG } from "../../../shared/constants";
@@ -16,7 +17,7 @@ interface AnthropicClientOptions {
 }
 
 interface AnthropicStreamOptions {
-  callbacks: unknown;
+  callbacks: Callbacks;
   signal?: AbortSignal;
 }
 
@@ -115,55 +116,58 @@ export class AnthropicProvider implements LLMProvider {
     const langchainStream = await chatWithTools.stream(fullMessages, streamOptions);
 
     const sentReasoningMap = new Map<string, string>();
-    let accumulatedChunk: AIMessageChunk | null = null;
 
-    for await (const chunk of langchainStream) {
-      accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
-      const messageId = chunk.id;
-      const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
-      const textContent = isString(chunk.content) ? chunk.content : "";
+    try {
+      let accumulatedChunk: AIMessageChunk | null = null;
 
-      if (textContent || deltaReasoning) {
-        yield {
-          content: textContent || undefined,
-          reasoning: deltaReasoning || undefined,
-          id: messageId,
-        };
+      for await (const chunk of langchainStream) {
+        accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
+        const messageId = chunk.id;
+        const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
+        const textContent = isString(chunk.content) ? chunk.content : "";
+
+        if (textContent || deltaReasoning) {
+          yield {
+            content: textContent || undefined,
+            reasoning: deltaReasoning || undefined,
+            id: messageId,
+          };
+        }
       }
+
+      if (accumulatedChunk) {
+        const toolCalls = accumulatedChunk.tool_calls;
+
+        if (toolCalls && toolCalls.length > 0) {
+          const tc = toolCalls[0];
+          // SAFETY: tool call args parsed from model output are valid JSON objects
+          yield { toolCall: { name: tc.name, args: tc.args as JsonObject } };
+        }
+
+        const usage = accumulatedChunk.usage_metadata;
+
+        if (usage) {
+          const lastId = accumulatedChunk.id;
+          const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
+
+          // SAFETY: LangChain ChatAnthropic usage metadata provides input_token_details cache_read count
+          const usageDetails = usage as AnthropicUsageWithCache;
+          const cachedTokens = usageDetails.input_token_details?.cache_read ?? 0;
+
+          yield {
+            usage: {
+              promptTokens: usage.input_tokens ?? 0,
+              completionTokens: usage.output_tokens ?? 0,
+              totalTokens: usage.total_tokens ?? 0,
+              cachedTokens,
+              reasoningTokens: reasoningTokenCount,
+            },
+          };
+        }
+      }
+    } finally {
+      await this.interceptor.cleanup(sentReasoningMap.keys());
     }
-
-    if (accumulatedChunk) {
-      const toolCalls = accumulatedChunk.tool_calls;
-
-      if (toolCalls && toolCalls.length > 0) {
-        const tc = toolCalls[0];
-        // SAFETY: tool call args parsed from model output are valid JSON objects
-        yield { toolCall: { name: tc.name, args: tc.args as JsonObject } };
-      }
-
-      const usage = accumulatedChunk.usage_metadata;
-
-      if (usage) {
-        const lastId = accumulatedChunk.id;
-        const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
-
-        // SAFETY: LangChain ChatAnthropic usage metadata provides input_token_details cache_read count
-        const usageDetails = usage as AnthropicUsageWithCache;
-        const cachedTokens = usageDetails.input_token_details?.cache_read ?? 0;
-
-        yield {
-          usage: {
-            promptTokens: usage.input_tokens ?? 0,
-            completionTokens: usage.output_tokens ?? 0,
-            totalTokens: usage.total_tokens ?? 0,
-            cachedTokens,
-            reasoningTokens: reasoningTokenCount,
-          },
-        };
-      }
-    }
-
-    await this.interceptor.cleanup(sentReasoningMap.keys());
   }
 
   async cleanupReasoning(): Promise<void> {

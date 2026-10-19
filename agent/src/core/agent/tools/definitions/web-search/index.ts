@@ -9,11 +9,11 @@ import {
   SEARCH_SUMMARIES,
 } from "./constants";
 
-interface DuckDuckGoResult {
+type DuckDuckGoResult = {
   title: string;
   url: string;
   snippet: string;
-}
+};
 
 /**
  * Fetches search results from DuckDuckGo's HTML search page.
@@ -28,6 +28,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
       [HTTP_HEADERS.USER_AGENT_KEY]: HTTP_HEADERS.USER_AGENT_VALUE,
       [HTTP_HEADERS.ACCEPT_KEY]: HTTP_HEADERS.ACCEPT_VALUE,
     },
+    signal: AbortSignal.timeout(SEARCH_CONFIG.TIMEOUT_MS),
   });
 
   if (!response.ok) {

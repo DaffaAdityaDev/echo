@@ -1,4 +1,4 @@
-import { BudgetMonitor } from "../budget_monitor";
+import { BudgetMonitor } from "../budget-monitor";
 
 describe("BudgetMonitor", () => {
   beforeEach(() => {

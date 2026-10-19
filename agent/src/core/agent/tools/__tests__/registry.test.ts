@@ -27,9 +27,7 @@ const mockWriteTodosTool: ToolDefinition = {
 };
 
 function seedTool(registry: ToolRegistry, tool: ToolDefinition): void {
-  // SAFETY: Access internal tools map for test state fixture injection
-  const internalRegistry = registry as ToolRegistry & { tools: Map<string, ToolDefinition> };
-  internalRegistry.tools.set(tool.name, tool);
+  registry["tools"].set(tool.name, tool);
 }
 
 describe("ToolRegistry", () => {
@@ -63,6 +61,11 @@ describe("ToolRegistry", () => {
 
     test("returns empty array for unknown feature without crashing", async () => {
       const tools = await registry.resolveTools(["unknown_feature"]);
+      expect(tools).toEqual([]);
+    });
+
+    test("ignores feature ids that only match inherited object keys", async () => {
+      const tools = await registry.resolveTools(["toString", "constructor"]);
       expect(tools).toEqual([]);
     });
 

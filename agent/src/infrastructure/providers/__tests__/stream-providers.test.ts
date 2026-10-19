@@ -6,6 +6,7 @@ import { AnthropicProvider } from "../anthropic";
 import { LMStudioProvider } from "../lm-studio";
 import { OpenAIProvider } from "../openai";
 import { OpenCodeGoProvider } from "../opencode-go";
+import { ReasoningInterceptor } from "../utils";
 
 interface MockChatConfig {
   apiKey?: string;
@@ -438,5 +439,45 @@ describe("LMStudioProvider", () => {
     langchainOpenAIMocks.stream.mockRejectedValue(new Error("boom"));
 
     await expect(collect(makeProvider(), [], [], "You are a test assistant.")).rejects.toThrow("boom");
+  });
+});
+
+describe("reasoning store cleanup on stream failure", () => {
+  async function* failingChunks(): AsyncGenerator<AIMessageChunk> {
+    yield new AIMessageChunk({ id: "m1", content: "partial" });
+    throw new Error("stream aborted");
+  }
+
+  const cases: Array<{ name: string; make: () => LLMProvider; stream: typeof langchainOpenAIMocks.stream }> = [
+    {
+      name: "OpenAIProvider",
+      make: () => new OpenAIProvider("http://openai.test", "gpt-4o-mini", "test-key"),
+      stream: langchainOpenAIMocks.stream,
+    },
+    {
+      name: "LMStudioProvider",
+      make: () => new LMStudioProvider("http://localhost:1234", "local-model-8k", "test-key"),
+      stream: langchainOpenAIMocks.stream,
+    },
+    {
+      name: "AnthropicProvider",
+      make: () => new AnthropicProvider("https://anthropic.test", "claude-sonnet-4", "test-key"),
+      stream: langchainAnthropicMocks.stream,
+    },
+  ];
+
+  beforeEach(() => {
+    langchainOpenAIMocks.bindTools.mockReturnValue({ stream: langchainOpenAIMocks.stream });
+    langchainAnthropicMocks.bindTools.mockReturnValue({ stream: langchainAnthropicMocks.stream });
+  });
+
+  it.each(cases)("$name cleans up the reasoning store when the stream throws mid-way", async ({ make, stream }) => {
+    const cleanupSpy = vi.spyOn(ReasoningInterceptor.prototype, "cleanup");
+    stream.mockResolvedValue(failingChunks());
+
+    await expect(collect(make())).rejects.toThrow("stream aborted");
+
+    expect(cleanupSpy).toHaveBeenCalledTimes(1);
+    cleanupSpy.mockRestore();
   });
 });

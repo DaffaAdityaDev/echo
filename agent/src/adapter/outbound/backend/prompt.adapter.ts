@@ -2,6 +2,7 @@ import type Redis from "ioredis";
 import { ENV } from "../../../config/env";
 import { getRedisClient } from "../../../infrastructure/cache/redis";
 import { signServiceJwt } from "../../../shared/utils/jwt";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 
 const PROMPT_ENDPOINT = "/api/v1/internal/prompts/active";
@@ -79,7 +80,7 @@ export class PromptAdapter {
       // SAFETY: Redis cached prompt string was serialized from ActivePrompt
       return JSON.parse(raw) as ActivePrompt;
     } catch (err) {
-      logger.warn(`Prompt cache read failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt cache read failed`, { templateName, tenantId, error: toLogCause(err) });
 
       return null;
     }
@@ -91,7 +92,7 @@ export class PromptAdapter {
     try {
       await this.redis.set(this.cacheKey(templateName, tenantId), JSON.stringify(prompt), "EX", CACHE_TTL_SECONDS);
     } catch (err) {
-      logger.warn(`Prompt cache write failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt cache write failed`, { templateName, tenantId, error: toLogCause(err) });
     }
   }
 
@@ -135,7 +136,7 @@ export class PromptAdapter {
         variables: isStringArray(data.variables) ? data.variables : [],
       };
     } catch (err) {
-      logger.warn(`Prompt request failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt request failed`, { templateName, tenantId, error: toLogCause(err) });
 
       return null;
     } finally {

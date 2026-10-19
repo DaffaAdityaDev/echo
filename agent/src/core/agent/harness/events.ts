@@ -21,7 +21,7 @@ export class HarnessEventEmitter {
 
   private async sendBase(
     onPacket: (p: HarnessEvent) => Promise<void>,
-    packet: { type: HarnessEventType } & JsonObject,
+    packet: { type: HarnessEventType; [key: string]: JsonValue | undefined },
   ) {
     if (packet.type !== PACKET_TYPES.HEARTBEAT) {
       this.lastActivityTimestamp = Date.now();

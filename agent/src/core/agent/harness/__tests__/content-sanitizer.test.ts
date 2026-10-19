@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ContentSanitizer } from "../content_sanitizer";
+import { ContentSanitizer } from "../content-sanitizer";
 
 describe("ContentSanitizer", () => {
   test("strips fake write_todos tool trace blocks", () => {

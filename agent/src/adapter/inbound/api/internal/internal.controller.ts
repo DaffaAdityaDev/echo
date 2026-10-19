@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
 import { estimateCharTokens } from "../../../../shared/utils/harness";
+import { toLogCause } from "../../../../shared/utils/errors";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 import {
@@ -128,7 +129,7 @@ Do NOT include any pleasantries, conversational filler, or formatting other than
     return c.json(response);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.error(`${SUMMARIZE_LOG_PREFIX} Summarization failed: ${message}`, err);
+    logger.error(`${SUMMARIZE_LOG_PREFIX} Summarization failed: ${message}`, toLogCause(err));
 
     return c.json(
       { error: SUMMARIZE_ERROR_MESSAGES.SUMMARIZATION_FAILED, details: message },

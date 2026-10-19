@@ -47,7 +47,7 @@ export class AgentStatusTracker {
   markStalled(): StatusTransition {
     const from = this.status.state;
 
-    if (from === "completed" || from === "aborted" || from === "stalled") {
+    if (from === "completed" || from === "aborted" || from === "stalled" || from === "awaiting_approval") {
       return { changed: false, from, to: from };
     }
 

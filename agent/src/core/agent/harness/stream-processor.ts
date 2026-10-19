@@ -3,7 +3,7 @@ import type { JsonObject, LLMProvider, ProviderEvent } from "../../../shared/typ
 import { estimateCharTokens } from "../../../shared/utils/harness";
 import { logger } from "../../../shared/utils/logger";
 import { HARNESS_CONFIG } from "./constants";
-import type { ContentSanitizer } from "./content_sanitizer";
+import type { ContentSanitizer } from "./content-sanitizer";
 import type { HarnessEventEmitter } from "./events";
 import type { AgentStatusTracker } from "./status-tracker";
 import type { HarnessEvent, HarnessRuntimeConfig } from "./types";
@@ -94,7 +94,14 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
 
       if (event.toolCall) {
         logger.info(`[processStreamEvents] Got toolCall event: ${JSON.stringify(event.toolCall)}`);
-        pendingToolCall = event.toolCall;
+
+        // One tool call executes per turn (matching the LangChain providers, which
+        // yield only the first); later parallel calls are dropped, never swapped in.
+        if (pendingToolCall) {
+          logger.warn(`[processStreamEvents] Dropping additional parallel toolCall: ${event.toolCall.name}`);
+        } else {
+          pendingToolCall = event.toolCall;
+        }
       }
 
       if (event.content && !pendingToolCall) {

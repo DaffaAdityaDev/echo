@@ -1,5 +1,5 @@
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import { mapHistoryToMessages } from "../messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HISTORY_TOOL_RESULT_PREFIX, mapHistoryToMessages } from "../messages";
 
 describe("mapHistoryToMessages", () => {
   test("returns an empty array when history is missing", () => {
@@ -33,22 +33,18 @@ describe("mapHistoryToMessages", () => {
     expect(msg.content).toBe("hello");
   });
 
-  test("maps tool role to a tool call plus ToolMessage", () => {
+  test("maps tool role to a plain-text HumanMessage without fabricated tool calls", () => {
     const messages = mapHistoryToMessages([{ role: "tool", content: "tool result" }]);
-    expect(messages).toHaveLength(2);
-    expect(messages[0]).toBeInstanceOf(AIMessage);
-    const toolCall = (messages[0] as AIMessage).tool_calls?.[0];
-    expect(toolCall?.name).toBe("tool");
-    expect(messages[1]).toBeInstanceOf(ToolMessage);
-    expect((messages[1] as ToolMessage).tool_call_id).toBe(toolCall?.id);
-    expect(messages[1].content).toBe("tool result");
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toBeInstanceOf(HumanMessage);
+    expect(messages[0].content).toBe(`${HISTORY_TOOL_RESULT_PREFIX}tool result`);
   });
 
-  test("maps tool_result role to a tool call plus ToolMessage", () => {
+  test("maps tool_result role to a plain-text HumanMessage", () => {
     const messages = mapHistoryToMessages([{ role: "tool_result", content: "output" }]);
-    expect(messages).toHaveLength(2);
-    expect(messages[0]).toBeInstanceOf(AIMessage);
-    expect(messages[1]).toBeInstanceOf(ToolMessage);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toBeInstanceOf(HumanMessage);
+    expect(messages.some((m) => m instanceof AIMessage && (m.tool_calls?.length ?? 0) > 0)).toBe(false);
   });
 
   test("matches roles case-insensitively", () => {
@@ -80,11 +76,10 @@ describe("mapHistoryToMessages", () => {
       { role: "ai", content: "answer" },
     ]);
 
-    expect(messages).toHaveLength(5);
+    expect(messages).toHaveLength(4);
     expect(messages[0]).toBeInstanceOf(SystemMessage);
     expect(messages[1]).toBeInstanceOf(HumanMessage);
-    expect(messages[2]).toBeInstanceOf(AIMessage);
-    expect(messages[3]).toBeInstanceOf(ToolMessage);
-    expect(messages[4]).toBeInstanceOf(AIMessage);
+    expect(messages[2]).toBeInstanceOf(HumanMessage);
+    expect(messages[3]).toBeInstanceOf(AIMessage);
   });
 });

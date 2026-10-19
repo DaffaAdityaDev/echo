@@ -1,4 +1,4 @@
-import { LoopDetector } from "../loop_detector";
+import { LoopDetector } from "../loop-detector";
 
 describe("LoopDetector", () => {
   it("default config enables detection", () => {
@@ -20,6 +20,15 @@ describe("LoopDetector", () => {
     const h2 = d.generateHash("tool_a", { b: 2, a: 1 });
     expect(h1).toBe(h2);
     expect(h1).toMatch(/^[a-f0-9]{32}$/);
+  });
+
+  it("generateHash includes nested keys so different nested args do not collide", () => {
+    const d = new LoopDetector();
+    const h1 = d.generateHash("write_todos", { todos: [{ id: "1", status: "pending" }] });
+    const h2 = d.generateHash("write_todos", { todos: [{ id: "1", status: "done" }] });
+    const h3 = d.generateHash("write_todos", { todos: [{ status: "pending", id: "1" }] });
+    expect(h1).not.toBe(h2);
+    expect(h1).toBe(h3);
   });
 
   it("generateHash produces different result for different inputs", () => {

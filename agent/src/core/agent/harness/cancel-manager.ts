@@ -27,8 +27,14 @@ export class CancellationManager {
     return controller.signal;
   }
 
-  public unregister(missionId: string) {
+  /** Removes the mission's controller; with a signal, only when it still belongs to that registration. */
+  public unregister(missionId: string, signal?: AbortSignal) {
+    if (signal && this.controllers.get(missionId)?.signal !== signal) return;
     this.controllers.delete(missionId);
+  }
+
+  public isActive(missionId: string): boolean {
+    return this.controllers.has(missionId);
   }
 
   public cancelLocal(missionId: string) {

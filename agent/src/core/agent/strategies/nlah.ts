@@ -3,6 +3,20 @@ import type { BehaviorPrompt } from "../prompts";
 import { STRATEGY_NAMES } from "./constants";
 import { DEFAULT_NLAH_BEHAVIOR, NLAH_INSTRUCTIONS, NLAH_PROMPTS } from "./prompts";
 
+const USER_OBJECTIVE_TAG_PATTERN = /<\s*\/?\s*user_objective\b[^>]*>/gi;
+
+function escapeAngleBrackets(tag: string): string {
+  return tag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Escapes any user-supplied <user_objective> / </user_objective> so the objective cannot close the
+// untrusted-data boundary early and inject text that reads as system instructions.
+function wrapUserObjective(objective: string): string {
+  const neutralised = objective.replace(USER_OBJECTIVE_TAG_PATTERN, escapeAngleBrackets);
+
+  return `<user_objective>${neutralised}</user_objective>`;
+}
+
 /**
  * Natural-Language Agent Harness (NLAH) Strategy.
  * [ACTIVE / PRIMARY STANDARD]
@@ -62,12 +76,13 @@ export class NLAHStrategy implements AgentStrategy {
         ? protocolLines.map((line, idx) => `${idx + 1}. ${line}`).join("\n")
         : "None. Proceed with execution.";
 
+    const wrappedObjective = wrapUserObjective(state.objective);
     let workflow = "";
 
     if (behaviorPrompt?.systemPrompt) {
       let substitutedPrompt = behaviorPrompt.systemPrompt
         .replace(/{tools}/g, () => toolDescriptions)
-        .replace(/{objective}/g, () => `<user_objective>${state.objective}</user_objective>`);
+        .replace(/{objective}/g, () => wrappedObjective);
 
       if (!hasDelegation) {
         // Strip SUB-AGENT DELEGATION PROTOCOL block from custom DB prompts when delegation is inactive
@@ -93,7 +108,7 @@ export class NLAHStrategy implements AgentStrategy {
       .replace("{core_protocols}", () => coreProtocols)
       .replace("{workflow}", () => workflow)
       .replace("{tools}", () => toolDescriptions)
-      .replace("{objective}", () => `<user_objective>${state.objective}</user_objective>`)
+      .replace("{objective}", () => wrappedObjective)
       .replace("{completion}", () => completion);
   }
 }

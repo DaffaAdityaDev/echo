@@ -14,7 +14,7 @@ export interface RestToolConfig {
   headers?: Record<string, string>;
   global_headers?: Record<string, string>;
   params?: Record<string, string>;
-  schema?: { type: "object"; properties: JsonObject; required?: string[] };
+  schema?: JsonObject;
   auth?: RestAuthConfig;
   timeout?: number;
   url_interpolation?: boolean;

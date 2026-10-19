@@ -5,15 +5,16 @@ import type { AgentState, HarnessFeatureToggles, LLMProvider, ToolDefinition } f
 import { startAgentTrace } from "../../../shared/utils/langfuse";
 import { logger } from "../../../shared/utils/logger";
 import type { BehaviorPrompt } from "../prompts";
-import { applyBoundTools } from "../prompts/bound_tools";
+import { applyBoundTools } from "../prompts/bound-tools";
 import { ToolRetriever } from "../services/retriever";
 import { SkillRegistry } from "../skills";
 import { stateStorage } from "../storage/factory";
+import { missionStateKey } from "../storage/state-key";
 import { toolRegistry } from "../tools/registry";
-import { BudgetMonitor } from "./budget_monitor";
-import { cancellationManager } from "./cancel_manager";
-import { CircuitBreaker } from "./circuit_breaker";
-import { DEBUG_CONFIG, HARNESS_CONFIG } from "./constants";
+import { BudgetMonitor } from "./budget-monitor";
+import { cancellationManager } from "./cancel-manager";
+import { CircuitBreaker } from "./circuit-breaker";
+import { HARNESS_CONFIG } from "./constants";
 import { queuePromptDebug } from "./debug";
 import { DegradationManager } from "./degradation";
 import type { HarnessEventEmitter } from "./events";
@@ -223,15 +224,17 @@ export class MissionRunner {
 
     const runtime: TurnRuntime = {
       isComplete: false,
+      isAwaitingApproval: false,
+      isAborted: false,
       currentSystemPrompt: systemPrompt,
       currentToolMap: toolMap,
       lastDegradationLevel: "normal",
-      totalInputTokensSum: 0,
+      lastPromptTokens: 0,
       previousThought: "",
     };
 
     try {
-      while (!runtime.isComplete && iteration < maxIterations) {
+      while (!runtime.isComplete && !runtime.isAwaitingApproval && !runtime.isAborted && iteration < maxIterations) {
         if (await this.checkCancellation(iteration, onPacket)) break;
         iteration++;
 
@@ -286,7 +289,9 @@ export class MissionRunner {
         }
       }
 
-      if (iteration >= maxIterations) {
+      if (runtime.isAwaitingApproval) {
+        await this.deps.emitter.updateStatus(onPacket, { state: "awaiting_approval" }, iteration);
+      } else if (iteration >= maxIterations && !runtime.isAborted) {
         logger.warn(`Max iterations reached`, { missionId: state.missionId });
         await this.deps.emitter.updateStatus(onPacket, { state: "aborted" }, iteration);
       } else if (runtime.isComplete) {
@@ -301,9 +306,9 @@ export class MissionRunner {
         this.deps.getTotalCostUsd(),
       );
 
-      await stateStorage.set(state.missionId, state, HARNESS_CONFIG.STATE_TTL_SECONDS);
+      await stateStorage.set(missionStateKey(state.missionId), state, HARNESS_CONFIG.STATE_TTL_SECONDS);
 
-      if (ENV.DEBUG_PROMPT || ENV.NODE_ENV === DEBUG_CONFIG.ENV) {
+      if (ENV.DEBUG_PROMPT) {
         queuePromptDebug({
           state,
           iteration,

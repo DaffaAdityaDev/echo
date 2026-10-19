@@ -58,6 +58,7 @@ export interface HarnessSnapshot {
     base_url: string;
     api_key?: string | null;
     model: string;
+    max_context_tokens?: number;
   };
   delegationDepth: number;
   featureToggles: HarnessFeatureToggles;
@@ -114,8 +115,8 @@ export interface FailedUrl {
   reason: string;
 }
 
-export interface AgentStatus {
-  state: "starting" | "running" | "stalled" | "looping" | "degraded" | "completed" | "aborted";
+export type AgentStatus = {
+  state: "starting" | "running" | "stalled" | "looping" | "degraded" | "awaiting_approval" | "completed" | "aborted";
   step: number;
   maxSteps: number;
   strategy: "agent" | "standard" | "restricted";
@@ -125,7 +126,7 @@ export interface AgentStatus {
   consecutiveFailures?: number;
   activeCircuitBreakers?: string[];
   throughput?: number;
-}
+};
 
 interface HarnessPacketBase {
   missionId: string;
@@ -213,7 +214,7 @@ export type HarnessPacket =
 /**
  * Standardized response from any tool call.
  */
-export interface Observation<T = unknown> {
+export interface Observation<T = JsonValue> {
   status: "success" | "warning" | "error";
   summary: string;
   data?: T;
@@ -252,12 +253,12 @@ export interface PausedMissionState {
   };
 }
 
-export interface Task {
+export type Task = {
   id: string;
   description: string;
   status: "pending" | "in_progress" | "done" | "failed";
   observation?: string;
-}
+};
 
 /**
  * Strategy interface — responsible only for constructing the system prompt.
@@ -294,6 +295,51 @@ export interface StrategyRegistry {
   resolve(version: string): AgentStrategy;
 }
 
+export type HarnessEventType =
+  | "metadata"
+  | "reasoning"
+  | "content"
+  | "tool_call"
+  | "tool_result"
+  | "tool_skip"
+  | "todo"
+  | "subagent_call"
+  | "subagent_result"
+  | "usage"
+  | "progress"
+  | "heartbeat"
+  | "state_change"
+  | "degraded"
+  | "turn_complete"
+  | "debug"
+  | "system_notice"
+  | "error"
+  | "swarm_status"
+  | "token_metrics"
+  | "hitl_approval_required"
+  | "mission_completed";
+
+export type HarnessEvent = {
+  type: HarnessEventType;
+  missionId: string;
+  step?: number;
+  content?: string;
+  toolName?: string;
+  toolInput?: JsonObject;
+  payload?: JsonObject;
+  [key: string]: JsonValue | undefined;
+};
+
+export interface ToolExecutionContext {
+  parentMessages?: BaseMessage[];
+  onPacket?: (packet: HarnessEvent) => Promise<void>;
+  provider?: LLMProvider;
+  tools?: ToolDefinition[];
+  delegationDepth?: number;
+  missionId?: string;
+  addCostUsd?: (usd: number) => void;
+}
+
 /**
  * Contract for tool definitions.
  */
@@ -301,7 +347,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   schema: z.ZodTypeAny;
-  execute(input: JsonValue, config?: JsonValue): Promise<Observation>;
+  execute(input: JsonObject, context?: ToolExecutionContext): Promise<Observation>;
   keywords?: string[];
 }
 

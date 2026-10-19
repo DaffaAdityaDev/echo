@@ -1,5 +1,5 @@
 import type { Observation } from "../../../../shared/types";
-import { CircuitBreaker } from "../circuit_breaker";
+import { CircuitBreaker } from "../circuit-breaker";
 import { compressObservation } from "../compressor";
 import { DegradationManager } from "../degradation";
 import { AgentStatusTracker } from "../status-tracker";

@@ -4,15 +4,17 @@ import type { Context } from "hono";
 import { StandardContextAnchor } from "../../../../core/agent/anchors";
 import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import { type BehaviorPrompt, resolveBehaviorPrompt } from "../../../../core/agent/prompts";
-import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
+import { applyBoundTools } from "../../../../core/agent/prompts/bound-tools";
 import { SkillRegistry } from "../../../../core/agent/skills";
 import { stateStorage } from "../../../../core/agent/storage";
+import { missionStateKey } from "../../../../core/agent/storage/state-key";
 import { strategyRegistry } from "../../../../core/agent/strategies";
 import { createRestTool, getImplementedFeatures, toolRegistry } from "../../../../core/agent/tools";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import type { RestToolConfig } from "../../../../infrastructure/transports/rest/types";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
 import type { AgentState, MissionPayload, PausedMissionState, ToolDefinition } from "../../../../shared/types";
+import { toLogCause } from "../../../../shared/utils/errors";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 import {
@@ -119,15 +121,17 @@ export async function createMission(c: Context) {
     const strategyKey = validatedData.strategy_version || validatedData.strategy;
     const executionStrategy = strategyRegistry.resolve(strategyKey);
 
-    const rawState = await stateStorage.get(missionId);
+    const rawState = await stateStorage.get(missionStateKey(missionId));
     let state: AgentState;
 
     if (isAgentState(rawState)) {
       state = rawState;
       state.objective = payload.prompt;
-      const hasNewMessage = state.messages.some((m) => m.content === payload.prompt);
+      // Only a retried submission repeats the latest message; an earlier identical
+      // prompt (e.g. "yes" twice) is a genuine new turn.
+      const isRetriedPrompt = state.messages.at(-1)?.content === payload.prompt;
 
-      if (!hasNewMessage) {
+      if (!isRetriedPrompt) {
         state.messages.push(new HumanMessage(payload.prompt));
       }
     } else {
@@ -197,7 +201,7 @@ export async function createMission(c: Context) {
         tenantId: payload.tenant.tenantId,
       });
     } catch (promptErr: unknown) {
-      logger.warn("Prompt resolution failed; falling back to default behavior", promptErr);
+      logger.warn("Prompt resolution failed; falling back to default behavior", toLogCause(promptErr));
     }
 
     if (behaviorPrompt && behaviorPrompt.boundTools.length > 0 && resolvedTools !== undefined) {
@@ -227,7 +231,7 @@ export async function createMission(c: Context) {
       tools: resolvedTools,
       restTools: restConfigs,
       skills: validatedData.skills ?? undefined,
-      harnessConfig: validatedData.config.featureToggles ?? validatedData.config.harnessConfig,
+      harnessConfig: { ...validatedData.config.harnessConfig, ...validatedData.config.featureToggles },
       delegationDepth: validatedData.config.harness.delegationDepth,
       behaviorPrompt,
     });
@@ -243,7 +247,7 @@ export async function createMission(c: Context) {
       sendErrorLog: STREAM_LOG_MESSAGES.SEND_ERROR_FAILED,
     });
   } catch (error: unknown) {
-    logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, error);
+    logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, toLogCause(error));
 
     return c.json(
       {

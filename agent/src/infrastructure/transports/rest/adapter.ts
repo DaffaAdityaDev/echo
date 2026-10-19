@@ -31,12 +31,22 @@ function resolveEnvRefs(input: JsonObject): HeaderMap {
   return resolved;
 }
 
+const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(["GET", "PUT", "DELETE"]);
+
+function toParamString(val: JsonValue): string {
+  return isString(val) ? val : JSON.stringify(val);
+}
+
 function interpolateUrl(template: string, params: JsonObject): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => {
     const val = params[key];
 
-    return val !== undefined ? String(val) : `{${key}}`;
+    return val !== undefined ? encodeURIComponent(toParamString(val)) : `{${key}}`;
   });
+}
+
+function shouldRetry(method: string, attempt: number, maxRetries: number): boolean {
+  return IDEMPOTENT_METHODS.has(method) && attempt < maxRetries - 1;
 }
 
 function buildAuthHeaders(auth: RestAuthConfig): HeaderMap {
@@ -113,11 +123,7 @@ class RestAdapter {
 
           headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
 
-          const rawInput: JsonObject = isJsonObject(input) ? input : {};
-
-          const resolvedInput: JsonObject = this.credentialManager
-            ? this.credentialManager.resolveForRequest(rawInput)
-            : resolveEnvRefs(rawInput);
+          const modelInput: JsonObject = isJsonObject(input) ? input : {};
 
           if (config.auth) {
             Object.assign(headers, buildAuthHeaders(config.auth));
@@ -126,17 +132,17 @@ class RestAdapter {
           let url = config.url ?? config.endpoint ?? "";
 
           if (config.url_interpolation) {
-            url = interpolateUrl(url, resolvedInput);
+            url = interpolateUrl(url, modelInput);
           }
 
           const method = config.method ?? "POST";
           const isGetOrDelete = method === "GET" || method === "DELETE";
 
-          if (isGetOrDelete && isJsonObject(resolvedInput)) {
+          if (isGetOrDelete) {
             const params = new URLSearchParams();
 
-            for (const [k, v] of Object.entries(resolvedInput)) {
-              params.set(k, String(v));
+            for (const [k, v] of Object.entries(modelInput)) {
+              params.set(k, toParamString(v));
             }
 
             const qs = params.toString();
@@ -162,19 +168,23 @@ class RestAdapter {
               signal: controller.signal,
             };
 
-            if (!isGetOrDelete && isJsonObject(resolvedInput)) {
-              fetchInit.body = JSON.stringify(resolvedInput);
+            if (!isGetOrDelete) {
+              fetchInit.body = JSON.stringify(modelInput);
             }
 
             let response: Response;
 
             try {
               response = await fetch(url, fetchInit);
+            } catch (err: unknown) {
+              if (!shouldRetry(method, attempt, maxRetries)) throw err;
+              lastError = err instanceof Error ? err.message : "Network error";
+              continue;
             } finally {
               clearTimeout(timer);
             }
 
-            if (response.status >= 500 && attempt < maxRetries - 1) {
+            if (response.status >= 500 && shouldRetry(method, attempt, maxRetries)) {
               lastError = `HTTP ${response.status}: ${response.statusText}`;
               continue;
             }

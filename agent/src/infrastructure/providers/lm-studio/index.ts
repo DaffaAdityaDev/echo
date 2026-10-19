@@ -1,3 +1,4 @@
+import type { Callbacks } from "@langchain/core/callbacks/manager";
 import { type AIMessageChunk, type BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { LLM_CONFIG } from "../../../shared/constants";
@@ -10,7 +11,7 @@ function isString<T>(val: T): val is T & string {
 }
 
 interface LMStudioStreamOptions {
-  callbacks: unknown;
+  callbacks: Callbacks;
   signal?: AbortSignal;
 }
 
@@ -87,62 +88,64 @@ export class LMStudioProvider implements LLMProvider {
     const langchainStream = await chatWithTools.stream(fullMessages, streamOptions);
 
     const sentReasoningMap = new Map<string, string>();
-    let accumulatedChunk: AIMessageChunk | null = null;
 
-    // Phase 1: Stream content and reasoning to the client
-    for await (const chunk of langchainStream) {
-      // Accumulate all chunks so we can inspect the final message for tool calls
-      accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
+    try {
+      let accumulatedChunk: AIMessageChunk | null = null;
 
-      const messageId = chunk.id;
-      const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
+      // Phase 1: Stream content and reasoning to the client
+      for await (const chunk of langchainStream) {
+        // Accumulate all chunks so we can inspect the final message for tool calls
+        accumulatedChunk = accumulatedChunk ? accumulatedChunk.concat(chunk) : chunk;
 
-      const textContent = isString(chunk.content) ? chunk.content : "";
+        const messageId = chunk.id;
+        const { deltaReasoning } = this.interceptor.getDelta(messageId, sentReasoningMap);
 
-      if (textContent || deltaReasoning) {
-        yield {
-          content: textContent || undefined,
-          reasoning: deltaReasoning || undefined,
-          id: messageId,
-        };
+        const textContent = isString(chunk.content) ? chunk.content : "";
+
+        if (textContent || deltaReasoning) {
+          yield {
+            content: textContent || undefined,
+            reasoning: deltaReasoning || undefined,
+            id: messageId,
+          };
+        }
       }
+
+      // Phase 2: Extract tool calls from the fully-accumulated final message
+      if (accumulatedChunk) {
+        const toolCalls = accumulatedChunk.tool_calls;
+
+        if (toolCalls && toolCalls.length > 0) {
+          const tc = toolCalls[0];
+          // SAFETY: Tool call arguments parsed from model output are valid JSON objects
+          yield {
+            toolCall: {
+              name: tc.name,
+              args: tc.args as JsonObject,
+            },
+          };
+        }
+
+        // Emit token usage from the final chunk
+        const usage = accumulatedChunk.usage_metadata;
+
+        if (usage) {
+          const lastId = accumulatedChunk.id;
+          const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
+
+          yield {
+            usage: {
+              promptTokens: usage.input_tokens ?? 0,
+              completionTokens: usage.output_tokens ?? 0,
+              totalTokens: usage.total_tokens ?? 0,
+              reasoningTokens: reasoningTokenCount,
+            },
+          };
+        }
+      }
+    } finally {
+      await this.interceptor.cleanup(sentReasoningMap.keys());
     }
-
-    // Phase 2: Extract tool calls from the fully-accumulated final message
-    if (accumulatedChunk) {
-      const toolCalls = accumulatedChunk.tool_calls;
-
-      if (toolCalls && toolCalls.length > 0) {
-        const tc = toolCalls[0];
-        // SAFETY: Tool call arguments parsed from model output are valid JSON objects
-        yield {
-          toolCall: {
-            name: tc.name,
-            args: tc.args as JsonObject,
-          },
-        };
-      }
-
-      // Emit token usage from the final chunk
-      const usage = accumulatedChunk.usage_metadata;
-
-      if (usage) {
-        const lastId = accumulatedChunk.id;
-        const reasoningTokenCount = this.interceptor.getReasoningTokenCount(lastId);
-
-        yield {
-          usage: {
-            promptTokens: usage.input_tokens ?? 0,
-            completionTokens: usage.output_tokens ?? 0,
-            totalTokens: usage.total_tokens ?? 0,
-            reasoningTokens: reasoningTokenCount,
-          },
-        };
-      }
-    }
-
-    // Cleanup reasoning store
-    await this.interceptor.cleanup(sentReasoningMap.keys());
   }
 
   async cleanupReasoning(): Promise<void> {

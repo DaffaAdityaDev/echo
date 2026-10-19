@@ -1,5 +1,5 @@
 import { HumanMessage, type SystemMessage } from "@langchain/core/messages";
-import { ContextManager } from "../context_manager";
+import { ContextManager } from "../context-manager";
 
 describe("ContextManager", () => {
   describe("prepareMessagesPayload", () => {

@@ -1,15 +1,15 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { AgentState, JsonObject, JsonValue, Task } from "../../../shared/types";
+import type { AgentState, JsonObject, JsonValue, PausedMissionState, Task } from "../../../shared/types";
 
-interface SerializedToolCall {
+type SerializedToolCall = {
   name: string;
   args: JsonObject;
   id: string;
   type?: "tool_call";
-}
+};
 
-interface SerializedMessage {
+type SerializedMessage = {
   type: string;
   content?: string;
   name?: string;
@@ -18,7 +18,7 @@ interface SerializedMessage {
   response_metadata?: JsonObject;
   tool_call_id?: string;
   tool_calls?: SerializedToolCall[];
-}
+};
 
 function isPlainObject(value: JsonValue | undefined | null): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -96,6 +96,21 @@ export function serializeAgentState(state: AgentState) {
         }))
       : [],
   };
+}
+
+function isPausedMissionState(value: AgentState | PausedMissionState): value is PausedMissionState {
+  return "pendingToolCall" in value && "harnessSnapshot" in value;
+}
+
+// A paused HITL record nests its AgentState under `state`; serialising it
+// verbatim would emit LangChain's toJSON() constructor form, which the
+// deserialiser cannot map back to typed messages.
+export function serializeStoredState(value: AgentState | PausedMissionState) {
+  if (isPausedMissionState(value)) {
+    return { ...value, state: serializeAgentState(value.state) };
+  }
+
+  return serializeAgentState(value);
 }
 
 function deserializeMessages(messages: SerializedMessage[]) {

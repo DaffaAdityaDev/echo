@@ -93,7 +93,7 @@ export function classifyProviderError<T>(err: T): UpstreamProviderError | null {
   const retryAfterMs = parseRetryAfter(sdk?.headers);
 
   if (status === 429 || lower.includes("429") || lower.includes("rate limit")) {
-    const isUsageLimit = sdk.error?.error?.type === "GoUsageLimitError" || lower.includes("usage limit");
+    const isUsageLimit = sdk?.error?.error?.type === "GoUsageLimitError" || lower.includes("usage limit");
 
     if (isUsageLimit) {
       return new UpstreamProviderError({

@@ -7,9 +7,10 @@ import type { McpServerConfig } from "../../../infrastructure/transports/mcp/typ
 import { RestAdapter } from "../../../infrastructure/transports/rest/adapter";
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import type { ToolDefinition } from "../../../shared/types";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 import { CredentialManager } from "../credentials/manager";
-import { LAZY_TOOLS } from "./lazy-tools";
+import { isLazyToolKey, LAZY_TOOLS } from "./lazy-tools";
 
 function isFunction<T>(val: T): val is T & ((...args: never[]) => void) {
   return typeof val === "function";
@@ -91,7 +92,7 @@ export class ToolRegistry {
         }
       }
     } catch (error) {
-      logger.error("Failed to autoload tools", error);
+      logger.error("Failed to autoload tools", toLogCause(error));
     }
   }
 
@@ -111,7 +112,7 @@ export class ToolRegistry {
     const resolved: ToolDefinition[] = [];
 
     for (const featureId of features) {
-      const loadFn = LAZY_TOOLS[featureId];
+      const loadFn = isLazyToolKey(featureId) ? LAZY_TOOLS[featureId] : undefined;
 
       if (loadFn) {
         try {

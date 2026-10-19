@@ -162,7 +162,7 @@ describe("MCPClient", () => {
     expect(obs).toEqual({ status: "success", summary: "hello" });
   });
 
-  test("tool execute returns error observation when callTool rejects", async () => {
+  test("tool execute does not retry a rejected callTool", async () => {
     const client = new MCPClient({ name: "srv", url: "http://localhost:8080/sse", transport: "sse" });
     const mockClient = getMockClient();
     mockClient.listTools.mockResolvedValue({ tools: [toolDef] });
@@ -170,7 +170,7 @@ describe("MCPClient", () => {
 
     const tools = await client.discoverTools();
     const obs = await tools[0].execute({});
-    expect(mockClient.callTool).toHaveBeenCalledTimes(3);
+    expect(mockClient.callTool).toHaveBeenCalledTimes(1);
     expect(obs.status).toBe("error");
     expect(obs.summary).toBe("upstream down");
     expect(obs.error).toBe("upstream down");

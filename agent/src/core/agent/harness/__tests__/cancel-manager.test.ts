@@ -1,5 +1,5 @@
 import { logger } from "../../../../shared/utils/logger";
-import { CancellationManager } from "../cancel_manager";
+import { CancellationManager } from "../cancel-manager";
 
 describe("CancellationManager", () => {
   let manager: CancellationManager;
@@ -65,5 +65,15 @@ describe("CancellationManager", () => {
     manager.clearCancelled("cm-clear-test");
     expect(manager.isCancelled("cm-clear-test")).toBe(false);
     manager.unregister("cm-clear-test");
+  });
+
+  it("unregister with a stale signal keeps the newer registration", () => {
+    const first = manager.register("cm-stale-unregister");
+    const second = manager.register("cm-stale-unregister");
+    manager.unregister("cm-stale-unregister", first);
+    expect(manager.isActive("cm-stale-unregister")).toBe(true);
+    expect(manager.getSignal("cm-stale-unregister")).toBe(second);
+    manager.unregister("cm-stale-unregister", second);
+    expect(manager.isActive("cm-stale-unregister")).toBe(false);
   });
 });

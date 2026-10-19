@@ -1,10 +1,11 @@
 import { HTTP_STATUS } from "../constants/http";
+import type { JsonValue } from "../types";
 
 /**
  * Base class for all application-specific errors.
  */
 export class AppError extends Error {
-  public errors?: unknown[];
+  public errors?: JsonValue[];
 
   constructor(
     public message: string,
@@ -36,4 +37,9 @@ export class ForbiddenError extends AppError {
     super(message, HTTP_STATUS.FORBIDDEN);
     Object.setPrototypeOf(this, ForbiddenError.prototype);
   }
+}
+
+/** Narrows a caught error into a loggable context. */
+export function toLogCause(cause: unknown): Error | string {
+  return cause instanceof Error ? cause : String(cause);
 }

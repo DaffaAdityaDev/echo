@@ -27,7 +27,6 @@ export const HARNESS_CONFIG = {
 } as const;
 
 export const DEBUG_CONFIG = {
-  ENV: "development",
   DIR: "debug",
   ENCODING: "utf-8",
 } as const;

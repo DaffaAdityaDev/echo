@@ -31,6 +31,10 @@ export interface ImplementedFeature {
 
 const LAZY_TOOL_KEYS: readonly LazyToolKey[] = ["delegate_task", "write_todos", "web_search"];
 
+export function isLazyToolKey(value: string): value is LazyToolKey {
+  return LAZY_TOOL_KEYS.some((key) => key === value);
+}
+
 export function getImplementedFeatures(registry: ToolRegistry = toolRegistry): ImplementedFeature[] {
   const loadedById = new Map<string, ToolDefinition>();
 

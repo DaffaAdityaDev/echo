@@ -1,5 +1,20 @@
 import { createHash } from "node:crypto";
-import type { JsonObject } from "../../../shared/types";
+import type { JsonObject, JsonValue } from "../../../shared/types";
+
+/** Recursively sorts object keys so equal args always serialize identically. */
+function canonicalize(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map(canonicalize);
+
+  if (value === null || typeof value !== "object") return value;
+
+  const sorted: JsonObject = {};
+
+  for (const key of Object.keys(value).sort()) {
+    sorted[key] = canonicalize(value[key]);
+  }
+
+  return sorted;
+}
 
 export interface LoopDetectorConfig {
   enabled: boolean;
@@ -30,7 +45,7 @@ export class LoopDetector {
   }
 
   public generateHash(toolName: string, args: JsonObject): string {
-    const canonicalArgs = JSON.stringify(args, Object.keys(args ?? {}).sort());
+    const canonicalArgs = JSON.stringify(canonicalize(args ?? {}));
 
     return createHash("md5").update(`${toolName}:${canonicalArgs}`).digest("hex");
   }

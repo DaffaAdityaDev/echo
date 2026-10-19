@@ -1,4 +1,4 @@
-import { DEFAULT_PROTECTED_TOOLS, HitlGuard } from "../hitl_guard";
+import { DEFAULT_PROTECTED_TOOLS, HitlGuard } from "../hitl-guard";
 
 describe("HitlGuard", () => {
   it("isEnabled returns true by default", () => {

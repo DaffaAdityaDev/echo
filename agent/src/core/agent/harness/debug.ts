@@ -1,6 +1,7 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentState } from "../../../shared/types";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 import { DEBUG_CONFIG } from "./constants";
 import { HARNESS_PROMPTS } from "./prompts";
@@ -85,7 +86,7 @@ export function queuePromptDebug({ state, iteration, strategyName, systemPrompt 
         appendFile(purePath, pureContent, DEBUG_CONFIG.ENCODING),
       ]);
     } catch (err) {
-      logger.error("Failed to write prompt debug ledger to local file", err);
+      logger.error("Failed to write prompt debug ledger to local file", toLogCause(err));
     }
   });
 }

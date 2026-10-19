@@ -1,5 +1,5 @@
 import { BOOT_BANNER } from "../shared/constants/banner";
-import { KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN } from "./env.constants";
+import { findPlaceholderSecretViolations } from "./env.guards";
 import { envSchema } from "./env.schema";
 
 console.log(BOOT_BANNER);
@@ -16,10 +16,13 @@ if (!parsedEnv.success) {
   process.exit(1);
 }
 
-if (parsedEnv.data.INTERNAL_AUTH_TOKEN === KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN) {
-  console.error(
-    `❌ [CONFIG ERROR] INTERNAL_AUTH_TOKEN is still set to the known development default "${KNOWN_DEFAULT_INTERNAL_AUTH_TOKEN}" — the backend (ValidateSecrets) refuses to pair with it. Set a strong secret matching the backend before starting the agent.`,
-  );
+const secretViolations = findPlaceholderSecretViolations(parsedEnv.data);
+
+if (secretViolations.length > 0) {
+  for (const violation of secretViolations) {
+    console.error(`❌ [CONFIG ERROR] ${violation}`);
+  }
+
   process.exit(1);
 }
 

@@ -1,4 +1,4 @@
-import { applyBoundTools } from "../bound_tools";
+import { applyBoundTools } from "../bound-tools";
 
 describe("applyBoundTools", () => {
   test("returns tools unchanged when boundTools is empty", () => {

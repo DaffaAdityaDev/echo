@@ -1,18 +1,18 @@
-export type { BudgetConfig } from "./budget_monitor";
+export type { BudgetConfig } from "./budget-monitor";
 
-export { BudgetMonitor } from "./budget_monitor";
+export { BudgetMonitor } from "./budget-monitor";
 
-export { CancellationManager, cancellationManager } from "./cancel_manager";
+export { CancellationManager, cancellationManager } from "./cancel-manager";
 
-export { CircuitBreaker } from "./circuit_breaker";
+export { CircuitBreaker } from "./circuit-breaker";
 
 export { compressObservation } from "./compressor";
 
 export { DEBUG_CONFIG, HARNESS_CONFIG, OPERATION_STATUS, PACKET_TYPES } from "./constants";
 
-export type { ContextOptimizationConfig } from "./context_manager";
+export type { ContextOptimizationConfig } from "./context-manager";
 
-export { ContextManager } from "./context_manager";
+export { ContextManager } from "./context-manager";
 
 export { queuePromptDebug } from "./debug";
 
@@ -22,13 +22,13 @@ export { DegradationManager } from "./degradation";
 
 export { NlahHarness } from "./harness";
 
-export type { HitlGuardConfig, PendingApprovalState } from "./hitl_guard";
+export type { HitlGuardConfig, PendingApprovalState } from "./hitl-guard";
 
-export { HitlGuard } from "./hitl_guard";
+export { HitlGuard } from "./hitl-guard";
 
-export type { LoopCheckResult, LoopDetectorConfig } from "./loop_detector";
+export type { LoopCheckResult, LoopDetectorConfig } from "./loop-detector";
 
-export { LoopDetector } from "./loop_detector";
+export { LoopDetector } from "./loop-detector";
 
 export { HARNESS_PROMPTS } from "./prompts";
 

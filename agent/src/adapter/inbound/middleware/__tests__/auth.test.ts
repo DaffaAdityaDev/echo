@@ -79,4 +79,14 @@ describe("authMiddleware", () => {
     const body = (await res.json()) as { status: string; message?: string };
     expect(body.status).toBe("error");
   });
+
+  test("rejects a token that is a prefix of the expected token", async () => {
+    const app = buildApp();
+
+    const res = await app.request("/api/v1/test", {
+      headers: { "X-Internal-Token": "secret-tok" },
+    });
+
+    expect(res.status).toBe(403);
+  });
 });

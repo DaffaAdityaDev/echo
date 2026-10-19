@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import type { JsonObject } from "../../../../../shared/types";
 import { createMissionSchema } from "../mission.schema";
 
 describe("createMissionSchema Validation", () => {
@@ -86,5 +87,60 @@ describe("createMissionSchema Validation", () => {
       expect(result.data.prompt_template).toBeUndefined();
       expect(result.data.tenantId).toBe("local-developer");
     }
+  });
+
+  test("preserves provider_config.max_context_tokens so compaction can trigger", () => {
+    const result = createMissionSchema.safeParse({
+      message: "hello",
+      provider_config: {
+        base_url: "http://localhost:1234",
+        model: "gpt-4o",
+        type: "openai",
+        max_context_tokens: 128000,
+      },
+    });
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data.provider_config.max_context_tokens).toBe(128000);
+    }
+  });
+
+  test("accepts max_context_tokens of 0 (unknown window) sent by the backend", () => {
+    const result = createMissionSchema.safeParse({
+      message: "hello",
+      provider_config: { base_url: "http://localhost:1234", model: "gpt-4o", type: "openai", max_context_tokens: 0 },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  describe("restTools inputSchema", () => {
+    function withInputSchema(inputSchema: JsonObject) {
+      return {
+        message: "hello",
+        provider_config: { base_url: "http://localhost:1234", model: "gpt-4o", type: "openai" },
+        config: {
+          restTools: [{ name: "lookup", endpoint: "/lookup", description: "Lookup", inputSchema }],
+        },
+      };
+    }
+
+    test("accepts a nested JSON schema object", () => {
+      const inputSchema = {
+        type: "object",
+        properties: { id: { type: "string" }, tags: { type: "array", items: { type: "string" } } },
+        required: ["id"],
+      };
+
+      const result = createMissionSchema.safeParse(withInputSchema(inputSchema));
+
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.config.restTools?.[0].inputSchema).toEqual(inputSchema);
+      }
+    });
   });
 });

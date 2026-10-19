@@ -1,11 +1,13 @@
 import type { AgentState, LLMProvider } from "../../../../../shared/types";
-import { delegate_task } from "../delegation";
+import { cancellationManager } from "../../../harness/cancel-manager";
+import { delegate_task, executeDelegation } from "../delegation";
 
 const mocks = vi.hoisted(() => ({
   harnessRunImpl: async (
     _state: AgentState,
     _onPacket: (packet: { type: string; content?: string }) => Promise<void>,
   ): Promise<void> => {},
+  childCostUsd: 0,
 }));
 
 vi.mock("../../../../../shared/utils/logger", () => ({
@@ -37,6 +39,10 @@ vi.mock("../../../harness", () => {
     ): Promise<void> {
       await mocks.harnessRunImpl(state, onPacket);
     }
+
+    getTotalCostUsd(): number {
+      return mocks.childCostUsd;
+    }
   }
 
   return { NlahHarness: MockNlahHarness };
@@ -62,6 +68,7 @@ describe("delegate_task", () => {
       await onPacket({ type: "reasoning", content: "Child reasoning" });
     };
 
+    mocks.childCostUsd = 0;
     vi.clearAllMocks();
   });
 
@@ -82,7 +89,7 @@ describe("delegate_task", () => {
       expect(parsed.success).toBe(true);
 
       if (parsed.success) {
-        expect(parsed.data.fork_context).toBe(false);
+        expect(parsed.data).toMatchObject({ fork_context: false });
       }
     });
 
@@ -137,6 +144,46 @@ describe("delegate_task", () => {
       expect(observation.status).toBe("error");
       expect(observation.error).toBe("child mission crashed");
       expect(observation.summary).toContain("child mission crashed");
+    });
+  });
+
+  describe("parent mission linkage", () => {
+    test("adds the child's cost to the parent even when the child fails", async () => {
+      mocks.childCostUsd = 0.42;
+      mocks.harnessRunImpl = async () => {
+        throw new Error("child mission crashed");
+      };
+      const addCostUsd = vi.fn();
+
+      await executeDelegation(validInput, { provider, addCostUsd });
+
+      expect(addCostUsd).toHaveBeenCalledWith(0.42);
+    });
+
+    test("cancelling the parent mission aborts the child's signal", async () => {
+      cancellationManager.register("parent-cancel-test");
+      let childSignal: AbortSignal | undefined;
+      mocks.harnessRunImpl = async (state: AgentState) => {
+        childSignal = cancellationManager.getSignal(state.missionId);
+        cancellationManager.cancelLocal("parent-cancel-test");
+      };
+
+      await executeDelegation(validInput, { provider, missionId: "parent-cancel-test" });
+
+      expect(childSignal?.aborted).toBe(true);
+      cancellationManager.clearCancelled("parent-cancel-test");
+    });
+
+    test("unregisters the child mission after it completes", async () => {
+      let childMissionId = "";
+      mocks.harnessRunImpl = async (state: AgentState) => {
+        childMissionId = state.missionId;
+      };
+
+      await executeDelegation(validInput, { provider });
+
+      expect(childMissionId).not.toBe("");
+      expect(cancellationManager.isActive(childMissionId)).toBe(false);
     });
   });
 });

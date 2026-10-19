@@ -2,6 +2,7 @@ import { AIMessage, type BaseMessage, HumanMessage, SystemMessage, ToolMessage }
 import OpenAI from "openai";
 import type { JsonObject, LLMProvider, ProviderEvent, ToolDefinition } from "../../../shared/types";
 import { langfuseStorage } from "../../../shared/utils/langfuse";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 import { calculateUsageCost, classifyProviderError, ReasoningInterceptor, zodV4ToOpenAISchema } from "../utils";
 
@@ -36,7 +37,7 @@ type ApiAssistantMessage = {
   role: "assistant";
   content: string;
   tool_calls?: ApiToolCall[];
-  reasoning_content?: unknown;
+  reasoning_content?: string;
 };
 
 type ApiMessage =
@@ -102,8 +103,10 @@ export class OpenCodeGoProvider implements LLMProvider {
           }));
         }
 
-        if (msg.additional_kwargs?.reasoning_content) {
-          entry.reasoning_content = msg.additional_kwargs.reasoning_content;
+        const reasoningContent = msg.additional_kwargs?.reasoning_content;
+
+        if (isString(reasoningContent) && reasoningContent) {
+          entry.reasoning_content = reasoningContent;
         }
 
         result.push(entry);
@@ -205,7 +208,7 @@ export class OpenCodeGoProvider implements LLMProvider {
             status: e?.status,
             code: e?.code,
             type: e?.type,
-            error: err,
+            error: toLogCause(err),
           },
         );
         const errMsg = (e?.message || "").toLowerCase();

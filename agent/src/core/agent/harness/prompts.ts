@@ -70,8 +70,6 @@ Format your response immediately as the final conclusion for the user.`,
   LOG_COMPACTED: (tokens: number) =>
     `*[System: Context compacted. Accumulated history of ${tokens} tokens summarized into structured high-density state to avoid context window bloating.]*`,
 
-  LOG_RE_ROUTE: `[Harness Notice]: Tool execution automatically re-routed via Soft Recovery.`,
-
   FINANCIAL_ABORT: (threshold: number, spend: number) =>
     `FINANCIAL_ABORT: Execution budget of $${threshold.toFixed(2)} exceeded. Current spend: $${spend.toFixed(4)}. Aborting run to protect resources.`,
 

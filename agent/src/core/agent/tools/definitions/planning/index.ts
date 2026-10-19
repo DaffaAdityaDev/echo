@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Observation, ToolDefinition } from "../../../../../shared/types";
+import { toLogCause } from "../../../../../shared/utils/errors";
 import { logger } from "../../../../../shared/utils/logger";
 import { OPERATION_STATUS } from "../../../harness/constants";
 import { PLANNING_CONFIG, PLANNING_LOGS, PLANNING_TEMPLATES, SCHEMA_DESC } from "./constants";
@@ -57,7 +58,7 @@ export const writeTodosTool: ToolDefinition = {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(PLANNING_LOGS.FAILED, error);
+      logger.error(PLANNING_LOGS.FAILED, toLogCause(error));
 
       return {
         status: OPERATION_STATUS.ERROR,

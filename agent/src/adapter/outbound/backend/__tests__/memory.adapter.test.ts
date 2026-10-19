@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { serializeAgentState } from "../../../../core/agent/storage";
+import { missionStateKey, pausedStateKey, serializeAgentState } from "../../../../core/agent/storage";
 import type { AgentState } from "../../../../shared/types";
 import { MemoryAdapter } from "../memory.adapter";
 
@@ -14,6 +14,8 @@ vi.mock("../../../../config/env", () => ({
 vi.mock("../../../../shared/utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
+
+const SESSION_ID = "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12";
 
 function makeState(): AgentState {
   return {
@@ -112,7 +114,7 @@ describe("MemoryAdapter", () => {
         ),
       );
       const adapter = new MemoryAdapter(baseUrl);
-      const result = await adapter.get("m1");
+      const result = await adapter.get(missionStateKey(SESSION_ID));
       expect(result).not.toBeNull();
       expect(result?.missionId).toBe("m1");
       expect(result?.objective).toBe("Test objective");
@@ -122,15 +124,16 @@ describe("MemoryAdapter", () => {
       expect(result?.messages[0].content).toBe("hi");
     });
 
-    test("joins multiple entry contents", async () => {
-      const serialized = serializeAgentState(makeState());
+    test("returns the newest entry, which the backend lists first", async () => {
+      const newest = serializeAgentState({ ...makeState(), objective: "Newest objective" });
+      const older = serializeAgentState({ ...makeState(), objective: "Older objective" });
       fetchMock.mockResolvedValue(
         new Response(
           JSON.stringify({
             session_id: "m1",
             entries: [
-              { content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:00Z" },
-              { content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:01Z" },
+              { content: JSON.stringify(newest), timestamp: "2026-08-05T00:00:01Z" },
+              { content: JSON.stringify(older), timestamp: "2026-08-05T00:00:00Z" },
             ],
             total: 2,
           }),
@@ -138,9 +141,39 @@ describe("MemoryAdapter", () => {
         ),
       );
       const adapter = new MemoryAdapter(baseUrl);
-      const result = await adapter.get("m1");
-      expect(result).not.toBeNull();
-      expect(result?.missionId).toBe("m1");
+      const result = await adapter.get(missionStateKey(SESSION_ID));
+      expect(result?.objective).toBe("Newest objective");
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ session_id: SESSION_ID, limit: 1 });
+    });
+
+    test("recalls a paused slot within the session", async () => {
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+      const adapter = new MemoryAdapter(baseUrl);
+      await adapter.get(pausedStateKey(SESSION_ID, "appr_1"));
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+        session_id: SESSION_ID,
+        slot: "paused:appr_1",
+        limit: 1,
+      });
+    });
+
+    test("returns null when the newest entry is a deletion tombstone", async () => {
+      const serialized = serializeAgentState(makeState());
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            session_id: "m1",
+            entries: [
+              { content: JSON.stringify({ __deleted: true }), timestamp: "2026-08-05T00:00:01Z" },
+              { content: JSON.stringify(serialized), timestamp: "2026-08-05T00:00:00Z" },
+            ],
+            total: 2,
+          }),
+          { status: 200 },
+        ),
+      );
+      const adapter = new MemoryAdapter(baseUrl);
+      await expect(adapter.get(missionStateKey(SESSION_ID))).resolves.toBeNull();
     });
 
     test("falls back to legacy top-level content", async () => {
@@ -149,7 +182,7 @@ describe("MemoryAdapter", () => {
         new Response(JSON.stringify({ content: JSON.stringify(serialized) }), { status: 200 }),
       );
       const adapter = new MemoryAdapter(baseUrl);
-      const result = await adapter.get("m1");
+      const result = await adapter.get(missionStateKey(SESSION_ID));
       expect(result).not.toBeNull();
       expect(result?.missionId).toBe("m1");
     });
@@ -157,25 +190,46 @@ describe("MemoryAdapter", () => {
     test("returns null when content is empty", async () => {
       fetchMock.mockResolvedValue(new Response(JSON.stringify({ content: "" }), { status: 200 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.get("m1")).resolves.toBeNull();
+      await expect(adapter.get(missionStateKey(SESSION_ID))).resolves.toBeNull();
     });
 
     test("returns null when content is absent", async () => {
       fetchMock.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.get("m1")).resolves.toBeNull();
+      await expect(adapter.get(missionStateKey(SESSION_ID))).resolves.toBeNull();
     });
 
-    test("returns null when the request rejects", async () => {
+    test("propagates a network failure instead of reporting a missing session", async () => {
       fetchMock.mockRejectedValue(new Error("network down"));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.get("m1")).resolves.toBeNull();
+      await expect(adapter.get(missionStateKey(SESSION_ID))).rejects.toThrow("network down");
+    });
+
+    test("propagates a backend 5xx instead of reporting a missing session", async () => {
+      fetchMock.mockResolvedValue(new Response("redis unavailable", { status: 503 }));
+      const adapter = new MemoryAdapter(baseUrl);
+      await expect(adapter.get(missionStateKey(SESSION_ID))).rejects.toThrow(
+        "Memory request failed: 503 redis unavailable",
+      );
+    });
+
+    test("returns null when the backend reports the session as not found", async () => {
+      fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
+      const adapter = new MemoryAdapter(baseUrl);
+      await expect(adapter.get(missionStateKey(SESSION_ID))).resolves.toBeNull();
+    });
+
+    test("bounds every backend request with a timeout signal", async () => {
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+      const adapter = new MemoryAdapter(baseUrl);
+      await adapter.get(missionStateKey(SESSION_ID));
+      expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
     });
 
     test("returns null when content is not valid JSON", async () => {
       fetchMock.mockResolvedValue(new Response(JSON.stringify({ content: "{not json" }), { status: 200 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.get("m1")).resolves.toBeNull();
+      await expect(adapter.get(missionStateKey(SESSION_ID))).resolves.toBeNull();
     });
   });
 
@@ -183,13 +237,15 @@ describe("MemoryAdapter", () => {
     test("rejects when the backend request fails", async () => {
       fetchMock.mockResolvedValue(new Response("backend exploded", { status: 500 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.set("m1", makeState())).rejects.toThrow("Memory request failed: 500 backend exploded");
+      await expect(adapter.set(missionStateKey(SESSION_ID), makeState())).rejects.toThrow(
+        "Memory request failed: 500 backend exploded",
+      );
     });
 
     test("posts serialized state with session id and content", async () => {
       fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await adapter.set("m1", makeState(), 3600);
+      await adapter.set(missionStateKey(SESSION_ID), makeState(), 3600);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const [url, options] = fetchMock.mock.calls[0];
       expect(url).toBe(`${baseUrl}/api/v1/internal/memory/episodic/store`);
@@ -197,7 +253,8 @@ describe("MemoryAdapter", () => {
       expect(options.headers.Authorization).toBe("Bearer fake-token");
       expect(options.headers["Content-Type"]).toBe("application/json");
       const body = JSON.parse(options.body);
-      expect(body.session_id).toBe("m1");
+      expect(body.session_id).toBe(SESSION_ID);
+      expect(body.slot).toBeUndefined();
       expect(body.ttl_seconds).toBe(3600);
       const parsed = JSON.parse(body.content);
       expect(parsed.missionId).toBe("m1");
@@ -207,18 +264,32 @@ describe("MemoryAdapter", () => {
     test("omits ttl_seconds when not provided", async () => {
       fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await adapter.set("m1", makeState());
+      await adapter.set(missionStateKey(SESSION_ID), makeState());
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.ttl_seconds).toBeUndefined();
     });
   });
 
   describe("delete", () => {
-    test("resolves without performing a request", async () => {
-      fetchMock.mockRejectedValue(new Error("should not be called"));
+    test("stores a tombstone entry for the session", async () => {
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 201 }));
       const adapter = new MemoryAdapter(baseUrl);
-      await expect(adapter.delete("m1")).resolves.toBeUndefined();
-      expect(fetchMock).not.toHaveBeenCalled();
+      await adapter.delete(pausedStateKey(SESSION_ID, "appr_1"));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe(`${baseUrl}/api/v1/internal/memory/episodic/store`);
+      const body = JSON.parse(options.body);
+      expect(body.session_id).toBe(SESSION_ID);
+      expect(body.slot).toBe("paused:appr_1");
+      expect(JSON.parse(body.content)).toEqual({ __deleted: true });
+    });
+
+    test("rejects when the backend request fails", async () => {
+      fetchMock.mockResolvedValue(new Response("backend exploded", { status: 500 }));
+      const adapter = new MemoryAdapter(baseUrl);
+      await expect(adapter.delete(missionStateKey(SESSION_ID))).rejects.toThrow(
+        "Memory request failed: 500 backend exploded",
+      );
     });
   });
 });

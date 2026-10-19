@@ -3,6 +3,7 @@ import { CallbackHandler } from "@langfuse/langchain";
 import { type LangfuseSpan, propagateAttributes, startObservation } from "@langfuse/tracing";
 import { ENV } from "../../config/env";
 import type { JsonObject, JsonValue } from "../../shared/types";
+import { toLogCause } from "../../shared/utils/errors";
 import { logger } from "../../shared/utils/logger";
 
 export interface GenerationParams {
@@ -40,7 +41,7 @@ export async function getLangChainCallbacks(): Promise<CallbackHandler[]> {
 
     return [tracer];
   } catch (err) {
-    logger.error("⚠️ Failed to resolve LangChain callbacks:", err);
+    logger.error("⚠️ Failed to resolve LangChain callbacks:", toLogCause(err));
 
     return [];
   }
@@ -73,7 +74,7 @@ export function startAgentTrace(
 
     return trace;
   } catch (err) {
-    logger.error("❌ Failed to start Agent Trace:", err);
+    logger.error("❌ Failed to start Agent Trace:", toLogCause(err));
 
     return null;
   }

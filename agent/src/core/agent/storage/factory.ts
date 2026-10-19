@@ -4,11 +4,12 @@ import type { AgentState, PausedMissionState } from "../../../shared/types";
 import { logger } from "../../../shared/utils/logger";
 import { STORAGE_LOG_MESSAGES } from "./constants";
 import { InMemoryStateProvider } from "./memory";
+import type { StateKey } from "./state-key";
 
 export interface StateStore {
-  get(missionId: string): Promise<AgentState | PausedMissionState | null>;
-  set(missionId: string, state: AgentState | PausedMissionState, ttlSeconds?: number): Promise<void>;
-  delete(missionId: string): Promise<void>;
+  get(key: StateKey): Promise<AgentState | PausedMissionState | null>;
+  set(key: StateKey, state: AgentState | PausedMissionState, ttlSeconds?: number): Promise<void>;
+  delete(key: StateKey): Promise<void>;
 }
 
 function createStateProvider(): StateStore {

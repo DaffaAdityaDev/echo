@@ -26,7 +26,7 @@ export function isProviderConnectionConfig<T>(value: T): value is T & ProviderCo
   return providerConnectionSchema.safeParse(value).success;
 }
 
-type ProviderCtor = new (baseUrl: string, modelName: string, apiKey?: string) => LLMProvider;
+type ProviderCtor = new (baseUrl: string, modelName: string, apiKey?: string, maxContextTokens?: number) => LLMProvider;
 
 export const ProviderFactory = {
   registry: new Map<string, ProviderCtor>([

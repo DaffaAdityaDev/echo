@@ -6,9 +6,7 @@ function stubFetch(handler: () => Response | Promise<Response>): typeof fetch {
 }
 
 async function waitForStream(interceptor: ReasoningInterceptor): Promise<void> {
-  // SAFETY: Await internal stream promise during test execution
-  const active = (interceptor as ReasoningInterceptor & { activeStreamPromise?: Promise<void> | null })
-    .activeStreamPromise;
+  const active = interceptor["activeStreamPromise"];
 
   if (active) await active;
 }

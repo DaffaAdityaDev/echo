@@ -138,8 +138,8 @@ describe("PromptAdapter", () => {
     await adapter.getActivePrompt("main", "tenant-1");
 
     expect(redis.set).toHaveBeenCalledTimes(1);
-    // SAFETY: Extract argument tuple from Redis set mock call
-    const [key, value, mode, ttl] = vi.mocked(redis.set).mock.calls[0] as [string, string, string, number];
+    const setArgs: unknown[] = vi.mocked(redis.set).mock.calls[0];
+    const [key, value, mode, ttl] = setArgs;
     expect(key).toBe("agent:prompts:tenant-1:main");
     expect(JSON.parse(String(value))).toEqual({
       version: 3,

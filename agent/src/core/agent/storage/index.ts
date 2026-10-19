@@ -4,4 +4,6 @@ export { stateStorage } from "./factory";
 
 export { InMemoryStateProvider } from "./memory";
 
-export { deserializeAgentState, serializeAgentState } from "./serializer";
+export { flattenStateKey, missionStateKey, pausedStateKey, type StateKey } from "./state-key";
+
+export { deserializeAgentState, serializeAgentState, serializeStoredState } from "./serializer";

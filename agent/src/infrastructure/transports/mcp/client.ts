@@ -120,12 +120,10 @@ export class MCPClient {
               }
             }
 
-            const callResult = await withRetry(() =>
-              this.client.callTool({
-                name: toolName,
-                arguments: resolvedInput,
-              }),
-            );
+            const callResult = await this.client.callTool({
+              name: toolName,
+              arguments: resolvedInput,
+            });
 
             let text = "ok";
 
