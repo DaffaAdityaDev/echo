@@ -2,12 +2,13 @@ package session
 
 import (
 	"context"
-	"echo-backend/internal/constants/db"
-	domainconst "echo-backend/internal/constants/domain"
-	"echo-backend/internal/models/chat"
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"echo-backend/internal/constants/db"
+	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/models/chat"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,6 +47,9 @@ func (r *Repository) ListByUser(ctx context.Context, userID int, limit int, offs
 			return nil, fmt.Errorf("failed to scan session row: %w", err)
 		}
 		sessions = append(sessions, &s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate session rows: %w", err)
 	}
 	return sessions, nil
 }
@@ -87,6 +91,22 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error 
 	return nil
 }
 
+func (r *Repository) UpdateTitle(ctx context.Context, sessionID string, title string) error {
+	_, err := r.pool.Exec(ctx, db.QueryUpdateSessionTitle, sessionID, title)
+	if err != nil {
+		return fmt.Errorf("failed to update session title: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateContextSummary(ctx context.Context, sessionID string, summary string) error {
+	_, err := r.pool.Exec(ctx, db.QueryUpdateContextSummary, sessionID, summary)
+	if err != nil {
+		return fmt.Errorf("failed to update session summary: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error {
 	_, err := r.pool.Exec(ctx, db.QueryUpdateSessionTitleAndSummary, sessionID, title, summary)
 	if err != nil {
@@ -115,6 +135,9 @@ func (r *Repository) GetSessionMessages(ctx context.Context, sessionID string, l
 		}
 		messages = append(messages, &m)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate message rows: %w", err)
+	}
 	return messages, nil
 }
 
@@ -139,6 +162,9 @@ func (r *Repository) GetSessionMessagesOldestFirst(ctx context.Context, sessionI
 			m.Steps = json.RawMessage(stepsBytes)
 		}
 		messages = append(messages, &m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate message rows: %w", err)
 	}
 	return messages, nil
 }
@@ -180,34 +206,50 @@ func (r *Repository) UpdateMessageContent(ctx context.Context, msgID int64, cont
 	return nil
 }
 
-func (r *Repository) PrepareTurn(ctx context.Context, sessionID string, userContent string, userTokenCount, turnNumber int) (int64, error) {
+// PrepareTurn opens the next turn: it marks stale streaming placeholders as
+// interrupted, computes the next turn number, and inserts the user message
+// plus the assistant streaming placeholder. The turn number is computed under
+// a session row lock inside the same transaction, so concurrent turns can
+// never share a turn_number. Returns the placeholder ID and the turn number.
+func (r *Repository) PrepareTurn(ctx context.Context, sessionID string, userContent string, userTokenCount int) (int64, int, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to start transaction: %w", err)
+		return 0, 0, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // no-op if committed
 
+	var lockedID string
+	if err := tx.QueryRow(ctx, db.QueryLockSessionForTurn, sessionID).Scan(&lockedID); err != nil {
+		return 0, 0, fmt.Errorf("failed to lock session: %w", err)
+	}
+
+	var maxTurn int
+	if err := tx.QueryRow(ctx, db.QueryGetMaxTurnNumber, sessionID).Scan(&maxTurn); err != nil {
+		return 0, 0, fmt.Errorf("failed to get max turn number: %w", err)
+	}
+	turnNumber := maxTurn + 1
+
 	_, err = tx.Exec(ctx, db.QueryMarkSessionStreamingInterrupted, sessionID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to mark streaming as interrupted: %w", err)
+		return 0, 0, fmt.Errorf("failed to mark streaming as interrupted: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, db.QueryInsertMessageWithStatus, sessionID, domainconst.MessageRoleUser, userContent, userTokenCount, turnNumber, domainconst.StatusComplete)
 	if err != nil {
-		return 0, fmt.Errorf("failed to insert user message: %w", err)
+		return 0, 0, fmt.Errorf("failed to insert user message: %w", err)
 	}
 
 	var assistantMsgID int64
 	err = tx.QueryRow(ctx, db.QueryInsertAssistantPlaceholder, sessionID, turnNumber).Scan(&assistantMsgID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to insert assistant placeholder: %w", err)
+		return 0, 0, fmt.Errorf("failed to insert assistant placeholder: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return 0, fmt.Errorf("failed to commit prepare turn tx: %w", err)
+		return 0, 0, fmt.Errorf("failed to commit prepare turn tx: %w", err)
 	}
 
-	return assistantMsgID, nil
+	return assistantMsgID, turnNumber, nil
 }
 
 func (r *Repository) CompleteTurn(ctx context.Context, assistantMsgID int64, sessionID string, content string, steps json.RawMessage, tokenCount int, status string) error {
@@ -282,6 +324,9 @@ func (r *Repository) ScanSessionsForConsolidation(ctx context.Context, idleBefor
 		}
 		sessions = append(sessions, &s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate session rows: %w", err)
+	}
 	return sessions, nil
 }
 
@@ -300,6 +345,9 @@ func (r *Repository) ScanSessionsForArchive(ctx context.Context, inactiveBefore 
 		}
 		archivedIDs = append(archivedIDs, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate archived session ids: %w", err)
+	}
 	return archivedIDs, nil
 }
 
@@ -317,6 +365,9 @@ func (r *Repository) ScanSessionsForDeprecate(ctx context.Context, deprecateBefo
 			return nil, fmt.Errorf("failed to scan deprecated session id: %w", err)
 		}
 		deprecatedIDs = append(deprecatedIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate deprecated session ids: %w", err)
 	}
 	return deprecatedIDs, nil
 }

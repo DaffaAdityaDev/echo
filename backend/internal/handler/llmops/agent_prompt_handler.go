@@ -1,6 +1,7 @@
 package llmops
 
 import (
+	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/llmops"
 	"echo-backend/internal/service/llmops"
@@ -24,6 +25,7 @@ func NewAgentPromptHandler(promptSvc llmops.PromptService) *AgentPromptHandler {
 // @Success 200 {object} llmopsmodel.PromptVersion "Active production prompt version"
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Security InternalAuth
 // @Router /api/v1/internal/prompts/active [get]
 func (h *AgentPromptHandler) HandleGetAgentActivePrompt(c fiber.Ctx) error {
@@ -32,11 +34,11 @@ func (h *AgentPromptHandler) HandleGetAgentActivePrompt(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Query parameter 'template' is required")
 	}
 
-	tenantID := c.Get("X-Tenant-ID", "local")
+	tenantID := c.Get("X-Tenant-ID", domainconst.DefaultTenantID)
 	var pv *llmopsmodel.PromptVersion
 	pv, err := h.promptSvc.GetActivePrompt(c.Context(), tenantID, template)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, pv)

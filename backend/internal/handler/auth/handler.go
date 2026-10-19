@@ -2,6 +2,14 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/mail"
+	"strings"
+	"time"
+	"unicode/utf8"
+
 	authconst "echo-backend/internal/constants/auth"
 	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
@@ -10,13 +18,6 @@ import (
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	authsvc "echo-backend/internal/service/auth"
-	"encoding/json"
-	"errors"
-	"log/slog"
-	"net/mail"
-	"strings"
-	"time"
-	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -330,6 +331,8 @@ func validateLogin(req *loginRequest) error {
 	return nil
 }
 
+// validateEmail parses the address and returns it lower-cased so that
+// registration and login treat emails case-insensitively.
 func validateEmail(email string) (string, error) {
 	email = strings.TrimSpace(email)
 	if email == "" {
@@ -339,5 +342,5 @@ func validateEmail(email string) (string, error) {
 	if err != nil {
 		return "", errors.New("invalid email address")
 	}
-	return addr.Address, nil
+	return strings.ToLower(addr.Address), nil
 }

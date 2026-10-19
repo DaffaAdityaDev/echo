@@ -1,7 +1,10 @@
 package session
 
 import (
+	"errors"
+
 	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/service/consolidation"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -21,12 +24,13 @@ type PruneRequest struct {
 // @Param request body PruneRequest true "Provider configuration"
 // @Success 200 {object} MessageResponse "Confirmation"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/sessions/{id}/prune [post]
 func (h *Handler) HandlePruneSession(c fiber.Ctx) error {
 	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
+	if !handlerutil.IsValidUUID(sessionID) {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid session ID")
 	}
 
 	var req PruneRequest
@@ -35,8 +39,11 @@ func (h *Handler) HandlePruneSession(c fiber.Ctx) error {
 	}
 
 	err := h.ConsolidationSvc.TriggerConsolidation(c.Context(), sessionID, req.ProviderConfig)
+	if errors.Is(err, consolidation.ErrSessionNotFound) {
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
+	}
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Consolidation failed", err.Error())
+		return respondInternalError(c, "Consolidation failed", err)
 	}
 
 	return handlerutil.RespondMessage(c, "Session pruned and consolidated successfully")

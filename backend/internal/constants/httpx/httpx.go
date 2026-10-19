@@ -10,6 +10,7 @@ const (
 	HeaderXInternalToken = "X-Internal-Token"
 	HeaderTraceparent    = "traceparent"
 	HeaderAgentSessionID = "x-agent-session-id"
+	HeaderSessionID      = "X-Session-ID"
 	HeaderUserAgent      = "User-Agent"
 )
 

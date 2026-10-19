@@ -1,6 +1,8 @@
 package session
 
 import (
+	"context"
+
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/handler/handlerutil"
 	chatmodel "echo-backend/internal/models/chat"
@@ -45,7 +47,7 @@ func (h *Handler) HandleCreateSession(c fiber.Ctx) error {
 
 	session, err := h.SessionRepo.CreateSession(c.Context(), userID, title, req.StrategyVersion)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to create session", err.Error())
+		return respondInternalError(c, "Failed to create session", err)
 	}
 
 	return handlerutil.RespondCreated(c, session)
@@ -74,7 +76,7 @@ func (h *Handler) HandleListSessions(c fiber.Ctx) error {
 
 	sessions, err := h.SessionRepo.ListByUser(c.Context(), userID, limitVal, offsetVal)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to list sessions", err.Error())
+		return respondInternalError(c, "Failed to list sessions", err)
 	}
 
 	if sessions == nil {
@@ -116,22 +118,9 @@ func (h *Handler) HandleGetSession(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
-	}
-
-	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	session, err := h.loadOwnedSession(c, userID)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
-	}
-
-	if session == nil || session.Status == "deleted" {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-	}
-
-	if session.UserID != userID {
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
+		return err
 	}
 
 	return handlerutil.RespondSuccess(c, session)
@@ -159,35 +148,24 @@ func (h *Handler) HandleGetSessionMessages(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
-	}
-
-	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	session, err := h.loadOwnedSession(c, userID)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
-	}
-	if session == nil || session.Status == "deleted" {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-	}
-	if session.UserID != userID {
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
+		return err
 	}
 
 	limitVal := parseNonNegativeInt(c.Query("limit"))
 	offsetVal := parseNonNegativeInt(c.Query("offset"))
 
-	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, limitVal, offsetVal)
+	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), session.ID, limitVal, offsetVal)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
+		return respondInternalError(c, "Failed to get messages", err)
 	}
 
 	if messages == nil {
 		messages = []*chatmodel.Message{}
 	}
 
-	totalVal, err := h.SessionRepo.CountMessagesBySession(c.Context(), sessionID)
+	totalVal, err := h.SessionRepo.CountMessagesBySession(c.Context(), session.ID)
 	if err != nil {
 		totalVal = len(messages)
 	}
@@ -224,20 +202,9 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
-	}
-
-	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	session, err := h.loadOwnedSession(c, userID)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
-	}
-	if session == nil || session.Status == "deleted" {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-	}
-	if session.UserID != userID {
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
+		return err
 	}
 
 	var req UpdateSessionRequest
@@ -249,11 +216,24 @@ func (h *Handler) HandleUpdateSession(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "At least one of 'title' or 'summary' is required")
 	}
 
-	if err := h.SessionRepo.UpdateTitleAndSummary(c.Context(), sessionID, req.Title, req.Summary); err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to update session")
+	if err := h.applySessionUpdate(c.Context(), session.ID, req); err != nil {
+		return respondInternalError(c, "Failed to update session", err)
 	}
 
 	return handlerutil.RespondMessage(c, "Session updated")
+}
+
+// applySessionUpdate writes only the fields present in req so a title-only
+// PATCH never clears the consolidation summary and vice versa.
+func (h *Handler) applySessionUpdate(ctx context.Context, sessionID string, req UpdateSessionRequest) error {
+	switch {
+	case req.Summary == "":
+		return h.SessionRepo.UpdateTitle(ctx, sessionID, req.Title)
+	case req.Title == "":
+		return h.SessionRepo.UpdateContextSummary(ctx, sessionID, req.Summary)
+	default:
+		return h.SessionRepo.UpdateTitleAndSummary(ctx, sessionID, req.Title, req.Summary)
+	}
 }
 
 // HandleDeleteSession godoc
@@ -276,27 +256,13 @@ func (h *Handler) HandleDeleteSession(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
-	}
-
-	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	session, err := h.loadOwnedSession(c, userID)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
+		return err
 	}
 
-	if session == nil || session.Status == "deleted" {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-	}
-
-	if session.UserID != userID {
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
-	}
-
-	err = h.SessionRepo.DeleteSession(c.Context(), sessionID)
-	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to delete session", err.Error())
+	if err := h.SessionRepo.DeleteSession(c.Context(), session.ID); err != nil {
+		return respondInternalError(c, "Failed to delete session", err)
 	}
 
 	return handlerutil.RespondMessage(c, "Session soft deleted")

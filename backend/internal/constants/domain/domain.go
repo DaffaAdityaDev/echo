@@ -57,3 +57,8 @@ const (
 	StatusInterrupted = "interrupted"
 	StatusRevoked     = "revoked"
 )
+
+// DefaultTenantID is the only tenant the backend serves. Users carry no tenant
+// claim, so every authenticated request is scoped to it server-side; tenant
+// values supplied by clients are never trusted.
+const DefaultTenantID = "local"

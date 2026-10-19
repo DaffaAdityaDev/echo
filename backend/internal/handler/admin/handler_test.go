@@ -175,11 +175,13 @@ func TestHandleListUserKeys(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+const testKeyID = "6f1c2a4e-8b3d-4c7a-9e21-0d5f3b7a9c11"
+
 func TestHandleRevokeUserKey(t *testing.T) {
 	t.Parallel()
 
 	mockRepo := new(mockAPIKeyRepo)
-	mockRepo.On("RevokeByUserID", mock.Anything, "key-uuid", "1").Return(nil)
+	mockRepo.On("RevokeByUserID", mock.Anything, testKeyID, "1").Return(nil)
 
 	h := &Handler{
 		Cfg:        &cfgmodel.Config{},
@@ -192,10 +194,30 @@ func TestHandleRevokeUserKey(t *testing.T) {
 		return h.HandleRevokeUserKey(c)
 	})
 
-	req := httptest.NewRequest(http.MethodDelete, "/api-keys/key-uuid", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api-keys/"+testKeyID, nil)
 	resp, err := app.Test(req)
 
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	mockRepo.AssertExpectations(t)
+}
+
+func TestHandleRevokeKeyRejectsNonUUID(t *testing.T) {
+	t.Parallel()
+
+	mockRepo := new(mockAPIKeyRepo)
+	h := &Handler{
+		Cfg:        &cfgmodel.Config{},
+		APIKeyRepo: mockRepo,
+	}
+
+	app := fiber.New()
+	app.Delete("/admin/api-keys/:id", h.HandleRevokeKey)
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/api-keys/not-a-uuid", nil)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	mockRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }

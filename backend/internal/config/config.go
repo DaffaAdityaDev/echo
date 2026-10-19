@@ -1,14 +1,13 @@
 package config
 
 import (
-	cfgConst "echo-backend/internal/constants/config"
-	envconst "echo-backend/internal/constants/env"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/config"
-	"fmt"
-	"log/slog"
 	"os"
 	"strconv"
+
+	cfgConst "echo-backend/internal/constants/config"
+	domainconst "echo-backend/internal/constants/domain"
+	envconst "echo-backend/internal/constants/env"
+	"echo-backend/internal/models/config"
 )
 
 func Load() *cfgmodel.Config {
@@ -33,14 +32,12 @@ func Load() *cfgmodel.Config {
 	c.ConsolidationSkipRatio = envInt(envconst.ConsolidationSkipRatio, 90)
 	c.SummarizePayloadRatio = envInt(envconst.SummarizePayloadRatio, 60)
 	c.EncryptionKey = os.Getenv(envconst.EncryptionKey)
-	if c.EncryptionKey == "" {
-		slog.Warn(fmt.Sprintf(msgconst.WarnEncryptionKeyEmpty, envconst.EncryptionKey), msgconst.ComponentKey, msgconst.ComponentConfig, msgconst.KeyHint, "Set a 32-char key.")
-	}
 	c.StrategyRolloutDefault = envFloat(envconst.StrategyRolloutDefault, 0.1)
 	c.PromptTemplateName = envStr(envconst.PromptTemplateName, "")
 	c.WorkerInterval = envStr(envconst.WorkerInterval, "15m")
 	c.DecayDeprecateAfter = envInt(envconst.DecayDeprecateAfter, 30)
 	c.DecayArchiveAfter = envInt(envconst.DecayArchiveAfter, 90)
+	c.AllowPrivateProviderURLs = envBool(envconst.AllowPrivateProviderURLs, c.Environment == domainconst.Development)
 	return c
 }
 
@@ -64,6 +61,15 @@ func envFloat(key string, def float64) float64 {
 	if v, ok := os.LookupEnv(key); ok {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			return f
+		}
+	}
+	return def
+}
+
+func envBool(key string, def bool) bool {
+	if v, ok := os.LookupEnv(key); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
 		}
 	}
 	return def

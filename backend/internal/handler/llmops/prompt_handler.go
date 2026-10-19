@@ -34,6 +34,7 @@ type createTemplateReq struct {
 // @Param request body createTemplateReq true "Template payload"
 // @Success 201 {object} llmopsmodel.PromptTemplate "Created template"
 // @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /api/v1/studio/prompts [post]
@@ -43,10 +44,10 @@ func (h *PromptHandler) HandleCreateTemplate(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	tenantID := c.Get("X-Tenant-ID", "local")
+	tenantID := middleware.TenantID(c)
 	tmpl, err := h.promptSvc.CreatePromptTemplate(c.Context(), tenantID, req.Name, req.Description)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondCreated(c, tmpl)
@@ -67,10 +68,10 @@ type PromptTemplatesResponse struct {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/studio/prompts [get]
 func (h *PromptHandler) HandleListTemplates(c fiber.Ctx) error {
-	tenantID := c.Get("X-Tenant-ID", "local")
+	tenantID := middleware.TenantID(c)
 	templates, err := h.promptSvc.ListTemplates(c.Context(), tenantID)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	if templates == nil {
@@ -99,6 +100,7 @@ type createVersionReq struct {
 // @Param request body createVersionReq true "Version payload"
 // @Success 201 {object} llmopsmodel.PromptVersion "Created version"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/versions [post]
@@ -114,9 +116,9 @@ func (h *PromptHandler) HandleCreateVersion(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	version, err := h.promptSvc.CreateNewVersion(c.Context(), templateID, req.SystemPrompt, actor, req.BoundTools, req.Variables)
+	version, err := h.promptSvc.CreateNewVersion(c.Context(), middleware.TenantID(c), templateID, req.SystemPrompt, actor, req.BoundTools, req.Variables)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondCreated(c, version)
@@ -142,9 +144,9 @@ func (h *PromptHandler) HandleGetVersion(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid version parameter")
 	}
 
-	pv, err := h.promptSvc.GetVersion(c.Context(), templateID, version)
+	pv, err := h.promptSvc.GetVersion(c.Context(), middleware.TenantID(c), templateID, version)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, pv)
@@ -167,10 +169,10 @@ func (h *PromptHandler) HandleGetActivePrompt(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Query parameter 'name' is required")
 	}
 
-	tenantID := c.Get("X-Tenant-ID", "local")
+	tenantID := middleware.TenantID(c)
 	pv, err := h.promptSvc.GetActivePrompt(c.Context(), tenantID, templateName)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, pv)
@@ -189,14 +191,15 @@ type PromptVersionsResponse struct {
 // @Produce json
 // @Param id path string true "Template ID"
 // @Success 200 {object} PromptVersionsResponse "Version history"
+// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/versions [get]
 func (h *PromptHandler) HandleListVersions(c fiber.Ctx) error {
 	templateID := c.Params("id")
-	versions, err := h.promptSvc.GetVersionHistory(c.Context(), templateID)
+	versions, err := h.promptSvc.GetVersionHistory(c.Context(), middleware.TenantID(c), templateID)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, PromptVersionsResponse{Versions: versions})
@@ -218,6 +221,9 @@ type PromoteResponse struct {
 // @Param id path string true "Template ID"
 // @Param version path int true "Version number"
 // @Success 200 {object} PromoteResponse "Promotion result"
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/promote/{version} [post]
@@ -233,9 +239,9 @@ func (h *PromptHandler) HandlePromote(c fiber.Ctx) error {
 		actor = "unknown@echo.internal"
 	}
 
-	err = h.promptSvc.PromoteToProduction(c.Context(), templateID, version, actor)
+	err = h.promptSvc.PromoteToProduction(c.Context(), middleware.TenantID(c), templateID, version, actor)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, PromoteResponse{Status: "success", PromotedVersion: version})
@@ -258,6 +264,8 @@ type RollbackResponse struct {
 // @Param version path int true "Version number"
 // @Success 200 {object} RollbackResponse "Rollback result"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /api/v1/studio/prompts/{id}/rollback/{version} [post]
@@ -273,9 +281,9 @@ func (h *PromptHandler) HandleRollback(c fiber.Ctx) error {
 	if actor == "" {
 		actor = "unknown@echo.internal"
 	}
-	err = h.promptSvc.RollbackToVersion(c.Context(), templateID, version, actor)
+	err = h.promptSvc.RollbackToVersion(c.Context(), middleware.TenantID(c), templateID, version, actor)
 	if err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, err.Error())
+		return respondPromptError(c, err)
 	}
 
 	return handlerutil.RespondSuccess(c, RollbackResponse{Status: "success", RolledBackTo: version})

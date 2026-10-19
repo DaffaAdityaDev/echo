@@ -2,16 +2,17 @@ package strategy
 
 import (
 	"context"
-	httpxconst "echo-backend/internal/constants/httpx"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/config"
-	"echo-backend/internal/repository/settings"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/repository/settings"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -26,7 +27,7 @@ type StrategyVersionInfo struct {
 	Status string `json:"status"`
 	// Aliases lists alternative version names.
 	Aliases []string `json:"aliases"`
-	// Rollout is the gateway rollout percentage 0-100, omitted when unconfigured.
+	// Rollout is the gateway rollout fraction 0-1 (0.1 = 10% of users), omitted when unconfigured.
 	Rollout *float64 `json:"rollout,omitempty"`
 }
 
@@ -44,6 +45,8 @@ type CatalogResponse struct {
 	Strategies []StrategyRegistryEntry `json:"strategies"`
 }
 
+// RolloutCfg holds the rollout fraction (0-1) of new sessions routed to a
+// strategy version.
 type RolloutCfg struct {
 	Rollout *float64 `json:"rollout"`
 }
@@ -147,23 +150,32 @@ func (s *Service) GetDefaultRollout() float64 {
 	return 0.1
 }
 
+// IsValidVersion reports whether version names an active catalog version,
+// applying the same rules ResolveVersion uses for an explicit request.
 func (s *Service) IsValidVersion(ctx context.Context, version string) bool {
 	if version == "" {
 		return true
 	}
-	version = strings.ToLower(strings.TrimSpace(version))
 	catalog, err := s.GetCatalog(ctx)
 	if err != nil {
 		return true
 	}
+	_, ok := findActiveVersion(catalog, version)
+	return ok
+}
+
+// findActiveVersion matches requested against catalog versions and aliases,
+// returning the canonical version only when it is not deprecated.
+func findActiveVersion(catalog []StrategyRegistryEntry, requested string) (string, bool) {
+	requested = strings.ToLower(strings.TrimSpace(requested))
 	for _, entry := range catalog {
 		for _, vInfo := range entry.Versions {
-			if strings.ToLower(strings.TrimSpace(vInfo.Version)) == version || containsString(vInfo.Aliases, version) {
-				return true
+			if strings.ToLower(strings.TrimSpace(vInfo.Version)) == requested || containsString(vInfo.Aliases, requested) {
+				return vInfo.Version, vInfo.Status != "deprecated"
 			}
 		}
 	}
-	return false
+	return "", false
 }
 
 func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, requestedVersion string, userID int) (string, error) {
@@ -190,18 +202,11 @@ func (s *Service) ResolveVersion(ctx context.Context, sessionStrategyVersion, re
 
 func resolveVersion(catalog []StrategyRegistryEntry, rollouts map[string]RolloutCfg, defaultRollout float64, requestedVersion string, userID int) (string, error) {
 	if requestedVersion != "" {
-		requested := strings.ToLower(strings.TrimSpace(requestedVersion))
-		for _, entry := range catalog {
-			for _, vInfo := range entry.Versions {
-				if strings.ToLower(strings.TrimSpace(vInfo.Version)) == requested || containsString(vInfo.Aliases, requested) {
-					if vInfo.Status == "deprecated" {
-						return "", ErrInvalidStrategyVersion
-					}
-					return vInfo.Version, nil
-				}
-			}
+		version, ok := findActiveVersion(catalog, requestedVersion)
+		if !ok {
+			return "", ErrInvalidStrategyVersion
 		}
-		return "", ErrInvalidStrategyVersion
+		return version, nil
 	}
 
 	if len(rollouts) == 0 {
@@ -219,14 +224,14 @@ func resolveVersion(catalog []StrategyRegistryEntry, rollouts map[string]Rollout
 			if !configured {
 				continue
 			}
-			rolloutPct := defaultRollout
+			rolloutFraction := defaultRollout
 			if rCfg.Rollout != nil {
-				rolloutPct = *rCfg.Rollout
+				rolloutFraction = *rCfg.Rollout
 			}
-			if rolloutPct <= 0 {
+			if rolloutFraction <= 0 {
 				continue
 			}
-			if userFraction < rolloutPct {
+			if userFraction < rolloutFraction {
 				return vInfo.Version, nil
 			}
 		}

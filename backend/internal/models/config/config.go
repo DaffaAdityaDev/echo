@@ -32,4 +32,8 @@ type Config struct {
 	WorkerInterval         string
 	DecayDeprecateAfter    int
 	DecayArchiveAfter      int
+	// AllowPrivateProviderURLs permits user-configured LLM provider base URLs
+	// that resolve to loopback, private or link-local addresses (local LM
+	// Studio). Defaults to true only in development.
+	AllowPrivateProviderURLs bool
 }

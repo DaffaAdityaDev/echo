@@ -3,16 +3,16 @@ package consolidation
 import (
 	"bytes"
 	"context"
-	httpxconst "echo-backend/internal/constants/httpx"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/chat"
-	"echo-backend/internal/models/config"
-	"echo-backend/internal/pkg/historycap"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
+
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 )
 
 type SessionRepo interface {
@@ -170,36 +170,18 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		return nil
 	}
 
-	// Cap the messages loaded for summarization — never pull the entire
-	// session (a 1M-context session would exceed the provider context window).
-	// Fetch the OLDEST messages: consolidation summarizes the old turns, and
-	// the capped query must not paginate from the newest end or the old turns
-	// would fall outside the window once a session exceeds the cap.
-	allMessages, err := s.sessionRepo.GetSessionMessagesOldestFirst(ctx, sessionID, 200)
+	allMessages, err := s.sessionRepo.GetSessionMessagesOldestFirst(ctx, sessionID, summarizeLoadLimit)
 	if err != nil {
 		return fmt.Errorf("failed to load messages for pruning: %w", err)
 	}
 
-	var messagesToSummarize []*chatmodel.Message
-	for _, m := range allMessages {
-		if m.TurnNumber <= pruneLimitTurn {
-			messagesToSummarize = append(messagesToSummarize, m)
-		}
-	}
-
-	if len(messagesToSummarize) == 0 {
+	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
+	cappedMessages, pruneThroughTurn := summarizableWindow(allMessages, pruneLimitTurn, payloadBudget)
+	if len(cappedMessages) == 0 {
 		return nil
 	}
-
-	// Cap the payload the same way chat history is capped: truncate oversized
-	// contents and keep only the OLDEST messages that fit the token budget
-	// (derived from the model context window). Without this, a few oversized
-	// messages would still exceed the provider context window and fail the
-	// summarization.
-	payloadBudget := s.payloadBudgetFor(maxContextTokensFrom(providerConfig))
-	cappedMessages := historycap.Cap(messagesToSummarize, payloadBudget, payloadBudget*2, false)
-	if len(cappedMessages) != len(messagesToSummarize) {
-		slog.Info(msgconst.InfoConsolidationPayloadCapped, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyIncluded, len(cappedMessages), msgconst.KeyTotal, len(messagesToSummarize))
+	if total := len(messagesUpToTurn(allMessages, pruneLimitTurn)); len(cappedMessages) < total {
+		slog.Info(msgconst.InfoConsolidationPayloadCapped, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeySessionID, sessionID, msgconst.KeyIncluded, len(cappedMessages), msgconst.KeyTotal, total)
 	}
 
 	var summarizeMessages []SummarizeMessage
@@ -210,7 +192,7 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 		})
 	}
 
-	slog.Info(msgconst.InfoConsolidationSummarizing, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeyMessages, len(summarizeMessages), msgconst.KeyUpToTurn, pruneLimitTurn, msgconst.KeySessionID, sessionID)
+	slog.Info(msgconst.InfoConsolidationSummarizing, msgconst.ComponentKey, msgconst.ComponentConsolidation, msgconst.KeyMessages, len(summarizeMessages), msgconst.KeyUpToTurn, pruneThroughTurn, msgconst.KeySessionID, sessionID)
 
 	reqBody := SummarizeRequest{
 		SessionID:        sessionID,
@@ -254,11 +236,14 @@ func (s *Service) TriggerConsolidation(ctx context.Context, sessionID string, pr
 	}
 
 	newSummary := sumResp.Summary
+	if session == nil {
+		return fmt.Errorf("%w: %s", ErrSessionNotFound, sessionID)
+	}
 	if session.ContextSummary != "" {
 		newSummary = session.ContextSummary + "\n\n" + sumResp.Summary
 	}
 
-	err = s.sessionRepo.PruneSession(ctx, sessionID, newSummary, pruneLimitTurn)
+	err = s.sessionRepo.PruneSession(ctx, sessionID, newSummary, pruneThroughTurn)
 	if err != nil {
 		return fmt.Errorf("failed to execute prune session transaction: %w", err)
 	}

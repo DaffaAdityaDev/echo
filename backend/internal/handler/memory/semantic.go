@@ -3,6 +3,8 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,9 +12,45 @@ import (
 	"echo-backend/internal/handler/handlerutil"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5"
 )
 
+const semanticStatusIndexed = "indexed"
+
+// The upserts only overwrite a row the same user already owns: when the id
+// belongs to another user (or to an orphaned NULL-owner row) the WHERE clause
+// suppresses the update, RETURNING yields no row, and the caller gets a 409.
+const (
+	queryUpsertSemanticWithEmbedding = `
+		INSERT INTO memory_semantic (id, user_id, content, embedding, metadata)
+		VALUES ($1, $2, $3, $4::vector, $5)
+		ON CONFLICT (id) DO UPDATE
+		SET content = EXCLUDED.content, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata
+		WHERE memory_semantic.user_id = EXCLUDED.user_id
+		RETURNING id
+	`
+	queryUpsertSemantic = `
+		INSERT INTO memory_semantic (id, user_id, content, metadata)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (id) DO UPDATE
+		SET content = EXCLUDED.content, metadata = EXCLUDED.metadata
+		WHERE memory_semantic.user_id = EXCLUDED.user_id
+		RETURNING id
+	`
+	querySearchSemantic = `
+		SELECT id, content, metadata, created_at
+		FROM memory_semantic
+		WHERE user_id = $1 AND content ILIKE '%' || $2 || '%'
+		ORDER BY created_at DESC
+		LIMIT $3
+	`
+)
+
+var errMemoryIDOwnedByOther = errors.New("memory id is owned by another user")
+
 type semanticStoreRequest struct {
+	// SessionID is the session the agent is running; its owner owns the entry.
+	SessionID string `json:"session_id" binding:"required" example:"6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"`
 	// ID is the semantic memory identifier (required).
 	ID string `json:"id" binding:"required" example:"sem_123"`
 	// Content is the semantic memory content (required).
@@ -25,7 +63,7 @@ type semanticStoreRequest struct {
 
 // SemanticStoreResponse is the response returned when a semantic memory entry is indexed.
 type SemanticStoreResponse struct {
-	// ID is the generated memory entry ID.
+	// ID is the stored semantic memory identifier.
 	ID string `json:"id"`
 	// Status is always "indexed".
 	Status string `json:"status"`
@@ -33,7 +71,7 @@ type SemanticStoreResponse struct {
 
 // HandleStoreSemantic godoc
 // @Summary Store semantic memory
-// @Description Stores a semantic memory entry with an optional embedding (internal)
+// @Description Stores a semantic memory entry with an optional embedding, owned by the user that owns the session (internal)
 // @Tags Memory
 // @Accept json
 // @Produce json
@@ -41,6 +79,8 @@ type SemanticStoreResponse struct {
 // @Param request body semanticStoreRequest true "Semantic memory payload"
 // @Success 201 {object} SemanticStoreResponse "Indexed entry"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string "Unknown or deleted session"
+// @Failure 409 {object} map[string]string "ID is owned by another user"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/semantic/store [post]
 func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
@@ -51,60 +91,80 @@ func (h *Handler) HandleStoreSemantic(c fiber.Ctx) error {
 	if req.ID == "" || req.Content == "" {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id and content are required")
 	}
-
-	metadataJSON := []byte("{}")
-	if req.Metadata != nil {
-		var err error
-		metadataJSON, err = json.Marshal(req.Metadata)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
-		}
+	metadataJSON, err := marshalMetadata(req.Metadata)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), memoryRequestTimeout)
 	defer cancel()
 
-	if len(req.Embedding) > 0 {
-		vec := formatVector(req.Embedding)
-		_, err := h.pool.Exec(ctx, `
-			INSERT INTO memory_semantic (id, content, embedding, metadata)
-			VALUES ($1, $2, $3::vector, $4)
-			ON CONFLICT (id) DO UPDATE
-			SET content = $2, embedding = $3::vector, metadata = $4
-		`, req.ID, req.Content, vec, metadataJSON)
-		if err == nil {
-			return handlerutil.RespondCreated(c, SemanticStoreResponse{
-				ID:     generateID("mem_sm_"),
-				Status: "indexed",
-			})
-		}
-		// The vector insert can fail when pgvector is unavailable; fall back
-		// to storing without the embedding rather than failing the request.
-		slog.Error(msgconst.ErrMemoryStoreSemanticEmbed, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, req.ID, msgconst.KeyErr, err)
+	userID, err := h.sessionOwner(ctx, req.SessionID)
+	if err != nil {
+		return respondOwnerError(c, req.SessionID, err)
 	}
 
-	_, err := h.pool.Exec(ctx, `
-		INSERT INTO memory_semantic (id, content, metadata)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (id) DO UPDATE
-		SET content = $2, metadata = $3
-	`, req.ID, req.Content, metadataJSON)
+	err = h.upsertSemantic(ctx, userID, req, metadataJSON)
+	if errors.Is(err, errMemoryIDOwnedByOther) {
+		return handlerutil.RespondError(c, fiber.StatusConflict, "Semantic memory id is already used")
+	}
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store semantic memory")
 	}
 
 	return handlerutil.RespondCreated(c, SemanticStoreResponse{
-		ID:     generateID("mem_sm_"),
-		Status: "indexed",
+		ID:     req.ID,
+		Status: semanticStatusIndexed,
 	})
 }
 
+// upsertSemantic stores the entry with its embedding when one is given. The
+// vector insert fails when pgvector is unavailable, so any error other than an
+// ownership conflict falls back to storing the entry without the embedding.
+func (h *Handler) upsertSemantic(ctx context.Context, userID int, req semanticStoreRequest, metadataJSON []byte) error {
+	if len(req.Embedding) > 0 {
+		err := scanUpsert(h.pool.QueryRow(ctx, queryUpsertSemanticWithEmbedding, req.ID, userID, req.Content, formatVector(req.Embedding), metadataJSON))
+		if err == nil || errors.Is(err, errMemoryIDOwnedByOther) {
+			return err
+		}
+		slog.Error(msgconst.ErrMemoryStoreSemanticEmbed, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, req.ID, msgconst.KeyErr, err)
+	}
+	return scanUpsert(h.pool.QueryRow(ctx, queryUpsertSemantic, req.ID, userID, req.Content, metadataJSON))
+}
+
+// scanUpsert maps the "no row returned" outcome of an owner-guarded upsert to
+// errMemoryIDOwnedByOther.
+func scanUpsert(row pgx.Row) error {
+	var storedID string
+	err := row.Scan(&storedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errMemoryIDOwnedByOther
+	}
+	if err != nil {
+		return fmt.Errorf("upsert memory row: %w", err)
+	}
+	return nil
+}
+
+func marshalMetadata(metadata map[string]interface{}) ([]byte, error) {
+	if metadata == nil {
+		return []byte("{}"), nil
+	}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("marshal memory metadata: %w", err)
+	}
+	return data, nil
+}
+
 type semanticSearchRequest struct {
+	// SessionID is the session the agent is running; only its owner's entries are searched.
+	SessionID string `json:"session_id" binding:"required" example:"6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"`
 	// Query is the search text (required).
 	Query string `json:"query" binding:"required" example:"how to reset password"`
 	// Embedding is the optional vector embedding used for the search.
 	Embedding []float64 `json:"embedding,omitempty"`
-	// Limit is the maximum number of results to return (default 10).
+	// Limit is the maximum number of results to return (default 10, capped at 100).
 	Limit int `json:"limit,omitempty" example:"10"`
 	// Threshold is the optional similarity threshold for the search.
 	Threshold float64 `json:"threshold,omitempty" example:"0.5"`
@@ -130,14 +190,15 @@ type SemanticSearchResponse struct {
 
 // HandleSemanticSearch godoc
 // @Summary Search semantic memory
-// @Description Searches semantic memory by query text (internal)
+// @Description Searches the session owner's semantic memory by query text (internal)
 // @Tags Memory
 // @Accept json
 // @Produce json
 // @Security InternalAuth
 // @Param request body semanticSearchRequest true "Semantic search payload"
-// @Success 200 {object} SemanticSearchResponse "Search results"
+// @Success 200 {object} SemanticSearchResponse "Matching semantic memory entries"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string "Unknown or deleted session"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/semantic/search [post]
 func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
@@ -148,54 +209,60 @@ func (h *Handler) HandleSemanticSearch(c fiber.Ctx) error {
 	if req.Query == "" {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "query is required")
 	}
-	if req.Limit <= 0 {
-		req.Limit = 10
-	}
+	req.Limit = clampSemanticSearchLimit(req.Limit)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), memoryRequestTimeout)
 	defer cancel()
 
-	var results []SemanticSearchResult
-
-	rows, err := h.pool.Query(ctx, `
-		SELECT id, content, metadata, created_at
-		FROM memory_semantic
-		WHERE content ILIKE '%' || $1 || '%'
-		ORDER BY created_at DESC
-		LIMIT $2
-	`, req.Query, req.Limit)
+	userID, err := h.sessionOwner(ctx, req.SessionID)
 	if err != nil {
+		return respondOwnerError(c, req.SessionID, err)
+	}
+
+	results, err := h.searchSemantic(ctx, userID, req.Query, req.Limit)
+	if err != nil {
+		slog.Error(msgconst.ErrMemorySemanticSearch, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyErr, err)
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to search semantic memory")
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id, content string
-		var metadataBytes []byte
-		var createdAt time.Time
-
-		if err := rows.Scan(&id, &content, &metadataBytes, &createdAt); err != nil {
-			continue
-		}
-
-		var metadata interface{}
-		if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-			slog.Warn(msgconst.WarnMemoryParseSemanticMeta, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, id, msgconst.KeyErr, err)
-		}
-
-		results = append(results, SemanticSearchResult{
-			ID:        id,
-			Content:   content,
-			Metadata:  metadata,
-			CreatedAt: createdAt,
-		})
-	}
-
-	if results == nil {
-		results = []SemanticSearchResult{}
 	}
 
 	return handlerutil.RespondSuccess(c, SemanticSearchResponse{
 		Results: results,
 	})
+}
+
+func (h *Handler) searchSemantic(ctx context.Context, userID int, query string, limit int) ([]SemanticSearchResult, error) {
+	rows, err := h.pool.Query(ctx, querySearchSemantic, userID, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query semantic memory: %w", err)
+	}
+	defer rows.Close()
+
+	results := []SemanticSearchResult{}
+	for rows.Next() {
+		var result SemanticSearchResult
+		var metadataBytes []byte
+		if err := rows.Scan(&result.ID, &result.Content, &metadataBytes, &result.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan semantic memory row: %w", err)
+		}
+		result.Metadata = decodeMetadata(metadataBytes, result.ID, msgconst.WarnMemoryParseSemanticMeta)
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate semantic memory rows: %w", err)
+	}
+	return results, nil
+}
+
+// decodeMetadata parses stored JSONB metadata, logging (not failing) when a
+// row holds unparseable metadata so one bad row cannot break a lookup.
+func decodeMetadata(raw []byte, id string, warnMsg string) interface{} {
+	if len(raw) == 0 {
+		return nil
+	}
+	var metadata interface{}
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		slog.Warn(warnMsg, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, id, msgconst.KeyErr, err)
+		return nil
+	}
+	return metadata
 }

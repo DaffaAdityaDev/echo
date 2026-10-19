@@ -2,14 +2,15 @@ package features
 
 import (
 	"context"
-	httpxconst "echo-backend/internal/constants/httpx"
-	"echo-backend/internal/models/config"
-	featuresmodel "echo-backend/internal/models/features"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	httpxconst "echo-backend/internal/constants/httpx"
+	"echo-backend/internal/models/config"
+	featuresmodel "echo-backend/internal/models/features"
 )
 
 type fakeRepo struct {
@@ -169,26 +170,31 @@ func TestValidateRequest_EmptyFeaturesSkipped(t *testing.T) {
 	}
 }
 
-func TestValidateRequest_FailOpenWhenAgentUnreachable(t *testing.T) {
+func assertFailClosed(t *testing.T, err error) {
+	t.Helper()
+	var lockedErr ErrFeatureLocked
+	var unknownErr ErrUnknownFeature
+	if err == nil || errors.As(err, &lockedErr) || errors.As(err, &unknownErr) {
+		t.Fatalf("Expected an infrastructure error (fail-closed), got %v", err)
+	}
+}
+
+func TestValidateRequest_FailClosedWhenAgentUnreachable(t *testing.T) {
 	t.Parallel()
 
 	svc, _ := newTestService(t, &fakeRepo{active: activeFixture()}, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	if err := svc.ValidateRequest(context.Background(), []string{"delegate_task"}, "free"); err != nil {
-		t.Fatalf("Expected fail-open (nil error) when agent is unreachable, got %v", err)
-	}
+	assertFailClosed(t, svc.ValidateRequest(context.Background(), []string{"delegate_task"}, "free"))
 }
 
-func TestValidateRequest_FailOpenWhenRepoFails(t *testing.T) {
+func TestValidateRequest_FailClosedWhenRepoFails(t *testing.T) {
 	t.Parallel()
 
 	svc, _ := newTestService(t, &fakeRepo{active: nil, listErr: errors.New("db down")}, standardImplementedServer())
 
-	if err := svc.ValidateRequest(context.Background(), []string{"delegate_task"}, "free"); err != nil {
-		t.Fatalf("Expected fail-open (nil error) when repo fails, got %v", err)
-	}
+	assertFailClosed(t, svc.ValidateRequest(context.Background(), []string{"delegate_task"}, "free"))
 }
 
 func TestResolvePublicCatalog_Intersection(t *testing.T) {

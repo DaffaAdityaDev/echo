@@ -13,7 +13,6 @@ const (
 	APIKeyID     = "api_key_id"
 	APIKeyName   = "api_key_name"
 	APIKeyScopes = "api_key_scopes"
-	APIKeyUserID = "api_key_user_id"
 
 	ServiceName = "service_name"
 )

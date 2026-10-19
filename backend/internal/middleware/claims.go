@@ -39,3 +39,10 @@ func UserEmail(c fiber.Ctx) string {
 	email, _ := c.Locals(locals.UserEmail).(string)
 	return email
 }
+
+// TenantID returns the tenant the authenticated request is scoped to. Tenancy
+// is derived server-side, never from client headers such as X-Tenant-ID,
+// which any caller could spoof to reach another tenant's data.
+func TenantID(_ fiber.Ctx) string {
+	return domainconst.DefaultTenantID
+}

@@ -2,14 +2,15 @@ package consolidation
 
 import (
 	"context"
-	httpxconst "echo-backend/internal/constants/httpx"
-	"echo-backend/internal/models/chat"
-	"echo-backend/internal/models/config"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	httpxconst "echo-backend/internal/constants/httpx"
+	"echo-backend/internal/models/chat"
+	"echo-backend/internal/models/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -185,9 +186,9 @@ func TestTriggerConsolidation_FetchesOldestMessages(t *testing.T) {
 	mockRepo := new(mockSessionRepo)
 	mockRepo.On("GetSessionTokenCount", mock.Anything, "sess_x").Return(100, nil)
 	mockRepo.On("GetMaxTurnNumber", mock.Anything, "sess_x").Return(30, nil)
-	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_x", 200).Return(oldMessages, nil)
+	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_x", summarizeLoadLimit).Return(oldMessages, nil)
 	mockRepo.On("GetByID", mock.Anything, "sess_x").Return(&chatmodel.Session{ID: "sess_x"}, nil)
-	mockRepo.On("PruneSession", mock.Anything, "sess_x", "sum", 20).Return(nil)
+	mockRepo.On("PruneSession", mock.Anything, "sess_x", "sum", 1).Return(nil)
 
 	svc := &Service{cfg: cfg, sessionRepo: mockRepo}
 	err := svc.TriggerConsolidation(context.Background(), "sess_x", map[string]interface{}{})
@@ -296,9 +297,9 @@ func TestTriggerConsolidation_CapsGiantMessagesToTokenBudget(t *testing.T) {
 	mockRepo := new(mockSessionRepo)
 	mockRepo.On("GetSessionTokenCount", mock.Anything, "sess_giant").Return(100, nil)
 	mockRepo.On("GetMaxTurnNumber", mock.Anything, "sess_giant").Return(30, nil)
-	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_giant", 200).Return(oldMessages, nil)
+	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_giant", summarizeLoadLimit).Return(oldMessages, nil)
 	mockRepo.On("GetByID", mock.Anything, "sess_giant").Return(&chatmodel.Session{ID: "sess_giant"}, nil)
-	mockRepo.On("PruneSession", mock.Anything, "sess_giant", "sum", 20).Return(nil)
+	mockRepo.On("PruneSession", mock.Anything, "sess_giant", "sum", 1).Return(nil)
 
 	svc := &Service{cfg: cfg, sessionRepo: mockRepo}
 	// HISTORY_MAX_TOKENS override (50k) wins over the context-derived budget.
@@ -342,9 +343,9 @@ func TestTriggerConsolidation_DerivesBudgetFromContext(t *testing.T) {
 	mockRepo := new(mockSessionRepo)
 	mockRepo.On("GetSessionTokenCount", mock.Anything, "sess_10m").Return(100, nil)
 	mockRepo.On("GetMaxTurnNumber", mock.Anything, "sess_10m").Return(30, nil)
-	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_10m", 200).Return(oldMessages, nil)
+	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_10m", summarizeLoadLimit).Return(oldMessages, nil)
 	mockRepo.On("GetByID", mock.Anything, "sess_10m").Return(&chatmodel.Session{ID: "sess_10m"}, nil)
-	mockRepo.On("PruneSession", mock.Anything, "sess_10m", "sum", 20).Return(nil)
+	mockRepo.On("PruneSession", mock.Anything, "sess_10m", "sum", 2).Return(nil)
 
 	svc := &Service{cfg: cfg, sessionRepo: mockRepo}
 	// 10M-token model → derived budget = 6M tokens, per-message cap 12M chars:
@@ -357,4 +358,32 @@ func TestTriggerConsolidation_DerivesBudgetFromContext(t *testing.T) {
 		assert.Equal(t, giantContent, m.Content, "content must not be truncated within a 6M-token budget")
 	}
 	mockRepo.AssertExpectations(t)
+}
+
+func TestTriggerConsolidation_MissingSessionReturnsErrorWithoutPruning(t *testing.T) {
+	cfg := &cfgmodel.Config{
+		PRUNE_KEEP_LATEST_TURNS: 10,
+		SUMMARIZE_MAX_TOKENS:    2000,
+		InternalAuthToken:       "secret",
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"summary":"sum","token_count":10,"messages_summarized":1}`))
+	}))
+	defer server.Close()
+	cfg.AgentHTTPURL = server.URL
+
+	mockRepo := new(mockSessionRepo)
+	mockRepo.On("GetSessionTokenCount", mock.Anything, "sess_gone").Return(100, nil)
+	mockRepo.On("GetMaxTurnNumber", mock.Anything, "sess_gone").Return(30, nil)
+	mockRepo.On("GetSessionMessagesOldestFirst", mock.Anything, "sess_gone", summarizeLoadLimit).
+		Return([]*chatmodel.Message{{TurnNumber: 1, Role: "user", Content: "hello"}}, nil)
+	mockRepo.On("GetByID", mock.Anything, "sess_gone").Return(nil, nil)
+
+	svc := &Service{cfg: cfg, sessionRepo: mockRepo}
+	err := svc.TriggerConsolidation(context.Background(), "sess_gone", map[string]interface{}{})
+	assert.ErrorIs(t, err, ErrSessionNotFound)
+	mockRepo.AssertNotCalled(t, "PruneSession", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }

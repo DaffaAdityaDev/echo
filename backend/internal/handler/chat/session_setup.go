@@ -59,7 +59,8 @@ func (h *Handler) resolveTurnPreferences(ctx context.Context, c fiber.Ctx, userI
 		if errors.As(err, &lockedErr) {
 			return "", "", nil, nil, nil, handlerutil.RespondError(c, fiber.StatusForbidden, lockedErr.Error())
 		}
-		return "", "", nil, nil, nil, handlerutil.RespondError(c, fiber.StatusInternalServerError, "Feature validation failed")
+		slog.Error(msgconst.ErrChatFeatureValidation, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyUserID, userID, msgconst.KeyErr, err)
+		return "", "", nil, nil, nil, handlerutil.RespondError(c, fiber.StatusServiceUnavailable, "Feature validation unavailable")
 	}
 	return modelID, mode, features, skills, config, nil
 }
@@ -159,40 +160,21 @@ func (h *Handler) prepareTurnState(ctx context.Context, c fiber.Ctx, userID int,
 }
 
 // prepareChatTurn loads the capped session history, assembles it with the
-// context summary, computes the next turn number, and inserts the user
-// message plus the streaming placeholder. Errors have already been responded
-// to.
+// context summary, and opens the next turn (user message plus streaming
+// placeholder). Errors have already been responded to.
 func (h *Handler) prepareChatTurn(ctx context.Context, c fiber.Ctx, sessionID string, currentSession *chatmodel.Session, userMessage string, userTokenCount int) ([]HistoryMessage, int, int64, error) {
 	dbMessages, err := h.buildCappedHistory(ctx, sessionID)
 	if err != nil {
 		return nil, 0, 0, handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to load session history", err.Error())
 	}
 
-	var history []HistoryMessage
-	if currentSession != nil && currentSession.ContextSummary != "" {
-		history = append(history, HistoryMessage{
-			Role:    "system",
-			Content: fmt.Sprintf("Context summary of consolidated previous turns:\n%s", currentSession.ContextSummary),
-		})
+	contextSummary := ""
+	if currentSession != nil {
+		contextSummary = currentSession.ContextSummary
 	}
+	history := buildAgentHistory(contextSummary, dbMessages)
 
-	for _, dbMsg := range dbMessages {
-		if dbMsg.Role == "thought" || dbMsg.Role == "tool_call" || dbMsg.Role == "tool_result" {
-			continue
-		}
-		history = append(history, HistoryMessage{
-			Role:    dbMsg.Role,
-			Content: dbMsg.Content,
-		})
-	}
-
-	maxTurn, err := h.SessionRepo.GetMaxTurnNumber(ctx, sessionID)
-	if err != nil {
-		return nil, 0, 0, handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to compute next turn", err.Error())
-	}
-	nextTurn := maxTurn + 1
-
-	assistantMsgID, err := h.SessionRepo.PrepareTurn(ctx, sessionID, userMessage, userTokenCount, nextTurn)
+	assistantMsgID, nextTurn, err := h.SessionRepo.PrepareTurn(ctx, sessionID, userMessage, userTokenCount)
 	if err != nil {
 		slog.Error(msgconst.ErrChatPrepareTurn, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
 		return nil, 0, 0, handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to prepare chat turn", err.Error())

@@ -196,8 +196,8 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 // @Router /api/v1/api-keys/{id} [delete]
 func (h *Handler) HandleRevokeUserKey(c fiber.Ctx) error {
 	id := c.Params("id")
-	if id == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminIDRequired)
+	if !handlerutil.IsValidUUID(id) {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminInvalidID)
 	}
 
 	userIDInt, err := handlerutil.GetUserID(c)
@@ -233,8 +233,8 @@ func (h *Handler) HandleRevokeUserKey(c fiber.Ctx) error {
 // @Router /api/v1/admin/api-keys/{id} [delete]
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
-	if id == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminIDRequired)
+	if !handlerutil.IsValidUUID(id) {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminInvalidID)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)

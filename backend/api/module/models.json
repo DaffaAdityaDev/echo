@@ -1,152 +1,139 @@
 {
-    "basePath": "/",
-    "definitions": {
-        "echo-backend_internal_models_ai.ModelInfo": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "description": "ID is the model ID used in requests.",
-                    "type": "string",
-                    "example": "gpt-4o"
-                },
-                "max_context_tokens": {
-                    "description": "MaxContextTokens is the model's maximum context length in tokens; 0\nmeans unknown (callers fall back to conservative defaults).",
-                    "type": "integer",
-                    "example": 1048576
-                },
-                "name": {
-                    "description": "Name is the display name.",
-                    "type": "string",
-                    "example": "GPT-4o"
-                },
-                "provider_name": {
-                    "description": "ProviderName is the provider display name.",
-                    "type": "string",
-                    "example": "OpenAI"
-                },
-                "provider_type": {
-                    "description": "ProviderType is the LLM provider.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/echo-backend_internal_models_ai.ProviderType"
-                        }
-                    ],
-                    "example": "openai"
-                },
-                "supports_multimodal": {
-                    "description": "SupportsMultimodal reports whether the model accepts image inputs.",
-                    "type": "boolean",
-                    "example": true
-                }
+  "basePath": "/",
+  "definitions": {
+    "echo-backend_internal_models_ai.ModelInfo": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "ID is the model ID used in requests.",
+          "type": "string",
+          "example": "gpt-4o"
+        },
+        "max_context_tokens": {
+          "description": "MaxContextTokens is the model's maximum context length in tokens; 0\nmeans unknown (callers fall back to conservative defaults).",
+          "type": "integer",
+          "example": 1048576
+        },
+        "name": {
+          "description": "Name is the display name.",
+          "type": "string",
+          "example": "GPT-4o"
+        },
+        "provider_name": {
+          "description": "ProviderName is the provider display name.",
+          "type": "string",
+          "example": "OpenAI"
+        },
+        "provider_type": {
+          "description": "ProviderType is the LLM provider.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/echo-backend_internal_models_ai.ProviderType"
             }
+          ],
+          "example": "openai"
         },
-        "echo-backend_internal_models_ai.ProviderType": {
-            "type": "string",
-            "enum": [
-                "openai",
-                "anthropic",
-                "lm-studio",
-                "opencode-go"
-            ],
-            "x-enum-varnames": [
-                "ProviderOpenAI",
-                "ProviderAnthropic",
-                "ProviderLMStudio",
-                "ProviderOpenCode"
-            ]
-        },
-        "internal_handler_aimodel.ModelsResponse": {
-            "type": "object",
-            "properties": {
-                "models": {
-                    "description": "Models lists the available AI models.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/echo-backend_internal_models_ai.ModelInfo"
-                    }
-                }
+        "supports_multimodal": {
+          "description": "SupportsMultimodal reports whether the model accepts image inputs.",
+          "type": "boolean",
+          "example": true
+        }
+      }
+    },
+    "echo-backend_internal_models_ai.ProviderType": {
+      "type": "string",
+      "enum": ["openai", "anthropic", "lm-studio", "opencode-go"],
+      "x-enum-varnames": ["ProviderOpenAI", "ProviderAnthropic", "ProviderLMStudio", "ProviderOpenCode"]
+    },
+    "internal_handler_aimodel.ModelsResponse": {
+      "type": "object",
+      "properties": {
+        "models": {
+          "description": "Models lists the available AI models.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/echo-backend_internal_models_ai.ModelInfo"
+          }
+        }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "info": {
+    "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+    "title": "Echo Backend API",
+    "termsOfService": "https://echo.app/terms",
+    "contact": {
+      "name": "Echo API Support",
+      "url": "https://echo.app/support",
+      "email": "support@echo.app"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/models": {
+      "get": {
+        "tags": ["Models"],
+        "summary": "List available AI models",
+        "description": "Returns the AI model catalog available to the authenticated user",
+        "parameters": null,
+        "responses": {
+          "200": {
+            "description": "Model catalog",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_aimodel.ModelsResponse"
             }
-        }
-    },
-    "host": "localhost:8080",
-    "info": {
-        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
-        "title": "Echo Backend API",
-        "termsOfService": "https://echo.app/terms",
-        "contact": {
-            "name": "Echo API Support",
-            "url": "https://echo.app/support",
-            "email": "support@echo.app"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
-    },
-    "paths": {
-        "/api/v1/models": {
-            "get": {
-                "tags": [
-                    "Models"
-                ],
-                "summary": "List available AI models",
-                "description": "Returns the AI model catalog available to the authenticated user",
-                "parameters": null,
-                "responses": {
-                    "200": {
-                        "description": "Model catalog",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_aimodel.ModelsResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
         },
-        "InternalAuth": {
-            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
-            "type": "apiKey",
-            "name": "X-Internal-Token",
-            "in": "header"
-        }
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models_llmops.PromptVersion"
-    ]
+    "InternalAuth": {
+      "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+      "type": "apiKey",
+      "name": "X-Internal-Token",
+      "in": "header"
+    }
+  },
+  "swagger": "2.0",
+  "x-shared-definitions": [
+    "echo-backend_internal_models_auth.ApiKey",
+    "echo-backend_internal_models_llmops.PromptVersion"
+  ]
 }

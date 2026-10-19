@@ -22,6 +22,7 @@ const (
 	ComponentModel         = "model"
 	ComponentLLMOps        = "llmops"
 	ComponentAuth          = "auth"
+	ComponentSession       = "session"
 )
 
 const (
@@ -49,7 +50,6 @@ const (
 	KeyAction         = "action"
 	KeyProvider       = "provider"
 	KeyTenantID       = "tenant_id"
-	KeyHint           = "hint"
 	KeyContent        = "content"
 	KeyTotal          = "total"
 	KeyIncluded       = "included"
@@ -78,11 +78,12 @@ const (
 	MsgNoEnvFileDev        = "no .env file found, using system environment variables"
 	ErrServerStartup       = "Failed to start server"
 	ErrRefuseToStart       = "refusing to start"
-	WarnDBAutoMigration    = "database auto-migration error"
+	ErrDBAutoMigration     = "database auto-migration failed"
 	ErrPanicRecovered      = "panic recovered"
 	MsgServerStarting      = "server starting"
+	MsgServerShuttingDown  = "server shutting down"
 	MsgInternalServerError = "Internal Server Error"
-	WarnEncryptionKeyEmpty = "%s is empty; API key encryption will fail at runtime"
+	WarnWeakSecret         = "weak secret configured; startup is refused with it in production"
 )
 
 const (
@@ -183,6 +184,7 @@ const (
 	ErrChatFinalizeInterrupted   = "failed to finalize interrupted turn"
 	ErrChatCreateAgentRequest    = "failed to create agent request"
 	ErrChatAgentServiceDown      = "agent service unreachable"
+	ErrChatFeatureValidation     = "feature validation unavailable, rejecting request"
 	ErrChatReadAgentErrorResp    = "failed to read agent error response"
 	InfoChatHistoryCapped        = "session history capped"
 	ErrChatReadAgentResponse     = "failed to read agent response"
@@ -219,6 +221,8 @@ const (
 	WarnMemoryParseSemanticMeta = "failed to parse metadata for semantic memory"
 	WarnMemoryParseProcedMeta   = "failed to parse metadata for procedural memory"
 	ErrMemorySetEpisodicTTL     = "failed to set ttl for episodic key"
+	ErrMemorySemanticSearch     = "failed to read semantic search results"
+	ErrMemoryResolveOwner       = "failed to resolve memory session owner"
 )
 
 const (
@@ -247,10 +251,9 @@ const (
 	ErrSettingsDecryptAPIKey       = "failed to decrypt api key"
 	WarnSettingsQueryPromptTmpl    = "failed to query latest active prompt template"
 	WarnFeaturesCacheRedis         = "failed to cache implemented features in redis"
-	WarnFeaturesLoadActiveSkip     = "failed to load active features, skipping validation"
-	WarnFeaturesLoadImplSkip       = "failed to load implemented features, skipping validation"
 	ErrLLMOpsPromoteRollback       = "promote version rollback failed"
 	ErrLLMOpsRollbackTx            = "rollback version tx rollback failed"
+	ErrLLMOpsPromptRequest         = "prompt request failed"
 )
 
 const (
@@ -274,16 +277,14 @@ const (
 const (
 	// HTTP response messages emitted by the auth middleware stack. The generic
 	// missing-token case reuses ErrMissingToken above.
-	ErrInsufficientRole      = "Forbidden: insufficient role"
-	ErrInvalidToken          = "Unauthorized: Invalid token"
-	ErrInvalidAPICredentials = "Unauthorized: Invalid credentials"
-	ErrAPIKeyRevoked         = "Unauthorized: API key is revoked"
-	ErrMissingInternalToken  = "Unauthorized: Missing internal token"
-	ErrInvalidInternalToken  = "Unauthorized: Invalid internal token"
-	ErrInvalidTokenClaims    = "Unauthorized: Invalid token claims"
-	ErrInvalidTokenSubject   = "Forbidden: Invalid token subject"
-	ErrInvalidRefreshToken   = "Unauthorized: Invalid refresh token"
-	ErrRefreshTokenRevoked   = "Unauthorized: Refresh token has been revoked"
+	ErrInsufficientRole     = "Forbidden: insufficient role"
+	ErrMissingInternalToken = "Unauthorized: Missing internal token"
+	ErrInvalidInternalToken = "Unauthorized: Invalid internal token"
+	ErrInvalidTokenClaims   = "Unauthorized: Invalid token claims"
+	ErrInvalidTokenSubject  = "Forbidden: Invalid token subject"
+	ErrInvalidRefreshToken  = "Unauthorized: Invalid refresh token"
+	ErrRefreshTokenRevoked  = "Unauthorized: Refresh token has been revoked"
+	ErrSessionAuthRequired  = "Forbidden: session authentication required"
 )
 
 const (
@@ -291,7 +292,7 @@ const (
 	ErrAdminNameRequired = "name is required"
 	ErrAdminGenerateKey  = "Failed to generate key"
 	ErrAdminStoreKey     = "Failed to store key"
-	ErrAdminIDRequired   = "id is required"
+	ErrAdminInvalidID    = "id must be a valid UUID"
 	ErrAdminFindKey      = "Failed to find key"
 	ErrAdminKeyNotFound  = "Key not found"
 	ErrAdminRevokeKey    = "Failed to revoke key"

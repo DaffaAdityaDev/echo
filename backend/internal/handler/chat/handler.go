@@ -89,6 +89,22 @@ var (
 	activeRuns   = make(map[string]*activeRun)
 )
 
+func registerActiveRun(sessionID string, run *activeRun) {
+	activeRunsMu.Lock()
+	activeRuns[sessionID] = run
+	activeRunsMu.Unlock()
+}
+
+// unregisterActiveRun removes the run only while it is still the session's
+// current run, so a finished turn never drops a newer turn's registration.
+func unregisterActiveRun(sessionID string, run *activeRun) {
+	activeRunsMu.Lock()
+	if activeRuns[sessionID] == run {
+		delete(activeRuns, sessionID)
+	}
+	activeRunsMu.Unlock()
+}
+
 func retryDBOperation(attempts int, delay time.Duration, fn func() error) error {
 	var err error
 	for i := 0; i < attempts; i++ {

@@ -1,73 +1,20 @@
 package session
 
 import (
-	"bufio"
 	"context"
-	"os"
-	"strings"
 	"testing"
-	"time"
 
-	envconst "echo-backend/internal/constants/env"
-	msgconst "echo-backend/internal/constants/msg"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"echo-backend/internal/pkg/testdb"
 )
 
 func TestSessionRepository(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if f, err := os.Open("../../../.env"); err == nil {
-		defer func() { _ = f.Close() }()
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			if parts := strings.SplitN(line, "=", 2); len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				val := strings.TrimSpace(parts[1])
-				if _, ok := os.LookupEnv(key); !ok {
-					_ = os.Setenv(key, val)
-				}
-			}
-		}
-	}
-	dbURL := os.Getenv(envconst.DatabaseURL)
-	if dbURL == "" {
-		t.Skipf(msgconst.MsgSkipIntegrationTest, envconst.DatabaseURL)
-	}
-
+	pool := testdb.OpenPool(t)
 	ctx := context.Background()
-	connCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	poolCfg, err := pgxpool.ParseConfig(dbURL)
-	if err != nil {
-		t.Skipf("Failed to parse database config, skipping: %v", err)
-	}
-	poolCfg.MaxConns = 10
-	poolCfg.MinConns = 2
-
-	pool, err := pgxpool.NewWithConfig(connCtx, poolCfg)
-	if err != nil {
-		t.Skipf("Failed to create connection pool, skipping: %v", err)
-	}
-	defer pool.Close()
-
-	if err := pool.Ping(connCtx); err != nil {
-		t.Skipf("Database unreachable, skipping integration test: %v", err)
-	}
-
-	t.Log("Connected to PostgreSQL successfully")
 
 	repo := NewRepository(pool)
 
 	var testUserID int
-	err = pool.QueryRow(ctx, "INSERT INTO users (email, password_hash, name, role) VALUES ('test-session-owner@echo.ai', 'hash', 'Owner', 'user') ON CONFLICT (email) DO UPDATE SET name='Owner' RETURNING id").Scan(&testUserID)
+	err := pool.QueryRow(ctx, "INSERT INTO users (email, password_hash, name, role) VALUES ('test-session-owner@echo.ai', 'hash', 'Owner', 'user') ON CONFLICT (email) DO UPDATE SET name='Owner' RETURNING id").Scan(&testUserID)
 	if err != nil {
 		t.Fatalf("Failed to ensure test user: %v", err)
 	}
@@ -83,9 +30,12 @@ func TestSessionRepository(t *testing.T) {
 		t.Error("Expected generated session ID, got empty string")
 	}
 
-	assistantMsgID, err := repo.PrepareTurn(ctx, session.ID, "Hello agent!", 3, 1)
+	assistantMsgID, turnNumber, err := repo.PrepareTurn(ctx, session.ID, "Hello agent!", 3)
 	if err != nil {
 		t.Fatalf("Failed to prepare turn: %v", err)
+	}
+	if turnNumber != 1 {
+		t.Errorf("Expected first turn number 1, got %d", turnNumber)
 	}
 	err = repo.CompleteTurn(ctx, assistantMsgID, session.ID, "Hello user! How can I help you today?", nil, 10, "complete")
 	if err != nil {
@@ -154,9 +104,12 @@ func TestSessionRepository(t *testing.T) {
 	// Test Pagination for Messages
 	// Current messages in session: 2 messages (turn 1)
 	// Add 2 more messages (turn 2)
-	assistantMsgID2, err := repo.PrepareTurn(ctx, session.ID, "Second turn user", 3, 2)
+	assistantMsgID2, turnNumber2, err := repo.PrepareTurn(ctx, session.ID, "Second turn user", 3)
 	if err != nil {
 		t.Fatalf("Failed to prepare second turn: %v", err)
+	}
+	if turnNumber2 != 2 {
+		t.Errorf("Expected second turn number 2, got %d", turnNumber2)
 	}
 	err = repo.CompleteTurn(ctx, assistantMsgID2, session.ID, "Second turn assistant", nil, 5, "complete")
 	if err != nil {

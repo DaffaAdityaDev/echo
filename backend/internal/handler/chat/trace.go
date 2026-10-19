@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	httpxconst "echo-backend/internal/constants/httpx"
@@ -42,4 +43,15 @@ func parseTraceparent(tp string) (trace.SpanContext, bool) {
 		TraceFlags: trace.FlagsSampled,
 		Remote:     true,
 	}), true
+}
+
+// agentTraceparent formats the W3C traceparent forwarded to the agent. ok is
+// false when the request carried no valid trace context: an all-zero
+// traceparent is invalid per the W3C spec, so the header is omitted instead.
+func agentTraceparent(ctx context.Context) (string, bool) {
+	sc := trace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return "", false
+	}
+	return fmt.Sprintf("00-%s-%s-%s", sc.TraceID(), sc.SpanID(), sc.TraceFlags()), true
 }

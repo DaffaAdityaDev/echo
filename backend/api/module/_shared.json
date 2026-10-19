@@ -1,84 +1,127 @@
 {
-    "basePath": "/",
-    "definitions": {
-        "echo-backend_internal_models_llmops.PromptVersion": {
-            "type": "object",
-            "properties": {
-                "bound_tools": {
-                    "description": "BoundTools are the tools the prompt is allowed to call.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at": {
-                    "description": "CreatedAt is when the version was created.",
-                    "type": "string"
-                },
-                "created_by": {
-                    "description": "CreatedBy is the actor who created the version.",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "ID is the unique identifier of the version.",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status is the lifecycle status of the version (draft|production).",
-                    "type": "string"
-                },
-                "system_prompt": {
-                    "description": "SystemPrompt is the full system prompt text.",
-                    "type": "string"
-                },
-                "template_id": {
-                    "description": "TemplateID is the template this version belongs to.",
-                    "type": "string"
-                },
-                "variables": {
-                    "description": "Variables are the template variables used by the prompt.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "version": {
-                    "description": "Version is the version number, incrementing within a template.",
-                    "type": "integer"
-                }
-            }
+  "basePath": "/",
+  "definitions": {
+    "echo-backend_internal_models_auth.ApiKey": {
+      "type": "object",
+      "properties": {
+        "created_at": {
+          "description": "Key creation time",
+          "type": "string",
+          "example": "2026-01-15T10:30:00Z"
+        },
+        "id": {
+          "description": "Unique API key ID",
+          "type": "string",
+          "example": "key_a1b2c3d4e5f6"
+        },
+        "name": {
+          "description": "Display name for the API key",
+          "type": "string",
+          "example": "Production API Key"
+        },
+        "prefix": {
+          "description": "Prefix of the full key, shown for display purposes",
+          "type": "string",
+          "example": "sk_a1b2c3d4"
+        },
+        "scopes": {
+          "description": "Optional permission scopes",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": ["read", "write", "admin"]
+        },
+        "status": {
+          "description": "Key status (e.g. active, revoked)",
+          "type": "string",
+          "example": "active"
+        },
+        "user_id": {
+          "description": "ID of the user who owns the key",
+          "type": "string",
+          "example": "1"
         }
+      }
     },
-    "host": "localhost:8080",
-    "info": {
-        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
-        "title": "Echo Backend API",
-        "termsOfService": "https://echo.app/terms",
-        "contact": {
-            "name": "Echo API Support",
-            "url": "https://echo.app/support",
-            "email": "support@echo.app"
+    "echo-backend_internal_models_llmops.PromptVersion": {
+      "type": "object",
+      "properties": {
+        "bound_tools": {
+          "description": "BoundTools are the tools the prompt is allowed to call.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        "created_at": {
+          "description": "CreatedAt is when the version was created.",
+          "type": "string"
         },
-        "version": "1.0"
-    },
-    "paths": {},
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+        "created_by": {
+          "description": "CreatedBy is the actor who created the version.",
+          "type": "string"
         },
-        "InternalAuth": {
-            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
-            "type": "apiKey",
-            "name": "X-Internal-Token",
-            "in": "header"
+        "id": {
+          "description": "ID is the unique identifier of the version.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Status is the lifecycle status of the version (draft|production).",
+          "type": "string"
+        },
+        "system_prompt": {
+          "description": "SystemPrompt is the full system prompt text.",
+          "type": "string"
+        },
+        "template_id": {
+          "description": "TemplateID is the template this version belongs to.",
+          "type": "string"
+        },
+        "variables": {
+          "description": "Variables are the template variables used by the prompt.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "description": "Version is the version number, incrementing within a template.",
+          "type": "integer"
         }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "info": {
+    "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+    "title": "Echo Backend API",
+    "termsOfService": "https://echo.app/terms",
+    "contact": {
+      "name": "Echo API Support",
+      "url": "https://echo.app/support",
+      "email": "support@echo.app"
     },
-    "swagger": "2.0"
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {},
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    },
+    "InternalAuth": {
+      "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+      "type": "apiKey",
+      "name": "X-Internal-Token",
+      "in": "header"
+    }
+  },
+  "swagger": "2.0"
 }

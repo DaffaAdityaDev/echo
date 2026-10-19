@@ -2,9 +2,13 @@ package strategy
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	domainconst "echo-backend/internal/constants/domain"
 	"echo-backend/internal/models/config"
-	"testing"
 )
 
 func TestService_GetDefaultRollout(t *testing.T) {
@@ -187,4 +191,31 @@ func TestResolveVersion_Rollout(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestService_IsValidVersion_MatchesResolveRules(t *testing.T) {
+	t.Parallel()
+
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `{"strategies":[
+			{"name":"nlah","versions":[{"version":"nlah:v1","status":"active","aliases":["agent"]}]},
+			{"name":"deep_research","versions":[{"version":"deep_research:v1","status":"deprecated","aliases":["research"]}]}
+		]}`)
+	}))
+	t.Cleanup(agent.Close)
+	svc := NewService(&cfgmodel.Config{AgentHTTPURL: agent.URL}, nil, nil)
+	ctx := context.Background()
+
+	tests := map[string]bool{
+		"nlah:v1":          true,
+		"AGENT":            true,
+		"deep_research:v1": false,
+		"research":         false,
+		"garbage:v1":       false,
+	}
+	for version, want := range tests {
+		if got := svc.IsValidVersion(ctx, version); got != want {
+			t.Errorf("IsValidVersion(%q) = %v, want %v", version, got, want)
+		}
+	}
 }

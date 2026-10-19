@@ -26,6 +26,18 @@ package main
 // @description Internal service JWT token (Format: Bearer <service JWT>).
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"runtime/debug"
+	"strings"
+	"syscall"
+	"time"
+
 	"echo-backend/internal/config"
 	"echo-backend/internal/constants/app"
 	authconst "echo-backend/internal/constants/auth"
@@ -37,13 +49,6 @@ import (
 	"echo-backend/internal/handler/handlerutil"
 	pkglogger "echo-backend/internal/pkg/logger"
 	"echo-backend/internal/router"
-	"fmt"
-	"io"
-	"log/slog"
-	"net/http"
-	"os"
-	"runtime/debug"
-	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -79,12 +84,13 @@ func main() {
 
 	fmt.Println(app.Banner)
 
-	// Run database migration before serving traffic
-	if pool := database.NewPostgresPool(cfg); pool != nil {
+	pool := database.NewPostgresPool(cfg)
+	if pool != nil {
 		if err := database.Migrate(pool); err != nil {
-			slog.Warn(msgconst.WarnDBAutoMigration, msgconst.KeyErr, err)
+			slog.Error(msgconst.ErrDBAutoMigration, msgconst.KeyErr, err)
+			pool.Close()
+			os.Exit(1)
 		}
-		pool.Close()
 	}
 
 	// Initialize server
@@ -121,20 +127,51 @@ func main() {
 	}))
 	appInstance.Use(cors.New(cors.Config{
 		AllowOrigins:     corsAllowedOrigins(),
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowHeaders:     []string{httpxconst.HeaderOrigin, httpxconst.HeaderContentType, httpxconst.HeaderAccept, authconst.HeaderAuthorization, httpxconst.HeaderTraceparent, httpxconst.HeaderAgentSessionID},
+		ExposeHeaders:    []string{httpxconst.HeaderSessionID},
 		AllowCredentials: true,
 	}))
 
 	// Routes
-	router.SetupRoutes(appInstance, cfg)
+	router.SetupRoutes(appInstance, cfg, pool)
 
-	// Start
 	slog.Info(msgconst.MsgServerStarting, msgconst.KeyPort, cfg.Port)
-	if err := appInstance.Listen(":" + cfg.Port); err != nil {
-		slog.Error(msgconst.ErrServerStartup, msgconst.KeyErr, err)
+	serveErr := serveUntilSignal(appInstance, ":"+cfg.Port)
+	if pool != nil {
+		pool.Close()
+	}
+	if serveErr != nil {
+		slog.Error(msgconst.ErrServerStartup, msgconst.KeyErr, serveErr)
 		os.Exit(1)
 	}
+}
+
+const shutdownTimeout = 15 * time.Second
+
+// serveUntilSignal runs the server until it fails or SIGINT/SIGTERM arrives,
+// then shuts it down gracefully so OnPreShutdown hooks (background workers)
+// run and in-flight requests drain.
+func serveUntilSignal(fbApp *fiber.App, addr string) error {
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	listenErr := make(chan error, 1)
+	go func() { listenErr <- fbApp.Listen(addr) }()
+
+	select {
+	case err := <-listenErr:
+		return err
+	case <-signalCtx.Done():
+	}
+
+	slog.Info(msgconst.MsgServerShuttingDown)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := fbApp.ShutdownWithContext(shutdownCtx); err != nil {
+		return fmt.Errorf("graceful shutdown: %w", err)
+	}
+	return <-listenErr
 }
 
 // corsAllowedOrigins returns the browser origins allowed to call the API with

@@ -6,18 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 
+	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // HandleChat godoc
@@ -40,6 +39,7 @@ import (
 // @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
+// @Failure 502 {object} map[string]string
 // @Router /api/v1/chat [post]
 func (h *Handler) HandleChat(c fiber.Ctx) error {
 	req, err := parseChatRequest(c)
@@ -89,10 +89,21 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	}
 	req.SessionID = currentSession.ID
 
+	// Every session-scoped resource acquired below is released by cleanup.
+	// Until streaming starts the handler owns it; afterwards the stream
+	// writer does, since fasthttp runs the writer on a goroutine that
+	// outlives this handler.
+	cleanup := &turnCleanup{}
+	streaming := false
+	defer func() {
+		if !streaming {
+			cleanup.run()
+		}
+	}()
+
 	// The per-session lock is held from here to the end of the streamed turn
 	// (consolidation, history build, turn prep and the agent run included).
-	unlock := acquireSessionLock(req.SessionID)
-	defer unlock()
+	cleanup.add(acquireSessionLock(req.SessionID))
 
 	// Cross-process counterpart: serializes turns on the same session across
 	// gateway instances when Redis is present. No-op unlock when unavailable.
@@ -100,7 +111,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	if err != nil {
 		slog.Warn(msgconst.WarnChatLockUnavailable, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
 	}
-	defer releaseRedisLock()
+	cleanup.add(releaseRedisLock)
 
 	currentSession, resolvedStrategyVersion, err := h.prepareTurnState(ctx, c, userID, req, currentSession, currentPinnedVersion, providerMap)
 	if err != nil {
@@ -112,11 +123,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		return err
 	}
 
-	agentURL := fmt.Sprintf("%s/api/v1/generate-mission?mode=%s", h.Cfg.AgentHTTPURL, mode)
-
-	sessionIDToUse := req.SessionID
-
-	tenantID := c.Get("X-Tenant-ID", "local")
+	tenantID := middleware.TenantID(c)
 	promptTemplateName, err := h.SettingsSvc.ResolvePromptTemplateNameForTenant(ctx, tenantID)
 	if err != nil {
 		slog.Warn(msgconst.WarnChatResolvePromptTmpl, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyErr, err)
@@ -129,7 +136,7 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 		history:            history,
 		providerConfig:     providerMap,
 		strategyVersion:    resolvedStrategyVersion,
-		sessionID:          sessionIDToUse,
+		sessionID:          req.SessionID,
 		features:           features,
 		skills:             skills,
 		config:             config,
@@ -141,82 +148,84 @@ func (h *Handler) HandleChat(c fiber.Ctx) error {
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		slog.Error(msgconst.ErrChatMarshalAgentPayload, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
-		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
-		}
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to build agent request")
+		return h.failTurn(c, assistantMsgID, req.SessionID, fiber.StatusInternalServerError, "Failed to build agent request", httpxconst.EmptyDetails)
 	}
 
 	// Register the in-flight run up front so a cancel request arriving during
 	// the agent request window still interrupts the mission (the watcher aborts
 	// the in-flight agent request via cancelAgentReq).
 	run := &activeRun{cancelCh: make(chan struct{})}
-	activeRunsMu.Lock()
-	activeRuns[req.SessionID] = run
-	activeRunsMu.Unlock()
-	defer func() {
-		activeRunsMu.Lock()
-		delete(activeRuns, req.SessionID)
-		activeRunsMu.Unlock()
-	}()
+	registerActiveRun(req.SessionID, run)
+	cleanup.add(func() { unregisterActiveRun(req.SessionID, run) })
 
 	// The agent request must stay alive until the streamed response has been
-	// fully relayed: SendStreamWriter registers a callback that fasthttp runs
-	// only AFTER the handler returns, so cancelling agentReqCtx in a defer
-	// here would abort the outbound agent request before the first packet is
-	// forwarded. Cancel it when the stream actually ends instead.
+	// fully relayed, so it is cancelled by cleanup rather than on return.
 	agentReqCtx, cancelAgentReq := context.WithCancel(ctx)
+	cleanup.add(cancelAgentReq)
 
 	interruptStop := make(chan struct{})
-	defer close(interruptStop)
+	cleanup.add(func() { close(interruptStop) })
 	go h.watchForInterrupt(run, interruptStop, req.SessionID, cancelAgentReq)
 
-	agentReq, err := http.NewRequestWithContext(agentReqCtx, http.MethodPost, agentURL, bytes.NewBuffer(jsonPayload))
+	agentReq, err := h.newAgentMissionRequest(agentReqCtx, mode, jsonPayload)
 	if err != nil {
 		slog.Error(msgconst.ErrChatCreateAgentRequest, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
-		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
-		}
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to create request to agent")
+		return h.failTurn(c, assistantMsgID, req.SessionID, fiber.StatusInternalServerError, "Failed to create request to agent", httpxconst.EmptyDetails)
 	}
-	agentReq.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
-	agentReq.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
-
-	newTraceContext := trace.SpanContextFromContext(ctx)
-	agentTraceparent := fmt.Sprintf("00-%s-%s-01", newTraceContext.TraceID().String(), newTraceContext.SpanID().String())
-	agentReq.Header.Set(httpxconst.HeaderTraceparent, agentTraceparent)
 
 	resp, err := handlerutil.HttpClient.Do(agentReq)
 	if err != nil {
 		slog.Error(msgconst.ErrChatAgentServiceDown, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, err)
-		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
-		}
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Agent service unreachable")
+		return h.failTurn(c, assistantMsgID, req.SessionID, fiber.StatusBadGateway, "Agent service unreachable", httpxconst.EmptyDetails)
 	}
 	run.setBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, readErr := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
+		detail, readErr := readUpstreamError(resp)
 		if readErr != nil {
 			slog.Error(msgconst.ErrChatReadAgentErrorResp, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, readErr)
 		}
-		if finalizeErr := h.finalizeTurn(assistantMsgID, req.SessionID, "", nil, 0, "interrupted"); finalizeErr != nil {
-			slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, req.SessionID, msgconst.KeyErr, finalizeErr)
-		}
-		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent request failed", string(bodyBytes))
+		return h.failTurn(c, assistantMsgID, req.SessionID, upstreamFailureStatus(resp.StatusCode), "Agent request failed", detail)
 	}
 
-	c.Response().Header.Set("X-Session-ID", req.SessionID)
+	c.Response().Header.Set(httpxconst.HeaderSessionID, req.SessionID)
+	setSSEHeaders(c)
+
+	streaming = true
+	return c.SendStreamWriter(func(w *bufio.Writer) {
+		defer cleanup.run()
+		h.streamAgentResponse(w, resp, req.SessionID, assistantMsgID, nextTurn, redisLockToken)
+	})
+}
+
+// newAgentMissionRequest builds the outbound mission request, forwarding the
+// caller's trace context when one was supplied.
+func (h *Handler) newAgentMissionRequest(ctx context.Context, mode string, jsonPayload []byte) (*http.Request, error) {
+	agentReq, err := http.NewRequestWithContext(ctx, http.MethodPost, agentMissionURL(h.Cfg.AgentHTTPURL, mode), bytes.NewReader(jsonPayload))
+	if err != nil {
+		return nil, err
+	}
+	agentReq.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	agentReq.Header.Set(httpxconst.HeaderXInternalToken, h.Cfg.InternalAuthToken)
+	if traceparent, ok := agentTraceparent(ctx); ok {
+		agentReq.Header.Set(httpxconst.HeaderTraceparent, traceparent)
+	}
+	return agentReq, nil
+}
+
+// failTurn finalizes the prepared turn as interrupted and responds with the
+// given error, so the streaming placeholder never stays stuck in 'streaming'.
+func (h *Handler) failTurn(c fiber.Ctx, assistantMsgID int64, sessionID string, status int, msg, detail string) error {
+	if err := h.finalizeTurn(assistantMsgID, sessionID, "", nil, 0, domainconst.StatusInterrupted); err != nil {
+		slog.Error(msgconst.ErrChatFinalizeInterrupted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
+	}
+	return handlerutil.RespondErrorDetail(c, status, msg, detail)
+}
+
+func setSSEHeaders(c fiber.Ctx) {
 	c.Response().Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeEventStream)
 	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
 	c.Response().Header.Set("Connection", "keep-alive")
 	c.Response().Header.Set("Transfer-Encoding", "chunked")
 	c.Response().Header.Set("X-Accel-Buffering", "no")
-
-	return c.SendStreamWriter(func(w *bufio.Writer) {
-		h.streamAgentResponse(w, resp, req.SessionID, assistantMsgID, nextTurn, redisLockToken)
-		cancelAgentReq()
-	})
 }
