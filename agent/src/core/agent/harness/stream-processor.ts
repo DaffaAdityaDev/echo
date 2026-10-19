@@ -1,24 +1,31 @@
 import { calculateUsageCost } from "../../../infrastructure/providers/utils";
-import type { LLMProvider, ProviderEvent } from "../../../shared/types";
+import type { JsonObject, LLMProvider, ProviderEvent } from "../../../shared/types";
 import { estimateCharTokens } from "../../../shared/utils/harness";
 import { logger } from "../../../shared/utils/logger";
 import { HARNESS_CONFIG } from "./constants";
-import type { ContentSanitizer } from "./content_sanitizer";
+import type { ContentSanitizer } from "./content-sanitizer";
 import type { HarnessEventEmitter } from "./events";
 import type { AgentStatusTracker } from "./status-tracker";
 import type { HarnessEvent, HarnessRuntimeConfig } from "./types";
 
+export interface StreamUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+}
+
+export interface StreamPendingToolCall {
+  name: string;
+  args: JsonObject;
+}
+
 export interface ProcessStreamResult {
   assistantContent: string;
   reasoningContent: string;
-  pendingToolCall: { name: string; args: Record<string, unknown> } | null;
+  pendingToolCall: StreamPendingToolCall | null;
   hasContentEmitted: boolean;
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    cachedTokens?: number;
-  } | null;
+  usage: StreamUsage | null;
 }
 
 export interface ProcessStreamDeps {
@@ -36,25 +43,25 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
   const { eventStream, iteration, onPacket, emitter, provider, contentSanitizer, statusTracker, harnessConfig } = deps;
   let assistantContent = "";
   let reasoningContent = "";
-  let pendingToolCall: { name: string; args: Record<string, unknown> } | null = null;
+  let pendingToolCall: StreamPendingToolCall | null = null;
   let hasContentEmitted = false;
-  let usageResult: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    cachedTokens?: number;
-  } | null = null;
+
+  let usageResult: StreamUsage | null = null;
+
   let tokenEstimate = 0;
   const streamStart = Date.now();
   let lastChunkTime = Date.now();
+
   const heartbeatIntervalTime =
     harnessConfig?.agentStatus?.heartbeatInterval ?? HARNESS_CONFIG.AGENT_STATUS.HEARTBEAT_INTERVAL;
+
   const stallTimeout = harnessConfig?.agentStatus?.stallTimeout ?? HARNESS_CONFIG.AGENT_STATUS.STALL_TIMEOUT;
 
   const heartbeatInterval = setInterval(() => {
     if (Date.now() - emitter.lastActivityAt > stallTimeout) {
       emitter.markStalledIfNeeded(onPacket, iteration).catch(() => {});
     }
+
     if (Date.now() - lastChunkTime >= heartbeatIntervalTime) {
       emitter.emitHeartbeat(onPacket, iteration).catch(() => {});
     }
@@ -74,6 +81,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
         });
         await emitter.emitReasoning(onPacket, iteration, event.reasoning);
       }
+
       if (event.content) {
         assistantContent += event.content;
         tokenEstimate += estimateCharTokens(event.content);
@@ -83,19 +91,30 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
             (Date.now() - streamStart) / 1000 > 0 ? tokenEstimate / ((Date.now() - streamStart) / 1000) : undefined,
         });
       }
+
       if (event.toolCall) {
         logger.info(`[processStreamEvents] Got toolCall event: ${JSON.stringify(event.toolCall)}`);
-        pendingToolCall = event.toolCall;
+
+        // One tool call executes per turn (matching the LangChain providers, which
+        // yield only the first); later parallel calls are dropped, never swapped in.
+        if (pendingToolCall) {
+          logger.warn(`[processStreamEvents] Dropping additional parallel toolCall: ${event.toolCall.name}`);
+        } else {
+          pendingToolCall = event.toolCall;
+        }
       }
+
       if (event.content && !pendingToolCall) {
         hasContentEmitted = true;
         const cleanContent = contentSanitizer.sanitize(event.content);
+
         if (cleanContent) {
           await emitter.emitContent(onPacket, iteration, cleanContent);
         }
       } else if (event.content && pendingToolCall) {
         logger.info(`[processStreamEvents] Content suppressed — toolCall pending, content_len=${event.content.length}`);
       }
+
       if (event.usage) {
         const { stepCost } = calculateUsageCost(
           provider.modelName ?? "unknown",
@@ -104,11 +123,26 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
           event.usage.completionTokens,
           event.usage.cachedTokens ?? 0,
         );
-        const enrichedUsage = {
-          ...event.usage,
+
+        const enrichedUsage: JsonObject = {
+          promptTokens: event.usage.promptTokens,
+          completionTokens: event.usage.completionTokens,
+          totalTokens: event.usage.totalTokens,
           estimatedCostUsd: stepCost,
-          maxContextTokens: provider.maxContextTokens,
         };
+
+        if (event.usage.cachedTokens !== undefined) {
+          enrichedUsage.cachedTokens = event.usage.cachedTokens;
+        }
+
+        if (event.usage.reasoningTokens !== undefined) {
+          enrichedUsage.reasoningTokens = event.usage.reasoningTokens;
+        }
+
+        if (provider.maxContextTokens !== undefined) {
+          enrichedUsage.maxContextTokens = provider.maxContextTokens;
+        }
+
         await emitter.emitUsage(onPacket, iteration, enrichedUsage);
         usageResult = {
           promptTokens: event.usage.promptTokens,
@@ -127,6 +161,7 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
   }
 
   const flushedContent = contentSanitizer.flush();
+
   if (flushedContent) {
     hasContentEmitted = true;
     await emitter.emitContent(onPacket, iteration, flushedContent);
@@ -135,5 +170,6 @@ export async function processStreamEvents(deps: ProcessStreamDeps): Promise<Proc
   logger.info(
     `[processStreamEvents] Done — hasToolCall=${!!pendingToolCall}, contentLen=${assistantContent.length}, reasoningLen=${reasoningContent.length}, hasContentEmitted=${hasContentEmitted}`,
   );
+
   return { assistantContent, reasoningContent, pendingToolCall, hasContentEmitted, usage: usageResult };
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AUTH_QUERY_KEYS } from "../constants";
 import { authApi } from "../services/auth-api";
 import { useAuthStore } from "../stores/authStore";
+import { resetUserStores } from "../stores/resetUserStores";
 import type { LoginCredentials, LoginResponse, User } from "../types";
 
 export function useAuth() {
@@ -27,8 +28,12 @@ export function useAuth() {
 
   const loginMutation = useMutation<LoginResponse, Error, LoginCredentials>({
     mutationFn: authApi.login,
+    // Returning the promise makes loginAsync wait for /me to refetch, so the
+    // AuthGuard never sees the stale 401 and bounces back to /login.
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME });
+      resetUserStores();
+
+      return queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME });
     },
     onError: () => {
       clearAuth();
@@ -39,6 +44,7 @@ export function useAuth() {
     mutationFn: authApi.logout,
     onSuccess: () => {
       clearAuth();
+      resetUserStores();
       queryClient.clear();
       router.push("/login");
     },

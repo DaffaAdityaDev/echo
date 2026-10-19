@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { ProviderFactory } from "../../../../../infrastructure/providers/factory";
+import type { JsonValue } from "../../../../../shared/types";
 import { summarizeSession } from "../internal.controller";
 
 vi.mock("../../../../../infrastructure/providers/factory", () => ({
@@ -13,10 +14,11 @@ vi.mock("../../../../../shared/utils/logger", () => ({
 function buildApp() {
   const app = new Hono();
   app.post("/sessions/summarize", summarizeSession);
+
   return app;
 }
 
-function summarizeRequest(body: unknown) {
+function summarizeRequest(body: JsonValue) {
   return {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -105,6 +107,7 @@ describe("Agent Summarization Endpoint", () => {
   });
 
   test("returns 200 with a summary when the provider streams", async () => {
+    // SAFETY: Mock provider implementation for summarization test
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: vi.fn(async function* () {
         yield { content: "Consolidated summary.", usage: { completionTokens: 5 } };
@@ -114,9 +117,10 @@ describe("Agent Summarization Endpoint", () => {
       maxContextTokens: 128000,
       modelName: "fake-model",
       baseURL: "http://fake.local",
-    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+    } as never);
 
     const app = buildApp();
+
     const res = await app.request(
       "/sessions/summarize",
       summarizeRequest({
@@ -141,9 +145,11 @@ describe("Agent Summarization Endpoint", () => {
   });
 
   test("truncates and caps giant message payloads within the model context budget", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
+
+    // SAFETY: Mock provider implementation for context budget test
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: streamMock,
       validate: vi.fn(async () => {}),
@@ -151,10 +157,11 @@ describe("Agent Summarization Endpoint", () => {
       maxContextTokens: 128000,
       modelName: "fake-model",
       baseURL: "http://fake.local",
-    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+    } as never);
 
     const app = buildApp();
     const giant = "x".repeat(1_000_000);
+
     const res = await app.request(
       "/sessions/summarize",
       summarizeRequest({
@@ -173,21 +180,25 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     const budget = Math.floor(128000 * 0.6);
     const perMsgChars = Math.max(budget * 2, 100000);
     let totalTokens = 0;
+
     for (const m of sent) {
       expect(m.content.length).toBeLessThanOrEqual(perMsgChars + "\n...[truncated]".length);
       totalTokens += Math.ceil(m.content.length / 4);
     }
+
     expect(totalTokens).toBeLessThanOrEqual(budget);
   });
 
   test("keeps the full payload when the model context window is large", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
+
+    // SAFETY: Mock provider with large context budget
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: streamMock,
       validate: vi.fn(async () => {}),
@@ -195,10 +206,11 @@ describe("Agent Summarization Endpoint", () => {
       maxContextTokens: 10_000_000,
       modelName: "fake-model",
       baseURL: "http://fake.local",
-    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+    } as never);
 
     const app = buildApp();
     const giant = "x".repeat(1_000_000);
+
     const res = await app.request(
       "/sessions/summarize",
       summarizeRequest({
@@ -217,26 +229,29 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     expect(sent.length).toBe(2);
     expect(sent[0].content).toBe(giant);
     expect(sent[1].content).toBe(giant);
   });
 
   test("falls back to fixed caps when the context window is unknown", async () => {
-    const streamMock = vi.fn(async function* () {
+    const streamMock = vi.fn(async function* (_messages: { content: string }[]) {
       yield { content: "Summary.", usage: { completionTokens: 5 } };
     });
+
+    // SAFETY: Mock provider with unknown context budget
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: streamMock,
       validate: vi.fn(async () => {}),
       cleanupReasoning: vi.fn(async () => {}),
       modelName: "fake-model",
       baseURL: "http://fake.local",
-    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+    } as never);
 
     const app = buildApp();
     const giant = "x".repeat(1_000_000);
+
     const res = await app.request(
       "/sessions/summarize",
       summarizeRequest({
@@ -254,21 +269,24 @@ describe("Agent Summarization Endpoint", () => {
     );
 
     expect(res.status).toBe(200);
-    const sent = streamMock.mock.calls[0][0] as unknown as { content: string }[];
+    const [sent] = streamMock.mock.calls[0];
     expect(sent.length).toBeLessThan(2);
+
     for (const m of sent) {
       expect(m.content.length).toBeLessThanOrEqual(100000 + "\n...[truncated]".length);
     }
   });
 
   test("returns 500 when the provider stream fails", async () => {
+    // SAFETY: Mock failing provider stream
     vi.mocked(ProviderFactory.fromConfig).mockReturnValue({
       stream: vi.fn(() => {
         throw new Error("upstream down");
       }),
-    } as unknown as Awaited<ReturnType<typeof ProviderFactory.fromConfig>>);
+    } as never);
 
     const app = buildApp();
+
     const res = await app.request(
       "/sessions/summarize",
       summarizeRequest({

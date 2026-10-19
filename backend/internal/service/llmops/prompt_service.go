@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/llmops"
@@ -16,12 +17,12 @@ import (
 type PromptService interface {
 	CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error)
 	ListTemplates(ctx context.Context, tenantID string) ([]llmopsmodel.PromptTemplate, error)
-	CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error)
-	GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error)
+	CreateNewVersion(ctx context.Context, tenantID, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error)
+	GetVersion(ctx context.Context, tenantID, templateID string, version int) (*llmopsmodel.PromptVersion, error)
 	GetActivePrompt(ctx context.Context, tenantID, templateName string) (*llmopsmodel.PromptVersion, error)
-	PromoteToProduction(ctx context.Context, templateID string, version int, actor string) error
-	RollbackToVersion(ctx context.Context, templateID string, targetVersion int, actor string) error
-	GetVersionHistory(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error)
+	PromoteToProduction(ctx context.Context, tenantID, templateID string, version int, actor string) error
+	RollbackToVersion(ctx context.Context, tenantID, templateID string, targetVersion int, actor string) error
+	GetVersionHistory(ctx context.Context, tenantID, templateID string) ([]llmopsmodel.PromptVersion, error)
 }
 
 type promptService struct {
@@ -38,17 +39,24 @@ func (s *promptService) ListTemplates(ctx context.Context, tenantID string) ([]l
 }
 
 func (s *promptService) CreatePromptTemplate(ctx context.Context, tenantID, name, desc string) (*llmopsmodel.PromptTemplate, error) {
-	if name == "" {
-		return nil, fmt.Errorf("template name cannot be empty")
+	if strings.TrimSpace(name) == "" {
+		return nil, llmopsmodel.ErrTemplateNameRequired
 	}
 	tmpl, err := s.repo.CreateTemplate(ctx, tenantID, name, desc)
+	if isUniqueViolation(err) {
+		return nil, llmopsmodel.ErrTemplateNameTaken
+	}
 	if err != nil {
 		return nil, err
 	}
 	return tmpl, nil
 }
 
-func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error) {
+func (s *promptService) CreateNewVersion(ctx context.Context, tenantID, templateID, prompt, actor string, tools, vars []string) (*llmopsmodel.PromptVersion, error) {
+	if _, err := s.authorizeTemplate(ctx, tenantID, templateID); err != nil {
+		return nil, err
+	}
+
 	const maxAttempts = 3
 	for attempt := 1; ; attempt++ {
 		versions, err := s.repo.ListVersions(ctx, templateID)
@@ -76,8 +84,7 @@ func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt
 			return created, nil
 		}
 
-		var pgErr *pgconn.PgError
-		if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		if !isUniqueViolation(err) {
 			return nil, fmt.Errorf("create version: %w", err)
 		}
 		if attempt == maxAttempts {
@@ -86,46 +93,78 @@ func (s *promptService) CreateNewVersion(ctx context.Context, templateID, prompt
 	}
 }
 
-func (s *promptService) GetVersion(ctx context.Context, templateID string, version int) (*llmopsmodel.PromptVersion, error) {
+func (s *promptService) GetVersion(ctx context.Context, tenantID, templateID string, version int) (*llmopsmodel.PromptVersion, error) {
+	if _, err := s.authorizeTemplate(ctx, tenantID, templateID); err != nil {
+		return nil, err
+	}
 	v, err := s.repo.GetVersion(ctx, templateID, version)
-	if err != nil || v == nil {
-		return nil, fmt.Errorf("prompt version not found: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("get prompt version: %w", err)
+	}
+	if v == nil {
+		return nil, llmopsmodel.ErrVersionNotFound
 	}
 	return v, nil
 }
 
 func (s *promptService) GetActivePrompt(ctx context.Context, tenantID, templateName string) (*llmopsmodel.PromptVersion, error) {
 	v, err := s.repo.GetActiveVersionByName(ctx, tenantID, templateName)
-	if err != nil || v == nil {
-		return nil, fmt.Errorf("active prompt version not found: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("get active prompt version: %w", err)
+	}
+	if v == nil {
+		return nil, llmopsmodel.ErrVersionNotFound
 	}
 	return v, nil
 }
 
-func (s *promptService) PromoteToProduction(ctx context.Context, templateID string, version int, actor string) error {
-	err := s.repo.PromoteVersion(ctx, templateID, version, actor)
+func (s *promptService) PromoteToProduction(ctx context.Context, tenantID, templateID string, version int, actor string) error {
+	tmpl, err := s.authorizeTemplate(ctx, tenantID, templateID)
 	if err != nil {
 		return err
 	}
-	s.invalidateActivePromptCache(ctx, templateID)
+	if err := s.repo.PromoteVersion(ctx, templateID, version, actor); err != nil {
+		return err
+	}
+	s.invalidateActivePromptCache(ctx, tmpl)
 	return nil
 }
 
-func (s *promptService) RollbackToVersion(ctx context.Context, templateID string, targetVersion int, actor string) error {
-	err := s.repo.RollbackVersion(ctx, templateID, targetVersion, actor)
+func (s *promptService) RollbackToVersion(ctx context.Context, tenantID, templateID string, targetVersion int, actor string) error {
+	tmpl, err := s.authorizeTemplate(ctx, tenantID, templateID)
 	if err != nil {
 		return err
 	}
-	s.invalidateActivePromptCache(ctx, templateID)
+	if err := s.repo.RollbackVersion(ctx, templateID, targetVersion, actor); err != nil {
+		return err
+	}
+	s.invalidateActivePromptCache(ctx, tmpl)
 	return nil
 }
 
-func (s *promptService) invalidateActivePromptCache(ctx context.Context, templateID string) {
-	if s.rdb == nil {
-		return
+func (s *promptService) GetVersionHistory(ctx context.Context, tenantID, templateID string) ([]llmopsmodel.PromptVersion, error) {
+	if _, err := s.authorizeTemplate(ctx, tenantID, templateID); err != nil {
+		return nil, err
 	}
+	return s.repo.ListVersions(ctx, templateID)
+}
+
+// authorizeTemplate loads the template and confirms tenantID owns it. A
+// template owned by another tenant is reported as not found so its existence
+// is not disclosed.
+func (s *promptService) authorizeTemplate(ctx context.Context, tenantID, templateID string) (*llmopsmodel.PromptTemplate, error) {
 	tmpl, err := s.repo.GetTemplateByID(ctx, templateID)
-	if err != nil || tmpl == nil {
+	if err != nil {
+		return nil, fmt.Errorf("get template: %w", err)
+	}
+	if tmpl == nil || tmpl.TenantID != tenantID {
+		return nil, llmopsmodel.ErrTemplateNotFound
+	}
+	return tmpl, nil
+}
+
+func (s *promptService) invalidateActivePromptCache(ctx context.Context, tmpl *llmopsmodel.PromptTemplate) {
+	if s.rdb == nil {
 		return
 	}
 	key := promptCacheKey(tmpl.TenantID, tmpl.Name)
@@ -138,6 +177,7 @@ func promptCacheKey(tenantID, name string) string {
 	return fmt.Sprintf("agent:prompts:%s:%s", tenantID, name)
 }
 
-func (s *promptService) GetVersionHistory(ctx context.Context, templateID string) ([]llmopsmodel.PromptVersion, error) {
-	return s.repo.ListVersions(ctx, templateID)
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

@@ -1,0 +1,23 @@
+# Lefthook Git Hooks configuration
+# Refer: https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    oxlint:
+      glob: "*.{js,jsx,ts,tsx,mjs,cjs}"
+      run: bunx oxlint -c ./oxlint.config.mjs {staged_files}
+
+    oxfmt:
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+
+    go-format:
+      glob: "*.go"
+      run: gofumpt -w {staged_files}
+      stage_fixed: true
+
+    golangci-lint:
+      glob: "*.go"
+      run: cd backend && golangci-lint run ./...

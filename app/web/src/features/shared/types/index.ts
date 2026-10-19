@@ -1,3 +1,5 @@
+import type { JsonObject } from "@/types/json";
+
 export interface AgentFeature {
   id: string;
   name: string;
@@ -9,5 +11,5 @@ export interface AgentSkill {
   name: string;
   description: string;
   preferredTools: string[];
-  modifiers: Record<string, unknown>;
+  modifiers: JsonObject;
 }

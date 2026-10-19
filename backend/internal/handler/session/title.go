@@ -17,6 +17,7 @@ import (
 	httpxconst "echo-backend/internal/constants/httpx"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
+	"echo-backend/internal/pkg/netguard"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -29,7 +30,9 @@ type GenerateTitleRequest struct {
 type GenerateTitleResponse struct {
 	// Title is the generated session title.
 	Title string `json:"title"`
-	// Summary is a one-sentence summary of the session conversation.
+	// Summary is a one-sentence summary of the session conversation. It is
+	// returned for display only and never persisted: context_summary holds the
+	// consolidation summary that is fed back to the LLM.
 	Summary string `json:"summary"`
 	// Cached is true when the response was served from the existing session metadata.
 	Cached bool `json:"cached"`
@@ -39,6 +42,8 @@ type GenerateTitleResponse struct {
 // generation — the full history would otherwise be stringified and shipped
 // to the provider on every call.
 const titleHistoryLimit = 40
+
+const titleRequestTimeout = 15 * time.Second
 
 // jsonObjectRe extracts the JSON object from an LLM reply that may wrap it
 // in prose.
@@ -67,21 +72,11 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	sessionID := c.Params("id")
-	if sessionID == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Session ID is required")
-	}
-
-	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	session, err := h.loadOwnedSession(c, userID)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get session", err.Error())
+		return err
 	}
-	if session == nil || session.Status == "deleted" {
-		return handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
-	}
-	if session.UserID != userID {
-		return handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
-	}
+	sessionID := session.ID
 
 	if session.Title != "" && session.Title != db.DefaultSessionTitle {
 		return handlerutil.RespondSuccess(c, GenerateTitleResponse{Title: session.Title, Summary: session.ContextSummary, Cached: true})
@@ -89,7 +84,7 @@ func (h *Handler) HandleGenerateTitle(c fiber.Ctx) error {
 
 	messages, err := h.SessionRepo.GetSessionMessages(c.Context(), sessionID, titleHistoryLimit, 0)
 	if err != nil {
-		return handlerutil.RespondErrorDetail(c, fiber.StatusInternalServerError, "Failed to get messages", err.Error())
+		return respondInternalError(c, "Failed to get messages", err)
 	}
 
 	if len(messages) == 0 {
@@ -155,7 +150,7 @@ Respond ONLY with a valid JSON object in this exact format:
 		httpReq.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+providerCfg.APIKey)
 	}
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := netguard.Client(h.Cfg.AllowPrivateProviderURLs, titleRequestTimeout)
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		slog.Error(msgconst.ErrTitleHTTPRequest, msgconst.ComponentKey, msgconst.ComponentAutoTitle, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
@@ -170,7 +165,7 @@ Respond ONLY with a valid JSON object in this exact format:
 			return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider returned error")
 		}
 		slog.Warn(msgconst.WarnTitleProviderNon200, msgconst.ComponentKey, msgconst.ComponentAutoTitle, msgconst.KeySessionID, sessionID, msgconst.KeyStatus, resp.StatusCode, msgconst.KeyBody, string(respBody))
-		return handlerutil.RespondError(c, fiber.StatusBadGateway, fmt.Sprintf("LLM provider returned error (%d): %s", resp.StatusCode, string(respBody)))
+		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM provider returned error")
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)
@@ -220,8 +215,8 @@ Respond ONLY with a valid JSON object in this exact format:
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "LLM returned empty title")
 	}
 
-	if err := h.SessionRepo.UpdateTitleAndSummary(c.Context(), sessionID, title, summary); err != nil {
-		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to save title")
+	if err := h.SessionRepo.UpdateTitle(c.Context(), sessionID, title); err != nil {
+		return respondInternalError(c, "Failed to save title", err)
 	}
 
 	slog.Info(msgconst.InfoTitleGenerated, msgconst.ComponentKey, msgconst.ComponentAutoTitle, msgconst.KeySessionID, sessionID, msgconst.KeyTitle, title)

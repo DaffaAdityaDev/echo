@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	authconst "echo-backend/internal/constants/auth"
-	domainconst "echo-backend/internal/constants/domain"
-	"echo-backend/internal/models/auth"
-	"echo-backend/internal/models/config"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
+
+	authconst "echo-backend/internal/constants/auth"
+	domainconst "echo-backend/internal/constants/domain"
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -31,6 +33,10 @@ const (
 	// which makes brute force infeasible and sha256 hashing (instead of a
 	// slow KDF) safe for storage.
 	refreshTokenBytes = 32
+	// dummyPasswordHash is a bcrypt hash (DefaultCost) of a throwaway value.
+	// Login compares against it when the email is unknown so the response
+	// time does not reveal whether an account exists.
+	dummyPasswordHash = "$2a$10$q90khvHULW62ioqzQMbG9ec0IrvhNFpt/fEPJJABs23pi6wDc7WDu"
 )
 
 // ErrInvalidCredentials is returned when the email does not exist or the
@@ -71,6 +77,7 @@ type UserRepository interface {
 	CreateRefreshToken(ctx context.Context, userID int, tokenHash, deviceLabel string, expiresAt time.Time) (int64, error)
 	FindRefreshTokenByHash(ctx context.Context, tokenHash string) (*authmodel.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, id int64) error
+	RotateRefreshToken(ctx context.Context, oldID int64, userID int, tokenHash, deviceLabel string, expiresAt time.Time) error
 	RevokeRefreshTokensByUser(ctx context.Context, userID int) error
 }
 
@@ -92,6 +99,7 @@ func (s *Service) Login(ctx context.Context, email, password, deviceLabel string
 		return nil, nil, err
 	}
 	if user == nil {
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(password)) // timing equalisation only; result is irrelevant
 		return nil, nil, ErrInvalidCredentials
 	}
 
@@ -145,32 +153,54 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*authmodel.User, err
 // persisting the refresh token's hash. It is the single entry point for
 // issuing credentials (login, register, refresh).
 func (s *Service) GenerateTokenPair(ctx context.Context, user *authmodel.User, deviceLabel string) (*TokenPair, error) {
-	access, err := generateToken(s.cfg, user, AccessTokenTTL)
+	pair, hash, err := mintTokenPair(s.cfg, user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
-	}
-
-	raw, hash, err := generateRefreshToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+		return nil, err
 	}
 
 	if _, err := s.userRepo.CreateRefreshToken(ctx, user.ID, hash, deviceLabel, time.Now().Add(RefreshTokenTTL)); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
-
-	return &TokenPair{
-		AccessToken:  access,
-		RefreshToken: raw,
-		ExpiresIn:    int64(AccessTokenTTL.Seconds()),
-	}, nil
+	return pair, nil
 }
 
 // RefreshAccessToken rotates a refresh token: the presented token is revoked
-// and a fresh pair is issued. Presenting a token that was already revoked
-// triggers reuse detection, which revokes every refresh token belonging to
-// the user (token family) before rejecting the request.
+// and a fresh pair is issued in one transaction, so a token can be exchanged
+// at most once even under concurrent requests. Presenting a token that was
+// already revoked triggers reuse detection, which revokes every refresh token
+// belonging to the user (token family) before rejecting the request.
 func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken, deviceLabel string) (*TokenPair, error) {
+	rt, err := s.findActiveRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, rt.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user for refresh: %w", err)
+	}
+	if user == nil {
+		return nil, ErrInvalidRefreshToken
+	}
+
+	pair, hash, err := mintTokenPair(s.cfg, user)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.userRepo.RotateRefreshToken(ctx, rt.ID, user.ID, hash, deviceLabel, time.Now().Add(RefreshTokenTTL))
+	if errors.Is(err, authmodel.ErrRefreshTokenNotActive) {
+		return nil, s.rejectReusedToken(ctx, rt.UserID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to rotate refresh token: %w", err)
+	}
+	return pair, nil
+}
+
+// findActiveRefreshToken resolves a raw refresh token to its stored record,
+// rejecting unknown, revoked (with family revocation) and expired tokens.
+func (s *Service) findActiveRefreshToken(ctx context.Context, refreshToken string) (*authmodel.RefreshToken, error) {
 	if refreshToken == "" {
 		return nil, ErrInvalidRefreshToken
 	}
@@ -182,29 +212,23 @@ func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken, deviceLa
 	if rt == nil {
 		return nil, ErrInvalidRefreshToken
 	}
-
 	if rt.RevokedAt != nil {
-		_ = s.userRepo.RevokeRefreshTokensByUser(ctx, rt.UserID)
-		return nil, ErrRefreshTokenRevoked
+		return nil, s.rejectReusedToken(ctx, rt.UserID)
 	}
-
 	if time.Now().After(rt.ExpiresAt) {
 		return nil, ErrInvalidRefreshToken
 	}
+	return rt, nil
+}
 
-	if err := s.userRepo.RevokeRefreshToken(ctx, rt.ID); err != nil {
-		return nil, fmt.Errorf("failed to rotate refresh token: %w", err)
+// rejectReusedToken revokes the user's whole token family and returns
+// ErrRefreshTokenRevoked. A failed cascade is logged but does not change the
+// rejection, since the presented token is refused either way.
+func (s *Service) rejectReusedToken(ctx context.Context, userID int) error {
+	if err := s.userRepo.RevokeRefreshTokensByUser(ctx, userID); err != nil {
+		slog.Warn("failed to cascade revoke tokens on revoked token reuse", "user_id", userID, "err", err)
 	}
-
-	user, err := s.userRepo.GetUserByID(ctx, rt.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user for refresh: %w", err)
-	}
-	if user == nil {
-		return nil, ErrInvalidRefreshToken
-	}
-
-	return s.GenerateTokenPair(ctx, user, deviceLabel)
+	return ErrRefreshTokenRevoked
 }
 
 // RevokeRefreshToken invalidates a single refresh token on logout. An empty
@@ -235,6 +259,26 @@ func generateToken(cfg *cfgmodel.Config, user *authmodel.User, ttl time.Duration
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(cfg.JWTSecret))
+}
+
+// mintTokenPair creates an access token and a raw refresh token for user,
+// returning the pair plus the refresh token hash the caller must persist.
+func mintTokenPair(cfg *cfgmodel.Config, user *authmodel.User) (*TokenPair, string, error) {
+	access, err := generateToken(cfg, user, AccessTokenTTL)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	raw, hash, err := generateRefreshToken()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	return &TokenPair{
+		AccessToken:  access,
+		RefreshToken: raw,
+		ExpiresIn:    int64(AccessTokenTTL.Seconds()),
+	}, hash, nil
 }
 
 func generateRefreshToken() (raw, hash string, err error) {

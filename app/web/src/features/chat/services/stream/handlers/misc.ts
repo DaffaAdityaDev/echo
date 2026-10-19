@@ -14,6 +14,7 @@ export function handleMetadata(
     objective: data.objective,
     maxIterations: data.maxIterations,
   };
+
   lastMessage.meta = meta;
   store.setMissionMeta(meta);
 }
@@ -40,6 +41,7 @@ export function handleSystemNotice(
     message: data.payload.message,
     timestamp: Date.now(),
   };
+
   store.appendSystemNotice(notice);
 }
 
@@ -67,6 +69,7 @@ export function handleDefault(lastMessage: Message, data: StreamPacket, _store: 
 
   if (reasoning) {
     const lastStep = lastMessage.steps[lastMessage.steps.length - 1];
+
     if (lastStep?.type === PACKET_TYPES.REASONING) {
       lastMessage.steps[lastMessage.steps.length - 1] = {
         ...lastStep,
@@ -76,6 +79,7 @@ export function handleDefault(lastMessage: Message, data: StreamPacket, _store: 
       lastMessage.steps.push({ type: PACKET_TYPES.REASONING, content: reasoning });
     }
   }
+
   if (content) {
     lastMessage.content = (lastMessage.content || "") + content;
   }
@@ -87,15 +91,20 @@ interface RawStreamDelta {
   reasoning_content?: string;
 }
 
-function isRawDelta(value: unknown): value is RawStreamDelta {
-  if (typeof value !== "object" || value === null) return false;
-  const rec = value as Record<string, unknown>;
-  if (typeof rec.content === "string" || typeof rec.reasoning_content === "string") return true;
-  if (!Array.isArray(rec.choices)) return false;
-  const choice = rec.choices[0];
-  if (typeof choice !== "object" || choice === null) return false;
-  const delta = (choice as Record<string, unknown>).delta;
-  if (typeof delta !== "object" || delta === null) return false;
-  const deltaRec = delta as Record<string, unknown>;
-  return typeof deltaRec.content === "string" || typeof deltaRec.reasoning_content === "string";
+function isRawDelta(packet: StreamPacket): packet is StreamPacket & RawStreamDelta {
+  // SAFETY: StreamPacket in legacy SSE streams may embed raw choices or delta fields
+  const candidate = packet as StreamPacket & RawStreamDelta;
+
+  if (typeof candidate.content === "string" || typeof candidate.reasoning_content === "string") {
+    return true;
+  }
+
+  if (!Array.isArray(candidate.choices) || candidate.choices.length === 0) {
+    return false;
+  }
+
+  const choice = candidate.choices[0];
+  const delta = choice?.delta;
+
+  return typeof delta?.content === "string" || typeof delta?.reasoning_content === "string";
 }

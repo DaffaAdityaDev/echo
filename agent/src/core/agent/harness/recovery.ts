@@ -1,6 +1,15 @@
-import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
-import type { AgentState, AgentStrategy, LLMProvider, ToolDefinition } from "../../../shared/types";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { calculateUsageCost } from "../../../infrastructure/providers/utils";
+import type {
+  AgentState,
+  AgentStrategy,
+  JsonObject,
+  LLMProvider,
+  ProviderEvent,
+  ToolDefinition,
+} from "../../../shared/types";
 import { getHistoryTokens, selectiveTruncateToolResults } from "../../../shared/utils/harness";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 import type { BehaviorPrompt } from "../prompts";
 import { StrategyFactory } from "../strategies/factory";
@@ -10,7 +19,7 @@ import type { HarnessEventEmitter } from "./events";
 import { HARNESS_PROMPTS } from "./prompts";
 import { isFakeToolTrace } from "./trace-guard";
 import type { HarnessEvent } from "./types";
-import { hasProtocolMarkup, parseXmlToolCall } from "./xml_tool_parser";
+import { hasProtocolMarkup, parseXmlToolCall } from "./xml-tool-parser";
 
 export interface StrategyRef {
   current: AgentStrategy;
@@ -22,30 +31,62 @@ export interface RecoveryHandlerDeps {
   getCompressionEnabled: () => boolean;
   behaviorPrompt: BehaviorPrompt | null;
   emitter: HarnessEventEmitter;
+  addTotalCostUsd: (stepCost: number) => void;
+  getSignal: () => AbortSignal | undefined;
+}
+
+export interface DegradationResult {
+  systemPrompt: string;
+  toolMap: Map<string, ToolDefinition>;
+  lastDegradationLevel: DegradationLevel;
+}
+
+export interface AutoRecoveryResult {
+  isComplete: boolean;
+  retryWithTool: { name: string; args: JsonObject } | null;
 }
 
 export class RecoveryHandler {
   constructor(private readonly deps: RecoveryHandlerDeps) {}
+
+  /** Drains an auxiliary LLM stream, returning its text and charging its usage to the mission budget. */
+  private async collectContent(eventStream: AsyncIterable<ProviderEvent>): Promise<string> {
+    let content = "";
+
+    for await (const ev of eventStream) {
+      if (ev.content) content += ev.content;
+
+      if (ev.usage) {
+        const { stepCost } = calculateUsageCost(
+          this.deps.provider.modelName ?? "unknown",
+          this.deps.provider.baseURL ?? "",
+          ev.usage.promptTokens,
+          ev.usage.completionTokens,
+          ev.usage.cachedTokens ?? 0,
+        );
+        this.deps.addTotalCostUsd(stepCost);
+      }
+    }
+
+    return content;
+  }
 
   async checkStuckState(objective: string, assistantContent: string): Promise<boolean> {
     try {
       const systemPrompt = HARNESS_PROMPTS.STUCK_CLASSIFIER_SYSTEM;
       const userPrompt = HARNESS_PROMPTS.STUCK_CLASSIFIER_USER(objective, assistantContent);
 
-      const checkStream = this.deps.provider.stream([new HumanMessage(userPrompt)], [], systemPrompt);
-
-      let result = "";
-      for await (const ev of checkStream) {
-        if (ev.content) {
-          result += ev.content;
-        }
-      }
+      const result = await this.collectContent(
+        this.deps.provider.stream([new HumanMessage(userPrompt)], [], systemPrompt, this.deps.getSignal()),
+      );
 
       const parsed = result.trim().toUpperCase();
       logger.info(`[NLAH RECOVER] Dynamic stuck check result: ${parsed}`);
+
       return parsed.includes("STUCK");
     } catch (err) {
-      logger.error("Failed to perform dynamic stuck check", err);
+      logger.error("Failed to perform dynamic stuck check", toLogCause(err));
+
       return false;
     }
   }
@@ -56,8 +97,9 @@ export class RecoveryHandler {
     lastDegradationLevel: DegradationLevel,
     iteration: number,
     onPacket: (p: HarnessEvent) => Promise<void>,
-  ): Promise<{ systemPrompt: string; toolMap: Map<string, ToolDefinition>; lastDegradationLevel: DegradationLevel }> {
+  ): Promise<DegradationResult> {
     const currentLevel = degradation.getLevel();
+
     if (currentLevel === lastDegradationLevel) {
       return { systemPrompt: "", toolMap: new Map(), lastDegradationLevel };
     }
@@ -95,9 +137,11 @@ export class RecoveryHandler {
     const maxContextTokens = this.deps.provider.maxContextTokens;
     const currentTokens = getHistoryTokens(state.messages);
     const tokenUsageRatio = currentTokens / maxContextTokens;
+
     if (tokenUsageRatio <= HARNESS_CONFIG.COMPACTION_RATIO) return;
 
     logger.info(`Compacting conversation context due to high token ratio (${(tokenUsageRatio * 100).toFixed(1)}%)`);
+
     try {
       const keepCount = HARNESS_CONFIG.KEEP_LAST_TURNS * 2;
       const totalMsgs = state.messages.length;
@@ -108,21 +152,24 @@ export class RecoveryHandler {
       const droppedLastTurns = selectiveTruncateToolResults(lastTurns, HARNESS_CONFIG.DROP_TOOL_IF_LONGER);
 
       let summaryText = "";
+
       if (msgsToCompact.length > 0) {
         const compactEventStream = this.deps.provider.stream(
           [anchor, ...msgsToCompact, new HumanMessage(HARNESS_PROMPTS.COMPACTION_PROMPT)],
           [],
           HARNESS_PROMPTS.COMPACTION_SYSTEM,
+          this.deps.getSignal(),
         );
-        for await (const ev of compactEventStream) {
-          if (ev.content) summaryText += ev.content;
-        }
+
+        summaryText = await this.collectContent(compactEventStream);
+
         await this.deps.provider.cleanupReasoning?.();
       }
 
       const summaryMsg = summaryText
         ? [new AIMessage(HARNESS_PROMPTS.COMPACTION_SUMMARY_WRAPPER(iteration, summaryText))]
         : [];
+
       state.messages = [anchor, ...summaryMsg, ...droppedLastTurns];
 
       logger.info("Context compaction successfully applied.");
@@ -132,9 +179,9 @@ export class RecoveryHandler {
         HARNESS_PROMPTS.LOG_COMPACTED(getHistoryTokens(state.messages)),
       );
     } catch (err: unknown) {
-      const compactionError = err as { message?: string };
-      logger.langfuse("ERROR", `Context compaction failed: ${compactionError.message}`, {
-        error: compactionError.message,
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.langfuse("ERROR", `Context compaction failed: ${errorMessage}`, {
+        error: errorMessage,
       });
     }
   }
@@ -145,30 +192,29 @@ export class RecoveryHandler {
     iteration: number,
     state: AgentState,
     toolMap: Map<string, ToolDefinition>,
-  ): Promise<{ isComplete: boolean; retryWithTool: { name: string; args: Record<string, unknown> } | null }> {
+  ): Promise<AutoRecoveryResult> {
     const parsedTool = parseXmlToolCall(assistantContent, new Set(toolMap.keys()));
+
     if (parsedTool) {
       logger.warn(`[NLAH RECOVER] Soft Recovery triggered. Parsing raw XML tool syntax.`);
       logger.info(`[NLAH RECOVER] Successfully extracted tool: ${parsedTool.name}. Retrying loop.`);
-      state.messages.push(
-        new AIMessage({
-          content: assistantContent,
-          additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
-        }),
-      );
-      state.messages.push(
-        new ToolMessage({ tool_call_id: `fallback_${Date.now()}`, content: HARNESS_PROMPTS.LOG_RE_ROUTE }),
-      );
+
+      // The tool executor records the assistant turn and its paired ToolMessage;
+      // pushing a ToolMessage here would orphan it (no matching tool_call id).
       return { isComplete: false, retryWithTool: parsedTool };
     }
 
     if (hasProtocolMarkup(assistantContent, new Set(toolMap.keys()))) {
       logger.error(`[NLAH RECOVER] XML detected but unparseable. Escalating to Tier 2.`);
       state.messages.push(new HumanMessage(HARNESS_PROMPTS.RECOVERY_PROMPT));
+
       return { isComplete: false, retryWithTool: null };
     }
 
-    const looksLikeThinking = await this.checkStuckState(state.objective, assistantContent);
+    // A stuck turn can only be recovered by calling a tool, so the classifier
+    // (an extra LLM call) is skipped when no tool is callable.
+    const looksLikeThinking = toolMap.size > 0 && (await this.checkStuckState(state.objective, assistantContent));
+
     if (looksLikeThinking && iteration < HARNESS_CONFIG.MAX_ITERATIONS) {
       logger.warn(`[NLAH RECOVER] Tier 2 Feedback Recovery triggered. Agent halted in thinking state.`);
       state.messages.push(
@@ -178,6 +224,7 @@ export class RecoveryHandler {
         }),
       );
       state.messages.push(new HumanMessage(HARNESS_PROMPTS.FEEDBACK_PROMPT));
+
       return { isComplete: false, retryWithTool: null };
     }
 
@@ -190,6 +237,7 @@ export class RecoveryHandler {
         }),
       );
       state.messages.push(new HumanMessage(HARNESS_PROMPTS.FAKE_TRACE_FEEDBACK));
+
       return { isComplete: false, retryWithTool: null };
     }
 
@@ -199,6 +247,7 @@ export class RecoveryHandler {
         additional_kwargs: reasoningContent ? { reasoning_content: reasoningContent } : undefined,
       }),
     );
+
     return { isComplete: true, retryWithTool: null };
   }
 }

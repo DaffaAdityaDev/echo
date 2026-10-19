@@ -34,6 +34,7 @@ describe("getHistoryTokens", () => {
       new AIMessage({ content: "abcde" }),
       new HumanMessage({ content: "abcdefgh" }),
     ];
+
     expect(getHistoryTokens(messages)).toBe(1 + 2 + 2);
   });
 

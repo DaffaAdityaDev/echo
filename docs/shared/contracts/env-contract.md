@@ -28,7 +28,7 @@ compatibility and eliminates configuration drift.
 | agent/.env                            | Agent env                                   |
 | agent/src/config/env.schema.ts        | Zod env validation                          |
 | agent/src/config/env.constants.ts     | Defaults and enum values                    |
-| frontend/web/.env.local               | Frontend env                                |
+| app/web/.env.local               | Frontend env                                |
 +---------------------------------------+---------------------------------------------+
 
 ## Shared Prefixes
@@ -178,7 +178,6 @@ Provider base URLs are now user-level defaults in service/aimodel/service.go / s
 
 ```env
 PORT=3001
-GRPC_PORT=50051              # RESERVED — no gRPC code in the agent; kept for schema compatibility
 STATE_BACKEND=memory
 INTERNAL_AUTH_TOKEN=default-internal-token-secret
 SERVICE_JWT_SECRET=replace-this-with-a-different-secret
@@ -208,7 +207,6 @@ REDIS_URL=redis://localhost:6379
 
 ```typescript
 PORT:                    z.string().default("3001")
-GRPC_PORT:               z.string().default("50051")   // RESERVED — no gRPC code
 LLM_MODEL_API_URL:       z.string().default("http://127.0.0.1:1234")  // Read by GET /api/v1/models proxy
 STATE_BACKEND:           z.enum(["memory", "backend"]).default("memory")
 NODE_ENV:                z.enum(["development","production","test"]).default("development")
@@ -360,7 +358,7 @@ for production.
 | backend/internal/constants/config/        | 1-20  | Default values                       |
 |   defaults.go                             |       |                                      |
 | backend/.env.example                      | 1-29  | All backend env vars                 |
-| backend/pkg/crypto/crypto.go              | 14-86 | AES-256-GCM encrypt/decrypt (Encrypt |
+| backend/internal/pkg/crypto/crypto.go     | 14-86 | AES-256-GCM encrypt/decrypt (Encrypt |
 |                                           |       | at 14, Decrypt at 41, MaskAPIKey 78) |
 +-------------------------------------------+-------+--------------------------------------+
 

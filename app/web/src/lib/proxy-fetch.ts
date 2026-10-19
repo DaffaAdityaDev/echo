@@ -11,17 +11,21 @@ export async function proxyFetch(url: string, init?: RequestInit): Promise<NextR
 
     if (contentType?.includes("application/json")) {
       const data = await res.json();
+
       return NextResponse.json(data, { status: res.status });
     }
 
     const text = await res.text();
+
     if (!text) {
       return NextResponse.json({ error: "Empty response from upstream" }, { status: res.status });
     }
+
     return NextResponse.json({ error: text }, { status: res.status });
   } catch (err: unknown) {
     console.error(`[proxyFetch] Error fetching ${url}:`, err);
     const message = extractErrorMessage(err, "Failed to proxy request");
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

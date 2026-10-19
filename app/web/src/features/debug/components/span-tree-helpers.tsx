@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Span } from "@/features/debug/stores/traceStore";
+import type { JsonValue } from "@/types/json";
 
 export interface TreeSpanNode {
   span: Span;
@@ -42,8 +43,10 @@ export function buildSpanTree(spans: Span[]): TreeSpanNode[] {
 
   for (const span of uniqueSpans) {
     const node = nodeMap.get(span.id);
+
     if (!node) continue;
     const parentNode = span.parentId ? nodeMap.get(span.parentId) : undefined;
+
     if (parentNode) {
       parentNode.children.push(node);
     } else {
@@ -54,6 +57,7 @@ export function buildSpanTree(spans: Span[]): TreeSpanNode[] {
   const computeDepth = (node: TreeSpanNode, depth: number) => {
     node.depth = depth;
     node.children.sort((a, b) => a.span.startTime - b.span.startTime);
+
     for (const child of node.children) {
       computeDepth(child, depth + 1);
     }
@@ -64,6 +68,7 @@ export function buildSpanTree(spans: Span[]): TreeSpanNode[] {
   }
 
   roots.sort((a, b) => a.span.startTime - b.span.startTime);
+
   return roots;
 }
 
@@ -73,7 +78,9 @@ export function getVisibleNodes(spanTree: TreeSpanNode[], collapsedSpans: Set<st
   const traverse = (node: TreeSpanNode) => {
     const hasChildren = node.children.length > 0;
     list.push({ node, hasChildren });
+
     if (collapsedSpans.has(node.span.id)) return;
+
     for (const child of node.children) {
       traverse(child);
     }
@@ -88,92 +95,108 @@ export function getVisibleNodes(spanTree: TreeSpanNode[], collapsedSpans: Set<st
 
 export function toggleSpanCollapse(spanId: string, collapsed: Set<string>): Set<string> {
   const next = new Set(collapsed);
+
   if (next.has(spanId)) {
     next.delete(spanId);
   } else {
     next.add(spanId);
   }
+
   return next;
 }
 
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
+
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
 export function formatCost(cost: number): string {
   if (cost === 0) return "$0.00";
+
   if (cost < 0.001) return `$${cost.toFixed(5)}`;
+
   return `$${cost.toFixed(4)}`;
 }
 
-export function formatValue(val: unknown): string {
+function isJsonString(val: JsonValue | undefined): val is string {
+  return typeof val === "string";
+}
+
+export function formatValue(val: JsonValue | undefined): string {
   if (val === null || val === undefined) return "—";
-  if (typeof val === "string") return val;
+
+  if (isJsonString(val)) return val;
+
   return JSON.stringify(val, null, 2);
 }
 
 export function getSpanIcon(span: Span): ReactNode {
   if (span.name === "Agent Response") {
-    return <Bot className="h-3.5 w-3.5" />;
+    return <Bot className="h-3.5 w-3.5" aria-hidden="true" />;
   }
+
   if (span.name === "Mission Initiated") {
-    return <Play className="h-3.5 w-3.5" />;
+    return <Play className="h-3.5 w-3.5" aria-hidden="true" />;
   }
+
   if (span.name.startsWith("State Transition")) {
-    return <RefreshCw className="h-3.5 w-3.5" />;
+    return <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 
   switch (span.type) {
     case "thought":
-      return <Brain className="h-3.5 w-3.5" />;
+      return <Brain className="h-3.5 w-3.5" aria-hidden="true" />;
     case "tool":
-      return <Wrench className="h-3.5 w-3.5" />;
+      return <Wrench className="h-3.5 w-3.5" aria-hidden="true" />;
     case "subagent":
-      return <Users className="h-3.5 w-3.5" />;
+      return <Users className="h-3.5 w-3.5" aria-hidden="true" />;
     case "file_operation":
-      return <FileCode className="h-3.5 w-3.5" />;
+      return <FileCode className="h-3.5 w-3.5" aria-hidden="true" />;
     case "swarm_status":
-      return <Network className="h-3.5 w-3.5" />;
+      return <Network className="h-3.5 w-3.5" aria-hidden="true" />;
     case "todo":
-      return <CheckSquare className="h-3.5 w-3.5" />;
+      return <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />;
     case "error":
-      return <AlertCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />;
+      return <AlertCircle className="h-3.5 w-3.5 text-danger" aria-hidden="true" />;
     case "info":
-      return <Info className="h-3.5 w-3.5" />;
+      return <Info className="h-3.5 w-3.5" aria-hidden="true" />;
     default:
-      return <Terminal className="h-3.5 w-3.5" />;
+      return <Terminal className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 }
 
 export function getSpanColorClass(span: Span): string {
-  if (span.status === "failed") return "bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400";
-  if (span.status === "skipped")
-    return "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
-  if (span.status === "streaming") return "bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400";
+  if (span.status === "failed") return "bg-danger/10 text-danger border-danger/20";
+
+  if (span.status === "skipped") return "bg-surface-hover text-muted border-border";
+
+  if (span.status === "streaming") return "bg-success/10 text-success border-success/20";
 
   if (span.name === "Agent Response") {
-    return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
+    return "bg-accent/10 text-accent border-accent/20";
   }
+
   if (span.name === "Mission Initiated") {
-    return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
+    return "bg-accent/10 text-accent border-accent/20";
   }
+
   if (span.name.startsWith("State Transition")) {
-    return "bg-zinc-100/60 text-zinc-500 border-zinc-200/50 dark:bg-zinc-900/60 dark:text-zinc-400 dark:border-zinc-800/50";
+    return "bg-surface-hover text-muted border-border";
   }
 
   switch (span.type) {
     case "thought":
-      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400";
+      return "bg-success/10 text-success border-success/20";
     case "tool":
-      return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "subagent":
-      return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "file_operation":
-      return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "swarm_status":
-      return "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400";
+      return "bg-warning/10 text-warning border-warning/20";
     default:
-      return "bg-zinc-100 text-zinc-700 border-zinc-200/80 dark:bg-zinc-900/50 dark:text-zinc-300 dark:border-zinc-800/80";
+      return "bg-surface-hover text-foreground border-border";
   }
 }

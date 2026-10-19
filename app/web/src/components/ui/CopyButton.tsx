@@ -30,13 +30,11 @@ export function CopyButton({ text, label, copiedLabel = "Copied", className, ico
       title={title}
     >
       {copied ? (
-        <Check className={cn(iconCls, "text-emerald-600 dark:text-emerald-400")} />
+        <Check className={cn(iconCls, "text-success")} aria-hidden="true" />
       ) : (
-        <Copy className={iconCls} />
+        <Copy className={iconCls} aria-hidden="true" />
       )}
-      <span className={copied ? "text-emerald-600 dark:text-emerald-400" : undefined}>
-        {copied ? copiedLabel : label}
-      </span>
+      <span className={copied ? "text-success" : undefined}>{copied ? copiedLabel : label}</span>
     </button>
   );
 }

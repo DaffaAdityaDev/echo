@@ -5,10 +5,10 @@ export interface User {
   role: string;
 }
 
-export interface LoginCredentials {
+export type LoginCredentials = {
   email: string;
   password: string;
-}
+};
 
 export interface LoginResponse {
   user: User;

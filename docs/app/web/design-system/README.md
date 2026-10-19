@@ -142,7 +142,7 @@ $gb-border-dotted: 1px dotted #cbd5e1;
 
 | File                          | Description                              |
 |-------------------------------|------------------------------------------|
-| design-system/tokens.md       | SCSS manifest + W3C JSON tokens          |
+| design-system/tokens.md       | Implemented semantic tokens (light/dark) |
 | design-system/components.md   | UI blueprint component specifications    |
 | design-system/tailwind.md     | Tailwind CSS config integration          |
 

@@ -1,12 +1,13 @@
 package middleware
 
 import (
-	authconst "echo-backend/internal/constants/auth"
-	"echo-backend/internal/models/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	authconst "echo-backend/internal/constants/auth"
+	"echo-backend/internal/models/config"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -51,6 +52,31 @@ func TestInternalAuthRequired(t *testing.T) {
 				return req
 			},
 			wantStatus: fiber.StatusForbidden,
+		},
+		{
+			name: "service JWT without exp returns 401",
+			setupReq: func() *http.Request {
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "agent"})
+				tokenStr, _ := token.SignedString([]byte(secret))
+				req := httptest.NewRequest(http.MethodGet, "/internal/test", nil)
+				req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+tokenStr)
+				return req
+			},
+			wantStatus: fiber.StatusUnauthorized,
+		},
+		{
+			name: "expired service JWT returns 401",
+			setupReq: func() *http.Request {
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+					"sub": "agent",
+					"exp": time.Now().Add(-time.Minute).Unix(),
+				})
+				tokenStr, _ := token.SignedString([]byte(secret))
+				req := httptest.NewRequest(http.MethodGet, "/internal/test", nil)
+				req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+tokenStr)
+				return req
+			},
+			wantStatus: fiber.StatusUnauthorized,
 		},
 		{
 			name: "wrong signing secret returns 401",

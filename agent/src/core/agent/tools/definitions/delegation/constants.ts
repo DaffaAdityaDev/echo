@@ -1,3 +1,5 @@
+import type { JsonValue } from "../../../../../shared/types";
+
 export const DELEGATION_CONFIG = {
   NAME: "delegate_task",
   DESCRIPTION:
@@ -30,7 +32,7 @@ export const DELEGATION_DEFAULTS = {
   LOG_INFO_START: (agentName: string) => `Delegating task to sub-agent [${agentName}]`,
   LOG_ERROR_FAIL: (agentName: string) => `Sub-agent delegation to [${agentName}] failed`,
   LOG_REASONING_PREFIX: "[Reasoning] ",
-  LOG_ACTION_PREFIX: (toolName: string, toolInput: unknown) =>
+  LOG_ACTION_PREFIX: (toolName: string, toolInput?: JsonValue) =>
     `[Action] Called tool ${toolName} with input ${JSON.stringify(toolInput)}`,
   LOG_OBSERVATION_PREFIX: (content: string) => `[Observation] Tool returned: ${content}`,
   SUMMARY_SUCCESS: (agentName: string, output: string) =>

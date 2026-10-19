@@ -1,8 +1,8 @@
 "use client";
 
-import { CodeBlock } from "@/components/docs/CodeBlock";
-import { EndpointDetail } from "@/components/docs/EndpointDetail";
-import { useSpec } from "@/components/docs/OpenApiSpecProvider";
+import { CodeBlock } from "@/components/CodeBlock";
+import { EndpointDetail } from "@/features/docs/components/EndpointDetail";
+import { useSpec } from "@/features/docs/components/OpenApiSpecProvider";
 
 export default function SessionsGuide() {
   const { spec } = useSpec();
@@ -23,7 +23,7 @@ export default function SessionsGuide() {
           Basic Usage
         </h2>
         <p className="text-xs text-muted leading-relaxed font-mono">
-          Create a session, then pass the <code className="text-blue-600 font-bold">sessionId</code> in subsequent chat
+          Create a session, then pass the <code className="text-accent font-bold">sessionId</code> in subsequent chat
           requests to maintain conversation continuity:
         </p>
         <CodeBlock
@@ -58,18 +58,18 @@ print(messages["messages"])`}
           Session Lifecycle
         </h2>
         <div className="space-y-3 text-xs text-muted leading-relaxed font-mono">
-          <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
-            <div className="w-7 h-7 rounded-xs bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-blue-600 font-mono">1</span>
+          <div className="flex gap-4 p-4 border border-border bg-elevated rounded-xs shadow-xs crosshair-container">
+            <div className="w-7 h-7 rounded-xs bg-accent-soft border border-accent/30 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-accent font-mono">1</span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Create</h3>
               <p className="text-xs text-muted">POST /sessions — Creates a new session with an optional title.</p>
             </div>
           </div>
-          <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
-            <div className="w-7 h-7 rounded-xs bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-emerald-600 font-mono">2</span>
+          <div className="flex gap-4 p-4 border border-border bg-elevated rounded-xs shadow-xs crosshair-container">
+            <div className="w-7 h-7 rounded-xs bg-success/10 border border-success/30 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-success font-mono">2</span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Use</h3>
@@ -78,18 +78,18 @@ print(messages["messages"])`}
               </p>
             </div>
           </div>
-          <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
-            <div className="w-7 h-7 rounded-xs bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-amber-600 font-mono">3</span>
+          <div className="flex gap-4 p-4 border border-border bg-elevated rounded-xs shadow-xs crosshair-container">
+            <div className="w-7 h-7 rounded-xs bg-warning/10 border border-warning/30 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-warning font-mono">3</span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Update</h3>
               <p className="text-xs text-muted">PATCH /sessions/{"{id}"} — Update title or context summary.</p>
             </div>
           </div>
-          <div className="flex gap-4 p-4 border border-border bg-white rounded-xs shadow-xs crosshair-container">
-            <div className="w-7 h-7 rounded-xs bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-rose-600 font-mono">4</span>
+          <div className="flex gap-4 p-4 border border-border bg-elevated rounded-xs shadow-xs crosshair-container">
+            <div className="w-7 h-7 rounded-xs bg-danger/10 border border-danger/30 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-danger font-mono">4</span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-foreground mb-1 uppercase tracking-tight">Delete</h3>

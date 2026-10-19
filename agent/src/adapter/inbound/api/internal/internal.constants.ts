@@ -4,6 +4,7 @@ export const SUMMARIZE_LOG_PREFIX = "[SUMMARIZE]";
 // message beyond the char limit and cap the total payload so it can never
 // exceed the provider context window, no matter what the caller sends.
 export const SUMMARIZE_MAX_MSG_CHARS = 100000;
+
 export const SUMMARIZE_MAX_TOTAL_TOKENS = 50000;
 
 // Fraction of the model context window used as the summarize payload budget

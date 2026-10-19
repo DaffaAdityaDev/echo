@@ -14,6 +14,7 @@ const AGENT_STATES: readonly AgentState[] = [
 ];
 
 function isAgentState(value: unknown): value is AgentState {
+  // SAFETY: Checking if value string is present in valid AGENT_STATES array
   return typeof value === "string" && (AGENT_STATES as readonly string[]).includes(value);
 }
 
@@ -27,8 +28,10 @@ export function handleReasoning(
   _store: StreamStore,
 ): void {
   const reasoningText = data.content || "";
+
   if (reasoningText) {
     const lastStep = lastMessage.steps[lastMessage.steps.length - 1];
+
     if (lastStep?.type === PACKET_TYPES.REASONING) {
       lastMessage.steps[lastMessage.steps.length - 1] = {
         ...lastStep,
@@ -84,7 +87,7 @@ export function handleSwarmStatus(
   if (data.swarm) {
     store.setAgentProgress((prev) => {
       const currentSwarm = prev?.swarm || {
-        activeUrls: {} as NonNullable<NonNullable<typeof prev>["swarm"]>["activeUrls"],
+        activeUrls: {},
         scrapedCount: 0,
         failedCount: 0,
         factsCount: 0,
@@ -93,8 +96,10 @@ export function handleSwarmStatus(
       };
 
       const updatedActiveUrls = { ...currentSwarm.activeUrls };
+
       if (data.swarm?.url) {
         const existing = updatedActiveUrls[data.swarm.url];
+
         updatedActiveUrls[data.swarm.url] = {
           url: data.swarm.url,
           status: data.swarm.status,
@@ -113,6 +118,7 @@ export function handleSwarmStatus(
         if (currentSwarm.activeUrls[data.swarm.url]?.status !== "critic_passed") {
           newScraped += 1;
         }
+
         if (data.swarm.factsCount) {
           newFacts += data.swarm.factsCount;
         }
@@ -123,6 +129,7 @@ export function handleSwarmStatus(
       }
 
       const newDiscoveredUrls = [...(currentSwarm.discoveredUrls || [])];
+
       if (data.swarm?.url && !newDiscoveredUrls.includes(data.swarm.url)) {
         newDiscoveredUrls.push(data.swarm.url);
       }
@@ -145,6 +152,7 @@ export function handleSwarmStatus(
       };
     });
   }
+
   pushStep(lastMessage, { type: PACKET_TYPES.SWARM_STATUS, swarm: data.swarm });
 }
 
@@ -162,6 +170,7 @@ export function handleStateChange(
   store: StreamStore,
 ): void {
   const nextState = data.to || data.agentStatus?.state;
+
   if (isAgentState(nextState)) {
     store.setAgentState(nextState);
     pushStep(lastMessage, { type: "state_change", content: `State changed to ${nextState}` });

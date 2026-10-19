@@ -3,6 +3,7 @@ export const SEARCH_CONFIG = {
   DESCRIPTION: "Web search engine for real-time weather, prices, and current events.",
   KEYWORDS: ["search", "web", "google", "query", "weather", "prices", "current events"],
   MAX_RESULTS: 5,
+  TIMEOUT_MS: 15000,
   DUCKDUCKGO_URL: (encodedQuery: string) => `https://html.duckduckgo.com/html/?q=${encodedQuery}`,
 } as const;
 

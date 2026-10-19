@@ -22,3 +22,20 @@ const (
 	// DefaultUserTier is the least-privilege tier assigned to newly registered users.
 	DefaultUserTier = "free"
 )
+
+// Placeholder values committed in .env.example. Production startup refuses
+// them (see config.ValidateSecrets); other environments only warn.
+const (
+	PlaceholderJWTSecret         = "replace-this-with-a-secure-secret"
+	PlaceholderServiceJWTSecret  = "change-this-to-a-secure-service-jwt-secret-min32chars"
+	PlaceholderInternalAuthToken = "change-me-internal-token"
+	PlaceholderEncryptionKey     = "change-this-to-a-32-char-key!!!!"
+)
+
+const (
+	// MinSecretLength is the minimum length accepted in production for
+	// secrets that sign or authenticate tokens.
+	MinSecretLength = 32
+	// EncryptionKeyLength is the exact ENCRYPTION_KEY length AES-256 requires.
+	EncryptionKeyLength = 32
+)

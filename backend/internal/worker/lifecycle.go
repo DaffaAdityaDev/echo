@@ -2,17 +2,20 @@ package worker
 
 import (
 	"context"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/ai"
-	"echo-backend/internal/models/config"
-	"echo-backend/internal/repository/session"
-	"echo-backend/internal/service/consolidation"
-	"echo-backend/internal/service/settings"
-	"echo-backend/internal/service/strategy"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
 	"time"
+
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
+	"echo-backend/internal/repository/session"
+	"echo-backend/internal/service/aimodel"
+	"echo-backend/internal/service/consolidation"
+	"echo-backend/internal/service/settings"
+	"echo-backend/internal/service/strategy"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -74,10 +77,23 @@ func (w *Worker) runCycleSafe(ctx context.Context, interval time.Duration) {
 	w.runCycle(ctx, interval)
 }
 
+const (
+	scanLockSafetyMargin = 5 * time.Second
+	scanLockMinTTL       = time.Second
+)
+
+// scanLockTTL keeps the cross-replica scan lock shorter than the tick
+// interval so the next cycle can acquire it. The TTL must stay positive:
+// Redis treats a zero or negative expiry as "never expire", which would
+// block every future cycle.
+func scanLockTTL(interval time.Duration) time.Duration {
+	return max(interval-scanLockSafetyMargin, interval/2, scanLockMinTTL)
+}
+
 func (w *Worker) runCycle(ctx context.Context, interval time.Duration) {
 	if w.rdb != nil {
 		lockKey := "lifecycle:scan_lock"
-		acquired, err := w.rdb.SetNX(ctx, lockKey, "locked", interval-5*time.Second).Result()
+		acquired, err := w.rdb.SetNX(ctx, lockKey, "locked", scanLockTTL(interval)).Result()
 		if err != nil || !acquired {
 			slog.Warn(msgconst.WarnCycleSkipped, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeyReason, "lock not acquired or another replica running")
 			return
@@ -111,15 +127,7 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 			continue
 		}
 
-		providerMap := map[string]interface{}{
-			"type":               userPrefs.ProviderType,
-			"base_url":           userPrefs.BaseURL,
-			"model":              userPrefs.DefaultModel,
-			"max_context_tokens": aitype.ContextWindowFor(aitype.ProviderType(userPrefs.ProviderType), userPrefs.DefaultModel),
-		}
-		if userPrefs.APIKey != "" {
-			providerMap["api_key"] = userPrefs.APIKey
-		}
+		providerMap := consolidationProviderConfig(userPrefs)
 
 		slog.Info(msgconst.InfoConsolidatingIdleSession, msgconst.ComponentKey, msgconst.ComponentLifecycle, msgconst.KeySessionID, sess.ID, msgconst.KeyTokenCount, sess.TokenCount)
 		cCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -128,6 +136,23 @@ func (w *Worker) runConsolidationJob(ctx context.Context) {
 		}
 		cancel()
 	}
+}
+
+// consolidationProviderConfig builds the provider config forwarded to the
+// agent for summarization, normalizing the model id the same way the chat
+// path does.
+func consolidationProviderConfig(prefs *usermodel.UserPreferences) map[string]interface{} {
+	modelName := aimodel.ModelNameFor(prefs.ProviderType, prefs.DefaultModel)
+	providerMap := map[string]interface{}{
+		"type":               prefs.ProviderType,
+		"base_url":           prefs.BaseURL,
+		"model":              modelName,
+		"max_context_tokens": aitype.ContextWindowFor(aitype.ProviderType(prefs.ProviderType), modelName),
+	}
+	if prefs.APIKey != "" {
+		providerMap["api_key"] = prefs.APIKey
+	}
+	return providerMap
 }
 
 func (w *Worker) runDecayAndGCJob(ctx context.Context) {

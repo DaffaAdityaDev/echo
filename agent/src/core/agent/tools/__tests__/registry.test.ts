@@ -27,7 +27,7 @@ const mockWriteTodosTool: ToolDefinition = {
 };
 
 function seedTool(registry: ToolRegistry, tool: ToolDefinition): void {
-  (registry as unknown as { tools: Map<string, ToolDefinition> }).tools.set(tool.name, tool);
+  registry["tools"].set(tool.name, tool);
 }
 
 describe("ToolRegistry", () => {
@@ -45,6 +45,7 @@ describe("ToolRegistry", () => {
 
   afterEach(() => {
     if (origWebSearch) LAZY_TOOLS.web_search = origWebSearch;
+
     if (origDelegate) LAZY_TOOLS.delegate_task = origDelegate;
   });
 
@@ -60,6 +61,11 @@ describe("ToolRegistry", () => {
 
     test("returns empty array for unknown feature without crashing", async () => {
       const tools = await registry.resolveTools(["unknown_feature"]);
+      expect(tools).toEqual([]);
+    });
+
+    test("ignores feature ids that only match inherited object keys", async () => {
+      const tools = await registry.resolveTools(["toString", "constructor"]);
       expect(tools).toEqual([]);
     });
 
@@ -152,6 +158,7 @@ describe("ToolRegistry", () => {
           description: expect.stringMatching(/task plan/),
         },
       ]);
+
       for (const feature of features) {
         expect(feature.description.length).toBeGreaterThan(0);
       }
@@ -171,12 +178,14 @@ describe("ToolRegistry", () => {
 
     test("does not include tools outside the LAZY_TOOLS registry", () => {
       seedTool(registry, mockDelegateTaskTool);
+
       const mcpTool: ToolDefinition = {
         name: "mcp_only_tool",
         description: "Only reachable via MCP",
         schema: z.object({}),
         execute: async () => ({ status: "success" as const, summary: "mcp" }),
       };
+
       seedTool(registry, mcpTool);
       const features = getImplementedFeatures(registry);
       expect(features.map((f) => f.id)).not.toContain("mcp_only_tool");

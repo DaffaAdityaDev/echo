@@ -16,6 +16,7 @@ function buildApp() {
   app.get("/api/v1/test", (c) => c.text("ok"));
   app.get("/docs/anything", (c) => c.text("docs"));
   app.get("/api/docs", (c) => c.text("api-docs"));
+
   return app;
 }
 
@@ -36,18 +37,22 @@ describe("authMiddleware", () => {
 
   test("accepts a valid Authorization bearer token", async () => {
     const app = buildApp();
+
     const res = await app.request("/api/v1/test", {
       headers: { Authorization: "Bearer secret-token" },
     });
+
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("ok");
   });
 
   test("accepts a valid X-Internal-Token header", async () => {
     const app = buildApp();
+
     const res = await app.request("/api/v1/test", {
       headers: { "X-Internal-Token": "secret-token" },
     });
+
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("ok");
   });
@@ -65,11 +70,23 @@ describe("authMiddleware", () => {
 
   test("rejects requests with a wrong bearer token", async () => {
     const app = buildApp();
+
     const res = await app.request("/api/v1/test", {
       headers: { Authorization: "Bearer wrong-token" },
     });
+
     expect(res.status).toBe(403);
     const body = (await res.json()) as { status: string; message?: string };
     expect(body.status).toBe("error");
+  });
+
+  test("rejects a token that is a prefix of the expected token", async () => {
+    const app = buildApp();
+
+    const res = await app.request("/api/v1/test", {
+      headers: { "X-Internal-Token": "secret-tok" },
+    });
+
+    expect(res.status).toBe(403);
   });
 });

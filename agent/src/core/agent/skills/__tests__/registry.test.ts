@@ -24,6 +24,7 @@ describe("SkillRegistry", () => {
 
     test("retrieves all standard skills", () => {
       const names = ["reasoning", "coding", "research", "planning", "analyst"];
+
       for (const name of names) {
         expect(registry.getSkill(name)).toBeDefined();
       }
@@ -48,6 +49,7 @@ describe("SkillRegistry", () => {
         description: "Custom test skill",
         systemPrompt: "You are testing",
       };
+
       registry.registerSkill(custom);
       expect(registry.getSkill("custom-test")).toBeDefined();
     });
@@ -96,6 +98,7 @@ describe("SkillRegistry", () => {
         systemPrompt: "Hello {name}",
         variables: ["name"],
       };
+
       registry.registerSkill(custom);
       const result = registry.compileSkillPrompts(["template"], { name: "World" });
       expect(result).toContain("Hello World");
@@ -114,6 +117,7 @@ describe("SkillRegistry", () => {
         name: "bare",
         description: "Bare skill",
       };
+
       registry.registerSkill(custom);
       const result = registry.compileModifiers(["bare"]);
       expect(result).toEqual({});

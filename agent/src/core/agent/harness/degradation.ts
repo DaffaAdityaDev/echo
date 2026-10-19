@@ -20,6 +20,7 @@ export class DegradationManager {
 
   recordToolError(): DegradationLevel {
     this.consecutiveFailedIterations++;
+
     return this.getLevel();
   }
 
@@ -31,9 +32,11 @@ export class DegradationManager {
     if (this.consecutiveFailedIterations < this.degradeAfter) {
       return "normal";
     }
+
     if (this.consecutiveFailedIterations < this.standardAfter) {
       return "restricted";
     }
+
     return "standard";
   }
 

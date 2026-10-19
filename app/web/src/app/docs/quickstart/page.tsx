@@ -1,14 +1,14 @@
 "use client";
 
 import { Info, Rocket } from "lucide-react";
-import { CodeBlock } from "@/components/docs/CodeBlock";
+import { CodeBlock } from "@/components/CodeBlock";
 
 export default function QuickStartPage() {
   return (
     <div className="space-y-12 max-w-4xl font-mono">
       <div>
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xs bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold uppercase tracking-wider mb-3">
-          <Rocket size={12} /> 5-Minute Onboarding
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xs bg-accent-soft border border-accent/30 text-accent text-2xs font-bold uppercase tracking-wider mb-3">
+          <Rocket size={12} aria-hidden="true" /> 5-Minute Onboarding
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Quick Start Guide</h1>
         <p className="text-xs text-muted mt-2 leading-relaxed">
@@ -16,7 +16,6 @@ export default function QuickStartPage() {
         </p>
       </div>
 
-      {/* Step 1 */}
       <section className="space-y-4">
         <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
           1. Get Your Credentials
@@ -27,7 +26,7 @@ export default function QuickStartPage() {
         </p>
         <p className="text-xs text-muted leading-relaxed">
           To get started, log in via the{" "}
-          <a href="/login" className="text-blue-600 font-bold hover:underline">
+          <a href="/login" className="text-accent font-bold hover:underline">
             web interface
           </a>{" "}
           or call the login endpoint directly:
@@ -39,12 +38,11 @@ export default function QuickStartPage() {
   -d '{"email": "your@email.com", "password": "your-password"}'`}
         />
         <p className="text-xs text-muted">
-          The response includes a <code className="text-blue-600 font-bold">token</code> field — this is your JWT bearer
+          The response includes a <code className="text-accent font-bold">token</code> field — this is your JWT bearer
           token.
         </p>
       </section>
 
-      {/* Step 2 */}
       <section className="space-y-4">
         <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
           2. Batch Load Configuration (Best Practice)
@@ -59,7 +57,6 @@ export default function QuickStartPage() {
         />
       </section>
 
-      {/* Step 3 */}
       <section className="space-y-4">
         <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
           3. Send Your First Chat Message
@@ -80,13 +77,12 @@ export default function QuickStartPage() {
         />
         <p className="text-xs text-muted">
           The response is an SSE stream. Each event contains a JSON payload with fields like{" "}
-          <code className="text-blue-600 font-semibold">type</code>,{" "}
-          <code className="text-blue-600 font-semibold">content</code>, and{" "}
-          <code className="text-blue-600 font-semibold">usage</code>.
+          <code className="text-accent font-semibold">type</code>,{" "}
+          <code className="text-accent font-semibold">content</code>, and{" "}
+          <code className="text-accent font-semibold">usage</code>.
         </p>
       </section>
 
-      {/* Step 4 */}
       <section className="space-y-4">
         <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">
           4. Parse the SSE Stream
@@ -153,35 +149,34 @@ for line in response.iter_lines():
         />
       </section>
 
-      {/* Info box */}
-      <div className="p-4 border border-border bg-slate-50/80 rounded-xs flex gap-3.5 font-mono shadow-xs">
-        <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+      <div className="p-4 border border-border bg-surface rounded-xs flex gap-3.5 font-mono shadow-xs">
+        <Info className="h-5 w-5 text-accent shrink-0 mt-0.5" aria-hidden="true" />
         <div className="text-xs text-muted space-y-1">
           <p>
-            <strong className="text-foreground uppercase tracking-wider text-[11px]">Next steps:</strong>
+            <strong className="text-foreground uppercase tracking-wider text-2xs">Next steps:</strong>
           </p>
           <p>
             • Browse the{" "}
-            <a href="/docs/reference" className="text-blue-600 font-bold hover:underline">
+            <a href="/docs/reference" className="text-accent font-bold hover:underline">
               API Reference
             </a>{" "}
             for all available endpoints
           </p>
           <p>
             • Learn about{" "}
-            <a href="/docs/guides/authentication" className="text-blue-600 font-bold hover:underline">
+            <a href="/docs/guides/authentication" className="text-accent font-bold hover:underline">
               authentication methods
             </a>
           </p>
           <p>
             • Understand{" "}
-            <a href="/docs/guides/settings" className="text-blue-600 font-bold hover:underline">
+            <a href="/docs/guides/settings" className="text-accent font-bold hover:underline">
               Settings Batching & Harness Toggles
             </a>
           </p>
           <p>
             • Set up{" "}
-            <a href="/docs/guides/sessions" className="text-blue-600 font-bold hover:underline">
+            <a href="/docs/guides/sessions" className="text-accent font-bold hover:underline">
               sessions
             </a>{" "}
             for persistent conversations

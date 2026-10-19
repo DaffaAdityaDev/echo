@@ -1,3 +1,5 @@
+import type { JsonObject } from "../../../shared/types";
+
 export interface McpServerConfig {
   name: string;
   url: string;
@@ -11,5 +13,5 @@ export interface McpServerConfig {
 export interface McpToolDefinition {
   name: string;
   description?: string;
-  inputSchema: Record<string, unknown>;
+  inputSchema: JsonObject;
 }

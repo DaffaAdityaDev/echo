@@ -1,6 +1,14 @@
 import type { BaseMessage } from "@langchain/core/messages";
 import type { z } from "zod";
 
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+
+export type JsonObject = { [key: string]: JsonValue };
+
+export type JsonArray = JsonValue[];
+
 export interface HarnessFeatureToggles {
   loopDetection: {
     enabled: boolean;
@@ -50,6 +58,7 @@ export interface HarnessSnapshot {
     base_url: string;
     api_key?: string | null;
     model: string;
+    max_context_tokens?: number;
   };
   delegationDepth: number;
   featureToggles: HarnessFeatureToggles;
@@ -106,8 +115,8 @@ export interface FailedUrl {
   reason: string;
 }
 
-export interface AgentStatus {
-  state: "starting" | "running" | "stalled" | "looping" | "degraded" | "completed" | "aborted";
+export type AgentStatus = {
+  state: "starting" | "running" | "stalled" | "looping" | "degraded" | "awaiting_approval" | "completed" | "aborted";
   step: number;
   maxSteps: number;
   strategy: "agent" | "standard" | "restricted";
@@ -117,7 +126,7 @@ export interface AgentStatus {
   consecutiveFailures?: number;
   activeCircuitBreakers?: string[];
   throughput?: number;
-}
+};
 
 interface HarnessPacketBase {
   missionId: string;
@@ -141,8 +150,8 @@ export type HarnessPacket =
     })
   | (HarnessPacketBase & { type: "reasoning"; content: string })
   | (HarnessPacketBase & { type: "content"; content: string })
-  | (HarnessPacketBase & { type: "tool_call"; toolName: string; toolInput: Record<string, unknown> })
-  | (HarnessPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: unknown })
+  | (HarnessPacketBase & { type: "tool_call"; toolName: string; toolInput: JsonObject })
+  | (HarnessPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: JsonValue })
   | (HarnessPacketBase & { type: "tool_skip"; toolName: string })
   | (HarnessPacketBase & { type: "todo"; todos: Array<{ id: string; description: string; status: string }> })
   | (HarnessPacketBase & { type: "subagent_call"; subagent: { name: string; instruction: string; status: "calling" } })
@@ -172,7 +181,7 @@ export type HarnessPacket =
       rawMessages: Array<{ role: string; content: string }>;
     })
   | (HarnessPacketBase & { type: "error"; content: string; code?: string })
-  | (HarnessPacketBase & { type: "swarm_status"; swarm: Record<string, unknown> })
+  | (HarnessPacketBase & { type: "swarm_status"; swarm: JsonObject })
   | (HarnessPacketBase & {
       type: "system_notice";
       payload: { level: "info" | "warning" | "error"; code: string; message: string };
@@ -192,7 +201,7 @@ export type HarnessPacket =
       payload: {
         approvalId: string;
         toolName: string;
-        args: Record<string, unknown>;
+        args: JsonObject;
         riskLevel: "medium" | "high" | "critical";
         expiresAt: number;
       };
@@ -205,7 +214,7 @@ export type HarnessPacket =
 /**
  * Standardized response from any tool call.
  */
-export interface Observation<T = unknown> {
+export interface Observation<T = JsonValue> {
   status: "success" | "warning" | "error";
   summary: string;
   data?: T;
@@ -221,7 +230,7 @@ export interface AgentState {
   objective: string;
   tasks: Task[];
   currentTaskId?: string;
-  memory: Record<string, unknown>;
+  memory: JsonObject;
   messages: BaseMessage[];
 }
 
@@ -232,7 +241,7 @@ export interface PausedMissionState {
   pendingToolCall: {
     id: string;
     name: string;
-    args: Record<string, unknown>;
+    args: JsonObject;
   };
   state: AgentState;
   harnessSnapshot: HarnessSnapshot;
@@ -244,12 +253,12 @@ export interface PausedMissionState {
   };
 }
 
-export interface Task {
+export type Task = {
   id: string;
   description: string;
   status: "pending" | "in_progress" | "done" | "failed";
   observation?: string;
-}
+};
 
 /**
  * Strategy interface — responsible only for constructing the system prompt.
@@ -286,14 +295,59 @@ export interface StrategyRegistry {
   resolve(version: string): AgentStrategy;
 }
 
+export type HarnessEventType =
+  | "metadata"
+  | "reasoning"
+  | "content"
+  | "tool_call"
+  | "tool_result"
+  | "tool_skip"
+  | "todo"
+  | "subagent_call"
+  | "subagent_result"
+  | "usage"
+  | "progress"
+  | "heartbeat"
+  | "state_change"
+  | "degraded"
+  | "turn_complete"
+  | "debug"
+  | "system_notice"
+  | "error"
+  | "swarm_status"
+  | "token_metrics"
+  | "hitl_approval_required"
+  | "mission_completed";
+
+export type HarnessEvent = {
+  type: HarnessEventType;
+  missionId: string;
+  step?: number;
+  content?: string;
+  toolName?: string;
+  toolInput?: JsonObject;
+  payload?: JsonObject;
+  [key: string]: JsonValue | undefined;
+};
+
+export interface ToolExecutionContext {
+  parentMessages?: BaseMessage[];
+  onPacket?: (packet: HarnessEvent) => Promise<void>;
+  provider?: LLMProvider;
+  tools?: ToolDefinition[];
+  delegationDepth?: number;
+  missionId?: string;
+  addCostUsd?: (usd: number) => void;
+}
+
 /**
  * Contract for tool definitions.
  */
 export interface ToolDefinition {
   name: string;
   description: string;
-  schema: z.ZodObject<z.ZodRawShape>;
-  execute(input: unknown, config?: unknown): Promise<Observation>;
+  schema: z.ZodTypeAny;
+  execute(input: JsonObject, context?: ToolExecutionContext): Promise<Observation>;
   keywords?: string[];
 }
 
@@ -308,7 +362,7 @@ export interface ProviderEvent {
   /** When set, the model wants to invoke a tool instead of replying. */
   toolCall?: {
     name: string;
-    args: Record<string, unknown>;
+    args: JsonObject;
   };
   /** Token usage stats from the final chunk — emitted once after stream ends */
   usage?: {

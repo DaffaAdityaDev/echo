@@ -1,5 +1,5 @@
 import { HTTP_STATUS } from "../../constants/http";
-import { AppError, ForbiddenError, NotFoundError, ValidationError } from "../errors";
+import { AppError, ForbiddenError, NotFoundError, ValidationError, toLogCause } from "../errors";
 
 describe("AppError", () => {
   test("defaults to 500 internal server error and operational", () => {
@@ -57,5 +57,19 @@ describe("ForbiddenError", () => {
     expect(error.statusCode).toBe(HTTP_STATUS.FORBIDDEN);
     expect(error.statusCode).toBe(403);
     expect(error.message).toBe("access denied");
+  });
+});
+
+describe("toLogCause", () => {
+  test("keeps Error instances intact", () => {
+    const error = new Error("boom");
+
+    expect(toLogCause(error)).toBe(error);
+  });
+
+  test("stringifies non-Error throwables", () => {
+    expect(toLogCause("plain")).toBe("plain");
+    expect(toLogCause(42)).toBe("42");
+    expect(toLogCause(undefined)).toBe("undefined");
   });
 });

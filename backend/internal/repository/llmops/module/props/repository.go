@@ -9,6 +9,7 @@ import (
 
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/models/llmops"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -52,6 +53,9 @@ func (r *repository) ListTemplates(ctx context.Context, tenantID string) ([]llmo
 		}
 		templates = append(templates, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate template rows: %w", err)
+	}
 	return templates, nil
 }
 
@@ -71,7 +75,12 @@ func (r *repository) CreateTemplate(ctx context.Context, tenantID, name, desc st
 	return t, nil
 }
 
+// GetTemplateByID returns (nil, nil) when no template matches, including an
+// ID that is not a UUID and therefore cannot exist in the UUID column.
 func (r *repository) GetTemplateByID(ctx context.Context, templateID string) (*llmopsmodel.PromptTemplate, error) {
+	if uuid.Validate(templateID) != nil {
+		return nil, nil
+	}
 	query := `
 		SELECT id, tenant_id, name, description, active_version, created_at, updated_at
 		FROM prompt_templates WHERE id = $1
@@ -142,7 +151,7 @@ func (r *repository) GetActiveVersionByName(ctx context.Context, tenantID, name 
 		SELECT v.id, v.template_id, v.version, v.system_prompt, v.bound_tools, v.variables, v.status, v.created_by, v.created_at
 		FROM prompt_versions v
 		JOIN prompt_templates t ON t.id = v.template_id AND t.active_version = v.version
-		WHERE t.tenant_id = $1 AND t.name = $2
+		WHERE t.tenant_id = $1 AND t.name = $2 AND v.status = 'production'
 	`
 	v := &llmopsmodel.PromptVersion{}
 	var toolsBytes, varsBytes []byte
@@ -187,6 +196,9 @@ func (r *repository) ListVersions(ctx context.Context, templateID string) ([]llm
 		}
 		versions = append(versions, v)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate version rows: %w", err)
+	}
 	return versions, nil
 }
 
@@ -201,26 +213,14 @@ func (r *repository) PromoteVersion(ctx context.Context, templateID string, vers
 		}
 	}()
 
-	var status string
-	err = tx.QueryRow(ctx, `SELECT status FROM prompt_versions WHERE template_id = $1 AND version = $2`, templateID, version).Scan(&status)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf("promote version: version %d of template %s does not exist", version, templateID)
+	if _, err := lockActiveVersion(ctx, tx, templateID); err != nil {
+		return fmt.Errorf("promote version: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("fetch version status: %w", err)
+	if err := ensureVersionPromotable(ctx, tx, templateID, version); err != nil {
+		return fmt.Errorf("promote version %d: %w", version, err)
 	}
-	if status == "rolled_back" {
-		return fmt.Errorf("promote version: version %d of template %s is rolled back and cannot be promoted", version, templateID)
-	}
-
-	_, err = tx.Exec(ctx, `UPDATE prompt_templates SET active_version = $1, updated_at = NOW() WHERE id = $2`, version, templateID)
-	if err != nil {
-		return fmt.Errorf("update template active version: %w", err)
-	}
-
-	_, err = tx.Exec(ctx, `UPDATE prompt_versions SET status = 'production' WHERE template_id = $1 AND version = $2`, templateID, version)
-	if err != nil {
-		return fmt.Errorf("update version status: %w", err)
+	if err := setProductionVersion(ctx, tx, templateID, version); err != nil {
+		return fmt.Errorf("promote version %d: %w", version, err)
 	}
 
 	return tx.Commit(ctx)
@@ -237,22 +237,12 @@ func (r *repository) RollbackVersion(ctx context.Context, templateID string, tar
 		}
 	}()
 
-	var targetStatus string
-	err = tx.QueryRow(ctx, `SELECT status FROM prompt_versions WHERE template_id = $1 AND version = $2`, templateID, targetVersion).Scan(&targetStatus)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf("rollback version: version %d of template %s does not exist", targetVersion, templateID)
-	}
+	currentActive, err := lockActiveVersion(ctx, tx, templateID)
 	if err != nil {
-		return fmt.Errorf("fetch target version status: %w", err)
+		return fmt.Errorf("rollback version: %w", err)
 	}
-	if targetStatus == "rolled_back" {
-		return fmt.Errorf("rollback version: version %d of template %s is already rolled back", targetVersion, templateID)
-	}
-
-	var currentActive int
-	err = tx.QueryRow(ctx, `SELECT active_version FROM prompt_templates WHERE id = $1`, templateID).Scan(&currentActive)
-	if err != nil {
-		return fmt.Errorf("fetch current active version: %w", err)
+	if err := ensureVersionPromotable(ctx, tx, templateID, targetVersion); err != nil {
+		return fmt.Errorf("rollback to version %d: %w", targetVersion, err)
 	}
 
 	if currentActive != targetVersion {
@@ -262,15 +252,59 @@ func (r *repository) RollbackVersion(ctx context.Context, templateID string, tar
 		}
 	}
 
-	_, err = tx.Exec(ctx, `UPDATE prompt_templates SET active_version = $1, updated_at = NOW() WHERE id = $2`, targetVersion, templateID)
-	if err != nil {
-		return fmt.Errorf("update template active pointer: %w", err)
-	}
-
-	_, err = tx.Exec(ctx, `UPDATE prompt_versions SET status = 'production' WHERE template_id = $1 AND version = $2`, templateID, targetVersion)
-	if err != nil {
-		return fmt.Errorf("set target version production: %w", err)
+	if err := setProductionVersion(ctx, tx, templateID, targetVersion); err != nil {
+		return fmt.Errorf("rollback to version %d: %w", targetVersion, err)
 	}
 
 	return tx.Commit(ctx)
+}
+
+// lockActiveVersion row-locks the template for the rest of the transaction so
+// concurrent promote/rollback calls serialize, and returns its active version.
+func lockActiveVersion(ctx context.Context, tx pgx.Tx, templateID string) (int, error) {
+	var active int
+	err := tx.QueryRow(ctx, `SELECT COALESCE(active_version, 0) FROM prompt_templates WHERE id = $1 FOR UPDATE`, templateID).Scan(&active)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, llmopsmodel.ErrTemplateNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("lock template: %w", err)
+	}
+	return active, nil
+}
+
+func ensureVersionPromotable(ctx context.Context, tx pgx.Tx, templateID string, version int) error {
+	var status string
+	err := tx.QueryRow(ctx, `SELECT status FROM prompt_versions WHERE template_id = $1 AND version = $2`, templateID, version).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return llmopsmodel.ErrVersionNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("fetch version status: %w", err)
+	}
+	if status == "rolled_back" {
+		return llmopsmodel.ErrVersionRolledBack
+	}
+	return nil
+}
+
+// setProductionVersion makes version the template's single production version:
+// any other production version is demoted to approved so it stays eligible as
+// a rollback target.
+func setProductionVersion(ctx context.Context, tx pgx.Tx, templateID string, version int) error {
+	_, err := tx.Exec(ctx, `UPDATE prompt_versions SET status = 'approved' WHERE template_id = $1 AND status = 'production' AND version <> $2`, templateID, version)
+	if err != nil {
+		return fmt.Errorf("demote previous production version: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE prompt_templates SET active_version = $1, updated_at = NOW() WHERE id = $2`, version, templateID)
+	if err != nil {
+		return fmt.Errorf("update template active version: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE prompt_versions SET status = 'production' WHERE template_id = $1 AND version = $2`, templateID, version)
+	if err != nil {
+		return fmt.Errorf("set version production: %w", err)
+	}
+	return nil
 }

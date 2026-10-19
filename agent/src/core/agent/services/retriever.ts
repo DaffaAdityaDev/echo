@@ -26,12 +26,14 @@ export class ToolRetriever {
 
       // 2. Description matching (weight based on MATCH_WEIGHTS.DESCRIPTION)
       const descLower = tool.description.toLowerCase();
+
       if (query.includes(descLower) || descLower.includes(query)) {
         score += MATCH_WEIGHTS.DESCRIPTION;
       }
 
       // 3. Name matching (weight based on MATCH_WEIGHTS.NAME)
       const nameLower = tool.name.toLowerCase();
+
       if (query.includes(nameLower) || nameLower.includes(query)) {
         score += MATCH_WEIGHTS.NAME;
       }
@@ -47,7 +49,7 @@ export class ToolRetriever {
 
     if (matched.length === 0) {
       // Fallback: If no tools match, return default core tools
-      return allTools.filter((t) => (RETRIEVER_FALLBACK_TOOLS as readonly string[]).includes(t.name));
+      return allTools.filter((t) => RETRIEVER_FALLBACK_TOOLS.includes(t.name));
     }
 
     return matched.slice(0, limit);

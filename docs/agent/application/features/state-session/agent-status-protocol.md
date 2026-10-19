@@ -331,7 +331,7 @@ the DB snapshot (`GET /sessions/:id/messages`) is the recovery path.
 +-----------------------------+----------------------------------+--------------------------------------------+
 | `AgentStatusTracker`        | `harness/status-tracker.ts`      | Class (owns AgentStatus state)             |
 | `AgentStatus`               | `shared/types/index.ts:99-110`   | Wire type (wire sends activeCircuitBreakers, currentThought, lastActivity ISO string) |
-| `AgentStatusBadge`          | `frontend/web/src/features/chat/ | React component                            |
+| `AgentStatusBadge`          | `app/web/src/features/chat/ | React component                            |
 |                             |   components/AgentStatusBadge.tsx`|                                           |
 +-----------------------------+----------------------------------+--------------------------------------------+
 
@@ -347,9 +347,9 @@ the DB snapshot (`GET /sessions/:id/messages`) is the recovery path.
 | Packet types             | `shared/types/index.ts:69-92`          | AgentPacketType union                                 |
 | Packet type shapes       | `shared/types/index.ts:112-193`        | HarnessPacket discriminated union (flat, no meta)     |
 | Heartbeat + stall        | `harness/stream-processor.ts:34`      | Heartbeat interval + STALL_TIMEOUT check              |
-| Frontend types           | `frontend/web/src/features/chat/types/ | StreamPacket + AgentStatus discriminated union        |
+| Frontend types           | `app/web/src/features/chat/types/ | StreamPacket + AgentStatus discriminated union        |
 |                          |   index.ts:114-122`                    | (activeCircuitBreakers, currentThought, lastActivity: string) |
-| Cancel manager           | `harness/cancel_manager.ts`            | Abort controller for disconnect detection              |
+| Cancel manager           | `harness/cancel-manager.ts`            | Abort controller for disconnect detection              |
 +--------------------------+----------------------------------------------+-------------------------------------------------------+
 
 ===============================================================================

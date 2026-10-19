@@ -10,6 +10,7 @@ import type { PromptTemplate, PromptVersion } from "../types";
 
 export function usePromptTemplates() {
   const setPrompts = useStudioStore((s) => s.setPrompts);
+
   const query = useQuery<{ templates: PromptTemplate[] }>({
     queryKey: STUDIO_QUERY_KEYS.PROMPTS,
     queryFn: studioApi.listPrompts,
@@ -33,6 +34,7 @@ export function usePromptVersions(templateId: string | null) {
       if (!templateId) {
         throw new Error("templateId is required");
       }
+
       return studioApi.listPromptVersions(templateId);
     },
     enabled: !!templateId,
@@ -45,6 +47,7 @@ export function usePromptVersions(templateId: string | null) {
 
 export function useCreateTemplate() {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: studioApi.createPrompt,
     onSuccess: () => qc.invalidateQueries({ queryKey: STUDIO_QUERY_KEYS.PROMPTS }),
@@ -53,6 +56,7 @@ export function useCreateTemplate() {
 
 export function useCreateVersion() {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       id,
@@ -67,6 +71,7 @@ export function useCreateVersion() {
 
 export function usePromoteVersion() {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => studioApi.promotePromptVersion(id, version),
     onSuccess: (_data, vars) => {
@@ -78,6 +83,7 @@ export function usePromoteVersion() {
 
 export function useRollbackVersion() {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => studioApi.rollbackPromptVersion(id, version),
     onSuccess: (_data, vars) => {

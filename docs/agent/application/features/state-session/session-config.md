@@ -243,7 +243,7 @@ There are no `skill` / `skill_variables` fields — skills are passed as the
 │  Loaded once at agent startup                                            │
 │  Stored in .env, config files, env schema                                │
 │                                                                           │
-│  PORT, GRPC_PORT, LANGFUSE_*                                             │
+│  PORT, LANGFUSE_*                                                        │
 │  Default model, default provider                                         │
 │  Internal auth tokens                                                    │
 │  Runtime mode (local/production)                                         │
@@ -386,7 +386,7 @@ There are no `skill` / `skill_variables` fields — skills are passed as the
 +----------------------------+------------------------------------------+---------------------------------------------+
 | Ref                        | File                                     | Key Lines                                   |
 +----------------------------+------------------------------------------+---------------------------------------------+
-| Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, GRPC_PORT, LANGFUSE_*                 |
+| Persistent env schema      | `config/env.schema.ts:8-29`              | PORT, LANGFUSE_*                            |
 | Mission schema             | `adapter/inbound/api/missions/mission.schema.ts` | Full mission request validation            |
 | Provider config dispatch   | `infrastructure/providers/factory.ts:24-27`| `fromConfig()` reads session provider config|
 | Harness defaults           | `harness/constants.ts`              | MAX_ITERATIONS, COMPACTION_RATIO, etc.      |

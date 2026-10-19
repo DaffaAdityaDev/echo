@@ -3,6 +3,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { CHAT_QUERY_KEYS } from "../constants";
 import { sessionApi } from "../services/chat-api";
+import { stopActiveStream, stopStreamOutsideSession } from "../services/stream/stop-stream";
 import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 
@@ -18,9 +19,11 @@ export function useSessions() {
   const pathname = usePathname();
 
   const createSession = useCallback(() => {
+    stopActiveStream();
     setActiveSession(null);
     setNewChatPending(true);
     clearMessages();
+
     if (pathname !== "/") {
       router.push("/");
     }
@@ -29,13 +32,17 @@ export function useSessions() {
   const deleteSession = useCallback(
     async (id: string) => {
       setSessions(sessions.filter((s) => s.id !== id));
+
       if (activeSessionId === id) {
+        stopActiveStream();
         setActiveSession(null);
         clearMessages();
+
         if (pathname !== "/") {
           router.push("/");
         }
       }
+
       try {
         await sessionApi.delete(id);
       } catch {
@@ -50,6 +57,7 @@ export function useSessions() {
 
   const selectSession = useCallback(
     async (id: string) => {
+      stopStreamOutsideSession(id);
       setNewChatPending(false);
       setActiveSession(id);
     },

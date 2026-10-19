@@ -28,6 +28,7 @@ export function getQueryClient() {
     // This is very important, so we don't re-make a new client if React
     // suspends during hydration, or during transitions in the browser
     if (!browserQueryClient) browserQueryClient = makeQueryClient();
+
     return browserQueryClient;
   }
 }

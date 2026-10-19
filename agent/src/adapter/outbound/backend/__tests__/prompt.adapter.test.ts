@@ -1,4 +1,5 @@
 import type Redis from "ioredis";
+import type { JsonObject } from "../../../../shared/types";
 import { type ActivePrompt, PromptAdapter } from "../prompt.adapter";
 
 vi.mock("../../../../shared/utils/jwt", () => ({
@@ -13,7 +14,7 @@ vi.mock("../../../../shared/utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-function makeResponse(overrides: Record<string, unknown> = {}, status = 200): Response {
+function makeResponse(overrides: JsonObject = {}, status = 200): Response {
   return new Response(
     JSON.stringify({
       id: "p1",
@@ -31,11 +32,12 @@ function makeResponse(overrides: Record<string, unknown> = {}, status = 200): Re
 }
 
 function stubRedis(overrides: Partial<Pick<Redis, "get" | "set">> = {}): Redis {
+  // SAFETY: Test mock fixture satisfying Redis interface contract for prompt adapter
   return {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue("OK"),
     ...overrides,
-  } as unknown as Redis;
+  } as never;
 }
 
 describe("PromptAdapter", () => {
@@ -118,6 +120,7 @@ describe("PromptAdapter", () => {
       boundTools: [],
       variables: [],
     };
+
     const redis = stubRedis({ get: vi.fn().mockResolvedValue(JSON.stringify(cached)) });
     const adapter = new PromptAdapter({ baseUrl, redis });
 
@@ -135,7 +138,8 @@ describe("PromptAdapter", () => {
     await adapter.getActivePrompt("main", "tenant-1");
 
     expect(redis.set).toHaveBeenCalledTimes(1);
-    const [key, value, mode, ttl] = vi.mocked(redis.set).mock.calls[0] as unknown as [string, string, string, number];
+    const setArgs: unknown[] = vi.mocked(redis.set).mock.calls[0];
+    const [key, value, mode, ttl] = setArgs;
     expect(key).toBe("agent:prompts:tenant-1:main");
     expect(JSON.parse(String(value))).toEqual({
       version: 3,

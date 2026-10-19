@@ -2,12 +2,13 @@ package settings
 
 import (
 	"context"
-	"echo-backend/internal/constants/db"
-	"echo-backend/internal/models/user"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
+
+	"echo-backend/internal/constants/db"
+	"echo-backend/internal/models/user"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -131,7 +132,8 @@ func (r *Repository) GetLatestActivePromptTemplateName(ctx context.Context, tena
 	var name string
 	query := `
 		SELECT name FROM prompt_templates 
-		WHERE (tenant_id = $1 OR tenant_id = 'local') AND active_version IS NOT NULL 
+		WHERE (tenant_id = $1 OR tenant_id = 'local')
+			AND EXISTS (SELECT 1 FROM prompt_versions v WHERE v.template_id = prompt_templates.id AND v.status = 'production')
 		ORDER BY updated_at DESC LIMIT 1
 	`
 	err := r.pool.QueryRow(ctx, query, tenantID).Scan(&name)

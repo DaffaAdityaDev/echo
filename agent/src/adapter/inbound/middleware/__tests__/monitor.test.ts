@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { logger } from "../../../../shared/utils/logger";
-import { monitorMiddleware } from "../monitor";
+import { monitorMiddleware, redactSensitiveValues } from "../monitor";
 
 vi.mock("../../../../shared/utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), langfuse: vi.fn() },
@@ -12,6 +12,7 @@ function buildApp() {
   app.get("/ok", (c) => c.text("fine"));
   app.post("/echo", (c) => c.text("done"));
   app.notFound((c) => c.text("not found", 404));
+
   return app;
 }
 
@@ -33,18 +34,20 @@ describe("monitorMiddleware", () => {
 
   test("strips the history field from logged POST payloads", async () => {
     const app = buildApp();
+
     const res = await app.request("/echo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: "hello", history: [{ role: "user", content: "old message" }] }),
     });
+
     expect(res.status).toBe(200);
 
     const infoCalls = vi.mocked(logger.info).mock.calls;
     const postCall = infoCalls.find(([msg]) => typeof msg === "string" && msg.includes("POST /echo"));
     expect(postCall).toBeDefined();
     const meta = postCall?.[1] as { payload?: { prompt?: string } } | undefined;
-    expect(meta?.payload?.prompt).toBe("hello");
+    expect(meta?.payload?.prompt).toBe("[5 chars]");
     expect(meta?.payload).not.toHaveProperty("history");
   });
 
@@ -56,5 +59,34 @@ describe("monitorMiddleware", () => {
       expect.stringContaining("404"),
       expect.objectContaining({ method: "GET", path: "/missing", status: 404 }),
     );
+  });
+
+  test("redacts credentials regardless of key casing and header naming", () => {
+    const redacted = redactSensitiveValues({
+      Authorization: "Bearer abc",
+      "X-Api-Key": "k",
+      Cookie: "session=1",
+      provider_config: { apiKey: "sk-1", base_url: "http://llm" },
+      config: {
+        rest_tools: [{ name: "crm", headers: { "X-Custom": "s3cret" }, global_headers: { A: "b" } }],
+      },
+      note: "bearer xyz",
+    });
+
+    expect(redacted).toEqual({
+      Authorization: "[REDACTED]",
+      "X-Api-Key": "[REDACTED]",
+      Cookie: "[REDACTED]",
+      provider_config: { apiKey: "[REDACTED]", base_url: "http://llm" },
+      config: { rest_tools: [{ name: "crm", headers: "[REDACTED]", global_headers: "[REDACTED]" }] },
+      note: "[REDACTED]",
+    });
+  });
+
+  test("logs prompt length instead of prompt content", () => {
+    expect(redactSensitiveValues({ prompt: "top secret plan", message: "hi" })).toEqual({
+      prompt: "[15 chars]",
+      message: "[2 chars]",
+    });
   });
 });

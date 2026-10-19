@@ -29,7 +29,7 @@ behavior.
 harness/
   index.ts                   # Barrel — re-exports all public API
   types.ts                   # HarnessConfig, HarnessRuntimeConfig, HarnessEvent
-  cancel_manager.ts          # AbortController-based cancellation (singleton)
+  cancel-manager.ts          # AbortController-based cancellation (singleton)
   constants.ts               # HARNESS_CONFIG, PACKET_TYPES, OPERATION_STATUS
   prompts.ts                 # System prompts for compaction, recovery, stuck
   harness.ts                 # NlahHarness — thin orchestrator (runMission + composition)
@@ -37,15 +37,15 @@ harness/
   stream-processor.ts        # processStreamEvents — provider AsyncIterable consumer
   tool-executor.ts           # ToolExecutor — executeToolCall, circuit breaker, cost
   recovery.ts                # RecoveryHandler — auto-recovery, compaction, degradation, stuck
-  circuit_breaker.ts         # CircuitBreaker — per-tool retry tracking
+  circuit-breaker.ts         # CircuitBreaker — per-tool retry tracking
   degradation.ts             # DegradationManager + DegradationLevel
   debug.ts                   # queuePromptDebug — async prompt ledger writer
   compressor.ts              # compressObservation — tool error compression
   status-tracker.ts          # AgentStatusTracker
-  context_manager.ts         # ContextManager — prompt/message preparation
-  budget_monitor.ts          # BudgetMonitor — cost cap enforcement
-  hitl_guard.ts              # HitlGuard — HITL approval for protected tools
-  loop_detector.ts           # LoopDetector — exact tool-call loop detection
+  context-manager.ts         # ContextManager — prompt/message preparation
+  budget-monitor.ts          # BudgetMonitor — cost cap enforcement
+  hitl-guard.ts              # HitlGuard — HITL approval for protected tools
+  loop-detector.ts           # LoopDetector — exact tool-call loop detection
 ```
 
 ---
@@ -197,7 +197,7 @@ unions.
 | `HarnessConfig`       | `types.ts`                     | Configuration interface                    |
 | `HarnessRuntimeConfig`| `types.ts`                     | Runtime overrides (circuit breaker, degradation, agent status) |
 | `DEFAULT_HARNESS_TOGGLES` | `types.ts`                | Default feature toggle values              |
-| `cancellationManager` | `cancel_manager.ts`            | Singleton                                  |
+| `cancellationManager` | `cancel-manager.ts`            | Singleton                                  |
 | `HARNESS_CONFIG`      | `constants.ts`                 | Core constants                             |
 +-----------------------+--------------------------------+--------------------------------------------+
 
@@ -238,9 +238,9 @@ unions.
 |                                           |                                          | emit, circuit breaker, cost progress                 |
 | Auto-recovery (XML etc.) | `harness/recovery.ts:27`                 | `RecoveryHandler.handleAutoRecovery` — XML parse →    |
 |                                           |                                          | unparseable → stuck classifier → fake trace          |
-| XML tool parser          | `harness/xml_tool_parser.ts:60-89`       | `parseXmlToolCall` — first match in document order;   |
+| XML tool parser          | `harness/xml-tool-parser.ts:60-89`       | `parseXmlToolCall` — first match in document order;   |
 |                                           |                                          | JSON body, malformed → `{}`                          |
-| Content sanitizer        | `harness/content_sanitizer.ts`           | `ContentSanitizer` — strips fake tool traces          |
+| Content sanitizer        | `harness/content-sanitizer.ts`           | `ContentSanitizer` — strips fake tool traces          |
 | Tier 2 stuck check       | `harness/recovery.ts` (checkStuckState)  | LLM classifier, feedback prompt                       |
 | Pacing threshold         | `harness.ts:378` (runTurn)               | Iteration > 5 → force synthesis                       |
 | Context compaction       | `harness/recovery.ts` (handleCompaction) | Token ratio > 90% → summarize                         |

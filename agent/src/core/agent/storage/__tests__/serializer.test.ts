@@ -1,6 +1,10 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { AgentState } from "../../../../shared/types";
+import type { AgentState, JsonObject, JsonValue } from "../../../../shared/types";
 import { deserializeAgentState, serializeAgentState } from "../serializer";
+
+function toStoredJson(value: ReturnType<typeof serializeAgentState>): JsonValue {
+  return JSON.parse(JSON.stringify(value));
+}
 
 function makeState(overrides: Partial<AgentState> = {}): AgentState {
   return {
@@ -42,6 +46,7 @@ describe("serializeAgentState", () => {
         name: "search",
       }),
     ];
+
     const state = makeState({ messages });
 
     const serialized = serializeAgentState(state);
@@ -76,7 +81,7 @@ describe("serializeAgentState", () => {
 
 describe("deserializeAgentState", () => {
   test("converts plain JSON back to AgentState with LangChain messages", () => {
-    const serialized = {
+    const serialized: JsonObject = {
       missionId: "test-mission",
       objective: "Test",
       tasks: [],
@@ -88,6 +93,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages).toHaveLength(2);
     expect(state.messages[0]).toBeInstanceOf(HumanMessage);
@@ -97,7 +103,7 @@ describe("deserializeAgentState", () => {
   });
 
   test("deserializes all message types correctly", () => {
-    const serialized = {
+    const serialized: JsonObject = {
       missionId: "m1",
       objective: "O1",
       tasks: [],
@@ -111,6 +117,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages[0]).toBeInstanceOf(SystemMessage);
     expect(state.messages[1]).toBeInstanceOf(HumanMessage);
@@ -129,6 +136,7 @@ describe("deserializeAgentState", () => {
     };
 
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages[0]).toBeInstanceOf(HumanMessage);
     expect(state.messages[0].content).toBe("fallback");
@@ -154,7 +162,7 @@ describe("deserializeAgentState", () => {
   });
 
   test("restores the nested agent state embedded in a paused-state payload", () => {
-    const paused = {
+    const paused: JsonObject = {
       approvalId: "appr_1",
       missionId: "m1",
       sessionId: "m1",
@@ -176,7 +184,8 @@ describe("deserializeAgentState", () => {
 
     const restored = deserializeAgentState(paused);
     expect(restored).not.toBeNull();
-    const nested = (restored as unknown as { state: AgentState }).state;
+    // SAFETY: Access nested state preserved on paused execution states
+    const nested = (restored as AgentState & { state: AgentState }).state;
     expect(nested.messages).toHaveLength(3);
     expect(nested.messages[0]).toBeInstanceOf(HumanMessage);
     expect(nested.messages[1]).toBeInstanceOf(AIMessage);
@@ -188,6 +197,7 @@ describe("deserializeAgentState", () => {
   test("handles empty messages array", () => {
     const serialized = { missionId: "m1", objective: "O1", tasks: [], memory: {}, messages: [] };
     const state = deserializeAgentState(serialized);
+
     if (!state) throw new Error("expected deserialized state");
     expect(state.messages).toEqual([]);
   });
@@ -217,7 +227,8 @@ describe("round-trip", () => {
     });
 
     const serialized = serializeAgentState(original);
-    const deserialized = deserializeAgentState(serialized);
+    const deserialized = deserializeAgentState(toStoredJson(serialized));
+
     if (!deserialized) throw new Error("expected deserialized state");
     const state = deserialized;
 

@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
 import { estimateCharTokens } from "../../../../shared/utils/harness";
+import { toLogCause } from "../../../../shared/utils/errors";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 import {
@@ -30,9 +31,11 @@ function capSummarizeMessages(
     const wasTruncated = m.content.length > maxMsgChars;
     const content = wasTruncated ? m.content.slice(0, maxMsgChars) + TRUNCATED_MARKER : m.content;
     const charge = wasTruncated ? Math.ceil(content.length / 4) : estimateCharTokens(content);
+
     if (totalTokens > 0 && totalTokens + charge > maxTotalTokens) {
       break; // keep the oldest messages only
     }
+
     totalTokens += charge;
     capped.push({ role: m.role, content });
   }
@@ -43,14 +46,18 @@ function capSummarizeMessages(
 export async function summarizeSession(c: Context) {
   try {
     const parseResult = SummarizeRequestSchema.safeParse(await c.req.json());
+
     if (!parseResult.success) {
       const failedPath = parseResult.error.issues[0]?.path[0];
+
       if (failedPath === "messages") {
         return c.json({ error: SUMMARIZE_ERROR_MESSAGES.MISSING_MESSAGES }, HTTP_STATUS.BAD_REQUEST);
       }
+
       if (failedPath === "provider_config") {
         return c.json({ error: SUMMARIZE_ERROR_MESSAGES.MISSING_PROVIDER_CONFIG }, HTTP_STATUS.BAD_REQUEST);
       }
+
       return c.json(
         { error: SUMMARIZE_ERROR_MESSAGES.INVALID_BODY, details: parseResult.error.format() },
         HTTP_STATUS.BAD_REQUEST,
@@ -71,11 +78,14 @@ export async function summarizeSession(c: Context) {
     // half the budget in characters (~4 chars/token), matching the 100k char
     // cap at the 50k-token default.
     const maxContextTokens = provider.maxContextTokens ?? 0;
+
     const payloadBudget =
       maxContextTokens > 0 ? Math.floor(maxContextTokens * SUMMARIZE_PAYLOAD_RATIO) : SUMMARIZE_MAX_TOTAL_TOKENS;
+
     const maxMsgChars = Math.max(payloadBudget * 2, SUMMARIZE_MAX_MSG_CHARS);
 
     const cappedMessages = capSummarizeMessages(messages, maxMsgChars, payloadBudget);
+
     if (cappedMessages.length !== messages.length) {
       logger.info(
         `${SUMMARIZE_LOG_PREFIX} Summarize input capped: ${cappedMessages.length}/${messages.length} messages included (budget ${payloadBudget} tokens)`,
@@ -96,6 +106,7 @@ Do NOT include any pleasantries, conversational filler, or formatting other than
       if (chunk.content) {
         summary += chunk.content;
       }
+
       if (chunk.usage?.completionTokens) {
         compTokens = chunk.usage.completionTokens;
       }
@@ -114,10 +125,12 @@ Do NOT include any pleasantries, conversational filler, or formatting other than
       token_count: compTokens,
       messages_summarized: messages.length,
     };
+
     return c.json(response);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.error(`${SUMMARIZE_LOG_PREFIX} Summarization failed: ${message}`, err);
+    logger.error(`${SUMMARIZE_LOG_PREFIX} Summarization failed: ${message}`, toLogCause(err));
+
     return c.json(
       { error: SUMMARIZE_ERROR_MESSAGES.SUMMARIZATION_FAILED, details: message },
       HTTP_STATUS.INTERNAL_SERVER_ERROR,

@@ -12,7 +12,7 @@
 | Agent (Hono/Bun) | docs/agent/README.md                                     |
 | Backend (Go)     | docs/backend/README.md                                   |
 | App Web          | docs/app/web/README.md                                   |
-| App Desktop      | docs/app/dekstop/README.md                               |
+| App Desktop      | docs/app/desktop/README.md                               |
 | App Discord      | docs/app/discord/README.md                               |
 | KataraGnosis     | docs/app/katara-gnosis/README.md                         |
 | Infrastructure   | docs/infrastructure/README.md                            |

@@ -256,7 +256,6 @@ Errors: `400` invalid body (missing `text`), `500` tokenization failure.
 | Dependency            | Version     | Usage                                              |
 +-----------------------+-------------+----------------------------------------------------+
 | `hono`                | ^4.12.18    | HTTP framework, router, streaming, middleware      |
-| `@hono/node-server`   | ^2.0.1      | Node.js server adapter                             |
 | `zod`                 | ^4.4.3      | Input schema validation                            |
 | `@langchain/core`     | ^1.1.45     | BaseMessage types, HumanMessage                    |
 | `node:crypto`         | built-in    | UUID generation                                    |

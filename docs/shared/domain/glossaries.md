@@ -46,7 +46,7 @@ Terms reference definitions across these source files:
 |   mission.constants.ts             | Mission constants                        |
 | agent/src/adapter/inbound/middleware/auth.ts   | Auth middleware                           |
 | agent/src/core/agent/harness/      |                                          |
-|   cancel_manager.ts                | CancellationManager                      |
+|   cancel-manager.ts                | CancellationManager                      |
 | agent/src/core/agent/strategies/   |                                          |
 |   prompts.ts                       | Prompt templates                         |
 | agent/src/core/agent/tools/        |                                          |
@@ -60,14 +60,14 @@ Terms reference definitions across these source files:
 | agent/src/shared/utils/            |                                          |
 |   telemetry.ts                     | OTel SDK                                 |
 |   langfuse.ts                      | Langfuse tracing                         |
-| frontend/web/src/features/chat/    |                                          |
+| app/web/src/features/chat/    |                                          |
 |   types/index.ts                   | Frontend types                           |
 |   api/useChatStream.ts             | Chat stream hook                         |
 |   api/useFeatures.ts               | Features hook                            |
-| frontend/web/src/features/auth/    |                                          |
+| app/web/src/features/auth/    |                                          |
 |   services/auth-api.ts             | Auth API                                 |
 |   hooks/useAuth.ts                 | Auth hook                                |
-| frontend/web/src/lib/              |                                          |
+| app/web/src/lib/              |                                          |
 |   api-client.ts                    | API client                               |
 +------------------------------------+------------------------------------------+
 
@@ -133,7 +133,7 @@ schema on the agent side and Go structs on the gateway side. Authenticated via
 Singleton managing mission abort signals. Registers an AbortController per
 missionId. On client disconnect, aborts the signal which the harness checks
 between packets.
-*Source: `agent/src/core/agent/harness/cancel_manager.ts`*
+*Source: `agent/src/core/agent/harness/cancel-manager.ts`*
 
 **Card**
 A flash card in the spaced-repetition system. Contains question, answer, SM-2
@@ -178,10 +178,10 @@ A discoverable capability/plugin that can be bound to a mission. Examples:
 *Source: `backend/internal/handler/chat/handler.go:54-59`*
 
 **Frontend**
-The Next.js web application (`frontend/web/`) that provides the user interface.
+The Next.js web application (`app/web/`) that provides the user interface.
 Consumes Go Gateway API. Uses React Query for data fetching, SSE for streaming
 chat.
-*Source: `frontend/web/src/`*
+*Source: `app/web/src/`*
 
 ### G
 
@@ -426,7 +426,7 @@ development), `redis` (for saas/production).
 **StreamPacket**
 Frontend TypeScript type for SSE stream data. Maps AgentPacketType to
 renderable content with step tracking.
-*Source: `frontend/web/src/features/chat/types/index.ts:62-95`*
+*Source: `app/web/src/features/chat/types/index.ts:62-95`*
 
 **StrategyFactory**
 Creates strategy instances by name. Maps strategy strings to concrete

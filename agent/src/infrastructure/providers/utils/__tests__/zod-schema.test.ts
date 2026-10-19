@@ -1,17 +1,18 @@
 import { z } from "zod";
 import { zodV4ToOpenAISchema } from "../zod-schema";
 
-type JsonSchema = Record<string, unknown> & {
+interface JsonSchema {
   type?: string;
   properties: Record<string, JsonSchema>;
   items: JsonSchema;
-  required?: unknown[];
-  enum?: unknown[];
-  $schema?: unknown;
-};
+  required?: string[];
+  enum?: string[];
+  $schema?: string;
+}
 
 function toOpenAISchema(schema: z.ZodType): JsonSchema {
-  return zodV4ToOpenAISchema(schema) as JsonSchema;
+  // SAFETY: zodV4ToOpenAISchema returns object schema matching JsonSchema interface for tests
+  return zodV4ToOpenAISchema(schema) as never;
 }
 
 describe("zodV4ToOpenAISchema", () => {

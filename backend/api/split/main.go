@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -58,7 +57,7 @@ func includeNestedDefinitions(spec *Spec, tagGroups map[string][]string, sharedD
 				continue
 			}
 			var v any
-			json.Unmarshal(spec.Defs[def], &v)
+			_ = json.Unmarshal(spec.Defs[def], &v)
 			for _, ref := range collectRefs(v) {
 				if sharedDefs[ref] {
 					continue
@@ -144,8 +143,6 @@ func readSpec(path string) *Spec {
 	return &spec
 }
 
-var refRE = regexp.MustCompile(`"#/definitions/([^"]+)"`)
-
 func collectRefs(v any) []string {
 	refs := map[string]bool{}
 	collectRefsRecursive(v, refs)
@@ -210,7 +207,7 @@ func findShared(spec *Spec, tagGroups map[string][]string) map[string]bool {
 				}
 				raw, _ := json.Marshal(op)
 				var v any
-				json.Unmarshal(raw, &v)
+				_ = json.Unmarshal(raw, &v)
 				for _, ref := range collectRefs(v) {
 					if defUsage[ref] == nil {
 						defUsage[ref] = map[string]bool{}
@@ -262,7 +259,7 @@ func defUsedByTag(spec *Spec, tagGroups map[string][]string, def, tag string) bo
 			}
 			raw, _ := json.Marshal(op)
 			var v any
-			json.Unmarshal(raw, &v)
+			_ = json.Unmarshal(raw, &v)
 			for _, ref := range collectRefs(v) {
 				if ref == def {
 					return true
@@ -351,7 +348,7 @@ func writeModules(dir string, spec *Spec, tagGroups map[string][]string, moduleD
 		if spec.SecDefs != nil {
 			obj["securityDefinitions"] = spec.SecDefs
 		}
-		if defs != nil {
+		if len(defs) > 0 {
 			obj["definitions"] = defs
 		}
 		if len(sharedDefs) > 0 {
@@ -373,7 +370,7 @@ func writeJSON(path string, v any) {
 	if err != nil {
 		panic(fmt.Sprintf("marshal %s: %v", path, err))
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0o644); err != nil {
 		panic(fmt.Sprintf("write %s: %v", path, err))
 	}
 }

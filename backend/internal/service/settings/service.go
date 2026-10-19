@@ -2,15 +2,16 @@ package settings
 
 import (
 	"context"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/config"
-	"echo-backend/internal/models/user"
-	"echo-backend/internal/repository/settings"
-	aimodel "echo-backend/internal/service/aimodel"
-	"echo-backend/pkg/crypto"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
+	"echo-backend/internal/pkg/crypto"
+	"echo-backend/internal/repository/settings"
+	aimodel "echo-backend/internal/service/aimodel"
 )
 
 const PromptTemplateSettingKey = "prompt_template_name"

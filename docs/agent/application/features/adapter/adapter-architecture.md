@@ -142,7 +142,7 @@ Moved from:
 
 Each backend adapter maps to a logical API domain:
 - `session.adapter.ts` — `POST/GET/DELETE /v1/sessions`, `POST /v1/sessions/:id/prune`
-- `memory.adapter.ts` — `POST /api/v1/internal/memory/episodic/{store,recall}`
+- `memory.adapter.ts` — `POST /api/v1/internal/memory/episodic/{store,recall}` keyed by `StateKey { sessionId, slot? }`; the backend resolves the owning user from `session_id` and 404s unknown sessions, so state is isolated per user and session
 - `context.adapter.ts` — context injection topics, RAG lookups
 - `mcp-proxy.adapter.ts` — MCP server discovery proxied through backend
 

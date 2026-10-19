@@ -24,7 +24,7 @@ static export for frontend.
 | docker-compose.prod.yml     | Prod overrides (build from source, OTEL enabled)      |
 | backend/Dockerfile          | Multi-stage Go build -> alpine:latest                 |
 | agent/Dockerfile            | bun:1-alpine with Chromium for Playwright             |
-| frontend/web/Dockerfile     | bun:1-alpine build -> bun run start                   |
+| app/web/Dockerfile     | bun:1-alpine build -> bun run start                   |
 | infra/k8s/                  |                                                        |
 |   backend.yaml              | Deployment, Service, HPA                              |
 |   agent.yaml                | Deployment, Service                                   |
@@ -233,7 +233,7 @@ kubectl apply -f infra/k8s/ingress.yaml
 - **Docker Compose prod**: `docker-compose.prod.yml`
 - **Go Dockerfile**: `backend/Dockerfile`
 - **Agent Dockerfile**: `agent/Dockerfile`
-- **Frontend Dockerfile**: `frontend/web/Dockerfile`
+- **Frontend Dockerfile**: `app/web/Dockerfile`
 - **K8s manifests**: `infra/k8s/`
 
 ## Source References
@@ -249,7 +249,7 @@ kubectl apply -f infra/k8s/ingress.yaml
 | docker-compose.prod.yml                     | 1-56  | Production service definitions       |
 | backend/Dockerfile                          | 1-14  | Multi-stage Go build                 |
 | agent/Dockerfile                            | 1-19  | Bun + Chromium                       |
-| frontend/web/Dockerfile                     | 1-9   | Next.js static build                 |
+| app/web/Dockerfile                     | 1-9   | Next.js static build                 |
 | infra/k8s/backend.yaml                      | 1-79  | Go backend K8s manifest              |
 | infra/k8s/agent.yaml                        | 1-44  | Agent K8s manifest                   |
 | infra/k8s/frontend.yaml                     | 1-36  | Frontend K8s manifest                |

@@ -3,12 +3,15 @@ package auth
 import (
 	"context"
 	"crypto/sha256"
-	"echo-backend/internal/models/auth"
-	"echo-backend/internal/models/config"
 	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
+
+	"echo-backend/internal/models/auth"
+	"echo-backend/internal/models/config"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type fakeUserRepo struct {
@@ -17,6 +20,9 @@ type fakeUserRepo struct {
 	tokens  map[string]*authmodel.RefreshToken
 	revoked []int64
 	family  []int
+	// beforeRotate runs inside RotateRefreshToken before the active check,
+	// letting a test simulate a concurrent rotation winning the race.
+	beforeRotate func()
 }
 
 func (f *fakeUserRepo) GetByEmail(_ context.Context, email string) (*authmodel.User, error) {
@@ -60,6 +66,25 @@ func (f *fakeUserRepo) RevokeRefreshToken(_ context.Context, id int64) error {
 	}
 	f.revoked = append(f.revoked, id)
 	return nil
+}
+
+func (f *fakeUserRepo) RotateRefreshToken(ctx context.Context, oldID int64, userID int, tokenHash, deviceLabel string, expiresAt time.Time) error {
+	if f.beforeRotate != nil {
+		f.beforeRotate()
+	}
+	for _, rt := range f.tokens {
+		if rt.ID != oldID {
+			continue
+		}
+		if rt.RevokedAt != nil {
+			return authmodel.ErrRefreshTokenNotActive
+		}
+		now := time.Now()
+		rt.RevokedAt = &now
+		_, err := f.CreateRefreshToken(ctx, userID, tokenHash, deviceLabel, expiresAt)
+		return err
+	}
+	return authmodel.ErrRefreshTokenNotActive
 }
 
 func (f *fakeUserRepo) RevokeRefreshTokensByUser(_ context.Context, userID int) error {
@@ -234,5 +259,54 @@ func TestRevokeRefreshToken(t *testing.T) {
 	}
 	if err := svc.RevokeRefreshToken(context.Background(), "unknown"); err != nil {
 		t.Fatalf("unknown token must be a no-op, got %v", err)
+	}
+}
+
+func TestRefreshAccessTokenConcurrentRotationLoses(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeUserRepo{users: map[int]*authmodel.User{1: {ID: 1, Email: "jane@example.com", Role: "user"}}}
+	svc := newTestService(repo)
+
+	pair, err := svc.GenerateTokenPair(context.Background(), repo.users[1], "device")
+	if err != nil {
+		t.Fatalf("GenerateTokenPair: %v", err)
+	}
+	stored := repo.tokens[storedHash(t, repo, pair.RefreshToken)]
+	repo.beforeRotate = func() {
+		now := time.Now()
+		stored.RevokedAt = &now
+	}
+
+	_, err = svc.RefreshAccessToken(context.Background(), pair.RefreshToken, "device")
+	if !errors.Is(err, ErrRefreshTokenRevoked) {
+		t.Fatalf("expected ErrRefreshTokenRevoked, got %v", err)
+	}
+	if len(repo.tokens) != 1 {
+		t.Fatalf("losing rotation must not store a new token, got %d tokens", len(repo.tokens))
+	}
+	if len(repo.family) != 1 || repo.family[0] != 1 {
+		t.Fatalf("expected family revoke for user 1, got %v", repo.family)
+	}
+}
+
+func TestLoginUnknownEmailReturnsInvalidCredentials(t *testing.T) {
+	t.Parallel()
+
+	svc := newTestService(&fakeUserRepo{byEmail: map[string]*authmodel.User{}})
+	if _, _, err := svc.Login(context.Background(), "nobody@example.com", "password123", "device"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected ErrInvalidCredentials, got %v", err)
+	}
+}
+
+func TestDummyPasswordHashMatchesDefaultCost(t *testing.T) {
+	t.Parallel()
+
+	cost, err := bcrypt.Cost([]byte(dummyPasswordHash))
+	if err != nil {
+		t.Fatalf("dummy hash must be a valid bcrypt hash: %v", err)
+	}
+	if cost != bcrypt.DefaultCost {
+		t.Fatalf("dummy hash cost = %d, want %d so timing matches real hashes", cost, bcrypt.DefaultCost)
 	}
 }

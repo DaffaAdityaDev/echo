@@ -2,9 +2,8 @@ package aimodel
 
 import (
 	"context"
-	"echo-backend/internal/models/ai"
-	"echo-backend/internal/models/config"
-	"echo-backend/internal/models/user"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,11 +13,21 @@ import (
 	"sync"
 	"time"
 
+	"echo-backend/internal/models/ai"
+	"echo-backend/internal/models/config"
+	"echo-backend/internal/models/user"
+
 	authconst "echo-backend/internal/constants/auth"
 	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/pkg/netguard"
+
+	"golang.org/x/sync/singleflight"
 )
 
-var httpClient = &http.Client{Timeout: 10 * time.Second}
+const (
+	providerRequestTimeout = 10 * time.Second
+	modelCacheTTL          = 30 * time.Second
+)
 
 const openCodeGoPrefix = "opencode-go/"
 
@@ -31,6 +40,7 @@ type cacheEntry struct {
 type modelCache struct {
 	mu      sync.RWMutex
 	entries map[string]cacheEntry
+	flight  singleflight.Group
 }
 
 type SettingsProvider interface {
@@ -40,15 +50,24 @@ type SettingsProvider interface {
 type Service struct {
 	cfg         *cfgmodel.Config
 	settingsSvc SettingsProvider
-	cache       modelCache
+	cache       *modelCache
+	httpClient  *http.Client
 }
 
 func NewService(cfg *cfgmodel.Config, settingsSvc SettingsProvider) *Service {
-	return &Service{cfg: cfg, settingsSvc: settingsSvc, cache: modelCache{entries: make(map[string]cacheEntry)}}
+	return &Service{
+		cfg:         cfg,
+		settingsSvc: settingsSvc,
+		cache:       &modelCache{entries: make(map[string]cacheEntry)},
+		httpClient:  netguard.Client(cfg.AllowPrivateProviderURLs, providerRequestTimeout),
+	}
 }
 
-func cacheKey(providerType, baseURL string) string {
-	return providerType + "|" + baseURL
+// cacheKey scopes cached model lists to the credential that fetched them so
+// one user's key never serves another user's listing.
+func cacheKey(providerType, baseURL, apiKey string) string {
+	keyHash := sha256.Sum256([]byte(apiKey))
+	return providerType + "|" + baseURL + "|" + hex.EncodeToString(keyHash[:])
 }
 
 func isMultimodalModel(id string) bool {
@@ -86,6 +105,16 @@ func DefaultBaseURL(providerType string) string {
 	return ""
 }
 
+// ModelNameFor returns the model id the provider API expects. opencode-go
+// model listings are exposed with an "opencode-go/" prefix that the provider
+// itself does not accept.
+func ModelNameFor(providerType, modelID string) string {
+	if providerType == string(aitype.ProviderOpenCode) {
+		return strings.TrimPrefix(modelID, openCodeGoPrefix)
+	}
+	return modelID
+}
+
 func (s *Service) GetModels(ctx context.Context, userID int) ([]aitype.ModelInfo, error) {
 	prefs, err := s.settingsSvc.GetSettingsInternal(ctx, userID)
 	if err != nil {
@@ -104,34 +133,48 @@ func (s *Service) GetModels(ctx context.Context, userID int) ([]aitype.ModelInfo
 	return s.getCachedModels(ctx, prefs.ProviderType, prefs.APIKey, prefs.BaseURL)
 }
 
+func (c *modelCache) get(key string) (cacheEntry, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	entry, ok := c.entries[key]
+	if !ok || !time.Now().Before(entry.expiresAt) {
+		return cacheEntry{}, false
+	}
+	return entry, true
+}
+
+func (c *modelCache) put(key string, entry cacheEntry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = entry
+}
+
+// getCachedModels serves a fresh cache entry or fetches once per key; the
+// fetch runs outside the cache lock so a slow provider only delays callers
+// waiting on that same key. The fetch is detached from the first caller's
+// cancellation because its result is shared and cached for every waiter.
 func (s *Service) getCachedModels(ctx context.Context, providerType, apiKey, baseURL string) ([]aitype.ModelInfo, error) {
-	key := cacheKey(providerType, baseURL)
-
-	s.cache.mu.RLock()
-	entry, ok := s.cache.entries[key]
-	if ok && time.Now().Before(entry.expiresAt) {
-		s.cache.mu.RUnlock()
-		return entry.models, entry.err
-	}
-	s.cache.mu.RUnlock()
-
-	s.cache.mu.Lock()
-	entry, ok = s.cache.entries[key]
-	if ok && time.Now().Before(entry.expiresAt) {
-		s.cache.mu.Unlock()
+	key := cacheKey(providerType, baseURL, apiKey)
+	if entry, ok := s.cache.get(key); ok {
 		return entry.models, entry.err
 	}
 
-	models, err := s.fetchProviderModels(ctx, providerType, apiKey, baseURL)
+	result, err, _ := s.cache.flight.Do(key, func() (interface{}, error) {
+		if entry, ok := s.cache.get(key); ok {
+			return entry.models, entry.err
+		}
+		models, fetchErr := s.fetchProviderModels(context.WithoutCancel(ctx), providerType, apiKey, baseURL)
+		if fetchErr != nil {
+			slog.Error(msgconst.ErrAimodelFetchModels, msgconst.ComponentKey, msgconst.ComponentModel, msgconst.KeyProvider, providerType, msgconst.KeyErr, fetchErr)
+			fetchErr = fmt.Errorf("fetch provider models: %w", fetchErr)
+		}
+		s.cache.put(key, cacheEntry{models: models, err: fetchErr, expiresAt: time.Now().Add(modelCacheTTL)})
+		return models, fetchErr
+	})
 	if err != nil {
-		slog.Error(msgconst.ErrAimodelFetchModels, msgconst.ComponentKey, msgconst.ComponentModel, msgconst.KeyProvider, providerType, msgconst.KeyErr, err)
-		s.cache.entries[key] = cacheEntry{err: err, expiresAt: time.Now().Add(30 * time.Second)}
-		s.cache.mu.Unlock()
-		return nil, fmt.Errorf("fetch provider models: %w", err)
+		return nil, err
 	}
-
-	s.cache.entries[key] = cacheEntry{models: models, expiresAt: time.Now().Add(30 * time.Second)}
-	s.cache.mu.Unlock()
+	models, _ := result.([]aitype.ModelInfo)
 	return models, nil
 }
 
@@ -207,15 +250,14 @@ func (s *Service) fetchModels(ctx context.Context, providerType, url, apiKey str
 		}
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API returned %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("provider models API returned status %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -260,10 +302,7 @@ func (s *Service) ResolveProviderConfig(ctx context.Context, userID int, modelID
 		baseURL = DefaultBaseURL(providerType)
 	}
 
-	modelName := modelID
-	if providerType == "opencode-go" {
-		modelName = strings.TrimPrefix(modelID, openCodeGoPrefix)
-	}
+	modelName := ModelNameFor(providerType, modelID)
 
 	return &aitype.ProviderConfig{
 		Type:             aitype.ProviderType(providerType),

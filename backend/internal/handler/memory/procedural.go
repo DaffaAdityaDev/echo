@@ -2,9 +2,8 @@ package memory
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	msgconst "echo-backend/internal/constants/msg"
@@ -12,12 +11,41 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+const proceduralStatusRecorded = "recorded"
+
+// Procedural names are unique per user (idx_memory_procedural_user_name). An
+// id already used by another user's row trips the primary key and is reported
+// as a 409; reads only ever match the session owner's rows, so orphaned
+// NULL-owner rows are never returned.
+const (
+	queryUpsertProcedural = `
+		INSERT INTO memory_procedural (id, user_id, name, content, metadata)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (user_id, name) DO UPDATE
+		SET content = EXCLUDED.content, metadata = EXCLUDED.metadata, updated_at = NOW()
+		RETURNING id
+	`
+	queryGetProceduralByID = `
+		SELECT id, name, content, metadata, created_at, updated_at
+		FROM memory_procedural
+		WHERE user_id = $1 AND id = $2
+	`
+	queryGetProceduralByName = `
+		SELECT id, name, content, metadata, created_at, updated_at
+		FROM memory_procedural
+		WHERE user_id = $1 AND name = $2
+	`
 )
 
 type proceduralStoreRequest struct {
+	// SessionID is the session the agent is running; its owner owns the entry.
+	SessionID string `json:"session_id" binding:"required" example:"6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"`
 	// ID is the procedural memory identifier (required).
 	ID string `json:"id" binding:"required" example:"proc_123"`
-	// Name is the procedural memory name (required).
+	// Name is the procedural memory name, unique per user (required).
 	Name string `json:"name" binding:"required" example:"checkout_flow"`
 	// Content is the procedural memory content (required).
 	Content string `json:"content"`
@@ -27,7 +55,7 @@ type proceduralStoreRequest struct {
 
 // ProceduralStoreResponse is the response returned when a procedural memory entry is stored.
 type ProceduralStoreResponse struct {
-	// ID is the generated memory entry ID.
+	// ID is the stored procedural memory identifier (the existing ID when Name already existed for the user).
 	ID string `json:"id"`
 	// Status is always "recorded".
 	Status string `json:"status"`
@@ -35,7 +63,7 @@ type ProceduralStoreResponse struct {
 
 // HandleStoreProcedural godoc
 // @Summary Store procedural memory
-// @Description Stores a procedural memory entry (internal)
+// @Description Stores a procedural memory entry owned by the user that owns the session (internal)
 // @Tags Memory
 // @Accept json
 // @Produce json
@@ -43,6 +71,8 @@ type ProceduralStoreResponse struct {
 // @Param request body proceduralStoreRequest true "Procedural memory payload"
 // @Success 201 {object} ProceduralStoreResponse "Recorded entry"
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string "Unknown or deleted session"
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/procedural/store [post]
 func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
@@ -53,35 +83,37 @@ func (h *Handler) HandleStoreProcedural(c fiber.Ctx) error {
 	if req.ID == "" || req.Name == "" || req.Content == "" {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id, name, and content are required")
 	}
-
-	metadataJSON := []byte("{}")
-	if req.Metadata != nil {
-		var err error
-		metadataJSON, err = json.Marshal(req.Metadata)
-		if err != nil {
-			return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
-		}
+	metadataJSON, err := marshalMetadata(req.Metadata)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid metadata")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), memoryRequestTimeout)
 	defer cancel()
-	_, err := h.pool.Exec(ctx, `
-		INSERT INTO memory_procedural (id, name, content, metadata)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (id) DO UPDATE
-		SET name = $2, content = $3, metadata = $4, updated_at = NOW()
-	`, req.ID, req.Name, req.Content, metadataJSON)
+
+	userID, err := h.sessionOwner(ctx, req.SessionID)
+	if err != nil {
+		return respondOwnerError(c, req.SessionID, err)
+	}
+
+	var storedID string
+	err = h.pool.QueryRow(ctx, queryUpsertProcedural, req.ID, userID, req.Name, req.Content, metadataJSON).Scan(&storedID)
+	if isUniqueViolation(err) {
+		return handlerutil.RespondError(c, fiber.StatusConflict, "Procedural memory id is already used by another name")
+	}
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to store procedural memory")
 	}
 
 	return handlerutil.RespondCreated(c, ProceduralStoreResponse{
-		ID:     generateID("mem_pr_"),
-		Status: "recorded",
+		ID:     storedID,
+		Status: proceduralStatusRecorded,
 	})
 }
 
 type proceduralGetRequest struct {
+	// SessionID is the session the agent is running; only its owner's entries are returned.
+	SessionID string `json:"session_id" binding:"required" example:"6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"`
 	// ID is the procedural memory identifier; at least one of ID or Name is required.
 	ID string `json:"id,omitempty" example:"proc_123"`
 	// Name is the procedural memory name; at least one of ID or Name is required.
@@ -106,7 +138,7 @@ type ProceduralGetResponse struct {
 
 // HandleGetProcedural godoc
 // @Summary Get procedural memory
-// @Description Retrieves procedural memory entries by ID or name (internal)
+// @Description Retrieves one of the session owner's procedural memory entries by ID or name (internal)
 // @Tags Memory
 // @Accept json
 // @Produce json
@@ -114,7 +146,7 @@ type ProceduralGetResponse struct {
 // @Param request body proceduralGetRequest true "Procedural recall payload"
 // @Success 200 {object} ProceduralGetResponse "Procedural memory entry"
 // @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
+// @Failure 404 {object} map[string]string "Unknown session or entry"
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/internal/memory/procedural/get [post]
 func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
@@ -126,45 +158,45 @@ func (h *Handler) HandleGetProcedural(c fiber.Ctx) error {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "id or name is required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), memoryRequestTimeout)
 	defer cancel()
 
-	var id, name, content string
-	var metadataBytes []byte
-	var createdAt, updatedAt time.Time
+	userID, err := h.sessionOwner(ctx, req.SessionID)
+	if err != nil {
+		return respondOwnerError(c, req.SessionID, err)
+	}
 
-	var err error
-	if req.ID != "" {
-		err = h.pool.QueryRow(ctx, `
-			SELECT id, name, content, metadata, created_at, updated_at
-			FROM memory_procedural
-			WHERE id = $1
-		`, req.ID).Scan(&id, &name, &content, &metadataBytes, &createdAt, &updatedAt)
-	} else {
-		err = h.pool.QueryRow(ctx, `
-			SELECT id, name, content, metadata, created_at, updated_at
-			FROM memory_procedural
-			WHERE name = $1
-		`, req.Name).Scan(&id, &name, &content, &metadataBytes, &createdAt, &updatedAt)
+	entry, err := h.getProcedural(ctx, userID, req)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return handlerutil.RespondError(c, fiber.StatusNotFound, "Procedural memory not found")
 	}
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return handlerutil.RespondError(c, fiber.StatusNotFound, "Procedural memory not found")
-		}
 		return handlerutil.RespondError(c, fiber.StatusInternalServerError, "Failed to get procedural memory")
 	}
 
-	var metadata interface{}
-	if err := json.Unmarshal(metadataBytes, &metadata); err != nil && len(metadataBytes) > 0 {
-		slog.Warn(msgconst.WarnMemoryParseProcedMeta, msgconst.ComponentKey, msgconst.ComponentMemory, msgconst.KeyID, id, msgconst.KeyErr, err)
+	return handlerutil.RespondSuccess(c, entry)
+}
+
+// getProcedural looks the entry up by ID when given, otherwise by name, always
+// within the owner's rows.
+func (h *Handler) getProcedural(ctx context.Context, userID int, req proceduralGetRequest) (ProceduralGetResponse, error) {
+	query, key := queryGetProceduralByName, req.Name
+	if req.ID != "" {
+		query, key = queryGetProceduralByID, req.ID
 	}
 
-	return handlerutil.RespondSuccess(c, ProceduralGetResponse{
-		ID:        id,
-		Name:      name,
-		Content:   content,
-		Metadata:  metadata,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-	})
+	var entry ProceduralGetResponse
+	var metadataBytes []byte
+	err := h.pool.QueryRow(ctx, query, userID, key).
+		Scan(&entry.ID, &entry.Name, &entry.Content, &metadataBytes, &entry.CreatedAt, &entry.UpdatedAt)
+	if err != nil {
+		return ProceduralGetResponse{}, fmt.Errorf("get procedural memory: %w", err)
+	}
+	entry.Metadata = decodeMetadata(metadataBytes, entry.ID, msgconst.WarnMemoryParseProcedMeta)
+	return entry, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolationCode
 }

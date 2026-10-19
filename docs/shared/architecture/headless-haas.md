@@ -26,7 +26,7 @@ agent → backend for memory persistence (internal).
 +----------------------------+------------------------------------------------------+
 | File / Directory           | Role                                                 |
 +----------------------------+------------------------------------------------------+
-| frontend/web/              |                                                      |
+| app/web/              |                                                      |
 |   features/chat/           |                                                      |
 |     api/                   |                                                      |
 |       useChatStream.ts     | Client SSE consumer                                  |
@@ -45,7 +45,7 @@ agent → backend for memory persistence (internal).
 |     env.constants.ts       | Env defaults                                         |
 |   core/agent/              |                                                      |
 |     harness/               |                                                      |
-|       cancel_manager.ts    | Abort signal per mission                             |
+|       cancel-manager.ts    | Abort signal per mission                             |
 |     strategies/            |                                                      |
 |       prompts.ts           | Prefix-caching prompt templates                      |
 |     tools/                 |                                                      |
@@ -453,7 +453,7 @@ Anthropic (Claude):
 
 - **Go Gateway**: `backend/cmd/server/main.go` -> `router.SetupRoutes()`
 - **Agent Engine**: `agent/src/index.ts` -> Hono app
-- **Frontend**: `frontend/web/src/app/page.tsx` -> `useChatStream()`
+- **Frontend**: `app/web/src/app/(main)/page.tsx` -> `useChatStream()`
 
 ## Strategy Lifecycle (Control Plane) `[Active]`
 
@@ -520,7 +520,7 @@ Full contract: `docs/shared/patterns/strategy-lifecycle.md`.
 
 | agent/src/adapter/outbound/backend/memory.adapter.ts | Memory persistence via Service JWT   |
 | agent/src/shared/types/index.ts                       | Cross-service type contracts         |
-| frontend/web/src/features/chat/api/useChatStream.ts   | Client SSE consumer                  |
+| app/web/src/features/chat/api/useChatStream.ts   | Client SSE consumer                  |
 +-------------------------------------------------------+--------------------------------------+
 
 ================================================================================

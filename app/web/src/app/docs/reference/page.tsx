@@ -1,7 +1,7 @@
 "use client";
 
-import { EndpointList } from "@/components/docs/EndpointList";
-import { useSpec } from "@/components/docs/OpenApiSpecProvider";
+import { EndpointList } from "@/features/docs/components/EndpointList";
+import { useSpec } from "@/features/docs/components/OpenApiSpecProvider";
 
 export default function ReferencePage() {
   const { spec, loading, error } = useSpec();
@@ -9,10 +9,10 @@ export default function ReferencePage() {
   if (loading) {
     return (
       <div className="space-y-6 max-w-4xl font-mono">
-        <div className="h-8 bg-slate-200 rounded-xs w-48 animate-pulse" />
-        <div className="h-4 bg-slate-200 rounded-xs w-96 animate-pulse" />
+        <div className="h-8 bg-border rounded-xs w-48 animate-pulse" />
+        <div className="h-4 bg-border rounded-xs w-full max-w-96 animate-pulse" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 bg-slate-100 border border-border rounded-xs animate-pulse" />
+          <div key={i} className="h-32 bg-surface-hover border border-border rounded-xs animate-pulse" />
         ))}
       </div>
     );
@@ -21,8 +21,8 @@ export default function ReferencePage() {
   if (error) {
     return (
       <div className="max-w-4xl font-mono">
-        <div className="p-5 border border-rose-200 bg-rose-50 rounded-xs">
-          <p className="text-xs font-bold text-rose-700">Failed to load API specification: {error}</p>
+        <div className="p-5 border border-danger/30 bg-danger/10 rounded-xs">
+          <p className="text-xs font-bold text-danger">Failed to load API specification: {error}</p>
           <p className="text-xs text-muted mt-2">
             Make sure the backend spec file exists at{" "}
             <code className="text-foreground font-semibold">backend/api/docs/swagger.json</code>
@@ -46,8 +46,8 @@ export default function ReferencePage() {
           <p className="text-muted">
             {spec.info.title} — v{spec.info.version}
           </p>
-          <span className="text-slate-300">|</span>
-          <span className="text-xs text-blue-600 font-bold">
+          <span className="text-subtle">|</span>
+          <span className="text-xs text-accent font-bold">
             {spec.tags.reduce((s, t) => s + t.endpoints.length, 0)} endpoints
           </span>
         </div>

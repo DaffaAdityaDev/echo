@@ -28,13 +28,16 @@ Return ONLY this structured JSON.`,
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
+
       const parsed = JSON.parse(cleaned);
+
       const nextSteps = Array.isArray(parsed.next_course_of_action)
         ? parsed.next_course_of_action
-            .map(
-              (item: string | { action: string }, i: number) =>
-                `${i + 1}. ${typeof item === "string" ? item : item.action}`,
-            )
+            .map((item: string | { action: string }, i: number) => {
+              const actionText = item instanceof Object && "action" in item ? String(item.action) : String(item);
+
+              return `${i + 1}. ${actionText}`;
+            })
             .join("\n")
         : "";
 
@@ -66,8 +69,6 @@ Format your response immediately as the final conclusion for the user.`,
 
   LOG_COMPACTED: (tokens: number) =>
     `*[System: Context compacted. Accumulated history of ${tokens} tokens summarized into structured high-density state to avoid context window bloating.]*`,
-
-  LOG_RE_ROUTE: `[Harness Notice]: Tool execution automatically re-routed via Soft Recovery.`,
 
   FINANCIAL_ABORT: (threshold: number, spend: number) =>
     `FINANCIAL_ABORT: Execution budget of $${threshold.toFixed(2)} exceeded. Current spend: $${spend.toFixed(4)}. Aborting run to protect resources.`,

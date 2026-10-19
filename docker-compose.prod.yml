@@ -1,4 +1,22 @@
+# Production overlay: docker compose -f docker-compose.yml -f docker-compose.prod.yml
+# Secrets have no defaults here on purpose. Compose refuses to start until they are set
+# (in the Dokploy environment or a root .env that is never committed).
 services:
+  echo-postgres:
+    environment:
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      POSTGRES_DB: ${DB_NAME:-echo_db}
+
+  echo-migrate:
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-user}:${DB_PASSWORD:?DB_PASSWORD must be set}@echo-postgres:5432/${DB_NAME:-echo_db}?sslmode=disable
+
+  echo-seed:
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-user}:${DB_PASSWORD:?DB_PASSWORD must be set}@echo-postgres:5432/${DB_NAME:-echo_db}?sslmode=disable
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
+
   echo-agent:
     build:
       context: ./agent
@@ -7,10 +25,11 @@ services:
       - "${AGENT_PORT:-3001}:3001"
     environment:
       - PORT=${AGENT_PORT:-3001}
+      - NODE_ENV=production
       - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
       - STATE_BACKEND=${STATE_BACKEND:-backend}
-      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
-      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:?INTERNAL_AUTH_TOKEN must be set}
+      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET must be set}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
       - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
     depends_on:
@@ -26,18 +45,21 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
       - PORT=${BACKEND_PORT:-8080}
+      - ENVIRONMENT=production
       - AGENT_HTTP_URL=${AGENT_HTTP_URL:-http://echo-agent:3001}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
+      - DATABASE_URL=postgresql://${DB_USER:-user}:${DB_PASSWORD:?DB_PASSWORD must be set}@echo-postgres:5432/${DB_NAME:-echo_db}?sslmode=disable
       - DB_HOST=${DB_HOST:-echo-postgres}
       - DB_PORT=${DB_PORT:-5432}
       - DB_USER=${DB_USER:-user}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_NAME=${DB_NAME:-echo_db}
       - REDIS_ADDR=${REDIS_ADDR:-echo-redis:6379}
-      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-default-internal-token-secret}
-      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-change-this-to-a-secure-service-jwt-secret-min32chars}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:?INTERNAL_AUTH_TOKEN must be set}
+      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET must be set}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set (32 characters)}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS must be set to the public web origin}
       - ENABLE_OTEL=${ENABLE_OTEL:-false}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-opencode-go/deepseek-v4-flash}
       - LOKI_URL=${LOKI_URL:-}
       - LOKI_USER=${LOKI_USER:-}
@@ -60,7 +82,6 @@ services:
       target: runner
       args:
         - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     container_name: echo_frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -68,7 +89,6 @@ services:
       - PORT=${FRONTEND_PORT:-3000}
       - HOSTNAME=${HOSTNAME:-0.0.0.0}
       - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       - echo-backend
     restart: unless-stopped
@@ -111,4 +131,3 @@ services:
   #   restart: unless-stopped
   #   networks:
   #     - dokploy-network
-

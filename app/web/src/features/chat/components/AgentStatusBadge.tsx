@@ -9,48 +9,39 @@ interface AgentStatusBadgeProps {
   className?: string;
 }
 
+const NEUTRAL = "bg-surface-hover text-muted border-border";
+const SUCCESS = "bg-success/10 text-success border-success/30";
+const WARNING = "bg-warning/10 text-warning border-warning/30";
+const DANGER = "bg-danger/10 text-danger border-danger/30";
+
 const stateConfig: Record<AgentState, { label: string; className: string }> = {
-  starting: {
-    label: "Starting...",
-    className: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700",
-  },
-  running: {
-    label: "Running",
-    className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold",
-  },
-  looping: {
-    label: "Looping",
-    className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold",
-  },
-  stalled: {
-    label: "Stalled",
-    className: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/40",
-  },
-  degraded: {
-    label: "Degraded",
-    className: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/40 font-bold",
-  },
-  completed: {
-    label: "Completed",
-    className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold",
-  },
-  aborted: { label: "Aborted", className: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/40" },
-  error: { label: "Error", className: "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50 font-bold" },
+  starting: { label: "Starting...", className: NEUTRAL },
+  running: { label: "Running", className: SUCCESS },
+  looping: { label: "Looping", className: WARNING },
+  stalled: { label: "Stalled", className: WARNING },
+  degraded: { label: "Degraded", className: DANGER },
+  completed: { label: "Completed", className: SUCCESS },
+  aborted: { label: "Aborted", className: NEUTRAL },
+  error: { label: "Error", className: DANGER },
 };
 
 export function AgentStatusBadge({ state, className }: AgentStatusBadgeProps) {
   const storeState = useChatStore((s) => s.agentState);
   const resolvedState = state ?? storeState;
+
+  if (!resolvedState) return null;
+
   const config = stateConfig[resolvedState];
 
   return (
     <span
       className={cn(
-        "text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider border",
+        "text-2xs font-semibold px-1.5 py-0.5 rounded-sm uppercase tracking-wider border whitespace-nowrap",
         config.className,
         className,
       )}
     >
+      <span className="sr-only">Agent status: </span>
       {config.label}
     </span>
   );

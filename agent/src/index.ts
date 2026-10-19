@@ -24,6 +24,7 @@ initRedis(ENV.REDIS_URL);
 
 // Clean leftover debug dumps from previous sessions only when prompt debugging is enabled
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+
 if (ENV.DEBUG_PROMPT) {
   rmSync(join(root, "debug"), { recursive: true, force: true });
   logger.info("Startup cleanup complete (debug/)");
@@ -31,16 +32,20 @@ if (ENV.DEBUG_PROMPT) {
 
 // Initialize Memory Client
 const memoryProvider = new MemoryAdapter(ENV.BACKEND_URL);
+
 logger.info("Memory client initialized (backend)");
 
 // Initialize Credential Manager
 const credentialManager = new CredentialManager();
+
 toolRegistry.setCredentialManager(credentialManager);
+
 logger.info("Credential manager initialized");
 
 // Initialize MCP clients if configured
 if (ENV.ENABLE_MCP && ENV.MCP_SERVER_URL) {
   logger.info(`MCP server configured at ${ENV.MCP_SERVER_URL}`);
+
   try {
     await toolRegistry.connectMCPServer({
       name: "default-mcp",
@@ -60,12 +65,16 @@ const app = new Hono();
 
 // Global Middleware
 app.use("*", cors());
+
 app.use("*", monitorMiddleware);
+
 app.use("/api/*", authMiddleware);
 
 // Routes
 app.get("/", (c) => c.json({ status: "ok", service: "agent-platform" }));
+
 app.route("/api", routes);
+
 app.route("/docs", docsRouter);
 
 // Error Handling
@@ -74,7 +83,9 @@ app.onError(errorHandler);
 const PORT = parseInt(ENV.PORT, 10);
 
 logger.info(`Agent Platform booting...`);
+
 logger.info(`Backend Service: Standard Modular Pattern`);
+
 logger.info(`Harness Service: Isolated Core Engine`);
 
 export default {

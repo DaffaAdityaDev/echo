@@ -35,7 +35,7 @@ settings, maturity). It orchestrates system primitives and owns domain state.
 | System: pure utils | `src/utils/` | `downloadJson`, `extractErrorMessage`, `getStorage/setStorage`, `formatBytes` |
 | System: generic hooks | `src/hooks/` | `useCopyToClipboard`, `useToast` |
 | System: generic UI | `src/components/ui/` | `Tabs`, `Toast`, `Modal`, `CopyButton` |
-| System: lib plumbing | `src/lib/` | `api-client`, `proxy-fetch`, `query-standard`, `get-query-client` |
+| System: lib plumbing | `src/lib/` | `api-client`, `backend-proxy`, `proxy-fetch`, `proxy-stream`, `query-standard`, `get-query-client` |
 | Business: feature hooks | `features/<feature>/hooks/` | `useChatStream`, `useSessionsInfinite`, `useHitlApproval`, `useSettingsPage` |
 | Business: services | `features/<feature>/services/` | `chat-api.ts`, `settings-api.ts` |
 | Business: stores | `features/<feature>/stores/` | `chatStore`, `settingsStore` |

@@ -2,9 +2,10 @@ package admin
 
 import (
 	"context"
+	"fmt"
+
 	"echo-backend/internal/constants/db"
 	"echo-backend/internal/models/auth"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,8 +59,37 @@ func (r *Repository) List(ctx context.Context) ([]authmodel.ApiKey, error) {
 	return keys, rows.Err()
 }
 
+func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]authmodel.ApiKey, error) {
+	rows, err := r.pool.Query(ctx, db.QueryListApiKeysByUserID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
+	}
+	defer rows.Close()
+
+	var keys []authmodel.ApiKey
+	for rows.Next() {
+		var key authmodel.ApiKey
+		if err := rows.Scan(&key.ID, &key.KeyHash, &key.Prefix, &key.Name, &key.Scopes, &key.UserID, &key.Status, &key.CreatedAt); err != nil {
+			return nil, fmt.Errorf("%s: %w", db.ErrListApiKeys, err)
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+
 func (r *Repository) Revoke(ctx context.Context, id string) error {
 	result, err := r.pool.Exec(ctx, db.QueryRevokeApiKey, id)
+	if err != nil {
+		return fmt.Errorf("%s: %w", db.ErrRevokeApiKey, err)
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("%s: %s", db.ErrRevokeApiKey, db.ErrRevokeApiKeyNotFound)
+	}
+	return nil
+}
+
+func (r *Repository) RevokeByUserID(ctx context.Context, id string, userID string) error {
+	result, err := r.pool.Exec(ctx, db.QueryRevokeApiKeyByUserID, id, userID)
 	if err != nil {
 		return fmt.Errorf("%s: %w", db.ErrRevokeApiKey, err)
 	}

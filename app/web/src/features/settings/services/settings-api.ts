@@ -1,5 +1,5 @@
 import { api } from "@/lib/api-client";
-import type { AgentConfig, HarnessFeatureToggles } from "../types";
+import type { AgentConfig, AgentConfigDTO, HarnessFeatureToggles } from "../types";
 import { DEFAULT_AGENT_CONFIG } from "../types";
 
 interface UserPreferencesDTO {
@@ -28,8 +28,10 @@ function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
   };
 }
 
-function toDTO(config: AgentConfig): Record<string, unknown> {
-  const body: Record<string, unknown> = {
+// The stored key is kept unless the user typed a replacement: the client never
+// holds the saved key, so an empty apiKey must not be read as "remove it".
+export function toDTO(config: AgentConfig): AgentConfigDTO {
+  const body: AgentConfigDTO = {
     default_mode: config.defaultMode,
     default_model: config.defaultModel,
     default_features: config.defaultFeatures,
@@ -41,7 +43,7 @@ function toDTO(config: AgentConfig): Record<string, unknown> {
   if (config.apiKey) {
     body.api_key = config.apiKey;
     body.keep_api_key = false;
-  } else if (config.hasApiKey) {
+  } else {
     body.keep_api_key = true;
   }
 
@@ -55,11 +57,13 @@ function toDTO(config: AgentConfig): Record<string, unknown> {
 export const settingsApi = {
   get: async (): Promise<AgentConfig> => {
     const data = await api.get<UserPreferencesDTO>("/settings");
+
     return toAgentConfig(data);
   },
 
   update: async (config: AgentConfig): Promise<AgentConfig> => {
     const data = await api.put<UserPreferencesDTO>("/settings", toDTO(config));
+
     return toAgentConfig(data);
   },
 };

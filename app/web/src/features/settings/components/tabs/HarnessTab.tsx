@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Brain, Gauge, type LucideIcon, Search, ShieldAlert } from "lucide-react";
-import { cn } from "@/utils/cn";
+import { Switch } from "@/components/ui/Switch";
 import type { AgentConfig, HarnessFeatureToggles } from "../../types";
 import { DEFAULT_HARNESS_TOGGLES } from "../../types";
 
@@ -105,109 +105,100 @@ const sections: HarnessSection[] = [
   },
 ];
 
-function asToggleGroup(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
+type SectionValueMap = {
+  [key: string]: boolean | number | string | string[] | undefined;
+};
+
+function readSectionValues(
+  sectionConfig: HarnessFeatureToggles[keyof HarnessFeatureToggles] | undefined,
+): SectionValueMap {
+  if (!sectionConfig) return {};
+
+  return sectionConfig;
 }
 
 export function HarnessTab({ config, setConfig }: HarnessTabProps) {
   return (
     <div className="space-y-4">
-      <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-        Agent Harness Guards
-      </p>
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 -mt-2">
+      <p className="text-xs font-bold text-foreground uppercase tracking-wider block">Agent Harness Guards</p>
+      <p className="text-xs text-muted -mt-2">
         Fine-tune the autonomous agent safety systems. Changes apply to new missions.
       </p>
 
       {sections.map((section) => {
-        const groupConfig = asToggleGroup(config.harnessToggles?.[section.key]);
-        const defaultGroup = asToggleGroup(DEFAULT_HARNESS_TOGGLES[section.key]);
+        const groupConfig = readSectionValues(config.harnessToggles?.[section.key]);
+        const defaultGroup = readSectionValues(DEFAULT_HARNESS_TOGGLES[section.key]);
         const enabled = Boolean(groupConfig.enabled ?? defaultGroup.enabled ?? true);
         const SectionIcon = section.icon;
 
-        const updateToggles = (patchGroup: (group: Record<string, unknown>) => Record<string, unknown>) => {
-          const toggles: Record<string, unknown> = {
-            ...(config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES),
-          };
-          toggles[section.key] = patchGroup(asToggleGroup(toggles[section.key]));
-          setConfig({ harnessToggles: toggles as HarnessFeatureToggles });
+        const updateSection = (patch: SectionValueMap) => {
+          const currentToggles = config.harnessToggles ?? DEFAULT_HARNESS_TOGGLES;
+          const currentSection = readSectionValues(currentToggles[section.key]);
+          const nextSection = { ...currentSection, ...patch };
+
+          // SAFETY: Merging patched section object back into feature toggles
+          const nextToggles = {
+            ...currentToggles,
+            [section.key]: nextSection,
+          } as HarnessFeatureToggles;
+
+          setConfig({ harnessToggles: nextToggles });
         };
 
         return (
-          <div
-            key={section.key}
-            className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 overflow-hidden"
-          >
-            <div className="flex items-center justify-between p-3.5 border-b border-zinc-200/60 dark:border-zinc-800/60">
+          <div key={section.key} className="rounded-md border border-border bg-surface overflow-hidden">
+            <div className="flex items-center justify-between p-3.5 border-b border-border">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
-                  <SectionIcon className="h-4 w-4" />
+                <div className="p-1.5 rounded-md bg-accent/10 text-accent">
+                  <SectionIcon className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{section.label}</span>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{section.desc}</p>
+                  <span className="text-xs font-bold text-foreground">{section.label}</span>
+                  <p className="text-xs text-muted">{section.desc}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => updateToggles((group) => ({ ...group, enabled: !enabled }))}
-                aria-label={`Toggle ${section.label}`}
-                aria-pressed={enabled}
-                className={cn(
-                  "relative w-9 h-5 rounded-full transition-colors cursor-pointer",
-                  enabled ? "bg-purple-500" : "bg-zinc-300 dark:bg-zinc-700",
-                )}
-              >
-                <div
-                  className={cn(
-                    "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform",
-                    enabled && "translate-x-4",
-                  )}
-                />
-              </button>
+              <Switch
+                checked={enabled}
+                onChange={(next) => updateSection({ enabled: next })}
+                label={`Enable ${section.label}`}
+              />
             </div>
 
             {enabled && (
               <div className="p-3.5 space-y-3">
-                {section.fields.map((field) => (
-                  <div key={field.key} className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{field.label}</span>
-                    {field.type === "toggle" ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateToggles((group) => ({ ...group, [field.key]: !(group[field.key] ?? field.default) }))
-                        }
-                        aria-label={`Toggle ${field.label}`}
-                        aria-pressed={Boolean(groupConfig[field.key] ?? field.default)}
-                        className={cn(
-                          "relative w-8 h-4 rounded-full transition-colors cursor-pointer",
-                          (groupConfig[field.key] ?? field.default) ? "bg-purple-500" : "bg-zinc-300 dark:bg-zinc-700",
-                        )}
+                {section.fields.map((field) => {
+                  const inputId = `harness-${section.key}-${field.key}`;
+
+                  return (
+                    <div key={field.key} className="flex items-center justify-between gap-3">
+                      <label
+                        htmlFor={field.type === "number" ? inputId : undefined}
+                        className="text-xs font-medium text-muted"
                       >
-                        <div
-                          className={cn(
-                            "absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform",
-                            (groupConfig[field.key] ?? field.default) && "translate-x-4",
-                          )}
+                        {field.label}
+                      </label>
+                      {field.type === "toggle" ? (
+                        <Switch
+                          size="sm"
+                          checked={Boolean(groupConfig[field.key] ?? field.default)}
+                          onChange={(next) => updateSection({ [field.key]: next })}
+                          label={field.label}
                         />
-                      </button>
-                    ) : (
-                      <input
-                        type="number"
-                        value={Number(groupConfig[field.key] ?? field.default)}
-                        onChange={(e) =>
-                          updateToggles((group) => ({ ...group, [field.key]: parseFloat(e.target.value) }))
-                        }
-                        step={field.step ?? 1}
-                        min={field.min ?? 0}
-                        max={field.max ?? 999999}
-                        className="w-20 text-right bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs font-mono text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
-                      />
-                    )}
-                  </div>
-                ))}
+                      ) : (
+                        <input
+                          id={inputId}
+                          type="number"
+                          value={Number(groupConfig[field.key] ?? field.default)}
+                          onChange={(e) => updateSection({ [field.key]: parseFloat(e.target.value) })}
+                          step={field.step ?? 1}
+                          min={field.min ?? 0}
+                          max={field.max ?? 999999}
+                          className="w-20 text-right bg-surface-hover border border-border rounded-md px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:border-accent/50"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

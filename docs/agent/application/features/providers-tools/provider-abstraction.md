@@ -157,8 +157,7 @@ Stream Phase 3 - Usage (after stream ends)
 ## Runtime Requirements
 
 The agent **must** be started with `bun` (not `node`). Bun natively loads `.env`
-into `process.env`. The `dotenv` npm package is listed as a dependency but
-`dotenv.config()` is never called in code.
+into `process.env`; there is no `dotenv` dependency.
 
 | Command | Runtime | .env loaded? | Use case |
 |---------|---------|-------------|----------|

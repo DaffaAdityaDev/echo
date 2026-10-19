@@ -38,11 +38,11 @@ import (
 	"echo-backend/internal/worker"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
+func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config, pool *pgxpool.Pool) {
 	// 1. Initialize Infrastructure
-	pool := database.NewPostgresPool(cfg)
 	rdb := database.NewRedisClient(cfg)
 
 	// 2. Initialize Repositories
@@ -62,7 +62,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 
 	// Tier resolution for the auth middleware: per-request cache-aside lookup.
 	tierSvc := tiersvc.NewService(tiersvc.NewRedisCache(rdb), userRepo)
-	authRequired := middleware.AuthRequired(cfg.JWTSecret, tierSvc.Resolve)
+	authRequired := middleware.AuthRequired(cfg.JWTSecret, tierSvc.Resolve, apiKeyRepo)
 
 	// 4. Initialize Handlers
 	authHandler := authhdl.NewHandler(cfg, authSvc)
@@ -72,7 +72,7 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	strategyHandler := strathdl.NewHandler(strategySvc)
 	featuresHandler := featureshdl.NewHandler(featuresSvc)
 	adminHandler := adminhdl.NewHandler(cfg, apiKeyRepo)
-	memoryHandler := memhdl.NewHandler(rdb, pool)
+	memoryHandler := memhdl.NewHandler(rdb, pool, sessionRepo)
 	settingsHandler := setthdl.NewHandler(cfg, settingsSvc)
 
 	// 5. Initialize Lifecycle Worker
@@ -162,8 +162,14 @@ func SetupRoutes(fbApp *fiber.App, cfg *cfgmodel.Config) {
 	sessionsGroup.Post("/:id/deny", chatHandler.HandleDenyTool)
 	sessionsGroup.Post("/:id/cancel", chatHandler.HandleInterrupt)
 
-	// Admin routes (user JWT or API key required)
-	adminGroup := api.Group(routes.V1AdminGroup, middleware.AuthOrAPIKeyRequired(cfg, apiKeyRepo))
+	// User API Key Management (any user with a JWT session; API keys cannot mint keys)
+	apiKeysGroup := api.Group("/api-keys", authRequired, middleware.RequireSessionAuth())
+	apiKeysGroup.Get("", adminHandler.HandleListUserKeys)
+	apiKeysGroup.Post("", adminHandler.HandleCreateKey)
+	apiKeysGroup.Delete("/:id", adminHandler.HandleRevokeUserKey)
+
+	// Admin routes (Admin role required)
+	adminGroup := api.Group(routes.V1AdminGroup, authRequired, middleware.RequireRoles(domainconst.RoleAdmin))
 	adminGroup.Get("/api-keys", adminHandler.HandleListKeys)
 	adminGroup.Post("/api-keys", adminHandler.HandleCreateKey)
 	adminGroup.Delete("/api-keys/:id", adminHandler.HandleRevokeKey)

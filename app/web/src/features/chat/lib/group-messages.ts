@@ -1,34 +1,52 @@
+import type { JsonObject } from "@/types/json";
 import type { DbMessage, Message, ThoughtStep } from "../types";
 
-export function parseToolCallContent(content: string): { toolName: string; toolInput: Record<string, unknown> } {
+export interface ParsedToolCall {
+  toolName: string;
+  toolInput: JsonObject;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+export function parseToolCallContent(content: string): ParsedToolCall {
   try {
     const parsed: unknown = JSON.parse(content);
-    if (typeof parsed === "object" && parsed !== null) {
-      const rec = parsed as Record<string, unknown>;
-      return {
-        toolName: typeof rec.toolName === "string" ? rec.toolName : "",
-        toolInput:
-          typeof rec.toolInput === "object" && rec.toolInput !== null ? (rec.toolInput as Record<string, unknown>) : {},
-      };
+
+    if (isJsonObject(parsed)) {
+      const toolName = isString(parsed.toolName) ? parsed.toolName : "";
+      const toolInput = isJsonObject(parsed.toolInput) ? parsed.toolInput : {};
+
+      return { toolName, toolInput };
     }
   } catch {
     // Not JSON: fall through to the safe default.
   }
+
   return { toolName: "", toolInput: {} };
 }
 
 export function groupMessagesByTurn(messages: DbMessage[]): Message[] {
   const turnMap = new Map<number, DbMessage[]>();
+
   for (const msg of messages) {
     const group = turnMap.get(msg.turn_number) || [];
     group.push(msg);
     turnMap.set(msg.turn_number, group);
   }
+
   const result: Message[] = [];
+
   for (const [turnNumber, group] of turnMap) {
     const userMsg = group.find((m) => m.role === "user");
     const assistantMsg = group.find((m) => m.role === "assistant");
     const systemMsg = group.find((m) => m.role === "system");
+
     if (systemMsg) {
       result.push({
         id: `sys-${turnNumber}-${systemMsg.id}`,
@@ -38,6 +56,7 @@ export function groupMessagesByTurn(messages: DbMessage[]): Message[] {
       });
       continue;
     }
+
     if (userMsg) {
       result.push({
         id: `user-${turnNumber}-${userMsg.id}`,
@@ -46,7 +65,9 @@ export function groupMessagesByTurn(messages: DbMessage[]): Message[] {
         steps: [],
       });
     }
+
     let steps: ThoughtStep[] = [];
+
     if (assistantMsg?.steps && assistantMsg.steps.length > 0) {
       steps = assistantMsg.steps;
     } else if (assistantMsg) {
@@ -64,13 +85,16 @@ export function groupMessagesByTurn(messages: DbMessage[]): Message[] {
         }
       }
     }
+
     const hasSteps = steps.length > 0;
+
     const hasContent = Boolean(
       assistantMsg?.content ||
-        hasSteps ||
-        assistantMsg?.status === "streaming" ||
-        assistantMsg?.status === "interrupted",
+      hasSteps ||
+      assistantMsg?.status === "streaming" ||
+      assistantMsg?.status === "interrupted",
     );
+
     if (hasContent) {
       result.push({
         id: `asst-${turnNumber}-${assistantMsg?.id || "stream"}`,
@@ -81,5 +105,6 @@ export function groupMessagesByTurn(messages: DbMessage[]): Message[] {
       });
     }
   }
+
   return result;
 }

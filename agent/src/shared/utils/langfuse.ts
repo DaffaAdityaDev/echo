@@ -2,12 +2,23 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { CallbackHandler } from "@langfuse/langchain";
 import { type LangfuseSpan, propagateAttributes, startObservation } from "@langfuse/tracing";
 import { ENV } from "../../config/env";
+import type { JsonObject, JsonValue } from "../../shared/types";
+import { toLogCause } from "../../shared/utils/errors";
 import { logger } from "../../shared/utils/logger";
 
+export interface GenerationParams {
+  name: string;
+  model?: string;
+  input?: JsonValue;
+  metadata?: JsonObject;
+}
+
+export interface GenerationSpan {
+  end: (params?: JsonValue) => void;
+}
+
 export type LangfuseTrace = LangfuseSpan & {
-  generation?: (params: { name: string; model?: string; input?: unknown; metadata?: Record<string, unknown> }) => {
-    end: (params?: unknown) => void;
-  };
+  generation?: (params: GenerationParams) => GenerationSpan;
 };
 
 export interface LangfuseStorageContext {
@@ -22,13 +33,16 @@ export const langfuseStorage = new AsyncLocalStorage<LangfuseStorageContext>();
 export async function getLangChainCallbacks(): Promise<CallbackHandler[]> {
   try {
     const store = langfuseStorage.getStore();
+
     const tracer = new CallbackHandler({
       sessionId: store?.sessionId,
       userId: store?.userId,
     });
+
     return [tracer];
   } catch (err) {
-    logger.error("⚠️ Failed to resolve LangChain callbacks:", err);
+    logger.error("⚠️ Failed to resolve LangChain callbacks:", toLogCause(err));
+
     return [];
   }
 }
@@ -60,7 +74,8 @@ export function startAgentTrace(
 
     return trace;
   } catch (err) {
-    logger.error("❌ Failed to start Agent Trace:", err);
+    logger.error("❌ Failed to start Agent Trace:", toLogCause(err));
+
     return null;
   }
 }

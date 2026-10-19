@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/utils/cn";
@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   description: "Security-first AI agent orchestration platform.",
 };
 
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,12 +33,12 @@ export default function RootLayout({
       <body
         className={cn(
           ibmPlexMono.variable,
-          "font-mono antialiased bg-white text-foreground selection:bg-gb-blue/20 h-full flex flex-col overflow-hidden",
+          "font-mono antialiased bg-background text-foreground h-full flex flex-col overflow-hidden",
         )}
       >
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-sm"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-sm"
         >
           Skip to content
         </a>

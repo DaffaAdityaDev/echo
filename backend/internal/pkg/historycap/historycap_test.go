@@ -3,6 +3,7 @@ package historycap
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	chatmodel "echo-backend/internal/models/chat"
 )
@@ -84,6 +85,40 @@ func TestCap_TruncatedMessageChargesTruncatedEstimate(t *testing.T) {
 	}
 	if len(out[1].Content) != 1000+len("\n...[truncated]") {
 		t.Fatalf("expected oversized content truncated, got %d", len(out[1].Content))
+	}
+}
+
+func TestCap_KeepNewest_StopsAtFirstOverflow(t *testing.T) {
+	t.Parallel()
+
+	in := []*chatmodel.Message{msg("oldest", 5, 1), msg("huge", 100, 2), msg("newest", 10, 3)}
+	out := Cap(in, 50, 100000, true)
+	if len(out) != 1 || out[0].Content != "newest" {
+		t.Fatalf("expected only the newest contiguous message, got %+v", out)
+	}
+}
+
+func TestCap_KeepOldest_StopsAtFirstOverflow(t *testing.T) {
+	t.Parallel()
+
+	in := []*chatmodel.Message{msg("oldest", 10, 1), msg("huge", 100, 2), msg("newest", 5, 3)}
+	out := Cap(in, 50, 100000, false)
+	if len(out) != 1 || out[0].Content != "oldest" {
+		t.Fatalf("expected only the oldest contiguous message, got %+v", out)
+	}
+}
+
+func TestCap_TruncationKeepsValidUTF8(t *testing.T) {
+	t.Parallel()
+
+	in := []*chatmodel.Message{msg(strings.Repeat("é", 10), 5, 1)}
+	out := Cap(in, 50000, 5, true)
+	body := strings.TrimSuffix(out[0].Content, "\n...[truncated]")
+	if !utf8.ValidString(body) {
+		t.Fatalf("truncated content is not valid UTF-8: %q", body)
+	}
+	if body != "éé" {
+		t.Fatalf("expected truncation at rune boundary, got %q", body)
 	}
 }
 

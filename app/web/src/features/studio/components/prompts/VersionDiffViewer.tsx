@@ -20,10 +20,9 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
   const newLines = newText.split("\n");
   const result: DiffLine[] = [];
 
-  // Simple LCS-based diff
   const m = oldLines.length;
   const n = newLines.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0));
 
   for (let i = m - 1; i >= 0; i--) {
     for (let j = n - 1; j >= 0; j--) {
@@ -34,6 +33,7 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
 
   let i = 0,
     j = 0;
+
   while (i < m && j < n) {
     if (oldLines[i] === newLines[j]) {
       result.push({ type: "same", content: oldLines[i] });
@@ -47,10 +47,12 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
       j++;
     }
   }
+
   while (i < m) {
     result.push({ type: "removed", content: oldLines[i] });
     i++;
   }
+
   while (j < n) {
     result.push({ type: "added", content: newLines[j] });
     j++;
@@ -66,14 +68,20 @@ export function VersionDiffViewer({ oldText, newText, oldLabel, newLabel }: Vers
   const removedCount = diff.filter((d) => d.type === "removed").length;
 
   return (
-    <div className="border border-zinc-200 bg-zinc-50 rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 bg-zinc-100/60">
-        <div className="text-xs font-semibold text-zinc-900">
+    <div className="border border-border bg-surface rounded-md overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-surface-hover">
+        <div className="text-xs font-semibold text-foreground">
           {oldLabel} → {newLabel}
         </div>
         <div className="flex items-center gap-3 text-xs font-bold">
-          <span className="text-emerald-600">+{addedCount}</span>
-          <span className="text-red-600">−{removedCount}</span>
+          <span className="text-success">
+            +{addedCount}
+            <span className="sr-only"> lines added</span>
+          </span>
+          <span className="text-danger">
+            −{removedCount}
+            <span className="sr-only"> lines removed</span>
+          </span>
         </div>
       </div>
       <div className="max-h-[500px] overflow-y-auto font-mono text-xs">
@@ -83,14 +91,15 @@ export function VersionDiffViewer({ oldText, newText, oldLabel, newLabel }: Vers
             key={idx}
             className={cn(
               "px-4 py-1 whitespace-pre-wrap break-all",
-              line.type === "added" && "bg-emerald-50/70 text-emerald-800 font-medium",
-              line.type === "removed" && "bg-red-50/70 text-red-700 font-medium",
-              line.type === "same" && "text-zinc-700",
+              line.type === "added" && "bg-success/10 text-success font-medium",
+              line.type === "removed" && "bg-danger/10 text-danger font-medium",
+              line.type === "same" && "text-foreground",
             )}
           >
-            <span className="inline-block w-5 select-none text-zinc-500">
+            <span className="inline-block w-5 select-none text-muted" aria-hidden="true">
               {line.type === "added" ? "+" : line.type === "removed" ? "−" : " "}
             </span>
+            {line.type !== "same" && <span className="sr-only">{line.type === "added" ? "Added: " : "Removed: "}</span>}
             {line.content || " "}
           </div>
         ))}

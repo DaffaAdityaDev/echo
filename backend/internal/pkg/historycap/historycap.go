@@ -6,13 +6,15 @@ package historycap
 
 import (
 	"slices"
+	"unicode/utf8"
 
 	chatmodel "echo-backend/internal/models/chat"
 )
 
-// Cap truncates any message content beyond maxMsgChars and keeps only the
-// messages that fit within maxTokens. Input must be chronological (oldest
-// first, as returned by the repository); output preserves that order.
+// Cap truncates any message content beyond maxMsgChars bytes and keeps only
+// the contiguous run of messages that fit within maxTokens. Input must be
+// chronological (oldest first, as returned by the repository); output
+// preserves that order.
 // keepNewest keeps the newest messages (dropping older ones) — used for chat
 // history; keepOldest keeps the oldest messages (dropping newer ones) — used
 // for consolidation, which summarizes the old turns.
@@ -36,14 +38,14 @@ func Cap(messages []*chatmodel.Message, maxTokens int, maxMsgChars int, keepNewe
 		m := messages[i]
 		charge := m.TokenCount
 		if len(m.Content) > maxMsgChars {
-			m.Content = m.Content[:maxMsgChars] + "\n...[truncated]"
+			m.Content = truncateUTF8(m.Content, maxMsgChars) + "\n...[truncated]"
 			// Charge an estimate for the truncated content so one oversized
 			// message does not silently evict every other message (the stored
 			// TokenCount reflects the pre-truncation size).
 			charge = len(m.Content) / 4
 		}
 		if totalTokens > 0 && totalTokens+charge > maxTokens {
-			continue // drop messages beyond the token cap
+			break
 		}
 		totalTokens += charge
 		capped = append(capped, m)
@@ -53,4 +55,13 @@ func Cap(messages []*chatmodel.Message, maxTokens int, maxMsgChars int, keepNewe
 		slices.Reverse(capped)
 	}
 	return capped
+}
+
+// truncateUTF8 cuts s to at most maxBytes without splitting a multi-byte rune.
+func truncateUTF8(s string, maxBytes int) string {
+	end := maxBytes
+	for end > 0 && !utf8.RuneStart(s[end]) {
+		end--
+	}
+	return s[:end]
 }

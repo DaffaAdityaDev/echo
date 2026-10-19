@@ -2,10 +2,11 @@ package auth
 
 import (
 	"context"
-	"echo-backend/internal/constants/db"
-	authmodel "echo-backend/internal/models/auth"
 	"fmt"
 	"time"
+
+	"echo-backend/internal/constants/db"
+	authmodel "echo-backend/internal/models/auth"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -80,6 +81,35 @@ func (r *Repository) FindRefreshTokenByHash(ctx context.Context, tokenHash strin
 func (r *Repository) RevokeRefreshToken(ctx context.Context, id int64) error {
 	if _, err := r.pool.Exec(ctx, db.QueryRevokeRefreshToken, id); err != nil {
 		return fmt.Errorf("%s: %w", db.ErrRevokeRefreshToken, err)
+	}
+	return nil
+}
+
+// RotateRefreshToken atomically revokes the still-active token oldID and
+// stores its replacement. When oldID was already revoked (e.g. by a
+// concurrent rotation) nothing is written and ErrRefreshTokenNotActive is
+// returned, so a refresh token can be exchanged at most once.
+func (r *Repository) RotateRefreshToken(ctx context.Context, oldID int64, userID int, tokenHash, deviceLabel string, expiresAt time.Time) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: begin: %w", db.ErrRotateRefreshToken, err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }() // no-op if committed
+
+	tag, err := tx.Exec(ctx, db.QueryRevokeRefreshToken, oldID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", db.ErrRevokeRefreshToken, err)
+	}
+	if tag.RowsAffected() != 1 {
+		return authmodel.ErrRefreshTokenNotActive
+	}
+
+	if _, err := tx.Exec(ctx, db.QueryCreateRefreshToken, userID, tokenHash, deviceLabel, expiresAt); err != nil {
+		return fmt.Errorf("%s: %w", db.ErrCreateRefreshToken, err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("%s: commit: %w", db.ErrRotateRefreshToken, err)
 	}
 	return nil
 }

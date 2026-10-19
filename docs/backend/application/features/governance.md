@@ -15,7 +15,7 @@ change control pipeline.
 
 | Location                              | Role                            |
 |---------------------------------------|---------------------------------|
-| frontend/web/src/features/llmops/     | Frontend module                 |
+| app/web/src/features/llmops/     | Frontend module                 |
 |   governance/                         | Approval flow                   |
 |   prompts/                            | Prompt versioning & history     |
 | backend/internal/handler/llmops/      | governance_handler.go           |

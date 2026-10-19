@@ -1,6 +1,6 @@
 import { api } from "@/lib/api-client";
 import { STUDIO_ENDPOINTS } from "../constants";
-import type { ClientCompanyAssessment, PromptTemplate, PromptVersion, SystemMaturityAssessment } from "../types";
+import type { PromptTemplate, PromptVersion } from "../types";
 
 export interface PromptTemplateList {
   templates: PromptTemplate[];
@@ -34,19 +34,11 @@ export const studioApi = {
     return api.post<PromptVersion>(STUDIO_ENDPOINTS.PROMPT_VERSIONS(id), body);
   },
 
-  promotePromptVersion: async (id: string, version: number): Promise<unknown> => {
-    return api.post(STUDIO_ENDPOINTS.PROMPT_PROMOTE(id, version), {});
+  promotePromptVersion: async (id: string, version: number): Promise<void> => {
+    await api.post(STUDIO_ENDPOINTS.PROMPT_PROMOTE(id, version), {});
   },
 
-  rollbackPromptVersion: async (id: string, version: number): Promise<unknown> => {
-    return api.post(STUDIO_ENDPOINTS.PROMPT_ROLLBACK(id, version), {});
-  },
-
-  getMaturity: async (): Promise<SystemMaturityAssessment> => {
-    return api.get<SystemMaturityAssessment>(STUDIO_ENDPOINTS.MATURITY);
-  },
-
-  saveClientAssessment: async (assessment: ClientCompanyAssessment): Promise<ClientCompanyAssessment> => {
-    return api.post<ClientCompanyAssessment>(STUDIO_ENDPOINTS.MATURITY_CLIENT, assessment);
+  rollbackPromptVersion: async (id: string, version: number): Promise<void> => {
+    await api.post(STUDIO_ENDPOINTS.PROMPT_ROLLBACK(id, version), {});
   },
 };

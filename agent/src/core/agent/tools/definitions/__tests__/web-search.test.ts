@@ -57,6 +57,15 @@ describe("webSearchTool", () => {
       expect(results[0].snippet).toBe("This is the snippet text for the first result.");
     });
 
+    test("passes an abort signal so the request can time out", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(HTML_BODY, { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      await webSearchTool.execute({ query: "market size" });
+
+      expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    });
+
     test("decodes duckduckgo redirect urls", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(HTML_BODY, { status: 200 })));
 

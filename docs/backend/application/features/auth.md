@@ -27,10 +27,10 @@ File Structure
 | internal/repository/auth/repository.go   | UserRepository interface & struct (impl.)  |
 | internal/middleware/auth.go              | AuthRequired middleware - JWT validation   |
 | internal/constants/auth/jwt.go           | Auth constants: headers, cookie, errors    |
-| frontend/web/src/features/auth/index.ts  | Barrel exports: LoginForm, AuthGuard, ...  |
-| frontend/web/src/features/auth/          |                                            |
+| app/web/src/features/auth/index.ts  | Barrel exports: LoginForm, AuthGuard, ...  |
+| app/web/src/features/auth/          |                                            |
 |   stores/authStore.ts                    | Zustand auth store (token, user, loading)  |
-| frontend/web/src/features/auth/          |                                            |
+| app/web/src/features/auth/          |                                            |
 |   hooks/useLoginPage.ts                  | Login page hook (form state, submit)       |
 +------------------------------------------+--------------------------------------------+
 
@@ -181,8 +181,10 @@ token claim only:
 
 - `RequireRoles("admin", ...)` — gates admin/studio routes (e.g. prompt write
   routes). The spoofable `X-User-Role` header is NOT trusted.
-- `AuthOrAPIKeyRequired` (admin group) — accepts a valid API key OR a JWT whose
-  `role` claim equals `"admin"`.
+- Admin group — `AuthRequired` (JWT or API key) followed by
+  `RequireRoles("admin")`.
+- `RequireSessionAuth` (`/api-keys` group) — rejects API-key callers so key
+  management needs a user JWT session.
 
 Behavior note: JWTs issued before the `role` claim existed get 403 on these
 routes until the user re-logs-in (a token without the claim cannot be

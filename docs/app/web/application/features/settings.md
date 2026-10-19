@@ -188,7 +188,7 @@ src/features/settings/
 - `@/features/chat/hooks/useFeatures` — `useFeatures()`, type `AgentFeature`
 - `@/features/chat/hooks/useSkills` — `useSkills()`, type `AgentSkill`
 - `@/features/chat/hooks/useModels` — `useModels()`, type `Model`
-- `@/lib/queries` — type `Model`
+- `@/features/chat/types` — type `Model`
 - `@/lib/query-client` — query client (via chat hooks)
 
 ### External

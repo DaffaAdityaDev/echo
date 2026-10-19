@@ -30,6 +30,7 @@ describe("HARNESS_PROMPTS", () => {
         { priority: 2, action: "step two" },
       ],
     });
+
     const out = HARNESS_PROMPTS.COMPACTION_SUMMARY_WRAPPER(1, summary);
     expect(out).toContain("<context_reconstruction>");
     expect(out).toContain("<summary>");

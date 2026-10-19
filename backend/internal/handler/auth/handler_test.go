@@ -2,6 +2,13 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	authconst "echo-backend/internal/constants/auth"
 	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/constants/locals"
@@ -9,12 +16,6 @@ import (
 	"echo-backend/internal/models/auth"
 	"echo-backend/internal/models/config"
 	authsvc "echo-backend/internal/service/auth"
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -160,6 +161,26 @@ func TestHandleLoginWrongCredentials(t *testing.T) {
 	var body map[string]interface{}
 	assert.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 	assert.Equal(t, "invalid email or password", body[httpxconst.JSONKeyError])
+	mockSvc.AssertExpectations(t)
+}
+
+func TestHandleLoginNormalisesEmail(t *testing.T) {
+	t.Parallel()
+
+	cfg := &cfgmodel.Config{Environment: "test", JWTSecret: "test-secret"}
+	mockSvc := new(mockAuthService)
+	mockSvc.On("Login", mock.Anything, "jane@example.com", "wrongpass", mock.Anything).Return(nil, nil, authsvc.ErrInvalidCredentials)
+
+	h := &Handler{Cfg: cfg, AuthSvc: mockSvc}
+	app := fiber.New(fiber.Config{ErrorHandler: handlerutil.ErrorHandler})
+	app.Post("/login", h.HandleLogin)
+
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"email":"  Jane@Example.COM ","password":"wrongpass"}`))
+	req.Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeJSON)
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	mockSvc.AssertExpectations(t)
 }
 

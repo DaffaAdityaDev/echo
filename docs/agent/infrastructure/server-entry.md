@@ -60,7 +60,6 @@ src/
 ```
 // Zod schema fields
 PORT:                  z.string().default("3001")
-GRPC_PORT:             z.string().default("50051")
 LLM_MODEL_API_URL:     z.string().default("http://127.0.0.1:1234")
 STATE_BACKEND:         z.enum(["memory", "backend"]).default("memory")
 NODE_ENV:              z.enum(["development","production","test"]).default("development")
@@ -82,7 +81,7 @@ ENABLE_TELEMETRY:      z.string().default("true")
 
 ```
 ENV_DEFAULTS = {
-  PORT: "3001", GRPC_PORT: "50051", LLM_MODEL_API_URL: "http://127.0.0.1:1234", ...
+  PORT: "3001", LLM_MODEL_API_URL: "http://127.0.0.1:1234", ...
   SERVICE_JWT_SECRET: "",               // No default — must be configured in production
   BACKEND_URL: "http://localhost:8080",
 }
@@ -119,7 +118,7 @@ ENV_VALIDATION_MESSAGES = {
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│              npm run dev (bun --watch src/index.ts)                       │
+│              bun run dev (bun --watch src/index.ts)                       │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │
                                  ▼
@@ -209,7 +208,7 @@ See the Environment Configuration section above for the complete schema.
 
 ```
 ENV_DEFAULTS = {
-  PORT: "3001", GRPC_PORT: "50051",
+  PORT: "3001",
   LLM_MODEL_API_URL: "http://127.0.0.1:1234", LANGFUSE_BASE_URL: "http://localhost:3000",
     BACKEND_URL: "http://localhost:8080",
   ...
@@ -268,7 +267,6 @@ The storage provider (`adapter/outbound/backend/memory.adapter.ts`) communicates
 | Dependency                | Version     | Usage                                             |
 +---------------------------+-------------+---------------------------------------------------+
 | `hono`                    | ^4.12.18    | HTTP framework                                    |
-| `@hono/node-server`       | ^2.0.1      | Node.js server adapter                            |
 | `zod`                     | ^4.4.3      | Environment variable schema parsing               |
 | `@opentelemetry/sdk-node` | ^0.218.0    | Telemetry initialization                          |
 | `adapter/outbound/backend/memory.adapter` | src/  | MemoryAdapter for session & message store       |

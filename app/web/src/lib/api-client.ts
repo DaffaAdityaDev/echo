@@ -1,20 +1,50 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
+import type { JsonObject, JsonValue } from "@/types/json";
 import { extractErrorMessage } from "@/utils/error";
 import { generateTraceContext } from "./telemetry-fetch";
 
 const BASE_URL = "/api";
 
-function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?: unknown): void {
+/** An HTTP error response from the API, carrying the status code. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function hasApiStatus(err: unknown, ...statuses: number[]): boolean {
+  return err instanceof ApiError && statuses.includes(err.status);
+}
+
+function isJsonObject(value?: JsonValue): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value?: JsonValue): value is string {
+  return typeof value === "string";
+}
+
+function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?: JsonValue): void {
   const { traceparent } = generateTraceContext();
   headers.set("traceparent", traceparent);
 
-  if (body && typeof body === "object") {
-    const rec = body as Record<string, unknown>;
-    const sid = typeof rec.sessionId === "string" ? rec.sessionId : undefined;
+  if (isJsonObject(body)) {
+    const sid = isString(body.sessionId) ? body.sessionId : undefined;
+
     if (sid) {
       headers.set("x-agent-session-id", sid);
     }
   }
+}
+
+// Mirrors AuthGuard's redirect so both paths land on the same login URL and
+// the user returns to the page they were on.
+export function buildLoginUrl(pathname: string): string {
+  return `/login?redirect=${encodeURIComponent(pathname)}`;
 }
 
 const client: AxiosInstance = axios.create({
@@ -39,31 +69,39 @@ function refreshSession(): Promise<boolean> {
         refreshPromise = null;
       });
   }
+
   return refreshPromise;
 }
 
 client.interceptors.request.use((config) => {
   setAuthHeaders(config.headers, config.data);
+
   return config;
 });
 
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // SAFETY: Axios error provides the original AxiosRequestConfig on error.config.
     const config = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
     const url = config?.url || "";
     const isAuthPage = url.includes("/auth/login") || url.includes("/auth/register");
     const alreadyOnLogin = typeof window !== "undefined" && window.location.pathname === "/login";
+
     if (error.response?.status === 401 && typeof window !== "undefined" && !isAuthPage && !alreadyOnLogin) {
       if (config && !config._retried && (await refreshSession())) {
         config._retried = true;
+
         return client(config);
       }
-      window.location.href = "/login";
+
+      window.location.href = buildLoginUrl(window.location.pathname);
     }
+
     if (error.response) {
-      throw new Error(extractErrorMessage(error.response.data, error.response.statusText));
+      throw new ApiError(extractErrorMessage(error.response.data, error.response.statusText), error.response.status);
     }
+
     throw new Error(extractErrorMessage(error.message, "Network error"));
   },
 );
@@ -86,13 +124,15 @@ async function request<T>(endpoint: string, options: ApiRequestOptions = {}): Pr
   return response.data;
 }
 
-async function stream<T = unknown>(
+async function stream<T = JsonValue>(
   endpoint: string,
-  body: unknown,
+  body: JsonValue,
   onChunk: (data: T) => void,
   options: ApiRequestOptions = {},
 ) {
   const { signal } = options;
+  // SAFETY: AbortSignal is standard web API supported by Fetch.
+  const abortSignal = signal as AbortSignal | undefined;
 
   const attempt = (): Promise<Response> => {
     const headers = new Headers();
@@ -103,7 +143,7 @@ async function stream<T = unknown>(
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: signal as AbortSignal,
+      signal: abortSignal,
     });
   };
 
@@ -111,6 +151,7 @@ async function stream<T = unknown>(
   // rotated (single-flight) and the request retried exactly once before
   // surfacing the error.
   let response = await attempt();
+
   if (response.status === 401 && !signal?.aborted && typeof window !== "undefined" && (await refreshSession())) {
     response = await attempt();
   }
@@ -119,18 +160,21 @@ async function stream<T = unknown>(
     options.onResponse(response);
   }
 
-  await readStream(response, (data) => onChunk(data as T), signal as AbortSignal);
+  // SAFETY: Stream packet payloads emitted by readStream match caller expected chunk type T.
+  await readStream(response, (data) => onChunk(data as T), abortSignal);
 }
 
-async function readStream(response: Response, onChunk: (data: unknown) => void, signal?: AbortSignal) {
+export async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) => void, signal?: AbortSignal) {
   if (!response.ok) {
     const errorText = await response.text();
     let message = `Request failed with status ${response.status}`;
+
     try {
       message = extractErrorMessage(JSON.parse(errorText), message);
     } catch {
       message = errorText || message;
     }
+
     throw new Error(message);
   }
 
@@ -143,41 +187,46 @@ async function readStream(response: Response, onChunk: (data: unknown) => void, 
 
   const contentType = response.headers.get("content-type") || "";
   const allowPlainText = PLAIN_TEXT_CONTENT_TYPES.some((t) => contentType.includes(t));
+  // SAFETY: Parsed stream packet conforms to consumer chunk type T.
+  const emitLine = (line: string) => processStreamLine(line, allowPlainText, (packet) => onChunk(packet as T));
 
   while (true) {
     const { done, value } = await reader.read();
+
     if (done) break;
+
     if (value && value.byteLength > 0) hasReceivedData = true;
 
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = (partialLine + chunk).split("\n");
+    const lines = (partialLine + decoder.decode(value, { stream: true })).split("\n");
     partialLine = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith(":")) continue;
-
-      let jsonStr = trimmedLine;
-      if (trimmedLine.startsWith("data: ")) {
-        jsonStr = trimmedLine.slice(6).trim();
-      }
-
-      if (jsonStr === "[DONE]") continue;
-      if (!jsonStr) continue;
-
-      const packet = parseStreamLine(jsonStr, allowPlainText);
-      if (packet !== undefined) {
-        onChunk(packet);
-      }
-    }
+    lines.forEach(emitLine);
   }
+
+  // The final packet may arrive without a trailing newline, and the decoder
+  // may still hold the tail of a multi-byte character.
+  emitLine(partialLine + decoder.decode());
 
   if (!hasReceivedData && signal?.aborted) {
     return;
   }
+
   if (!hasReceivedData) {
     throw new Error("Stream ended without receiving any data");
   }
+}
+
+function processStreamLine(line: string, allowPlainText: boolean, onPacket: (packet: JsonValue) => void): void {
+  const trimmedLine = line.trim();
+
+  if (!trimmedLine || trimmedLine.startsWith(":")) return;
+
+  const jsonStr = trimmedLine.startsWith("data: ") ? trimmedLine.slice(6).trim() : trimmedLine;
+
+  if (!jsonStr || jsonStr === "[DONE]") return;
+
+  const packet = parseStreamLine(jsonStr, allowPlainText);
+
+  if (packet !== undefined) onPacket(packet);
 }
 
 // Echo backends always send JSON envelopes over SSE. Plain-text content is
@@ -186,28 +235,31 @@ async function readStream(response: Response, onChunk: (data: unknown) => void, 
 // must surface as an error rather than silently becoming assistant content.
 const PLAIN_TEXT_CONTENT_TYPES = ["text/plain", "text/markdown"] as const;
 
-export function parseStreamLine(line: string, allowPlainText: boolean): unknown {
+export function parseStreamLine(line: string, allowPlainText: boolean): JsonValue | undefined {
   if (line.startsWith("{")) {
     try {
-      return JSON.parse(line);
+      // SAFETY: JSON parse output of valid JSON object payload conforms to JsonValue.
+      return JSON.parse(line) as JsonValue;
     } catch {
       // Malformed JSON packet: drop it rather than fabricate a content packet.
       return undefined;
     }
   }
+
   if (allowPlainText) {
     return { content: line };
   }
+
   throw new Error(`Unexpected non-JSON data in stream: ${line.slice(0, 120)}`);
 }
 
 export const api = {
   get: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "GET" }),
-  post: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+  post: <T, B = JsonValue>(url: string, body?: B, opts?: ApiRequestOptions) =>
     request<T>(url, { ...opts, method: "POST", data: body }),
-  put: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+  put: <T, B = JsonValue>(url: string, body?: B, opts?: ApiRequestOptions) =>
     request<T>(url, { ...opts, method: "PUT", data: body }),
-  patch: <T>(url: string, body: unknown, opts?: ApiRequestOptions) =>
+  patch: <T, B = JsonValue>(url: string, body?: B, opts?: ApiRequestOptions) =>
     request<T>(url, { ...opts, method: "PATCH", data: body }),
   delete: <T>(url: string, opts?: ApiRequestOptions) => request<T>(url, { ...opts, method: "DELETE" }),
   stream,

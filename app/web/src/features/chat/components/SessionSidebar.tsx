@@ -6,9 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/utils/cn";
-import { useChatStream } from "../hooks/useChatStream";
 import { useSessions } from "../hooks/useSessions";
 import { useSessionsInfinite } from "../hooks/useSessionsInfinite";
+import { stopActiveStream } from "../services/stream/stop-stream";
 import { useChatStore } from "../stores/chatStore";
 import { SessionList } from "./sidebar/SessionList";
 
@@ -30,6 +30,7 @@ export function SessionSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+
   const { sessions, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isInitialLoading, refetch } =
     useSessionsInfinite();
 
@@ -39,7 +40,7 @@ export function SessionSidebar({
     deleteSession: storeDeleteSession,
     selectSession: storeSelectSession,
   } = useSessions();
-  const { stopStream } = useChatStream();
+
   const isLoading = useChatStore((s) => s.isLoading);
   const { user, logout } = useAuth();
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -55,9 +56,23 @@ export function SessionSidebar({
         searchInputRef.current?.focus();
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     hasNextPageRef.current = hasNextPage;
@@ -67,6 +82,7 @@ export function SessionSidebar({
 
   useEffect(() => {
     const el = loadMoreRef.current;
+
     if (!el) return;
 
     const observer = new IntersectionObserver(
@@ -106,6 +122,7 @@ export function SessionSidebar({
     } else {
       await storeSelectSession(id);
     }
+
     router.push(`/session/${id}`);
   };
 
@@ -125,36 +142,36 @@ export function SessionSidebar({
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-overlay backdrop-blur-sm md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
       <aside
+        aria-label="Sidebar"
         className={cn(
-          "w-64 bg-zinc-50/80 dark:bg-zinc-950/60 border-r border-zinc-200/60 dark:border-zinc-800/60 flex flex-col h-full transition-transform duration-300 z-50 shrink-0 select-none",
+          "w-64 bg-surface md:bg-surface/80 border-r border-border flex flex-col h-full transition-transform duration-300 z-50 shrink-0 select-none",
           "fixed inset-y-0 left-0 md:static md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0">
-          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
-            <div className="p-1.5 rounded-xl bg-purple-600/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
-              <Plus className="h-5 w-5" />
+          <Link href="/" className="flex items-center gap-2.5 cursor-pointer rounded-sm">
+            <div className="p-1.5 rounded-sm bg-accent-soft border border-accent/20 text-accent">
+              <Plus className="h-5 w-5" aria-hidden="true" />
             </div>
-            <span className="font-display font-extrabold text-lg tracking-tight text-zinc-900 dark:text-white">
-              Echo
-            </span>
+            <span className="font-display font-bold text-lg tracking-section text-foreground">Echo</span>
           </Link>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white p-1 rounded-lg transition-colors"
+              aria-label="Close sidebar"
+              className="md:hidden text-muted hover:text-foreground hover:bg-surface-hover p-1.5 rounded-sm transition-colors cursor-pointer"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -164,19 +181,19 @@ export function SessionSidebar({
           <button
             type="button"
             onClick={handleCreateSession}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white transition-all text-xs font-semibold shadow-md active:scale-98 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-sm bg-primary text-primary-foreground hover:bg-primary-hover transition-all text-xs font-semibold shadow-sm active:scale-98 cursor-pointer"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             <span>New chat</span>
           </button>
 
           {isLoading && (
             <button
               type="button"
-              onClick={stopStream}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-rose-600 text-white hover:bg-rose-500 transition-all text-xs font-semibold shadow-md active:scale-98 cursor-pointer"
+              onClick={stopActiveStream}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-sm border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 transition-all text-xs font-semibold active:scale-98 cursor-pointer"
             >
-              <Square className="h-4 w-4 fill-current" />
+              <Square className="h-4 w-4 fill-current" aria-hidden="true" />
               <span>Stop</span>
             </button>
           )}
@@ -185,7 +202,7 @@ export function SessionSidebar({
         {/* Search Input Box */}
         <div className="px-4 mb-4">
           <div className="relative flex items-center">
-            <Search className="h-3.5 w-3.5 absolute left-3 text-zinc-400 pointer-events-none" />
+            <Search className="h-3.5 w-3.5 absolute left-3 text-subtle pointer-events-none" aria-hidden="true" />
             <input
               ref={searchInputRef}
               type="text"
@@ -194,38 +211,45 @@ export function SessionSidebar({
               data-1p-ignore="true"
               data-lpignore="true"
               placeholder="Search"
+              aria-label="Search chats"
+              aria-keyshortcuts="Control+K Meta+K"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-200/50 dark:bg-zinc-900/60 border border-zinc-300/40 dark:border-zinc-800/60 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:border-purple-500/40 transition-colors"
+              className="w-full bg-elevated border border-border rounded-sm pl-8 pr-9 py-1.5 text-xs text-foreground placeholder:text-subtle focus:outline-none focus-visible:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             />
-            <span className="absolute right-2.5 text-[10px] font-mono text-zinc-400 bg-zinc-300/40 dark:bg-zinc-800 px-1 py-0.5 rounded">
+            <kbd
+              aria-hidden="true"
+              className="absolute right-2 text-2xs font-mono text-muted bg-surface-hover border border-border px-1 rounded-sm pointer-events-none"
+            >
               ⌘K
-            </span>
+            </kbd>
           </div>
         </div>
 
         {/* Core Nav Links */}
-        <div className="px-3 mb-4 space-y-0.5">
+        <nav aria-label="Primary" className="px-3 mb-4 space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150",
+                  "flex items-center gap-3 px-3 py-2 rounded-sm text-xs font-medium transition-all duration-150",
                   isActive
-                    ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-white font-semibold shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/40 dark:hover:bg-zinc-900/50",
+                    ? "bg-surface-hover text-foreground font-semibold shadow-xs"
+                    : "text-muted hover:text-foreground hover:bg-surface-hover/70",
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-purple-500" : "text-zinc-500")} />
+                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-accent" : "text-muted")} aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>
             );
           })}
-        </div>
+        </nav>
 
         {/* Grouped Session History */}
         <SessionList
@@ -242,24 +266,28 @@ export function SessionSidebar({
         />
 
         {/* User Profile Footer */}
-        <div className="p-3 border-t border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
+        <div className="p-3 border-t border-border shrink-0">
+          <div className="flex items-center gap-3 p-2 rounded-sm">
+            <div
+              aria-hidden="true"
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-gb-dark-blue flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0 shadow-sm"
+            >
               {user?.email ? user.email[0].toUpperCase() : "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+              <p className="text-xs font-semibold text-foreground truncate">
                 {user?.email?.split("@")[0] || "Guest User"}
               </p>
-              <p className="text-[10px] text-zinc-400 truncate">{user?.email || "guest@echo.ai"}</p>
+              <p className="text-2xs text-muted truncate">{user?.email || "guest@echo.ai"}</p>
             </div>
             <button
               type="button"
               onClick={() => logout()}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 transition-colors shrink-0"
+              className="p-1.5 rounded-sm text-muted hover:text-danger hover:bg-danger/10 transition-colors shrink-0 cursor-pointer"
               title="Logout"
+              aria-label="Log out"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { AnthropicProvider } from "../anthropic";
 import { LMStudioProvider } from "../lm-studio";
 import { OpenAIProvider } from "../openai";
 import { OpenCodeGoProvider } from "../opencode-go";
+import { ReasoningInterceptor } from "../utils";
 
 interface MockChatConfig {
   apiKey?: string;
@@ -16,13 +17,14 @@ interface MockChatInstance {
   config?: MockChatConfig;
   apiKey?: string;
   anthropicApiKey?: string;
-  bindTools: (tools: unknown) => unknown;
-  stream: (messages: unknown, options: unknown) => unknown;
+  bindTools: (tools: ToolDefinition[]) => MockChatInstance;
+  stream: (messages: BaseMessage[], options?: { signal?: AbortSignal }) => AsyncIterable<AIMessageChunk>;
 }
 
 const openAIMocks = vi.hoisted(() => {
   const create = vi.fn();
   const list = vi.fn();
+
   return {
     create,
     list,
@@ -36,6 +38,7 @@ const openAIMocks = vi.hoisted(() => {
 const langchainOpenAIMocks = vi.hoisted(() => {
   const stream = vi.fn();
   const bindTools = vi.fn();
+
   return {
     stream,
     bindTools,
@@ -51,6 +54,7 @@ const langchainOpenAIMocks = vi.hoisted(() => {
 const langchainAnthropicMocks = vi.hoisted(() => {
   const stream = vi.fn();
   const bindTools = vi.fn();
+
   return {
     stream,
     bindTools,
@@ -74,13 +78,17 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("openai", () => ({ default: openAIMocks.OpenAI }));
+
 vi.mock("@langchain/openai", () => ({ ChatOpenAI: langchainOpenAIMocks.ChatOpenAI }));
+
 vi.mock("@langchain/anthropic", () => ({ ChatAnthropic: langchainAnthropicMocks.ChatAnthropic }));
+
 vi.mock("../../../shared/utils/langfuse", () => ({
   langfuseStorage: { getStore: langfuseMocks.getStore },
   getLangChainCallbacks: langfuseMocks.getLangChainCallbacks,
   startAgentTrace: langfuseMocks.startAgentTrace,
 }));
+
 vi.mock("../../../shared/utils/logger", () => loggerMocks);
 
 async function* sdkChunks(chunks: unknown[]): AsyncGenerator<unknown> {
@@ -90,7 +98,12 @@ async function* sdkChunks(chunks: unknown[]): AsyncGenerator<unknown> {
 }
 
 function makeTool(name: string, description: string, schema: z.ZodTypeAny): ToolDefinition {
-  return { name, description, schema } as unknown as ToolDefinition;
+  return {
+    name,
+    description,
+    schema,
+    execute: async () => ({ status: "success", summary: "ok" }),
+  };
 }
 
 async function collect(
@@ -100,9 +113,11 @@ async function collect(
   systemPrompt = "You are a test assistant.",
 ): Promise<ProviderEvent[]> {
   const events: ProviderEvent[] = [];
+
   for await (const event of provider.stream(messages, tools, systemPrompt)) {
     events.push(event);
   }
+
   return events;
 }
 
@@ -188,6 +203,7 @@ describe("OpenCodeGoProvider", () => {
 
   it("serializes LangChain messages into OpenAI API messages", async () => {
     openAIMocks.create.mockReturnValue(sdkChunks([]));
+
     const messages = [
       new SystemMessage("system detail"),
       new HumanMessage("hi there"),
@@ -423,5 +439,45 @@ describe("LMStudioProvider", () => {
     langchainOpenAIMocks.stream.mockRejectedValue(new Error("boom"));
 
     await expect(collect(makeProvider(), [], [], "You are a test assistant.")).rejects.toThrow("boom");
+  });
+});
+
+describe("reasoning store cleanup on stream failure", () => {
+  async function* failingChunks(): AsyncGenerator<AIMessageChunk> {
+    yield new AIMessageChunk({ id: "m1", content: "partial" });
+    throw new Error("stream aborted");
+  }
+
+  const cases: Array<{ name: string; make: () => LLMProvider; stream: typeof langchainOpenAIMocks.stream }> = [
+    {
+      name: "OpenAIProvider",
+      make: () => new OpenAIProvider("http://openai.test", "gpt-4o-mini", "test-key"),
+      stream: langchainOpenAIMocks.stream,
+    },
+    {
+      name: "LMStudioProvider",
+      make: () => new LMStudioProvider("http://localhost:1234", "local-model-8k", "test-key"),
+      stream: langchainOpenAIMocks.stream,
+    },
+    {
+      name: "AnthropicProvider",
+      make: () => new AnthropicProvider("https://anthropic.test", "claude-sonnet-4", "test-key"),
+      stream: langchainAnthropicMocks.stream,
+    },
+  ];
+
+  beforeEach(() => {
+    langchainOpenAIMocks.bindTools.mockReturnValue({ stream: langchainOpenAIMocks.stream });
+    langchainAnthropicMocks.bindTools.mockReturnValue({ stream: langchainAnthropicMocks.stream });
+  });
+
+  it.each(cases)("$name cleans up the reasoning store when the stream throws mid-way", async ({ make, stream }) => {
+    const cleanupSpy = vi.spyOn(ReasoningInterceptor.prototype, "cleanup");
+    stream.mockResolvedValue(failingChunks());
+
+    await expect(collect(make())).rejects.toThrow("stream aborted");
+
+    expect(cleanupSpy).toHaveBeenCalledTimes(1);
+    cleanupSpy.mockRestore();
   });
 });

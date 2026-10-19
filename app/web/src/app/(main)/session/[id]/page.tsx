@@ -6,6 +6,7 @@ import { useActiveSessionFromParams } from "@/features/chat/hooks/useActiveSessi
 
 export default function SessionSlugPage() {
   const params = useParams();
+  // SAFETY: Next.js route parameter matches [id] single slug segment
   const sessionId = params?.id as string | undefined;
   useActiveSessionFromParams(sessionId);
 

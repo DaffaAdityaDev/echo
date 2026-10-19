@@ -1,4 +1,4 @@
-import type { AgentStatus, Task } from "../../../shared/types";
+import type { AgentStatus, JsonObject, JsonValue, Task } from "../../../shared/types";
 import { PACKET_TYPES } from "./constants";
 import type { AgentStatusTracker } from "./status-tracker";
 import type { HarnessEvent, HarnessEventType } from "./types";
@@ -21,18 +21,25 @@ export class HarnessEventEmitter {
 
   private async sendBase(
     onPacket: (p: HarnessEvent) => Promise<void>,
-    packet: { type: HarnessEventType } & Record<string, unknown>,
+    packet: { type: HarnessEventType; [key: string]: JsonValue | undefined },
   ) {
     if (packet.type !== PACKET_TYPES.HEARTBEAT) {
       this.lastActivityTimestamp = Date.now();
       this.stallEmitted = false;
     }
+
     const agentStatus = this.deps.getStatusTracker()?.getStatus();
-    await onPacket({
+
+    const eventPayload: HarnessEvent = {
       missionId: this.deps.getMissionId(),
       ...packet,
-      ...(agentStatus ? { agentStatus } : {}),
-    });
+    };
+
+    if (agentStatus) {
+      eventPayload.agentStatus = agentStatus;
+    }
+
+    await onPacket(eventPayload);
   }
 
   async emitSystemNotice(
@@ -92,7 +99,7 @@ export class HarnessEventEmitter {
     await this.sendBase(onPacket, { type: PACKET_TYPES.CONTENT, step, content });
   }
 
-  async emitUsage(onPacket: (p: HarnessEvent) => Promise<void>, step: number, usage: object) {
+  async emitUsage(onPacket: (p: HarnessEvent) => Promise<void>, step: number, usage: JsonObject) {
     await this.sendBase(onPacket, { type: PACKET_TYPES.USAGE, step, usage });
   }
 
@@ -100,7 +107,7 @@ export class HarnessEventEmitter {
     onPacket: (p: HarnessEvent) => Promise<void>,
     step: number,
     toolName: string,
-    toolInput: Record<string, unknown>,
+    toolInput: JsonObject,
   ) {
     await this.sendBase(onPacket, { type: PACKET_TYPES.TOOL_CALL, step, toolName, toolInput });
   }
@@ -110,7 +117,7 @@ export class HarnessEventEmitter {
     step: number,
     toolName: string,
     content: string,
-    toolResult?: unknown,
+    toolResult?: JsonValue,
   ) {
     await this.sendBase(onPacket, { type: PACKET_TYPES.TOOL_RESULT, step, toolName, content, toolResult });
   }
@@ -177,8 +184,10 @@ export class HarnessEventEmitter {
 
   async markStalledIfNeeded(onPacket: (p: HarnessEvent) => Promise<void>, iteration: number): Promise<void> {
     const statusTracker = this.deps.getStatusTracker();
+
     if (this.stallEmitted || !statusTracker) return;
     const { changed, from, to } = statusTracker.markStalled();
+
     if (!changed) return;
     this.stallEmitted = true;
     await this.emitStateChange(onPacket, iteration, from, to, "stalled");
@@ -202,15 +211,19 @@ export class HarnessEventEmitter {
 
   async updateStatus(onPacket: (p: HarnessEvent) => Promise<void>, updates: Partial<AgentStatus>, step: number) {
     const statusTracker = this.deps.getStatusTracker();
+
     if (!statusTracker) return;
     const { changed, from, to } = statusTracker.update(updates);
+
     if (changed) {
       let reason = "transition";
+
       if (to === "degraded") {
         reason = "consecutive_tool_failures";
       } else if (to === "looping") {
         reason = "cosine_similarity_threshold";
       }
+
       await this.emitStateChange(onPacket, step, from, to, reason);
     }
   }

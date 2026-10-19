@@ -457,7 +457,7 @@ Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
 | agentProgress     | AgentProgress | null | Current agent iteration/swarm progress        |
 | sessions          | Session[]  | List of user sessions                             |
 | activeSessionId   | string | null | Currently selected session ID                  |
-| agentState        | AgentState | Current agent FSM state (starting/running/...)    |
+| agentState        | AgentState | null | Agent FSM state; null until a run reports one |
 +-------------------+------------+---------------------------------------------------+
 
 +-----------------+------------------------------+-----------------------------------------+
@@ -549,7 +549,7 @@ Perilaku standar (lihat juga `tanstack-query-setup.md` dan `ui-components.md`):
 ### Internal
 
 - `@/lib/api-client` — `api.stream()`, `api.get()`, `api.post()`, `api.delete()`
-- `@/lib/queries` — `modelQueries`
+- `@/features/chat/services/model-queries` — `modelQueries`
 - `@/utils/cn` — classname merging
 - `@/constants` — `UI_CONFIG`
 - `@/components/Markdown` — markdown renderer

@@ -1,18 +1,32 @@
 import type { RestToolConfig } from "../../../infrastructure/transports/rest/types";
 import type { AgentState, HarnessFeatureToggles, LLMProvider, ToolDefinition } from "../../../shared/types";
 import type { BehaviorPrompt } from "../prompts";
+import { cancellationManager } from "./cancel-manager";
 import { HARNESS_CONFIG } from "./constants";
-import { ContentSanitizer } from "./content_sanitizer";
-import { ContextManager } from "./context_manager";
+import { ContentSanitizer } from "./content-sanitizer";
+import { ContextManager } from "./context-manager";
 import { HarnessEventEmitter } from "./events";
-import { HitlGuard } from "./hitl_guard";
-import { LoopDetector } from "./loop_detector";
+import { HitlGuard } from "./hitl-guard";
+import { LoopDetector } from "./loop-detector";
 import { MissionRunner } from "./mission-runner";
 import { RecoveryHandler, type StrategyRef } from "./recovery";
 import type { AgentStatusTracker } from "./status-tracker";
 import { ToolExecutor } from "./tool-executor";
 import { TurnRunner } from "./turn-runner";
 import { DEFAULT_HARNESS_TOGGLES, type HarnessConfig, type HarnessEvent, type HarnessRuntimeConfig } from "./types";
+
+/** Merges each toggle section individually so a partial section keeps the remaining defaults. */
+export function mergeFeatureToggles(overrides?: Partial<HarnessFeatureToggles>): HarnessFeatureToggles {
+  const defaults = DEFAULT_HARNESS_TOGGLES;
+
+  return {
+    loopDetection: { ...defaults.loopDetection, ...overrides?.loopDetection },
+    budgetMonitor: { ...defaults.budgetMonitor, ...overrides?.budgetMonitor },
+    systemNotices: { ...defaults.systemNotices, ...overrides?.systemNotices },
+    hitlGuard: { ...defaults.hitlGuard, ...overrides?.hitlGuard },
+    contextOptimization: { ...defaults.contextOptimization, ...overrides?.contextOptimization },
+  };
+}
 
 export class NlahHarness {
   private provider: LLMProvider;
@@ -57,7 +71,7 @@ export class NlahHarness {
     this.harnessConfig = options.harnessConfig;
     this.totalCostUsd = options.initialCostUsd ?? 0;
 
-    this.featureToggles = { ...DEFAULT_HARNESS_TOGGLES, ...options.harnessConfig };
+    this.featureToggles = mergeFeatureToggles(options.harnessConfig);
     this.loopDetector = new LoopDetector(this.featureToggles.loopDetection);
     this.hitlGuard = new HitlGuard(this.featureToggles.hitlGuard);
     this.contextManager = new ContextManager(this.featureToggles.contextOptimization);
@@ -75,6 +89,9 @@ export class NlahHarness {
       getPacingForced: () => this.pacingForced,
       getStatusTracker: () => this.statusTracker,
       emitter: this.emitter,
+      addTotalCostUsd: (stepCost: number) => {
+        this.totalCostUsd += stepCost;
+      },
     });
     this.recovery = new RecoveryHandler({
       provider: this.provider,
@@ -82,6 +99,10 @@ export class NlahHarness {
       getCompressionEnabled: () => this.compressionEnabled,
       behaviorPrompt: this.behaviorPrompt,
       emitter: this.emitter,
+      addTotalCostUsd: (stepCost: number) => {
+        this.totalCostUsd += stepCost;
+      },
+      getSignal: () => cancellationManager.getSignal(this.missionId),
     });
     this.turnRunner = new TurnRunner({
       provider: this.provider,
@@ -101,6 +122,7 @@ export class NlahHarness {
       behaviorPrompt: this.behaviorPrompt,
       getMissionId: () => this.missionId,
       getPacingEnabled: () => this.pacingEnabled,
+      getPacingForced: () => this.pacingForced,
       setPacingForced: (value: boolean) => {
         this.pacingForced = value;
       },
@@ -141,6 +163,10 @@ export class NlahHarness {
         this.loopDetectionEnabled = enabled;
       },
     });
+  }
+
+  public getTotalCostUsd(): number {
+    return this.totalCostUsd;
   }
 
   public restoreLoopDetectorHistory(history: string[]): void {

@@ -11,9 +11,10 @@ package database
 
 import (
 	"context"
-	msgconst "echo-backend/internal/constants/msg"
 	"fmt"
 	"log/slog"
+
+	msgconst "echo-backend/internal/constants/msg"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,6 +22,7 @@ import (
 const schemaVector = `
 CREATE TABLE IF NOT EXISTS memory_semantic (
     id TEXT PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     embedding vector(1536),
     metadata JSONB DEFAULT '{}',
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS memory_semantic (
 const schemaNoVector = `
 CREATE TABLE IF NOT EXISTS memory_semantic (
     id TEXT PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -40,12 +43,26 @@ CREATE TABLE IF NOT EXISTS memory_semantic (
 const schemaProcedural = `
 CREATE TABLE IF NOT EXISTS memory_procedural (
     id TEXT PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
     content TEXT NOT NULL,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+`
+
+// schemaMemoryOwnership scopes agent memory to the user owning the session it
+// was written from. user_id stays nullable so rows written before scoping
+// survive the upgrade, but every query filters on user_id = $n, so those
+// orphaned NULL-owner rows are never returned to anyone. Procedural names are
+// unique per user, replacing the global UNIQUE(name) constraint.
+const schemaMemoryOwnership = `
+ALTER TABLE memory_semantic ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_memory_semantic_user_created ON memory_semantic(user_id, created_at DESC);
+ALTER TABLE memory_procedural ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE memory_procedural DROP CONSTRAINT IF EXISTS memory_procedural_name_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_procedural_user_name ON memory_procedural(user_id, name);
 `
 
 const schemaUsers = `
@@ -293,6 +310,10 @@ func Migrate(pool *pgxpool.Pool) error {
 
 	if _, err = pool.Exec(ctx, schemaProcedural); err != nil {
 		return fmt.Errorf("failed to create memory_procedural: %w", err)
+	}
+
+	if _, err = pool.Exec(ctx, schemaMemoryOwnership); err != nil {
+		return fmt.Errorf("failed to scope memory tables by user: %w", err)
 	}
 
 	return nil

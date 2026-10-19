@@ -3,6 +3,20 @@ import type { BehaviorPrompt } from "../prompts";
 import { STRATEGY_NAMES } from "./constants";
 import { DEFAULT_NLAH_BEHAVIOR, NLAH_INSTRUCTIONS, NLAH_PROMPTS } from "./prompts";
 
+const USER_OBJECTIVE_TAG_PATTERN = /<\s*\/?\s*user_objective\b[^>]*>/gi;
+
+function escapeAngleBrackets(tag: string): string {
+  return tag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Escapes any user-supplied <user_objective> / </user_objective> so the objective cannot close the
+// untrusted-data boundary early and inject text that reads as system instructions.
+function wrapUserObjective(objective: string): string {
+  const neutralised = objective.replace(USER_OBJECTIVE_TAG_PATTERN, escapeAngleBrackets);
+
+  return `<user_objective>${neutralised}</user_objective>`;
+}
+
 /**
  * Natural-Language Agent Harness (NLAH) Strategy.
  * [ACTIVE / PRIMARY STANDARD]
@@ -16,6 +30,7 @@ export class NLAHStrategy implements AgentStrategy {
 
   buildSystemPrompt(state: AgentState, tools: ToolDefinition[], behaviorPrompt?: BehaviorPrompt | null): string {
     const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+
     const toolDescriptions =
       sortedTools.length > 0 ? sortedTools.map((t) => `- ${t.name}: ${t.description}`).join("\n") : "(none)";
 
@@ -29,24 +44,29 @@ export class NLAHStrategy implements AgentStrategy {
       : "DIRECT MODE (active): No delegation tools are enabled. Answer directly using the tools listed below. If no tools are available at all, respond from your own knowledge — do not attempt tool calls.";
 
     const protocolLines: string[] = [];
+
     if (hasDelegation) {
       protocolLines.push(
         "Orchestrator Only: You are prohibited from editing files directly unless synthesizing sub-agent results. Always delegate researcher tasks to sub-agents.",
       );
     }
+
     if (hasTodos) {
       protocolLines.push(
         "In-State Planning: Start by creating a plan using write_todos. Track progress (pending, in_progress, done, failed).",
       );
     }
+
     if (hasDelegation) {
       protocolLines.push(
         "Clear Validation: Before finishing, verify that the sub-agents successfully completed their tasks and generated appropriate files.",
       );
     }
+
     if (hasTodos) {
       protocolLines.push("Durable State: Your state is logged in STATE.md. Ensure write_todos updates this.");
     }
+
     if (hasResearchTools) {
       protocolLines.push("Evidence-backed: Support every claim with a cited tool result.");
     }
@@ -56,11 +76,13 @@ export class NLAHStrategy implements AgentStrategy {
         ? protocolLines.map((line, idx) => `${idx + 1}. ${line}`).join("\n")
         : "None. Proceed with execution.";
 
+    const wrappedObjective = wrapUserObjective(state.objective);
     let workflow = "";
+
     if (behaviorPrompt?.systemPrompt) {
       let substitutedPrompt = behaviorPrompt.systemPrompt
         .replace(/{tools}/g, () => toolDescriptions)
-        .replace(/{objective}/g, () => `<user_objective>${state.objective}</user_objective>`);
+        .replace(/{objective}/g, () => wrappedObjective);
 
       if (!hasDelegation) {
         // Strip SUB-AGENT DELEGATION PROTOCOL block from custom DB prompts when delegation is inactive
@@ -68,6 +90,7 @@ export class NLAHStrategy implements AgentStrategy {
           .replace(/SUB-AGENT DELEGATION PROTOCOL:[\s\S]*?(?=\n\n|\n[A-Z_]+:|$)/gi, "")
           .trim();
       }
+
       workflow = substitutedPrompt;
     } else if (hasDelegation) {
       workflow = DEFAULT_NLAH_BEHAVIOR;
@@ -85,7 +108,7 @@ export class NLAHStrategy implements AgentStrategy {
       .replace("{core_protocols}", () => coreProtocols)
       .replace("{workflow}", () => workflow)
       .replace("{tools}", () => toolDescriptions)
-      .replace("{objective}", () => `<user_objective>${state.objective}</user_objective>`)
+      .replace("{objective}", () => wrappedObjective)
       .replace("{completion}", () => completion);
   }
 }

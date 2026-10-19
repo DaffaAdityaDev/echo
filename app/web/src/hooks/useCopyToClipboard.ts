@@ -7,14 +7,17 @@ export function useCopyToClipboard(resetMs = 2000) {
   const timerRef = useRef<number | null>(null);
 
   const copy = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<boolean> => {
       try {
         await navigator.clipboard.writeText(text);
         setCopied(true);
+
         if (timerRef.current) window.clearTimeout(timerRef.current);
         timerRef.current = window.setTimeout(() => setCopied(false), resetMs);
+        return true;
       } catch {
         setCopied(false);
+        return false;
       }
     },
     [resetMs],

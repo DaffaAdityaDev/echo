@@ -9,11 +9,11 @@ import {
   SEARCH_SUMMARIES,
 } from "./constants";
 
-interface DuckDuckGoResult {
+type DuckDuckGoResult = {
   title: string;
   url: string;
   snippet: string;
-}
+};
 
 /**
  * Fetches search results from DuckDuckGo's HTML search page.
@@ -28,6 +28,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
       [HTTP_HEADERS.USER_AGENT_KEY]: HTTP_HEADERS.USER_AGENT_VALUE,
       [HTTP_HEADERS.ACCEPT_KEY]: HTTP_HEADERS.ACCEPT_VALUE,
     },
+    signal: AbortSignal.timeout(SEARCH_CONFIG.TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -53,6 +54,7 @@ async function searchDuckDuckGo(query: string): Promise<DuckDuckGoResult[]> {
     if (title && snippet) {
       results.push({ title, url: cleanUrl, snippet });
     }
+
     match = resultPattern.exec(html);
   }
 
@@ -88,6 +90,7 @@ export const webSearchTool: ToolDefinition = {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
       return {
         status: OPERATION_STATUS.ERROR,
         summary: SEARCH_SUMMARIES.GENERIC_ERROR(input.query, errorMessage),

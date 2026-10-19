@@ -251,7 +251,7 @@ export function useAuth() {
 ### Pattern: Predefined Query Objects
 
 ```typescript
-// src/lib/queries.ts
+// src/features/chat/services/model-queries.ts
 export const modelQueries = {
   all: QUERY_KEYS.MODELS.ALL,
   list: () => ({

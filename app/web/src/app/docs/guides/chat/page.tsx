@@ -1,11 +1,12 @@
 "use client";
 
-import { CodeBlock } from "@/components/docs/CodeBlock";
-import { EndpointDetail } from "@/components/docs/EndpointDetail";
-import { useSpec } from "@/components/docs/OpenApiSpecProvider";
+import { CodeBlock } from "@/components/CodeBlock";
+import { EndpointDetail } from "@/features/docs/components/EndpointDetail";
+import { useSpec } from "@/features/docs/components/OpenApiSpecProvider";
 
 export default function ChatGuide() {
   const { spec } = useSpec();
+
   const chatEndpoint = spec?.tags
     .flatMap((t) => t.endpoints)
     .find((ep) => ep.path === "/api/v1/chat" && ep.method === "post");
@@ -28,14 +29,14 @@ export default function ChatGuide() {
         </h2>
         <p className="text-xs text-muted leading-relaxed font-mono">
           The chat stream delivers typed events. Each event is a JSON object with a{" "}
-          <code className="text-blue-600 font-bold">type</code> field.
+          <code className="text-accent font-bold">type</code> field.
         </p>
-        <div className="overflow-x-auto border border-border bg-white rounded-xs shadow-xs">
+        <div className="overflow-x-auto border border-border bg-elevated rounded-xs shadow-xs">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-50 border-b border-border">
+            <thead className="bg-surface border-b border-border">
               <tr>
-                <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Event Type</th>
-                <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Description</th>
+                <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Event Type</th>
+                <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Description</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-xs">
@@ -57,8 +58,8 @@ export default function ChatGuide() {
                 ["turn_complete", "Agent turn completed successfully"],
                 ["mission_completed", "Full mission execution finished"],
               ].map(([type, desc]) => (
-                <tr key={type} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-2.5 font-mono text-blue-600 font-semibold">{type}</td>
+                <tr key={type} className="hover:bg-surface transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-accent font-semibold">{type}</td>
                   <td className="px-4 py-2.5 text-muted font-mono">{desc}</td>
                 </tr>
               ))}
@@ -159,7 +160,6 @@ function handleEvent(data) {
         />
       </section>
 
-      {/* Dynamic endpoint card */}
       {chatEndpoint && (
         <section className="space-y-4">
           <h2 className="text-base font-bold text-foreground border-b border-border pb-2 uppercase tracking-tight">

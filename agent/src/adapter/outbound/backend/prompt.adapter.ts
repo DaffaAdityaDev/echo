@@ -2,10 +2,13 @@ import type Redis from "ioredis";
 import { ENV } from "../../../config/env";
 import { getRedisClient } from "../../../infrastructure/cache/redis";
 import { signServiceJwt } from "../../../shared/utils/jwt";
+import { toLogCause } from "../../../shared/utils/errors";
 import { logger } from "../../../shared/utils/logger";
 
 const PROMPT_ENDPOINT = "/api/v1/internal/prompts/active";
+
 const CACHE_TTL_SECONDS = 60;
+
 const REQUEST_TIMEOUT_MS = 5000;
 
 export interface ActivePrompt {
@@ -27,6 +30,18 @@ export interface PromptAdapterOptions {
   redis?: Redis | null;
 }
 
+function isNumber<T>(val: T): val is T & number {
+  return typeof val === "number";
+}
+
+function isString<T>(val: T): val is T & string {
+  return typeof val === "string";
+}
+
+function isStringArray(val: unknown): val is string[] {
+  return Array.isArray(val) && val.every(isString);
+}
+
 export class PromptAdapter {
   private baseUrl: string;
   private redis: Redis | null;
@@ -36,48 +51,59 @@ export class PromptAdapter {
     this.redis = options.redis !== undefined ? options.redis : getRedisClient();
   }
 
-  async getActivePrompt(templateName: string, tenantId: string): Promise<ActivePrompt | null> {
-    const cached = await this.readCache(templateName, tenantId);
-    if (cached) return cached;
-
-    const prompt = await this.fetchActivePrompt(templateName, tenantId);
-    if (prompt) {
-      await this.writeCache(templateName, tenantId, prompt);
-    }
-    return prompt;
-  }
-
   private cacheKey(templateName: string, tenantId: string): string {
     return `agent:prompts:${tenantId}:${templateName}`;
   }
 
+  async getActivePrompt(templateName: string, tenantId: string): Promise<ActivePrompt | null> {
+    const cached = await this.readCache(templateName, tenantId);
+
+    if (cached) return cached;
+
+    const fetched = await this.fetchActivePrompt(templateName, tenantId);
+
+    if (fetched) {
+      await this.writeCache(templateName, tenantId, fetched);
+    }
+
+    return fetched;
+  }
+
   private async readCache(templateName: string, tenantId: string): Promise<ActivePrompt | null> {
     if (!this.redis) return null;
+
     try {
       const raw = await this.redis.get(this.cacheKey(templateName, tenantId));
+
       if (!raw) return null;
+
+      // SAFETY: Redis cached prompt string was serialized from ActivePrompt
       return JSON.parse(raw) as ActivePrompt;
     } catch (err) {
-      logger.warn(`Prompt cache read failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt cache read failed`, { templateName, tenantId, error: toLogCause(err) });
+
       return null;
     }
   }
 
   private async writeCache(templateName: string, tenantId: string, prompt: ActivePrompt): Promise<void> {
     if (!this.redis) return;
+
     try {
       await this.redis.set(this.cacheKey(templateName, tenantId), JSON.stringify(prompt), "EX", CACHE_TTL_SECONDS);
     } catch (err) {
-      logger.warn(`Prompt cache write failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt cache write failed`, { templateName, tenantId, error: toLogCause(err) });
     }
   }
 
   private async fetchActivePrompt(templateName: string, tenantId: string): Promise<ActivePrompt | null> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
       const token = signServiceJwt();
       const url = `${this.baseUrl}${PROMPT_ENDPOINT}?template=${encodeURIComponent(templateName)}`;
+
       const res = await fetch(url, {
         method: "GET",
         headers: {
@@ -87,23 +113,31 @@ export class PromptAdapter {
         },
         signal: controller.signal,
       });
+
       if (!res.ok) {
         logger.warn(`Prompt request failed: ${res.status} ${res.statusText}`, { templateName, tenantId });
+
         return null;
       }
+
+      // SAFETY: Backend prompt endpoint returns ActivePromptResponse structure
       const data = (await res.json()) as ActivePromptResponse;
-      if (typeof data.version !== "number" || typeof data.system_prompt !== "string") {
+
+      if (!isNumber(data.version) || !isString(data.system_prompt)) {
         logger.warn(`Prompt response is malformed`, { templateName, tenantId });
+
         return null;
       }
+
       return {
         version: data.version,
         systemPrompt: data.system_prompt,
-        boundTools: Array.isArray(data.bound_tools) ? (data.bound_tools as string[]) : [],
-        variables: Array.isArray(data.variables) ? (data.variables as string[]) : [],
+        boundTools: isStringArray(data.bound_tools) ? data.bound_tools : [],
+        variables: isStringArray(data.variables) ? data.variables : [],
       };
     } catch (err) {
-      logger.warn(`Prompt request failed`, { templateName, tenantId, error: err });
+      logger.warn(`Prompt request failed`, { templateName, tenantId, error: toLogCause(err) });
+
       return null;
     } finally {
       clearTimeout(timer);

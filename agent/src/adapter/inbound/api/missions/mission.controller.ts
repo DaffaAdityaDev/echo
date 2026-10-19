@@ -4,15 +4,17 @@ import type { Context } from "hono";
 import { StandardContextAnchor } from "../../../../core/agent/anchors";
 import { cancellationManager, NlahHarness } from "../../../../core/agent/harness";
 import { type BehaviorPrompt, resolveBehaviorPrompt } from "../../../../core/agent/prompts";
-import { applyBoundTools } from "../../../../core/agent/prompts/bound_tools";
+import { applyBoundTools } from "../../../../core/agent/prompts/bound-tools";
 import { SkillRegistry } from "../../../../core/agent/skills";
 import { stateStorage } from "../../../../core/agent/storage";
+import { missionStateKey } from "../../../../core/agent/storage/state-key";
 import { strategyRegistry } from "../../../../core/agent/strategies";
 import { createRestTool, getImplementedFeatures, toolRegistry } from "../../../../core/agent/tools";
 import { ProviderFactory } from "../../../../infrastructure/providers/factory";
 import type { RestToolConfig } from "../../../../infrastructure/transports/rest/types";
 import { HTTP_STATUS } from "../../../../shared/constants/http";
-import type { MissionPayload, ToolDefinition } from "../../../../shared/types";
+import type { AgentState, MissionPayload, PausedMissionState, ToolDefinition } from "../../../../shared/types";
+import { toLogCause } from "../../../../shared/utils/errors";
 import { logger } from "../../../../shared/utils/logger";
 import { mapHistoryToMessages } from "../../../../shared/utils/messages";
 import {
@@ -27,26 +29,33 @@ import { handleHitlDecision } from "./mission-resume";
 
 export { handleHitlDecision };
 
+function isAgentState(val: AgentState | PausedMissionState | null): val is AgentState {
+  return val != null && "objective" in val && "messages" in val;
+}
+
 export async function handleCancelMission(c: Context) {
-  const missionId = c.req.param("id") as string;
+  const missionId = c.req.param("id") ?? "";
   cancellationManager.cancelLocal(missionId);
   logger.info(`[handleCancelMission] Cancelled mission ${missionId}`);
+
   return c.json({ status: "cancelled", missionId });
 }
 
-function toRestToolConfig(restTool: {
+interface RestToolRawInput {
   name: string;
-  endpoint: string;
+  endpoint?: string;
   url?: string;
   method?: "GET" | "POST" | "PUT" | "DELETE";
   description: string;
   headers?: Record<string, string>;
   global_headers?: Record<string, string>;
-  inputSchema: Record<string, unknown>;
+  inputSchema?: RestToolConfig["schema"];
   auth?: { type: "bearer" | "basic" | "header"; credentials: Record<string, string> };
   timeout?: number;
   url_interpolation?: boolean;
-}): RestToolConfig {
+}
+
+function toRestToolConfig(restTool: RestToolRawInput): RestToolConfig {
   return {
     name: restTool.name,
     description: restTool.description,
@@ -55,7 +64,7 @@ function toRestToolConfig(restTool: {
     method: restTool.method ?? "POST",
     headers: restTool.headers,
     global_headers: restTool.global_headers,
-    schema: restTool.inputSchema as RestToolConfig["schema"],
+    schema: restTool.inputSchema,
     auth: restTool.auth,
     timeout: restTool.timeout ?? 30000,
     url_interpolation: restTool.url_interpolation ?? false,
@@ -69,8 +78,10 @@ export async function createMission(c: Context) {
     const rawInput = { ...queryParams, ...body };
 
     const parseResult = createMissionSchema.safeParse(rawInput);
+
     if (!parseResult.success) {
       logger.error(VALIDATION_MESSAGES.VALIDATION_ERROR, parseResult.error.format());
+
       return c.json(
         {
           error: VALIDATION_MESSAGES.VALIDATION_ERROR,
@@ -101,18 +112,26 @@ export async function createMission(c: Context) {
     const historyMessages = mapHistoryToMessages(validatedData.history ?? undefined);
 
     const apiKeyCleaned = validatedData.provider_config.api_key?.trim();
+
     const llmProvider = ProviderFactory.fromConfig({
       ...validatedData.provider_config,
       api_key: apiKeyCleaned ? apiKeyCleaned : undefined,
     });
+
     const strategyKey = validatedData.strategy_version || validatedData.strategy;
     const executionStrategy = strategyRegistry.resolve(strategyKey);
 
-    let state = await stateStorage.get(missionId);
-    if (state) {
+    const rawState = await stateStorage.get(missionStateKey(missionId));
+    let state: AgentState;
+
+    if (isAgentState(rawState)) {
+      state = rawState;
       state.objective = payload.prompt;
-      const hasNewMessage = state.messages.some((m) => m.content === payload.prompt);
-      if (!hasNewMessage) {
+      // Only a retried submission repeats the latest message; an earlier identical
+      // prompt (e.g. "yes" twice) is a genuine new turn.
+      const isRetriedPrompt = state.messages.at(-1)?.content === payload.prompt;
+
+      if (!isRetriedPrompt) {
         state.messages.push(new HumanMessage(payload.prompt));
       }
     } else {
@@ -130,8 +149,10 @@ export async function createMission(c: Context) {
     if (explicitFeatures !== undefined) {
       const implementedIds = new Set(getImplementedFeatures().map((f) => f.id));
       const unknownFeature = explicitFeatures.find((id) => !implementedIds.has(id));
+
       if (unknownFeature) {
         logger.error(`Unknown feature requested: ${unknownFeature}`);
+
         return c.json({ error: MISSION_ERROR_MESSAGES.UNKNOWN_FEATURE(unknownFeature) }, HTTP_STATUS.BAD_REQUEST);
       }
     }
@@ -148,6 +169,7 @@ export async function createMission(c: Context) {
 
       for (const skillName of validatedData.skills) {
         const skill = skillsRegistry.getSkill(skillName);
+
         if (skill?.preferredTools) {
           for (const tool of skill.preferredTools) {
             preferredToolNames.add(tool);
@@ -165,19 +187,21 @@ export async function createMission(c: Context) {
     // the process-global registry, which would leak the tool (and its headers)
     // into every subsequent mission on this agent.
     const restConfigs = (validatedData.config?.restTools ?? []).map(toRestToolConfig);
+
     if (restConfigs.length > 0) {
       const restDefs = restConfigs.map(createRestTool);
       resolvedTools = resolvedTools ? [...resolvedTools, ...restDefs] : restDefs;
     }
 
     let behaviorPrompt: BehaviorPrompt | null = null;
+
     try {
       behaviorPrompt = await resolveBehaviorPrompt({
         templateName: validatedData.prompt_template,
         tenantId: payload.tenant.tenantId,
       });
     } catch (promptErr: unknown) {
-      logger.warn("Prompt resolution failed; falling back to default behavior", promptErr);
+      logger.warn("Prompt resolution failed; falling back to default behavior", toLogCause(promptErr));
     }
 
     if (behaviorPrompt && behaviorPrompt.boundTools.length > 0 && resolvedTools !== undefined) {
@@ -189,6 +213,7 @@ export async function createMission(c: Context) {
     } catch (validateErr: unknown) {
       const errorMessage = validateErr instanceof Error ? validateErr.message : String(validateErr);
       logger.error(`Provider pre-validation failed: ${errorMessage}`);
+
       return c.json(
         {
           error: MISSION_ERROR_MESSAGES.PROVIDER_UNREACHABLE,
@@ -206,7 +231,7 @@ export async function createMission(c: Context) {
       tools: resolvedTools,
       restTools: restConfigs,
       skills: validatedData.skills ?? undefined,
-      harnessConfig: validatedData.config.featureToggles ?? validatedData.config.harnessConfig,
+      harnessConfig: { ...validatedData.config.harnessConfig, ...validatedData.config.featureToggles },
       delegationDepth: validatedData.config.harness.delegationDepth,
       behaviorPrompt,
     });
@@ -222,7 +247,8 @@ export async function createMission(c: Context) {
       sendErrorLog: STREAM_LOG_MESSAGES.SEND_ERROR_FAILED,
     });
   } catch (error: unknown) {
-    logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, error);
+    logger.error(MISSION_LOG_MESSAGES.EXECUTION_FAILURE, toLogCause(error));
+
     return c.json(
       {
         error: MISSION_LOG_MESSAGES.EXECUTION_FAILURE,

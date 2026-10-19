@@ -3,30 +3,30 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const modulesDir = join(__dirname, "modules");
+
 const outputPath = join(__dirname, "openapi.json");
 
 function readJSON(p) {
   return JSON.parse(readFileSync(p, "utf-8"));
 }
 
+function isPlainObject(v) {
+  return Boolean(v) && Object.prototype.toString.call(v) === "[object Object]";
+}
+
 function merge(target, source) {
   for (const key of Object.keys(source)) {
     if (key === "paths" || key === "schemas") {
-      target[key] = { ...(target[key] || {}), ...source[key] };
-    } else if (
-      typeof source[key] === "object" &&
-      source[key] !== null &&
-      !Array.isArray(source[key]) &&
-      typeof target[key] === "object" &&
-      target[key] !== null &&
-      !Array.isArray(target[key])
-    ) {
+      target[key] = { ...target[key], ...source[key] };
+    } else if (isPlainObject(source[key]) && isPlainObject(target[key])) {
       merge(target[key], source[key]);
     } else {
       target[key] = source[key];
     }
   }
+
   return target;
 }
 
@@ -36,9 +36,11 @@ if (!existsSync(modulesDir)) {
 }
 
 const files = readdirSync(modulesDir).filter((f) => f.endsWith(".json") && f !== "_base.json");
+
 files.sort();
 
 const base = readJSON(join(modulesDir, "_base.json"));
+
 const result = JSON.parse(JSON.stringify(base));
 
 for (const file of files) {
@@ -51,5 +53,7 @@ for (const file of files) {
 }
 
 writeFileSync(outputPath, JSON.stringify(result, null, 2));
+
 console.log(`\nWrote ${outputPath}`);
+
 console.log(`Total: ${Object.keys(result.paths).length} paths`);

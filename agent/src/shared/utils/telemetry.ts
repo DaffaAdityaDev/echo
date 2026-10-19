@@ -1,16 +1,25 @@
 import { LangfuseSpanProcessor } from "@langfuse/otel";
-import { type DiagLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import { type DiagLogFunction, type DiagLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { ENV } from "../../config/env";
-import { logger } from "../../shared/utils/logger";
+import { toLogCause } from "../../shared/utils/errors";
+import { type LogContext, logger } from "../../shared/utils/logger";
 
 const publicKey = ENV.LANGFUSE_PUBLIC_KEY;
+
 const secretKey = ENV.LANGFUSE_SECRET_KEY;
+
 const baseUrl = ENV.LANGFUSE_BASE_URL;
 
 const isDummyKey =
   !publicKey || publicKey.startsWith("pk-lf-dummy") || !secretKey || secretKey.startsWith("sk-lf-dummy");
+
 const isExplicitlyDisabled = ENV.ENABLE_TELEMETRY === "false";
+
+function logOtel(level: "debug" | "info" | "warn" | "error", ...[message, ...args]: Parameters<DiagLogFunction>): void {
+  const context: LogContext | undefined = args.length > 0 ? { args: args.map(toLogCause) } : undefined;
+  logger[level](`[OTEL] ${message}`, context);
+}
 
 if (isDummyKey || isExplicitlyDisabled) {
   logger.info(
@@ -18,15 +27,17 @@ if (isDummyKey || isExplicitlyDisabled) {
   );
 } else {
   const customLogger: DiagLogger = {
-    verbose: (message, ...args) => logger.debug(`[OTEL] ${message}`, ...args),
-    debug: (message, ...args) => logger.debug(`[OTEL] ${message}`, ...args),
-    info: (message, ...args) => logger.info(`[OTEL] ${message}`, ...args),
-    warn: (message, ...args) => logger.warn(`[OTEL] ${message}`, ...args),
-    error: (message, ...args) => {
-      if (typeof message === "string" && (message.includes("OTLPExporterError") || message.includes("Export failed"))) {
+    verbose: (...params) => logOtel("debug", ...params),
+    debug: (...params) => logOtel("debug", ...params),
+    info: (...params) => logOtel("info", ...params),
+    warn: (...params) => logOtel("warn", ...params),
+    error: (...params) => {
+      const [message] = params;
+
+      if (message.includes("OTLPExporterError") || message.includes("Export failed")) {
         logger.debug(`[OTEL] Export warning (Langfuse server offline/404 at ${baseUrl}): ${message}`);
       } else {
-        logger.error(`[OTEL] ${message}`, ...args);
+        logOtel("error", ...params);
       }
     },
   };
@@ -49,6 +60,6 @@ if (isDummyKey || isExplicitlyDisabled) {
     sdk.start();
     logger.info("✅ OpenTelemetry SDK initialized successfully");
   } catch (error) {
-    logger.error("❌ Failed to initialize OpenTelemetry SDK:", error);
+    logger.error("❌ Failed to initialize OpenTelemetry SDK:", toLogCause(error));
   }
 }

@@ -2,6 +2,11 @@ import { CANCELLED_MESSAGE } from "../../../constants";
 import type { Message, StreamPacket } from "../../../types";
 import type { StreamStore } from "./types";
 
+// A terminal packet that trails an error must not hide the failure.
+function completeUnlessFailed(lastMessage: Message): void {
+  if (lastMessage.status !== "error") lastMessage.status = "complete";
+}
+
 export function handleTurnComplete(
   lastMessage: Message,
   data: StreamPacket & { type: "turn_complete" },
@@ -11,7 +16,8 @@ export function handleTurnComplete(
     lastMessage.usage = data.usage;
     store.setCumulativeUsage(data.usage);
   }
-  lastMessage.status = "complete";
+
+  completeUnlessFailed(lastMessage);
   store.setAgentState("completed");
 }
 
@@ -24,12 +30,13 @@ export function handleError(lastMessage: Message, data: StreamPacket & { type: "
     // stays, the UI offers to continue — not as a completed error.
     lastMessage.status = "interrupted";
     store.setAgentState("completed");
+
     return;
   }
 
   const currentContent = lastMessage.content || "";
   lastMessage.content = currentContent ? `${currentContent}\n\n[Error: ${errDetail}]` : `Error: ${errDetail}`;
-  lastMessage.status = "complete";
+  lastMessage.status = "error";
   store.setAgentState("error");
 }
 
@@ -38,7 +45,7 @@ export function handleMissionCompleted(
   _data: StreamPacket & { type: "mission_completed" },
   store: StreamStore,
 ): void {
-  lastMessage.status = "complete";
+  completeUnlessFailed(lastMessage);
   store.setAgentState("completed");
 }
 
@@ -56,12 +63,16 @@ export function handleHeartbeat(
   }
 }
 
+function isNumber(val: number | undefined): val is number {
+  return typeof val === "number";
+}
+
 export function handleProgress(
   _lastMessage: Message,
   data: StreamPacket & { type: "progress" },
   store: StreamStore,
 ): void {
-  if (typeof data.step === "number") {
+  if (isNumber(data.step)) {
     const step = data.step;
     store.setAgentProgress((prev) => (prev ? { ...prev, iteration: step } : { iteration: step, totalIterations: 0 }));
   }

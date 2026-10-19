@@ -102,8 +102,8 @@ JWT_SECRET="your-secret-key-min-32-chars!!" \
 | Table              | Purpose                              |
 |--------------------|--------------------------------------|
 | `users`            | Authentication, roles, profiles      |
-| `memory_semantic`  | Vector/generic semantic memory store |
-| `memory_procedural`| Procedural knowledge storage         |
+| `memory_semantic`  | Vector/generic semantic memory store, scoped by `user_id` (NULL = orphaned, never returned) |
+| `memory_procedural`| Procedural knowledge storage, `UNIQUE (user_id, name)` |
 | `api_keys`        | API key management (migrated from Redis) |
 | `sessions`        | Conversation sessions (+ `strategy_version`, `last_accessed_at` via Migrate()) |
 | `messages`        | Canonical per-session history        |
@@ -118,12 +118,12 @@ prompt_versions) and applies idempotent `ALTER TABLE ... ADD COLUMN IF NOT
 EXISTS` statements (strategy_version, last_accessed_at, messages.steps/status,
 user_preferences provider fields).
 
-The numbered files under `backend/migrations/` (001-010) are **reference-only**
-— they document the schema evolution but are NOT executed at runtime. The
-authoritative DDL lives in `schema.go`; the 20260725_001_llmops_studio pair is
-the one exception executed as a constant (`schemaLLMOpsStudio`) inside
-`Migrate()`. Migration 010 (`010_add_prompt_template_setting`) seeds the
-`prompt_template_name` key in `app_settings`.
+The SQL files under `backend/migrations/` are **legacy and never executed**
+(see `backend/migrations/README.md`). The authoritative DDL lives in
+`schema.go`; the LLMOps Studio tables come from the `schemaLLMOpsStudio`
+constant inside `Migrate()`. The
+`20260813_001_add_session_and_memory_indexes` indexes have no `schema.go`
+counterpart and only exist where that file was applied by hand.
 
 File Structure
 --------------
@@ -134,7 +134,7 @@ File Structure
 | internal/database/db.go                  | Connection factories - NewRedisClient(),  |
 |                                          |   NewPostgresPool()                        |
 | internal/database/schema.go              | DDL constants + Migrate(pool) orchestrator|
-| internal/constants/db/postgres.go        | SQL queries & error messages               |
+| internal/constants/db/*.go               | SQL queries per table group                |
 +------------------------------------------+--------------------------------------------+
 
 Infrastructure Architecture
@@ -242,6 +242,7 @@ Migration code:
     ├── schemaVector       → memory_semantic (with pgvector, 1536-dim)
     ├── schemaNoVector     → memory_semantic (text only)
     ├── schemaProcedural   → memory_procedural
+    ├── schemaMemoryOwnership → user_id on memory_semantic/memory_procedural, per-user indexes
     ├── schemaUsers        → users
     ├── schemaSessions     → sessions (+ strategy_version, last_accessed_at)
     ├── schemaMessages     → messages (+ steps, status columns)

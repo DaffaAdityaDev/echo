@@ -13,6 +13,7 @@ import (
 	msgconst "echo-backend/internal/constants/msg"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // HttpClient is the shared outbound client for internal agent calls. It has
@@ -36,6 +37,17 @@ func GenerateUUID() (string, error) {
 		return "", fmt.Errorf("generate uuid: %w", err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// canonicalUUIDLength is the length of the hyphenated 8-4-4-4-12 UUID form.
+const canonicalUUIDLength = 36
+
+// IsValidUUID reports whether s is a hyphenated UUID, so path IDs bound to
+// UUID columns can be rejected before Postgres turns them into a 500. The
+// urn:uuid: and braced forms uuid.Validate also accepts are refused because
+// Postgres does not parse the urn form.
+func IsValidUUID(s string) bool {
+	return len(s) == canonicalUUIDLength && uuid.Validate(s) == nil
 }
 
 func RespondSuccess(c fiber.Ctx, data any) error {

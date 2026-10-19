@@ -9,9 +9,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
-      - ./backend/scripts/init-nuq.sql:/docker-entrypoint-initdb.d/init-nuq.sql
     ports:
       - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -23,6 +27,11 @@ services:
       - redis_data:/data
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -53,6 +62,7 @@ services:
     container_name: echo_backend_seed
     command: ["./seed"]
     environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable}
       - DB_HOST=${DB_HOST:-echo-postgres}
       - DB_PORT=${DB_PORT:-5432}
@@ -62,6 +72,98 @@ services:
     depends_on:
       - echo-migrate
     restart: on-failure
+    networks:
+      - dokploy-network
+
+  echo-agent:
+    build:
+      context: ./agent
+    container_name: echo_agent
+    ports:
+      - "${AGENT_PORT:-3001}:3001"
+    volumes:
+      - ./agent:/app
+      - /app/node_modules
+    environment:
+      - PORT=${AGENT_PORT:-3001}
+      - LLM_MODEL_API_URL=${LLM_MODEL_API_URL:-http://host.docker.internal:1234/v1}
+      - STATE_BACKEND=${STATE_BACKEND:-backend}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token-8f3a2c9e1b7d4f60}
+      - SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-dev-service-jwt-secret-min-32-chars!!}
+      - BACKEND_URL=${BACKEND_URL:-http://echo-backend:8080}
+      - REDIS_URL=${REDIS_URL:-redis://echo-redis:6379}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-pk-lf-dummy}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-sk-lf-dummy}
+      - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-http://localhost:3000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      echo-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
+  echo-backend:
+    build:
+      context: ./backend
+      target: runner
+    container_name: echo_backend
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      - PORT=${BACKEND_PORT:-8080}
+      - ENVIRONMENT=development
+      - AGENT_HTTP_URL=http://echo-agent:3001
+      - DATABASE_URL=postgresql://user:password@echo-postgres:5432/echo_db?sslmode=disable
+      - DB_HOST=echo-postgres
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=echo_db
+      - REDIS_ADDR=echo-redis:6379
+      - REDIS_PASSWORD=
+      - JWT_SECRET=replace-this-with-a-secure-secret
+      - SERVICE_JWT_SECRET=dev-service-jwt-secret-min-32-chars!!
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3002
+      - INTERNAL_AUTH_TOKEN=dev-internal-token-8f3a2c9e1b7d4f60
+      - ENCRYPTION_KEY=ie4sKf1oVOFTbALq2GcJEXQymDUgPSdk
+      - DEFAULT_MODEL=opencode-go/deepseek-v4-flash
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      echo-postgres:
+        condition: service_healthy
+      echo-redis:
+        condition: service_healthy
+      echo-agent:
+        condition: service_started
+      echo-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
+  echo-frontend:
+    build:
+      context: ./app/web
+      target: runner
+      args:
+        - BACKEND_URL=http://echo-backend:8080
+        - NEXT_PUBLIC_API_URL=http://localhost:8080
+    container_name: echo_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=development
+      - BACKEND_URL=http://echo-backend:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      echo-backend:
+        condition: service_started
+    restart: unless-stopped
     networks:
       - dokploy-network
 

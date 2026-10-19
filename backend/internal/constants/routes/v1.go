@@ -7,7 +7,6 @@ const (
 	V1PathHealth     = "/health"
 	V1PathRegister   = "/register"
 	V1PathLogin      = "/login"
-	V1PAthRefresh    = "/refresh"
 	V1PathMe         = "/me"
 	V1PathLogout     = "/logout"
 	V1PathRefresh    = "/refresh"

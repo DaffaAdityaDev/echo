@@ -2,17 +2,18 @@ package features
 
 import (
 	"context"
-	domainconst "echo-backend/internal/constants/domain"
-	httpxconst "echo-backend/internal/constants/httpx"
-	msgconst "echo-backend/internal/constants/msg"
-	"echo-backend/internal/models/config"
-	featuresmodel "echo-backend/internal/models/features"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	domainconst "echo-backend/internal/constants/domain"
+	httpxconst "echo-backend/internal/constants/httpx"
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/models/config"
+	featuresmodel "echo-backend/internal/models/features"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -159,8 +160,8 @@ func (s *Service) ResolvePublicCatalog(ctx context.Context, userTier string) ([]
 // ValidateRequest checks requested feature IDs against the active DB catalog
 // intersected with the agent's implemented set. Unknown features return
 // ErrUnknownFeature; pro-tier features requested by a free user return
-// ErrFeatureLocked. If either catalog cannot be loaded, validation is skipped
-// (fail-open), preserving the pre-existing chat behavior.
+// ErrFeatureLocked. If either catalog cannot be loaded the request is
+// rejected (fail-closed), since tier gating cannot be verified.
 func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, userTier string) error {
 	if len(featureIDs) == 0 {
 		return nil
@@ -169,14 +170,12 @@ func (s *Service) ValidateRequest(ctx context.Context, featureIDs []string, user
 
 	active, err := s.repo.ListActive(ctx)
 	if err != nil {
-		slog.Warn(msgconst.WarnFeaturesLoadActiveSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, msgconst.KeyErr, err)
-		return nil
+		return fmt.Errorf("failed to load active features: %w", err)
 	}
 
 	implemented, err := s.GetImplementedSet(ctx)
 	if err != nil {
-		slog.Warn(msgconst.WarnFeaturesLoadImplSkip, msgconst.ComponentKey, msgconst.ComponentFeatures, msgconst.KeyErr, err)
-		return nil
+		return fmt.Errorf("failed to load implemented features: %w", err)
 	}
 
 	implementedIDs := make(map[string]struct{}, len(implemented))

@@ -243,7 +243,6 @@ interface McpServerConfig {
 +----------------------------+--------------------------------------------------------------+
 | `@modelcontextprotocol/sdk`| MCP client, transport (SSE/stdio), protocol types            |
 | `zod`                      | Internal tool schema representation                          |
-| `zod-to-json-schema`       | (Optional) Reverse conversion for provider binding           |
 | `CredentialManager`        | Env reference resolution at execution time                   |
 | `shared/types`             | `ToolDefinition`, `Observation`                              |
 +----------------------------+--------------------------------------------------------------+

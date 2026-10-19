@@ -12,16 +12,41 @@ const DEV_SERVICE_JWT_SECRET = "change-this-to-a-secure-service-jwt-secret-min32
 
 function isNonProductionEnv(): boolean {
   const nodeEnv = process.env.NODE_ENV;
+
   return nodeEnv === undefined || nodeEnv === "development" || nodeEnv === "test";
+}
+
+const BOOLEAN_FLAG_VALUES = [...ENV_VALUES.BOOLEAN_FLAG_TRUE, ...ENV_VALUES.BOOLEAN_FLAG_FALSE] as const;
+
+function isTrueFlag(value: boolean | string): boolean {
+  return value === true || ENV_VALUES.BOOLEAN_FLAG_TRUE.some((flag) => flag === value);
+}
+
+// An empty assignment (`FLAG=`) means unset, as it did under the previous coercion.
+function normalizeFlag<T>(val: T): T | string | undefined {
+  if (typeof val !== "string") return val;
+  const normalized = val.trim().toLowerCase();
+
+  return normalized === "" ? undefined : normalized;
+}
+
+// z.coerce.boolean() treats any non-empty string (including "false") as true.
+function booleanFlag() {
+  return z.preprocess(
+    normalizeFlag,
+    z
+      .union([z.boolean(), z.enum(BOOLEAN_FLAG_VALUES)])
+      .default(false)
+      .transform(isTrueFlag),
+  );
 }
 
 export const envSchema = z.object({
   PORT: z.string().default(ENV_DEFAULTS.PORT),
-  GRPC_PORT: z.string().default(ENV_DEFAULTS.GRPC_PORT),
   LLM_MODEL_API_URL: z.string().default(ENV_DEFAULTS.LLM_MODEL_API_URL),
   STATE_BACKEND: z.enum(ENV_VALUES.STATE_BACKENDS).default(ENV_VALUES.STATE_BACKENDS[0]),
   NODE_ENV: z.enum(ENV_VALUES.ENVIRONMENTS).default(ENV_VALUES.ENVIRONMENTS[0]),
-  DEBUG_PROMPT: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
+  DEBUG_PROMPT: booleanFlag(),
   INTERNAL_AUTH_TOKEN: z.string({
     message: ENV_VALIDATION_MESSAGES.INTERNAL_AUTH_TOKEN,
   }),
@@ -36,8 +61,8 @@ export const envSchema = z.object({
   BACKEND_URL: z.string().url().default(ENV_DEFAULTS.BACKEND_URL),
   REDIS_URL: z.string().url().default(ENV_DEFAULTS.REDIS_URL),
   MCP_SERVER_URL: z.string().url().optional(),
-  ENABLE_MCP: z.coerce.boolean().default(false),
-  ENABLE_REST_TOOLS: z.coerce.boolean().default(false),
+  ENABLE_MCP: booleanFlag(),
+  ENABLE_REST_TOOLS: booleanFlag(),
   ENABLE_TELEMETRY: z.string().default("true"),
 });
 

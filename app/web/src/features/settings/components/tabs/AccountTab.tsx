@@ -11,15 +11,18 @@ interface AccountTabProps {
 export function AccountTab({ user, logout, onClose }: AccountTabProps) {
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 space-y-3">
+      <div className="p-4 rounded-md border border-border bg-surface space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+          <div
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-gb-dark-blue flex items-center justify-center text-primary-foreground font-bold text-sm"
+            aria-hidden="true"
+          >
             {user?.email ? user.email[0].toUpperCase() : "U"}
           </div>
           <div>
-            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">{user?.email || "Guest Account"}</h4>
-            <p className="text-xs text-zinc-400">
-              Role: <span className="font-semibold text-purple-500 uppercase">{user?.role || "User"}</span>
+            <h4 className="text-sm font-bold text-foreground">{user?.email || "Guest Account"}</h4>
+            <p className="text-xs text-muted">
+              Role: <span className="font-semibold text-accent uppercase">{user?.role || "User"}</span>
             </p>
           </div>
         </div>
@@ -32,15 +35,15 @@ export function AccountTab({ user, logout, onClose }: AccountTabProps) {
             logout();
             onClose();
           }}
-          className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all flex items-center gap-3 text-left cursor-pointer"
+          className="p-4 rounded-md border border-danger/20 bg-danger/5 hover:bg-danger/10 transition-all flex items-center gap-3 text-left cursor-pointer"
         >
-          <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
-            <LogOut className="h-5 w-5" />
-          </div>
-          <div>
-            <h5 className="text-xs font-bold text-red-500">Sign Out</h5>
-            <p className="text-[11px] text-red-400/70">Terminate active session</p>
-          </div>
+          <span className="p-2.5 rounded-md bg-danger/10 text-danger">
+            <LogOut className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-xs font-bold text-danger">Sign Out</span>
+            <span className="block text-xs text-danger/80">Terminate active session</span>
+          </span>
         </button>
       </div>
     </div>

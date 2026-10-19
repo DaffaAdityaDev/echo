@@ -272,9 +272,9 @@ Browser                  Next.js API Route                Go Backend
 +--------------------------------------+---------+----------------------------------------+
 | src/app/providers.tsx                | 1-19    | TanStack Query provider wrapper        |
 +--------------------------------------+---------+----------------------------------------+
-| src/app/api/chat/stream/route.ts     | 1-40    | Next.js API route — proxy to Go SSE   |
+| src/app/api/chat/stream/route.ts     | 1-6     | Next.js API route — proxy to Go SSE   |
 +--------------------------------------+---------+----------------------------------------+
-| src/app/api/auth/login/route.ts      | 1-30    | Next.js API route — login proxy       |
+| src/app/api/auth/login/route.ts      | 1-33    | Next.js API route — login proxy       |
 +--------------------------------------+---------+----------------------------------------+
 
 ================================================================================

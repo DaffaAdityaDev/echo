@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
+import { buildLoginUrl } from "@/lib/api-client";
 import { useAuth } from "../hooks/useAuth";
 
 interface AuthGuardProps {
@@ -22,17 +23,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     if (mounted && !isLoading && !isAuthenticated && pathname !== "/login") {
-      const redirect = encodeURIComponent(pathname);
-      router.push(`/login?redirect=${redirect}`);
+      router.push(buildLoginUrl(pathname));
     }
   }, [isAuthenticated, isLoading, pathname, router, mounted]);
 
   if (!mounted || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={24} className="animate-spin text-zinc-500" />
-          <p className="text-sm text-zinc-600">Loading...</p>
+        <div role="status" className="flex flex-col items-center gap-3">
+          <Loader2 size={24} className="animate-spin text-muted" aria-hidden="true" />
+          <p className="text-sm text-muted">Loading...</p>
         </div>
       </div>
     );
@@ -45,9 +45,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={24} className="animate-spin text-zinc-500" />
-          <p className="text-sm text-zinc-600">Redirecting...</p>
+        <div role="status" className="flex flex-col items-center gap-3">
+          <Loader2 size={24} className="animate-spin text-muted" aria-hidden="true" />
+          <p className="text-sm text-muted">Redirecting...</p>
         </div>
       </div>
     );

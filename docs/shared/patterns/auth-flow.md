@@ -41,10 +41,10 @@ calls. The frontend uses React Query with a custom hook.
 | agent/src/shared/constants/       |                                            |
 |   middleware.ts                    | AUTH_CONSTANTS                             |
 | agent/src/config/env.schema.ts    | Env validation                             |
-| frontend/web/src/features/auth/   |                                            |
+| app/web/src/features/auth/   |                                            |
 |   services/auth-api.ts            | Auth API service                           |
 |   hooks/useAuth.ts                | useAuth React Query hook                   |
-| frontend/web/src/lib/api-client.ts| API client                                 |
+| app/web/src/lib/api-client.ts| API client                                 |
 +------------------------------------+--------------------------------------------+
 
 ## ASCII Flow Diagram
@@ -379,9 +379,9 @@ export const authApi = {
   token validation
 - **Agent auth constants**: `agent/src/shared/constants/middleware.ts` —
   `AUTH_CONSTANTS`
-- **Frontend auth API**: `frontend/web/src/features/auth/services/auth-api.ts`
-- **Frontend auth hook**: `frontend/web/src/features/auth/hooks/useAuth.ts`
-- **Frontend API client**: `frontend/web/src/lib/api-client.ts`
+- **Frontend auth API**: `app/web/src/features/auth/services/auth-api.ts`
+- **Frontend auth hook**: `app/web/src/features/auth/hooks/useAuth.ts`
+- **Frontend API client**: `app/web/src/lib/api-client.ts`
 
 ## Dependencies
 
@@ -403,8 +403,8 @@ export const authApi = {
 | agent/src/adapter/inbound/middleware/auth.ts                      | 6-32  | Agent auth middleware                |
 | agent/src/core/agent/plugins/memory-plugin.ts         | 1-35  | Service JWT signing + memory fetch   |
 | agent/src/shared/constants/middleware.ts              | 1-9   | AUTH_CONSTANTS                       |
-| frontend/web/src/features/auth/services/auth-api.ts   | 1-17  | Auth API service                     |
-| frontend/web/src/features/auth/hooks/useAuth.ts       | 1-30  | useAuth React Query hook             |
+| app/web/src/features/auth/services/auth-api.ts   | 1-17  | Auth API service                     |
+| app/web/src/features/auth/hooks/useAuth.ts       | 1-30  | useAuth React Query hook             |
 +-------------------------------------------------------+-------+--------------------------------------+
 
 ================================================================================

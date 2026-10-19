@@ -1,9 +1,19 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Context, Next } from "hono";
 import { ENV } from "../../../config/env";
 import { ERROR_STATUS } from "../../../shared/constants/errors";
 import { HTTP_STATUS } from "../../../shared/constants/http";
 import { AUTH_CONSTANTS } from "../../../shared/constants/middleware";
 import { logger } from "../../../shared/utils/logger";
+
+function sha256(value: string): Buffer {
+  return createHash("sha256").update(value).digest();
+}
+
+// Hashing first gives equal-length buffers, so timingSafeEqual does not leak the expected token length.
+function tokensMatch(received: string, expected: string): boolean {
+  return timingSafeEqual(sha256(received), sha256(expected));
+}
 
 export async function authMiddleware(c: Context, next: Next) {
   if (
@@ -19,16 +29,18 @@ export async function authMiddleware(c: Context, next: Next) {
   const xInternalHeader = c.req.header(AUTH_CONSTANTS.HEADER_INTERNAL_TOKEN);
 
   let receivedToken = "";
+
   if (authHeader?.startsWith(AUTH_CONSTANTS.BEARER_PREFIX)) {
     receivedToken = authHeader.substring(AUTH_CONSTANTS.BEARER_PREFIX.length);
   } else if (xInternalHeader) {
     receivedToken = xInternalHeader;
   }
 
-  if (!receivedToken || receivedToken !== tokenToUse) {
+  if (!receivedToken || !tokensMatch(receivedToken, tokenToUse)) {
     logger.warn(
       `Unauthorized access attempt to Agent endpoint: ${c.req.path} from IP: ${c.req.header(AUTH_CONSTANTS.HEADER_FORWARDED_FOR) || AUTH_CONSTANTS.DEFAULT_IP}`,
     );
+
     return c.json(
       {
         status: ERROR_STATUS,

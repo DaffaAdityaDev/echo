@@ -2,20 +2,26 @@ package session
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	domainconst "echo-backend/internal/constants/domain"
 	httpxconst "echo-backend/internal/constants/httpx"
 	"echo-backend/internal/constants/locals"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+)
+
+const (
+	sharedSessionID = "3b2f1d6a-7c4e-4a8b-9f10-2e5d7c9a1b34"
+	otherSessionID  = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
 )
 
 type mockSessionRepo struct {
@@ -57,6 +63,16 @@ func (m *mockSessionRepo) GetSessionMessages(ctx context.Context, sessionID stri
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*chatmodel.Message), args.Error(1)
+}
+
+func (m *mockSessionRepo) UpdateTitle(ctx context.Context, sessionID string, title string) error {
+	args := m.Called(ctx, sessionID, title)
+	return args.Error(0)
+}
+
+func (m *mockSessionRepo) UpdateContextSummary(ctx context.Context, sessionID string, summary string) error {
+	args := m.Called(ctx, sessionID, summary)
+	return args.Error(0)
 }
 
 func (m *mockSessionRepo) UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error {
@@ -122,7 +138,6 @@ func TestHandleCreateSession(t *testing.T) {
 			mockSetup: func(m *mockSessionRepo, _ *mockConsolidationSvc, _ *mockModelSvc) {
 				m.On("CreateSession", mock.Anything, 1, "My New Session", "").
 					Return(&chatmodel.Session{ID: "sess_abc", UserID: 1, Title: "My New Session"}, nil)
-
 			},
 			wantStatus: fiber.StatusCreated,
 		},
@@ -174,8 +189,8 @@ func TestHandleCreateSession(t *testing.T) {
 func TestHandleDeleteSession(t *testing.T) {
 	t.Parallel()
 
-	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: domainconst.StatusActive}
-	otherUserSession := &chatmodel.Session{ID: "sess_other", UserID: 2, Status: domainconst.StatusActive}
+	sharedSession := &chatmodel.Session{ID: sharedSessionID, UserID: 1, Status: domainconst.StatusActive}
+	otherUserSession := &chatmodel.Session{ID: otherSessionID, UserID: 2, Status: domainconst.StatusActive}
 
 	tests := []struct {
 		name       string
@@ -186,20 +201,20 @@ func TestHandleDeleteSession(t *testing.T) {
 	}{
 		{
 			name:      "session owned by requesting user returns 200",
-			sessionID: "sess_shared",
+			sessionID: sharedSessionID,
 			setUserID: "1",
 			mockSetup: func(m *mockSessionRepo, _ *mockConsolidationSvc, _ *mockModelSvc) {
-				m.On("GetByID", mock.Anything, "sess_shared").Return(sharedSession, nil)
-				m.On("DeleteSession", mock.Anything, "sess_shared").Return(nil)
+				m.On("GetByID", mock.Anything, sharedSessionID).Return(sharedSession, nil)
+				m.On("DeleteSession", mock.Anything, sharedSessionID).Return(nil)
 			},
 			wantStatus: fiber.StatusOK,
 		},
 		{
 			name:      "session owned by different user returns 403",
-			sessionID: "sess_other",
+			sessionID: otherSessionID,
 			setUserID: "1",
 			mockSetup: func(m *mockSessionRepo, _ *mockConsolidationSvc, _ *mockModelSvc) {
-				m.On("GetByID", mock.Anything, "sess_other").Return(otherUserSession, nil)
+				m.On("GetByID", mock.Anything, otherSessionID).Return(otherUserSession, nil)
 			},
 			wantStatus: fiber.StatusForbidden,
 		},
@@ -243,16 +258,16 @@ func TestHandleDeleteSession(t *testing.T) {
 func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
 	t.Parallel()
 
-	sharedSession := &chatmodel.Session{ID: "sess_shared", UserID: 1, Status: domainconst.StatusActive}
+	sharedSession := &chatmodel.Session{ID: sharedSessionID, UserID: 1, Status: domainconst.StatusActive}
 
 	mockRepo := new(mockSessionRepo)
 	mockCons := new(mockConsolidationSvc)
 	mockMod := new(mockModelSvc)
-	mockRepo.On("GetByID", mock.Anything, "sess_shared").Return(sharedSession, nil)
+	mockRepo.On("GetByID", mock.Anything, sharedSessionID).Return(sharedSession, nil)
 	// Negative limit/offset must be clamped to 0 rather than passed to SQL
 	// (LIMIT NULLIF(-5,0) is rejected by Postgres and returns a 500).
-	mockRepo.On("GetSessionMessages", mock.Anything, "sess_shared", 0, 0).Return([]*chatmodel.Message{}, nil)
-	mockRepo.On("CountMessagesBySession", mock.Anything, "sess_shared").Return(0, nil)
+	mockRepo.On("GetSessionMessages", mock.Anything, sharedSessionID, 0, 0).Return([]*chatmodel.Message{}, nil)
+	mockRepo.On("CountMessagesBySession", mock.Anything, sharedSessionID).Return(0, nil)
 
 	h := &Handler{
 		Cfg:              &cfgmodel.Config{},
@@ -267,7 +282,7 @@ func TestHandleGetSessionMessages_ClampsNegativePagination(t *testing.T) {
 		return h.HandleGetSessionMessages(c)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/sessions/sess_shared/messages?limit=-5&offset=-3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/sessions/"+sharedSessionID+"/messages?limit=-5&offset=-3", nil)
 	resp, err := app.Test(req)
 
 	assert.NoError(t, err)

@@ -106,7 +106,7 @@ func TestAgentGetActivePrompt_Success(t *testing.T) {
 func TestAgentGetActivePrompt_NotFound(t *testing.T) {
 	t.Parallel()
 
-	svc := &fakePromptService{err: context.DeadlineExceeded}
+	svc := &fakePromptService{err: llmopsmodel.ErrVersionNotFound}
 	app := newAgentPromptTestApp(t, svc)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/internal/prompts/active?template=support", nil)
 	req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+signServiceJWT(t, "service-jwt-secret"))
@@ -114,4 +114,17 @@ func TestAgentGetActivePrompt_NotFound(t *testing.T) {
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+}
+
+func TestAgentGetActivePrompt_StoreFailureIsServerError(t *testing.T) {
+	t.Parallel()
+
+	svc := &fakePromptService{err: context.DeadlineExceeded}
+	app := newAgentPromptTestApp(t, svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/internal/prompts/active?template=support", nil)
+	req.Header.Set(authconst.HeaderAuthorization, authconst.BearerPrefix+signServiceJWT(t, "service-jwt-secret"))
+
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
 }

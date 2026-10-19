@@ -1,10 +1,13 @@
 package settings
 
 import (
+	"net"
+
 	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/models/user"
+	"echo-backend/internal/pkg/netguard"
 	"echo-backend/internal/service/settings"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,12 +16,14 @@ import (
 type Handler struct {
 	Cfg         *cfgmodel.Config
 	SettingsSvc *settings.Service
+	Resolver    netguard.Resolver
 }
 
 func NewHandler(cfg *cfgmodel.Config, settingsSvc *settings.Service) *Handler {
 	return &Handler{
 		Cfg:         cfg,
 		SettingsSvc: settingsSvc,
+		Resolver:    net.DefaultResolver,
 	}
 }
 
@@ -94,6 +99,11 @@ func (h *Handler) HandleUpdateSettings(c fiber.Ctx) error {
 
 	if req.ProviderType != "" && !aitype.IsValidProvider(req.ProviderType) {
 		return handlerutil.RespondError(c, fiber.StatusBadRequest, "Unknown provider type: "+req.ProviderType)
+	}
+	if req.BaseURL != "" {
+		if err := netguard.ValidateURL(c.Context(), req.BaseURL, h.Cfg.AllowPrivateProviderURLs, h.Resolver); err != nil {
+			return handlerutil.RespondErrorDetail(c, fiber.StatusBadRequest, "Invalid base_url", err.Error())
+		}
 	}
 
 	prefs := &usermodel.UserPreferences{

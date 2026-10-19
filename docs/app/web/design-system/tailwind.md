@@ -9,6 +9,12 @@
 
 🛠️ Tailwind CSS Config — Guardbase Tokens
 
+> **Implementation note:** the web app uses Tailwind v4 with CSS-first
+> configuration. Tokens are declared in `app/web/src/app/globals.css`
+> (`:root` + `@theme inline`), not in a JS config. See `tokens.md` for the
+> implemented semantic token set; the v3-style config below is kept as the
+> original brand reference only.
+
 Konfigurasi Tailwind CSS yang selaras dengan Design Tokens Guardbase:
 
 ```js

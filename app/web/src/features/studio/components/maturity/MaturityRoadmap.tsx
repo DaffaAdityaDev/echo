@@ -14,14 +14,14 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
 
   return (
     <div className="space-y-6 font-mono text-foreground">
-      <div className="border border-border bg-white rounded-xs p-6 shadow-xs">
+      <div className="border border-border bg-elevated rounded-xs p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-700" />
-              Echo Self-Assessment Roadmap (L3 â†’ L4 Validated)
-            </h3>
-            <p className="text-xs text-slate-600 mt-1">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-success" aria-hidden="true" />
+              Echo Self-Assessment Roadmap (L3 → L4 Validated)
+            </h2>
+            <p className="text-xs text-muted mt-1">
               Priority plan to transition Echo from L3 (Structured) to L4 (Validated) across all 7 dimensions.
             </p>
           </div>
@@ -29,11 +29,14 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-foreground">{progressPercent}% Completed</div>
-              <div className="text-[10px] text-slate-600">
+              <div className="text-xs text-muted">
                 {completedCount} of {items.length} milestones
               </div>
             </div>
-            <div className="h-9 w-24 bg-surface rounded-xs p-1 border border-border flex items-center">
+            <div
+              className="h-9 w-24 bg-surface rounded-xs p-1 border border-border flex items-center"
+              aria-hidden="true"
+            >
               <div
                 className="h-full bg-success rounded-[1px] transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
@@ -42,7 +45,6 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
           </div>
         </div>
 
-        {/* Roadmap Items List */}
         <div className="space-y-3">
           {items.map((item) => {
             const isCompleted = item.status === "completed";
@@ -53,43 +55,42 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                 key={item.id}
                 type="button"
                 onClick={() => onToggleStatus?.(item.id)}
-                className={`border rounded-xs p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gb-bright-blue/50 ${
+                className={`border rounded-xs p-4 transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                   isCompleted
-                    ? "border-success bg-emerald-50 text-emerald-700"
+                    ? "border-success bg-success/10 text-success"
                     : isInProgress
-                      ? "border-gb-bright-blue bg-blue-50 text-gb-dark-blue"
-                      : "border-border bg-surface hover:bg-white text-foreground"
+                      ? "border-accent bg-accent-soft text-accent"
+                      : "border-border bg-surface hover:bg-elevated text-foreground"
                 }`}
               >
                 <span className="flex items-start gap-3">
                   <span className="mt-0.5 shrink-0">
                     {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+                      <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
                     ) : isInProgress ? (
-                      <Clock className="h-5 w-5 text-gb-blue animate-spin" />
+                      <Clock className="h-5 w-5 text-accent animate-spin" aria-hidden="true" />
                     ) : (
-                      <Circle className="h-5 w-5 text-slate-400" />
+                      <Circle className="h-5 w-5 text-muted" aria-hidden="true" />
                     )}
                   </span>
 
                   <span>
                     <span className="flex items-center gap-2">
                       <span className="text-sm font-bold text-foreground">{item.title}</span>
+                      <span className="sr-only">Status: {item.status.replace("_", " ")}.</span>
                       <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded-xs border uppercase font-bold ${
+                        className={`text-2xs font-mono px-2 py-0.5 rounded-xs border uppercase font-bold ${
                           item.priority === "high"
-                            ? "bg-rose-100 text-rose-800 border-rose-300"
+                            ? "bg-danger/10 text-danger border-danger/30"
                             : item.priority === "medium"
-                              ? "bg-amber-100 text-amber-900 border-amber-300"
-                              : "bg-slate-100 text-slate-600 border-slate-300"
+                              ? "bg-warning/10 text-warning border-warning/30"
+                              : "bg-surface-hover text-muted border-border-strong"
                         }`}
                       >
                         {item.priority}
                       </span>
                     </span>
-                    <span className="block text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                      {item.description}
-                    </span>
+                    <span className="block text-xs text-muted mt-1 max-w-2xl leading-relaxed">{item.description}</span>
                   </span>
                 </span>
 
@@ -97,15 +98,15 @@ export function MaturityRoadmap({ items, onToggleStatus }: MaturityRoadmapProps)
                   <span
                     className={`text-xs font-mono px-2.5 py-1 rounded-xs font-bold ${
                       isCompleted
-                        ? "bg-success text-white"
+                        ? "bg-success text-background"
                         : isInProgress
-                          ? "bg-gb-blue text-white"
-                          : "bg-border text-foreground"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-surface-hover text-foreground"
                     }`}
                   >
                     Target: {item.targetLevel}
                   </span>
-                  <ArrowUpRight className="h-4 w-4 text-slate-400" />
+                  <ArrowUpRight className="h-4 w-4 text-muted" aria-hidden="true" />
                 </span>
               </button>
             );

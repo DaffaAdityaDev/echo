@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertCircle, Rocket, Save, Undo2 } from "lucide-react";
+import { AlertCircle, RefreshCcw, Rocket, Save, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/hooks/useToast";
 import type { usePromptLibrary } from "../../hooks/usePromptLibrary";
 import { PromptLibrary } from "./PromptLibrary";
@@ -11,6 +12,53 @@ import { VersionDiffViewer } from "./VersionDiffViewer";
 import { VersionStatusBadge } from "./VersionStatusBadge";
 
 type Props = ReturnType<typeof usePromptLibrary>;
+
+interface ConfirmAction {
+  type: "promote" | "rollback";
+  version: number;
+}
+
+function confirmDescription(action: ConfirmAction): string {
+  return action.type === "promote"
+    ? `This will make version ${action.version} the live production prompt. All live traffic will use this version immediately.`
+    : `This will revert the live prompt to version ${action.version}. The current production version will be marked as rolled back.`;
+}
+
+function VersionHistoryState({
+  isLoading,
+  error,
+  onRetry,
+}: {
+  isLoading: boolean;
+  error: Error | null;
+  onRetry: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div role="status" aria-label="Loading version history" className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-10 bg-surface-hover rounded-md animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!error) return null;
+
+  return (
+    <div role="alert" className="p-4 border border-danger/30 bg-danger/5 rounded-md space-y-2">
+      <p className="text-xs text-danger">Failed to load version history: {error.message}</p>
+      <Button size="sm" variant="secondary" onClick={onRetry} className="gap-1.5 text-xs">
+        <RefreshCcw className="h-3.5 w-3.5" aria-hidden="true" />
+        Retry
+      </Button>
+    </div>
+  );
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export function PromptsPage(props: Props) {
   const {
@@ -23,6 +71,10 @@ export function PromptsPage(props: Props) {
     draftPrompt,
     isLoading,
     error,
+    retryTemplates,
+    isVersionsLoading,
+    versionsError,
+    retryVersions,
     isCreatingTemplate,
     isSavingVersion,
     isPromoting,
@@ -38,40 +90,79 @@ export function PromptsPage(props: Props) {
 
   const { showToast } = useToast();
   const [showDiff, setShowDiff] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "rollback"; version: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+
+  const onCreateTemplate = async (name: string, description: string): Promise<boolean> => {
+    try {
+      await handleCreateTemplate(name, description);
+      showToast(`Template "${name}" created`, "success");
+
+      return true;
+    } catch (err: unknown) {
+      showToast(errorMessage(err, "Failed to create template"), "error");
+
+      return false;
+    }
+  };
+
+  const onSaveVersion = async () => {
+    try {
+      await handleSaveVersion();
+      showToast("New version saved", "success");
+    } catch (err: unknown) {
+      showToast(errorMessage(err, "Failed to save version"), "error");
+    }
+  };
+
+  const runConfirmedAction = async (action: ConfirmAction) => {
+    try {
+      if (action.type === "promote") {
+        await handlePromote(action.version);
+        showToast(`Version ${action.version} promoted to production`, "success");
+      } else {
+        await handleRollback(action.version);
+        showToast(`Rolled back to version ${action.version}`, "success");
+      }
+    } catch (err: unknown) {
+      showToast(errorMessage(err, "Action failed"), "error");
+    } finally {
+      setConfirmAction(null);
+    }
+  };
 
   const currentLiveVersion = activeTemplate ? versions.find((v) => v.version === activeTemplate.active_version) : null;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 font-sans text-zinc-900 dark:text-zinc-100">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 font-sans text-foreground">
       <div>
-        <h1 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 font-display">
+        <h1 className="text-xl font-extrabold tracking-tight text-foreground font-display">
           Prompt Template Governance
         </h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Version, diff, and govern your production prompt templates.
-        </p>
+        <p className="text-xs text-muted mt-0.5">Version, diff, and govern your production prompt templates.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column: library + timeline */}
         <div className="space-y-5">
           <PromptLibrary
             templates={templates}
             isLoading={isLoading}
             error={error}
+            onRetry={retryTemplates}
+            selectedId={selectedTemplateId}
             onSelect={handleSelectTemplate}
-            onCreate={handleCreateTemplate}
+            onCreate={onCreateTemplate}
             isCreating={isCreatingTemplate}
           />
 
+          {selectedTemplateId && (
+            <VersionHistoryState isLoading={isVersionsLoading} error={versionsError} onRetry={retryVersions} />
+          )}
+
           {selectedTemplateId && versions.length > 0 && (
-            <div className="border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 rounded-2xl p-4 space-y-3 backdrop-blur-md">
+            <div className="border border-border bg-elevated rounded-md p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  Version History
-                </h3>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-muted">Version History</h2>
+                <span className="text-2xs font-mono font-bold px-2 py-0.5 rounded-full bg-surface-hover text-muted">
                   {versions.length} versions
                 </span>
               </div>
@@ -85,21 +176,25 @@ export function PromptsPage(props: Props) {
           )}
         </div>
 
-        {/* Right column: editor + diff */}
         <div className="lg:col-span-2 space-y-5">
           {selectedTemplateId ? (
             <>
-              {/* Selected version viewer */}
               {activeVersionData && (
-                <div className="border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 rounded-2xl p-5 space-y-4 backdrop-blur-md">
-                  <div className="flex items-center justify-between">
+                <section
+                  aria-labelledby="prompt-version-heading"
+                  className="border border-border bg-elevated rounded-md p-5 space-y-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                      <h2
+                        id="prompt-version-heading"
+                        className="text-xs font-extrabold uppercase tracking-wider text-foreground"
+                      >
                         Version {activeVersionData.version}
-                      </h3>
+                      </h2>
                       <VersionStatusBadge status={activeVersionData.status} />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {activeVersionData.status !== "production" && activeVersionData.status !== "rolled_back" && (
                         <Button
                           size="sm"
@@ -107,7 +202,7 @@ export function PromptsPage(props: Props) {
                           className="gap-1.5 text-xs font-semibold cursor-pointer"
                           onClick={() => setConfirmAction({ type: "promote", version: activeVersionData.version })}
                         >
-                          <Rocket className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Promote
+                          <Rocket className="h-3.5 w-3.5 text-success" aria-hidden="true" /> Promote
                         </Button>
                       )}
                       {currentLiveVersion && activeVersionData.version !== currentLiveVersion.version && (
@@ -116,6 +211,7 @@ export function PromptsPage(props: Props) {
                           variant="outline"
                           className="gap-1.5 text-xs font-semibold cursor-pointer"
                           onClick={() => setShowDiff(!showDiff)}
+                          aria-pressed={showDiff}
                         >
                           Diff vs v{currentLiveVersion.version}
                         </Button>
@@ -131,12 +227,12 @@ export function PromptsPage(props: Props) {
                               setConfirmAction({ type: "rollback", version: currentLiveVersion.version - 1 })
                             }
                           >
-                            <Undo2 className="h-3.5 w-3.5" /> Rollback
+                            <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Rollback
                           </Button>
                         )}
                     </div>
                   </div>
-                  <pre className="p-4 bg-zinc-900 dark:bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed select-text shadow-inner">
+                  <pre className="p-4 bg-code border border-code-border rounded-md text-xs text-code-foreground font-mono whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed select-text">
                     {activeVersionData.system_prompt}
                   </pre>
 
@@ -148,40 +244,43 @@ export function PromptsPage(props: Props) {
                       newLabel={`v${activeVersionData.version}`}
                     />
                   )}
-                </div>
+                </section>
               )}
 
-              {/* New draft editor */}
-              <div className="border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 rounded-2xl p-5 space-y-4 backdrop-blur-md">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+              <section className="border border-border bg-elevated rounded-md p-5 space-y-4">
+                <label
+                  htmlFor="prompt-draft"
+                  className="block text-xs font-extrabold uppercase tracking-wider text-foreground"
+                >
                   New Version Draft
-                </h3>
+                </label>
                 <textarea
+                  id="prompt-draft"
                   value={draftPrompt}
                   onChange={(e) => setDraftPrompt(e.target.value)}
                   placeholder="Write your new system prompt here... Use {{variable_name}} for dynamic slots."
                   rows={8}
-                  className="w-full p-4 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 font-mono focus:outline-none focus:border-blue-500/50 transition-colors resize-y leading-relaxed"
+                  className="w-full p-4 bg-surface-hover border border-border rounded-md text-xs text-foreground placeholder:text-subtle font-mono focus:outline-none focus:border-accent/50 transition-colors resize-y leading-relaxed"
                 />
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    onClick={handleSaveVersion}
+                    onClick={onSaveVersion}
                     isLoading={isSavingVersion}
                     disabled={!draftPrompt.trim()}
                     className="gap-2 font-semibold cursor-pointer"
                   >
-                    <Save className="h-3.5 w-3.5" /> Save as New Version
+                    <Save className="h-3.5 w-3.5" aria-hidden="true" /> Save as New Version
                   </Button>
                 </div>
-              </div>
+              </section>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 rounded-2xl text-center space-y-3">
-              <AlertCircle className="h-8 w-8 text-zinc-400 dark:text-zinc-600" />
+            <div className="flex flex-col items-center justify-center h-64 border border-border bg-surface rounded-md text-center space-y-3 px-4">
+              <AlertCircle className="h-8 w-8 text-muted" aria-hidden="true" />
               <div>
-                <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Select a template</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                <h2 className="text-sm font-semibold text-foreground">Select a template</h2>
+                <p className="text-xs text-muted mt-1">
                   Choose a prompt template from the library to view and edit its versions.
                 </p>
               </div>
@@ -190,55 +289,28 @@ export function PromptsPage(props: Props) {
         </div>
       </div>
 
-      {/* Confirmation modal */}
-      {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Dismiss confirmation"
-            className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
-            onClick={() => setConfirmAction(null)}
-          />
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-              {confirmAction.type === "promote" ? "Promote to Production?" : "Rollback Version?"}
-            </h3>
-            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-              {confirmAction.type === "promote"
-                ? `This will make version ${confirmAction.version} the live production prompt. All live traffic will use this version immediately.`
-                : `This will revert the live prompt to version ${confirmAction.version}. The current production version will be marked as rolled back.`}
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant={confirmAction.type === "rollback" ? "danger" : "primary"}
-                isLoading={isPromoting || isRollingBack}
-                onClick={async () => {
-                  try {
-                    if (confirmAction.type === "promote") {
-                      await handlePromote(confirmAction.version);
-                      showToast(`Version ${confirmAction.version} promoted to production`, "success");
-                    } else {
-                      await handleRollback(confirmAction.version);
-                      showToast(`Rolled back to version ${confirmAction.version}`, "success");
-                    }
-                    setConfirmAction(null);
-                  } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : "Action failed";
-                    showToast(msg, "error");
-                    setConfirmAction(null);
-                  }
-                }}
-              >
-                {confirmAction.type === "promote" ? "Promote" : "Rollback"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={confirmAction !== null}
+        onClose={() => setConfirmAction(null)}
+        title={confirmAction?.type === "rollback" ? "Rollback Version?" : "Promote to Production?"}
+        description={confirmAction ? confirmDescription(confirmAction) : undefined}
+        className="max-w-md"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant={confirmAction?.type === "rollback" ? "danger" : "primary"}
+              isLoading={isPromoting || isRollingBack}
+              onClick={() => confirmAction && runConfirmedAction(confirmAction)}
+            >
+              {confirmAction?.type === "rollback" ? "Rollback" : "Promote"}
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }

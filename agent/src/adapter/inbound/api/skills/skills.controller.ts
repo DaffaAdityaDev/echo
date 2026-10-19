@@ -9,5 +9,6 @@ export function listSkills(c: Context) {
     preferredTools: s.preferredTools,
     modifiers: s.modifiers,
   }));
+
   return c.json(skills);
 }

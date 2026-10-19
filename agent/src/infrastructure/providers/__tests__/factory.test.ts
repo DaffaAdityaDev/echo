@@ -49,7 +49,8 @@ describe("ProviderFactory", () => {
   let origOpenAI: unknown;
 
   beforeAll(() => {
-    origRegistry = Reflect.get(ProviderFactory, "registry") as Map<string, unknown>;
+    // SAFETY: Access private provider factory registry for testing
+    origRegistry = (ProviderFactory as typeof ProviderFactory & { registry: Map<string, unknown> }).registry;
     origOpenAI = origRegistry.get("openai");
     origRegistry.set("openai", FakeOpenAI);
     origRegistry.set("anthropic", FakeAnthropic);
@@ -84,12 +85,14 @@ describe("ProviderFactory", () => {
   });
 
   it("passes constructor arguments correctly", () => {
+    // SAFETY: FakeOpenAI instance registered for openai provider type
     const p = ProviderFactory.fromConfig({
       type: "openai",
       base_url: "http://x.com",
       model: "gpt-4o",
       api_key: "sk-test",
-    }) as unknown as { baseURL: string; modelName: string; apiKey?: string };
+    }) as FakeOpenAI;
+
     expect(p.baseURL).toBe("http://x.com");
     expect(p.modelName).toBe("gpt-4o");
     expect(p.apiKey).toBe("sk-test");
@@ -97,16 +100,18 @@ describe("ProviderFactory", () => {
 
   it("throws a clear error for an unknown provider type", () => {
     expect(() =>
+      // SAFETY: Unknown provider type passed to verify validation error branch
       ProviderFactory.fromConfig({
         type: "unknown",
         base_url: "http://d",
         model: "fallback",
-      } as unknown as Parameters<typeof ProviderFactory.fromConfig>[0]),
+      } as never),
     ).toThrow(/Unknown provider type/);
   });
 
   it("resolveType maps a provider instance back to its registry key", () => {
     const p = ProviderFactory.fromConfig({ type: "openai", base_url: "http://a", model: "gpt-4" });
-    expect(ProviderFactory.resolveType(p as unknown as import("../../../shared/types").LLMProvider)).toBe("openai");
+    // SAFETY: FakeOpenAI instance resolved through factory type mapping
+    expect(ProviderFactory.resolveType(p as never)).toBe("openai");
   });
 });

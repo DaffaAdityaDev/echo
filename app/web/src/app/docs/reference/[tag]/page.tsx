@@ -3,21 +3,22 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { EndpointList } from "@/components/docs/EndpointList";
-import { useSpec } from "@/components/docs/OpenApiSpecProvider";
+import { EndpointList } from "@/features/docs/components/EndpointList";
+import { useSpec } from "@/features/docs/components/OpenApiSpecProvider";
 
 export default function TagReferencePage() {
   const params = useParams();
+  // SAFETY: Next.js route parameter matches [tag] dynamic slug segment
   const rawTag = (params?.tag as string) || "";
   const { spec, loading, error } = useSpec();
 
   if (loading) {
     return (
       <div className="space-y-6 max-w-4xl font-mono">
-        <div className="h-8 bg-slate-200 rounded-xs w-48 animate-pulse" />
-        <div className="h-4 bg-slate-200 rounded-xs w-96 animate-pulse" />
+        <div className="h-8 bg-border rounded-xs w-48 animate-pulse" />
+        <div className="h-4 bg-border rounded-xs w-full max-w-96 animate-pulse" />
         {[1, 2].map((i) => (
-          <div key={i} className="h-32 bg-slate-100 border border-border rounded-xs animate-pulse" />
+          <div key={i} className="h-32 bg-surface-hover border border-border rounded-xs animate-pulse" />
         ))}
       </div>
     );
@@ -26,8 +27,8 @@ export default function TagReferencePage() {
   if (error) {
     return (
       <div className="max-w-4xl font-mono">
-        <div className="p-5 border border-rose-200 bg-rose-50 rounded-xs">
-          <p className="text-xs font-bold text-rose-700">Failed to load API specification: {error}</p>
+        <div className="p-5 border border-danger/30 bg-danger/10 rounded-xs">
+          <p className="text-xs font-bold text-danger">Failed to load API specification: {error}</p>
         </div>
       </div>
     );
@@ -50,7 +51,7 @@ export default function TagReferencePage() {
             href="/docs/reference"
             className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors mb-4"
           >
-            <ArrowLeft size={14} /> Back to All Endpoints
+            <ArrowLeft size={14} aria-hidden="true" /> Back to All Endpoints
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Tag "{rawTag}" Not Found</h1>
           <p className="text-xs text-muted mt-2">Available tag groups: {spec.tags.map((t) => t.name).join(", ")}</p>
@@ -64,12 +65,12 @@ export default function TagReferencePage() {
       <div>
         <Link
           href="/docs/reference"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-blue-600 transition-colors mb-4"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-accent transition-colors mb-4"
         >
-          <ArrowLeft size={14} /> All API Reference Endpoints
+          <ArrowLeft size={14} aria-hidden="true" /> All API Reference Endpoints
         </Link>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-xs bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
+          <span className="px-2 py-0.5 rounded-xs bg-accent-soft border border-accent/30 text-accent text-2xs font-bold uppercase tracking-wider">
             API Category
           </span>
         </div>
@@ -78,8 +79,8 @@ export default function TagReferencePage() {
           <p className="text-muted">
             {spec.info.title} — v{spec.info.version}
           </p>
-          <span className="text-slate-300">|</span>
-          <span className="text-xs text-blue-600 font-bold">
+          <span className="text-subtle">|</span>
+          <span className="text-xs text-accent font-bold">
             {tagGroup.endpoints.length} {tagGroup.endpoints.length === 1 ? "endpoint" : "endpoints"}
           </span>
         </div>

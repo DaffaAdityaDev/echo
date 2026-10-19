@@ -1,3 +1,5 @@
+import type { JsonObject, JsonValue } from "@/types/json";
+
 export interface ThoughtStep {
   type:
     | "reasoning"
@@ -12,7 +14,7 @@ export interface ThoughtStep {
     | "swarm_status";
   content?: string;
   toolName?: string;
-  toolInput?: Record<string, unknown>;
+  toolInput?: JsonObject;
   todos?: Array<{ id: string; description: string; status: "pending" | "in_progress" | "done" | "failed" }>;
   subagent?: {
     name: string;
@@ -152,8 +154,8 @@ export type StreamPacket =
     })
   | (StreamPacketBase & { type: "reasoning"; content: string })
   | (StreamPacketBase & { type: "content"; content: string })
-  | (StreamPacketBase & { type: "tool_call"; toolName: string; toolInput: Record<string, unknown> })
-  | (StreamPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: unknown })
+  | (StreamPacketBase & { type: "tool_call"; toolName: string; toolInput: JsonObject })
+  | (StreamPacketBase & { type: "tool_result"; toolName: string; content: string; toolResult?: JsonValue })
   | (StreamPacketBase & { type: "tool_skip"; toolName: string })
   | (StreamPacketBase & {
       type: "todo";
@@ -234,7 +236,7 @@ export type StreamPacket =
       payload: {
         approvalId: string;
         toolName: string;
-        args: Record<string, unknown>;
+        args: JsonObject;
         riskLevel: "medium" | "high" | "critical";
         expiresAt: number;
       };
@@ -283,7 +285,7 @@ export interface AgentProgressData {
 export interface HitlApproval {
   approvalId: string;
   toolName: string;
-  args: Record<string, unknown>;
+  args: JsonObject;
   riskLevel: "medium" | "high" | "critical";
   expiresAt: number;
   sessionId: string;
@@ -298,3 +300,11 @@ export interface SystemNotice {
 }
 
 export type AgentProgress = AgentProgressData;
+
+export interface Model {
+  id: string;
+  name: string;
+  provider_type: string;
+  provider_name: string;
+  supports_multimodal?: boolean;
+}

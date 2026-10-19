@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CredentialManager } from "../../../../core/agent/credentials";
 import { MCPClient } from "../client";
 
 type MockedClient = {
@@ -30,6 +29,7 @@ const mockSSEClientTransport = vi.hoisted(() =>
     },
   ),
 );
+
 const mockStdioClientTransport = vi.hoisted(() =>
   vi.fn(
     class {
@@ -55,7 +55,9 @@ vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({
 
 function getMockClient(): MockedClient {
   const instances = mockClientCtor.mock.instances;
-  return instances[instances.length - 1] as unknown as MockedClient;
+
+  // SAFETY: Cast mock instance to MockedClient test interface
+  return instances[instances.length - 1] as never;
 }
 
 const toolDef = {
@@ -102,6 +104,7 @@ describe("MCPClient", () => {
       command: "/usr/bin/npx",
       args: ["-y", "server"],
     });
+
     const mockClient = getMockClient();
     mockClient.connect.mockResolvedValue(undefined);
 
@@ -159,7 +162,7 @@ describe("MCPClient", () => {
     expect(obs).toEqual({ status: "success", summary: "hello" });
   });
 
-  test("tool execute returns error observation when callTool rejects", async () => {
+  test("tool execute does not retry a rejected callTool", async () => {
     const client = new MCPClient({ name: "srv", url: "http://localhost:8080/sse", transport: "sse" });
     const mockClient = getMockClient();
     mockClient.listTools.mockResolvedValue({ tools: [toolDef] });
@@ -167,7 +170,7 @@ describe("MCPClient", () => {
 
     const tools = await client.discoverTools();
     const obs = await tools[0].execute({});
-    expect(mockClient.callTool).toHaveBeenCalledTimes(3);
+    expect(mockClient.callTool).toHaveBeenCalledTimes(1);
     expect(obs.status).toBe("error");
     expect(obs.summary).toBe("upstream down");
     expect(obs.error).toBe("upstream down");
@@ -175,10 +178,12 @@ describe("MCPClient", () => {
 
   test("injects credentials into tool arguments", async () => {
     vi.stubEnv("MCP_API_KEY", "secret");
+
     const credentialManager = {
       registerToolCredentials: vi.fn(),
       getMappings: vi.fn(() => [{ key: "apiKey", envRef: "MCP_API_KEY" }]),
     };
+
     const client = new MCPClient(
       {
         name: "srv",
@@ -186,8 +191,10 @@ describe("MCPClient", () => {
         transport: "sse",
         credentials: { apiKey: "$env.MCP_API_KEY" },
       },
-      credentialManager as unknown as CredentialManager,
+      // SAFETY: Inject mock CredentialManager into MCPClient for testing credential propagation
+      credentialManager as never,
     );
+
     const mockClient = getMockClient();
     mockClient.listTools.mockResolvedValue({ tools: [toolDef] });
     mockClient.callTool.mockResolvedValue({ content: [{ type: "text", text: "ok" }] });

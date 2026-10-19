@@ -1,98 +1,156 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* Dark mode follows the OS preference. Components should rely on the
+   semantic tokens below (which flip automatically); `dark:` is reserved for
+   the rare case a token cannot express the difference. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
+/* ==========================================================================
+   Guardbase semantic tokens — light (default)
+   Source of truth: docs/app/web/design-system/tokens.md
+   ========================================================================== */
 :root {
-  /* Guardbase Core Palette Tokens */
-  --gb-color-dark: #09090b;
-  --gb-color-muted: #64748b;
-  --gb-color-border: #e2e8f0;
-  --gb-color-bg-light: #ffffff;
-  --gb-color-bg-subtle: #fafafa;
+  color-scheme: light;
 
-  /* Guardbase Primary Blue Scale */
-  --gb-color-primary: #2563eb;
-  --gb-color-primary-hover: #1d4ed8;
-  --gb-color-blue-bright: #3b82f6;
-  --gb-color-blue-light: #60a5fa;
-  --gb-color-periwinkle: #93c5fd;
-
-  /* Guardbase Threat & Status Indicators */
-  --gb-color-status-blocked: #f43f5e;
-  --gb-color-status-verified: #10b981;
-  --gb-color-status-parameter: #22d3ee;
-
-  /* Light Blueprint Canvas & Borders */
+  /* Surfaces */
   --echo-bg: #ffffff;
   --echo-surface: #fafafa;
   --echo-surface-hover: #f1f5f9;
+  --echo-elevated: #ffffff;
+  --echo-overlay: rgba(9, 9, 11, 0.55);
+
+  /* Text */
   --echo-foreground: #09090b;
-  --echo-muted: #64748b;
+  --echo-muted: #475569;
+  --echo-subtle: #64748b;
+
+  /* Lines */
   --echo-border: #e2e8f0;
   --echo-border-strong: #cbd5e1;
 
-  /* Brand Accents */
-  --echo-accent: #2563eb;
-  --echo-accent-muted: rgba(37, 99, 235, 0.08);
-  --echo-accent-glow: rgba(59, 130, 246, 0.2);
+  /* Brand */
+  --echo-accent: #1d4ed8;
+  --echo-accent-hover: #1e40af;
+  --echo-accent-soft: #eff6ff;
+  --echo-primary: #2563eb;
+  --echo-primary-hover: #1d4ed8;
+  --echo-primary-foreground: #ffffff;
 
-  /* Technical Metrics */
-  --gb-radius-sm: 2px;
-  --gb-radius-md: 6px;
-  --gb-tracking-hero: -0.045em;
-  --gb-tracking-section: -0.035em;
-  --gb-tracking-button: 0.06em;
-  --gb-tracking-eyebrow: 0.1em;
+  /* Status */
+  --echo-success: #05694d;
+  --echo-warning: #92400e;
+  --echo-danger: #b91c1c;
 
-  /* Glassmorphism */
-  --echo-glass-bg: rgba(255, 255, 255, 0.85);
-  --echo-glass-border: #e2e8f0;
-  --echo-glass-blur: 12px;
+  /* Decorative */
+  --echo-grid-line: rgba(100, 116, 139, 0.12);
+  --echo-crosshair: #94a3b8;
 
-  /* Animation */
+  /* Motion */
   --echo-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --echo-duration: 200ms;
+}
+
+/* ==========================================================================
+   Dark values
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --echo-bg: #09090b;
+    --echo-surface: #111113;
+    --echo-surface-hover: #1c1c20;
+    --echo-elevated: #18181b;
+    --echo-overlay: rgba(0, 0, 0, 0.7);
+
+    --echo-foreground: #fafafa;
+    --echo-muted: #a1a1aa;
+    --echo-subtle: #8b8b94;
+
+    --echo-border: #27272a;
+    --echo-border-strong: #3f3f46;
+
+    --echo-accent: #60a5fa;
+    --echo-accent-hover: #93c5fd;
+    --echo-accent-soft: rgba(59, 130, 246, 0.14);
+    --echo-primary: #2563eb;
+    --echo-primary-hover: #1d4ed8;
+    --echo-primary-foreground: #ffffff;
+
+    --echo-success: #34d399;
+    --echo-warning: #fbbf24;
+    --echo-danger: #f87171;
+
+    --echo-grid-line: rgba(148, 163, 184, 0.06);
+    --echo-crosshair: #52525b;
+  }
 }
 
 @theme inline {
   --color-background: var(--echo-bg);
-  --color-foreground: var(--echo-foreground);
   --color-surface: var(--echo-surface);
   --color-surface-hover: var(--echo-surface-hover);
+  --color-elevated: var(--echo-elevated);
+  --color-overlay: var(--echo-overlay);
+
+  --color-foreground: var(--echo-foreground);
   --color-muted: var(--echo-muted);
-  --color-accent: var(--echo-accent);
+  --color-subtle: var(--echo-subtle);
+
   --color-border: var(--echo-border);
+  --color-border-strong: var(--echo-border-strong);
 
-  /* Semantic Theme Tokens */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  --color-accent: var(--echo-accent);
+  --color-accent-hover: var(--echo-accent-hover);
+  --color-accent-soft: var(--echo-accent-soft);
+  --color-primary: var(--echo-primary);
+  --color-primary-hover: var(--echo-primary-hover);
+  --color-primary-foreground: var(--echo-primary-foreground);
 
-  /* Guardbase Blue Palette Extensions */
+  --color-success: var(--echo-success);
+  --color-warning: var(--echo-warning);
+  --color-danger: var(--echo-danger);
+
+  /* Code surfaces (theme-independent): syntax-highlighted blocks and raw
+     JSON/prompt panes stay dark in both themes to match echo-code-theme. */
+  --color-code: #0d1117;
+  --color-code-header: #161b22;
+  --color-code-foreground: #e6edf3;
+  --color-code-muted: #8b949e;
+  --color-code-border: #30363d;
+
+  /* Guardbase brand constants (theme-independent). Prefer the semantic
+     accent/primary tokens; these remain for legacy surfaces. */
   --color-gb-blue: #2563eb;
   --color-gb-bright-blue: #3b82f6;
   --color-gb-dark-blue: #1d4ed8;
   --color-gb-light-blue: #60a5fa;
   --color-gb-periwinkle: #93c5fd;
 
-  /* Status Tokens */
-  --color-status-blocked: #f43f5e;
-  --color-status-verified: #10b981;
-  --color-status-parameter: #22d3ee;
-
-  /* 100% IBM Plex Mono Identity */
+  /* 100% IBM Plex Mono identity */
   --font-sans: var(--font-ibm-plex-mono), "IBM Plex Mono", "JetBrains Mono", monospace;
   --font-display: var(--font-ibm-plex-mono), "IBM Plex Mono", "JetBrains Mono", monospace;
   --font-mono: var(--font-ibm-plex-mono), "IBM Plex Mono", "JetBrains Mono", monospace;
+
+  /* Type scale: text-xs (12px) is the floor for UI text; text-2xs (11px)
+     is reserved for tiny meta (eyebrows, counters, timestamps). */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 
   --letter-spacing-hero: -0.045em;
   --letter-spacing-section: -0.035em;
   --letter-spacing-tech-mono: 0.06em;
   --letter-spacing-eyebrow: 0.1em;
 
-  --border-radius-gb-sm: 2px;
-  --border-radius-gb-md: 6px;
+  /* Radius scale: sm (2px) for controls, md (6px) for cards, panels and
+     dialogs. Larger steps collapse onto md so legacy classes stay on-scale. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+  --radius-2xl: 6px;
+  --radius-3xl: 6px;
 
   --animate-in: animate-in 0.3s var(--echo-ease);
   --animate-out: animate-out 0.2s var(--echo-ease);
@@ -136,32 +194,46 @@
     font-family: var(--font-mono);
     font-weight: 700;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--echo-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--echo-accent) 22%, transparent);
+  }
 }
 
 @layer utilities {
-  /* Technical Grid Background */
   .bg-grid-tech {
     background-image:
-      linear-gradient(rgba(100, 116, 139, 0.12) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(100, 116, 139, 0.12) 1px, transparent 1px);
+      linear-gradient(var(--echo-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--echo-grid-line) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
-  /* Grid Crosshair Container (4 corners) */
+  /* Grid crosshair container: `+` markers on the four corners. The
+     top-right and bottom-left markers are child elements. */
   .crosshair-container {
     position: relative;
   }
   .crosshair-container::before,
-  .crosshair-container::after {
-    content: "+";
+  .crosshair-container::after,
+  .crosshair-container > .crosshair-tr,
+  .crosshair-container > .crosshair-bl {
     position: absolute;
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1;
-    color: #94a3b8;
+    color: var(--echo-crosshair);
     pointer-events: none;
     user-select: none;
     z-index: 20;
+  }
+  .crosshair-container::before,
+  .crosshair-container::after {
+    content: "+";
   }
   .crosshair-container::before {
     top: -7px;
@@ -170,19 +242,6 @@
   .crosshair-container::after {
     bottom: -7px;
     right: -7px;
-  }
-
-  /* Additional corner crosshairs for top-right and bottom-left */
-  .crosshair-container > .crosshair-tr,
-  .crosshair-container > .crosshair-bl {
-    position: absolute;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1;
-    color: #94a3b8;
-    pointer-events: none;
-    user-select: none;
-    z-index: 20;
   }
   .crosshair-container > .crosshair-tr {
     top: -7px;
@@ -193,29 +252,6 @@
     left: -7px;
   }
 
-  /* Primary Action Button Blueprint */
-  .gb-btn-primary {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border-radius: 2px;
-    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-    color: #ffffff;
-    padding: 10px 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  .gb-btn-primary:hover {
-    background: #1d4ed8;
-  }
-
-  /* Bracketed Icon Box */
   .gb-icon-bracket {
     width: 36px;
     height: 36px;
@@ -224,43 +260,45 @@
     justify-content: center;
     border: 1px solid var(--echo-border);
     border-radius: 2px;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.2s var(--echo-ease);
   }
   .gb-icon-bracket:hover {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+    border-color: var(--echo-accent);
+    background: var(--echo-accent-soft);
+    color: var(--echo-accent);
   }
 
-  /* Dotted Technical Divider */
-  .gb-border-dotted {
-    border-bottom: 1px dotted #cbd5e1;
-  }
-
-  /* Animation Utilities */
+  /* Entrance animations */
   .animate-in {
     animation-duration: 0.2s;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-timing-function: var(--echo-ease);
     animation-fill-mode: forwards;
-  }
-  .slide-in-from-bottom-2 {
-    animation-name: slideInFromBottom2;
-  }
-  .zoom-in-95 {
-    animation-name: zoomIn95;
   }
   .fade-in {
     animation-name: fadeIn;
   }
+  .zoom-in-95 {
+    animation-name: zoomIn95;
+  }
+  .slide-in-from-bottom-1 {
+    animation-name: slideInFromBottom1;
+  }
+  .slide-in-from-bottom-2 {
+    animation-name: slideInFromBottom2;
+  }
+  .slide-in-from-left-2 {
+    animation-name: slideInFromLeft2;
+  }
+  .slide-in-from-right {
+    animation-name: slideInFromRight;
+  }
 
-  @keyframes slideInFromBottom2 {
+  @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(0.5rem);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
   @keyframes zoomIn95 {
@@ -273,23 +311,45 @@
       transform: scale(1);
     }
   }
-  @keyframes fadeIn {
+  @keyframes slideInFromBottom1 {
     from {
       opacity: 0;
+      transform: translateY(0.25rem);
     }
     to {
       opacity: 1;
+      transform: translateY(0);
     }
   }
-
-  .glass {
-    background: var(--echo-glass-bg);
-    backdrop-filter: blur(var(--echo-glass-blur));
-    border: 1px solid var(--echo-glass-border);
+  @keyframes slideInFromBottom2 {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-
-  .text-glow {
-    text-shadow: 0 0 12px var(--echo-accent-glow);
+  @keyframes slideInFromLeft2 {
+    from {
+      opacity: 0;
+      transform: translateX(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .scrollbar-hide {
@@ -300,7 +360,27 @@
   }
 }
 
-/* KaTeX custom styling */
+/* Typography plugin colours follow the semantic tokens so prose content
+   stays legible in both themes. */
+.prose {
+  --tw-prose-body: var(--echo-foreground);
+  --tw-prose-headings: var(--echo-foreground);
+  --tw-prose-lead: var(--echo-muted);
+  --tw-prose-links: var(--echo-accent);
+  --tw-prose-bold: var(--echo-foreground);
+  --tw-prose-counters: var(--echo-muted);
+  --tw-prose-bullets: var(--echo-subtle);
+  --tw-prose-hr: var(--echo-border);
+  --tw-prose-quotes: var(--echo-muted);
+  --tw-prose-quote-borders: var(--echo-accent);
+  --tw-prose-captions: var(--echo-muted);
+  --tw-prose-kbd: var(--echo-foreground);
+  --tw-prose-code: var(--echo-accent);
+  --tw-prose-th-borders: var(--echo-border);
+  --tw-prose-td-borders: var(--echo-border);
+}
+
+/* KaTeX */
 .katex-display {
   margin: 1.5em 0;
   overflow-x: auto;
@@ -324,26 +404,7 @@
   }
 }
 
-/* FlowToken / Streamdown AI Word Fade-In & Blur Reveal */
-@keyframes cursorReveal {
-  0% {
-    filter: blur(4px);
-    opacity: 0;
-    transform: translateY(2px) scale(0.98);
-  }
-  100% {
-    filter: blur(0px);
-    opacity: 1;
-    transform: translateY(0px) scale(1);
-  }
-}
-
-.animate-cursor-reveal {
-  animation: cursorReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: filter, opacity, transform;
-}
-
-/* Modern Clean Code Block Token Reset (strips tailwind typography prose-code backgrounds) */
+/* Strip tailwind-typography backgrounds from highlighted code blocks */
 .prose pre,
 .prose pre code,
 .prose pre code span,
@@ -354,8 +415,8 @@
   box-shadow: none !important;
 }
 
-/* Global kill-switch for animation-heavy effects (fade-in, zoom, ping, glow,
-   cursor reveal / token denoise) for users who prefer reduced motion. */
+/* Global kill-switch for animation-heavy effects for users who prefer
+   reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

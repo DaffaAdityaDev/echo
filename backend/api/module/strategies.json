@@ -1,129 +1,126 @@
 {
-    "basePath": "/",
-    "definitions": {
-        "echo-backend_internal_service_strategy.CatalogResponse": {
-            "type": "object",
-            "properties": {
-                "strategies": {
-                    "description": "Strategies lists the strategy catalog entries.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyRegistryEntry"
-                    }
-                }
-            }
-        },
-        "echo-backend_internal_service_strategy.StrategyRegistryEntry": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "Name is the strategy name.",
-                    "type": "string"
-                },
-                "versions": {
-                    "description": "Versions lists the available versions of the strategy.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyVersionInfo"
-                    }
-                }
-            }
-        },
-        "echo-backend_internal_service_strategy.StrategyVersionInfo": {
-            "type": "object",
-            "properties": {
-                "aliases": {
-                    "description": "Aliases lists alternative version names.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "rollout": {
-                    "description": "Rollout is the gateway rollout percentage 0-100, omitted when unconfigured.",
-                    "type": "number"
-                },
-                "status": {
-                    "description": "Status is the version lifecycle state: active|deprecated.",
-                    "type": "string"
-                },
-                "version": {
-                    "description": "Version is the strategy version identifier, e.g. nlah:v1.",
-                    "type": "string"
-                }
-            }
+  "basePath": "/",
+  "definitions": {
+    "echo-backend_internal_service_strategy.CatalogResponse": {
+      "type": "object",
+      "properties": {
+        "strategies": {
+          "description": "Strategies lists the strategy catalog entries.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyRegistryEntry"
+          }
         }
+      }
     },
-    "host": "localhost:8080",
-    "info": {
-        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
-        "title": "Echo Backend API",
-        "termsOfService": "https://echo.app/terms",
-        "contact": {
-            "name": "Echo API Support",
-            "url": "https://echo.app/support",
-            "email": "support@echo.app"
+    "echo-backend_internal_service_strategy.StrategyRegistryEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name is the strategy name.",
+          "type": "string"
         },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
+        "versions": {
+          "description": "Versions lists the available versions of the strategy.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/echo-backend_internal_service_strategy.StrategyVersionInfo"
+          }
+        }
+      }
     },
-    "paths": {
-        "/api/v1/strategies": {
-            "get": {
-                "tags": [
-                    "Strategies"
-                ],
-                "summary": "List strategy catalog",
-                "description": "Returns the strategy catalog merged with gateway rollout percentages",
-                "parameters": null,
-                "responses": {
-                    "200": {
-                        "description": "Strategy catalog with rollout percentages",
-                        "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_service_strategy.CatalogResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
+    "echo-backend_internal_service_strategy.StrategyVersionInfo": {
+      "type": "object",
+      "properties": {
+        "aliases": {
+          "description": "Aliases lists alternative version names.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rollout": {
+          "description": "Rollout is the gateway rollout fraction 0-1 (0.1 = 10% of users), omitted when unconfigured.",
+          "type": "number"
+        },
+        "status": {
+          "description": "Status is the version lifecycle state: active|deprecated.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version is the strategy version identifier, e.g. nlah:v1.",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "info": {
+    "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+    "title": "Echo Backend API",
+    "termsOfService": "https://echo.app/terms",
+    "contact": {
+      "name": "Echo API Support",
+      "url": "https://echo.app/support",
+      "email": "support@echo.app"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/strategies": {
+      "get": {
+        "tags": ["Strategies"],
+        "summary": "List strategy catalog",
+        "description": "Returns the strategy catalog merged with gateway rollout percentages",
+        "parameters": null,
+        "responses": {
+          "200": {
+            "description": "Strategy catalog with rollout percentages",
+            "schema": {
+              "$ref": "#/definitions/echo-backend_internal_service_strategy.CatalogResponse"
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
         },
-        "InternalAuth": {
-            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
-            "type": "apiKey",
-            "name": "X-Internal-Token",
-            "in": "header"
-        }
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models_llmops.PromptVersion"
-    ]
+    "InternalAuth": {
+      "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+      "type": "apiKey",
+      "name": "X-Internal-Token",
+      "in": "header"
+    }
+  },
+  "swagger": "2.0",
+  "x-shared-definitions": [
+    "echo-backend_internal_models_auth.ApiKey",
+    "echo-backend_internal_models_llmops.PromptVersion"
+  ]
 }

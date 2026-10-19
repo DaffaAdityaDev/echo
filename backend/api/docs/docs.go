@@ -38,7 +38,7 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "List API keys",
+                "summary": "List API keys (Admin)",
                 "responses": {
                     "200": {
                         "description": "All API keys",
@@ -46,70 +46,6 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Generates and stores a new API key (admin)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Create an API key",
-                "parameters": [
-                    {
-                        "description": "API key payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_admin.createAPIKeyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "New API key",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_admin.CreateAPIKeyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
                             }
                         }
                     },
@@ -139,7 +75,7 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Revoke an API key",
+                "summary": "Revoke an API key (Admin)",
                 "parameters": [
                     {
                         "type": "string",
@@ -209,6 +145,189 @@ const docTemplate = `{
                         "description": "API key statistics",
                         "schema": {
                             "$ref": "#/definitions/internal_handler_admin.AdminStatsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/api-keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns API keys created by the current authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Keys"
+                ],
+                "summary": "List User API keys",
+                "responses": {
+                    "200": {
+                        "description": "User API keys",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates and stores a new API key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Keys"
+                ],
+                "summary": "Create an API key",
+                "parameters": [
+                    {
+                        "description": "API key payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_admin.createAPIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "New API key",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_admin.CreateAPIKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/api-keys/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revokes an API key belonging to the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Keys"
+                ],
+                "summary": "Revoke user's API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "API key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -534,6 +653,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -591,7 +719,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Recalls episodic memory entries for a session (internal)",
+                "description": "Recalls episodic memory entries for a session, scoped to the user that owns the session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -629,8 +757,26 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Unknown or deleted session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -648,7 +794,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Stores an episodic memory entry for a session (internal)",
+                "description": "Stores an episodic memory entry for a session, scoped to the user that owns the session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -686,8 +832,26 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Unknown or deleted session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -705,7 +869,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Retrieves procedural memory entries by ID or name (internal)",
+                "description": "Retrieves one of the session owner's procedural memory entries by ID or name (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -744,7 +908,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Unknown session or entry",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -771,7 +935,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Stores a procedural memory entry (internal)",
+                "description": "Stores a procedural memory entry owned by the user that owns the session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -809,6 +973,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Unknown or deleted session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -828,7 +1010,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Searches semantic memory by query text (internal)",
+                "description": "Searches the session owner's semantic memory by query text (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -852,13 +1034,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Search results",
+                        "description": "Matching semantic memory entries",
                         "schema": {
                             "$ref": "#/definitions/internal_handler_memory.SemanticSearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown or deleted session",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -885,7 +1076,7 @@ const docTemplate = `{
                         "InternalAuth": []
                     }
                 ],
-                "description": "Stores a semantic memory entry with an optional embedding (internal)",
+                "description": "Stores a semantic memory entry with an optional embedding, owned by the user that owns the session (internal)",
                 "consumes": [
                     "application/json"
                 ],
@@ -916,6 +1107,24 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown or deleted session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "ID is owned by another user",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -983,6 +1192,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -1027,6 +1245,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1524,6 +1751,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -1664,6 +1900,15 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2135,6 +2380,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2237,6 +2491,33 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_handler_llmops.PromoteResponse"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2296,6 +2577,24 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2337,6 +2636,15 @@ const docTemplate = `{
                         "description": "Version history",
                         "schema": {
                             "$ref": "#/definitions/internal_handler_llmops.PromptVersionsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -2394,6 +2702,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3113,7 +3430,7 @@ const docTemplate = `{
                     }
                 },
                 "rollout": {
-                    "description": "Rollout is the gateway rollout percentage 0-100, omitted when unconfigured.",
+                    "description": "Rollout is the gateway rollout fraction 0-1 (0.1 = 10% of users), omitted when unconfigured.",
                     "type": "number"
                 },
                 "status": {
@@ -3468,7 +3785,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "description": "ID is the generated memory entry ID.",
+                    "description": "ID is the stored procedural memory identifier (the existing ID when Name already existed for the user).",
                     "type": "string"
                 },
                 "status": {
@@ -3513,7 +3830,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "description": "ID is the generated memory entry ID.",
+                    "description": "ID is the stored semantic memory identifier.",
                     "type": "string"
                 },
                 "status": {
@@ -3552,9 +3869,14 @@ const docTemplate = `{
                     "example": 0
                 },
                 "session_id": {
-                    "description": "SessionID is the session identifier to recall entries for.",
+                    "description": "SessionID is the session to recall entries for; its owner scopes the lookup.",
                     "type": "string",
-                    "example": "sess_abc123"
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
+                },
+                "slot": {
+                    "description": "Slot optionally names a separate list inside the session (e.g. \"paused:appr_123\").",
+                    "type": "string",
+                    "example": "paused:appr_123"
                 }
             }
         },
@@ -3572,9 +3894,14 @@ const docTemplate = `{
                     "description": "Metadata is optional free-form metadata attached to the entry."
                 },
                 "session_id": {
-                    "description": "SessionID is the session identifier the entry is stored under.",
+                    "description": "SessionID is the session the entry is stored under; its owner scopes the entry.",
                     "type": "string",
-                    "example": "sess_abc123"
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
+                },
+                "slot": {
+                    "description": "Slot optionally names a separate list inside the session (e.g. \"paused:appr_123\").",
+                    "type": "string",
+                    "example": "paused:appr_123"
                 },
                 "ttl_seconds": {
                     "description": "TTL is the optional time-to-live in seconds for the entry list (default 24 hours).",
@@ -3585,6 +3912,9 @@ const docTemplate = `{
         },
         "internal_handler_memory.proceduralGetRequest": {
             "type": "object",
+            "required": [
+                "session_id"
+            ],
             "properties": {
                 "id": {
                     "description": "ID is the procedural memory identifier; at least one of ID or Name is required.",
@@ -3595,6 +3925,11 @@ const docTemplate = `{
                     "description": "Name is the procedural memory name; at least one of ID or Name is required.",
                     "type": "string",
                     "example": "checkout_flow"
+                },
+                "session_id": {
+                    "description": "SessionID is the session the agent is running; only its owner's entries are returned.",
+                    "type": "string",
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
                 }
             }
         },
@@ -3602,7 +3937,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "id",
-                "name"
+                "name",
+                "session_id"
             ],
             "properties": {
                 "content": {
@@ -3620,16 +3956,22 @@ const docTemplate = `{
                     "additionalProperties": true
                 },
                 "name": {
-                    "description": "Name is the procedural memory name (required).",
+                    "description": "Name is the procedural memory name, unique per user (required).",
                     "type": "string",
                     "example": "checkout_flow"
+                },
+                "session_id": {
+                    "description": "SessionID is the session the agent is running; its owner owns the entry.",
+                    "type": "string",
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
                 }
             }
         },
         "internal_handler_memory.semanticSearchRequest": {
             "type": "object",
             "required": [
-                "query"
+                "query",
+                "session_id"
             ],
             "properties": {
                 "embedding": {
@@ -3640,7 +3982,7 @@ const docTemplate = `{
                     }
                 },
                 "limit": {
-                    "description": "Limit is the maximum number of results to return (default 10).",
+                    "description": "Limit is the maximum number of results to return (default 10, capped at 100).",
                     "type": "integer",
                     "example": 10
                 },
@@ -3648,6 +3990,11 @@ const docTemplate = `{
                     "description": "Query is the search text (required).",
                     "type": "string",
                     "example": "how to reset password"
+                },
+                "session_id": {
+                    "description": "SessionID is the session the agent is running; only its owner's entries are searched.",
+                    "type": "string",
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
                 },
                 "threshold": {
                     "description": "Threshold is the optional similarity threshold for the search.",
@@ -3660,7 +4007,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "content",
-                "id"
+                "id",
+                "session_id"
             ],
             "properties": {
                 "content": {
@@ -3683,6 +4031,11 @@ const docTemplate = `{
                     "description": "Metadata is optional free-form metadata attached to the entry.",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "session_id": {
+                    "description": "SessionID is the session the agent is running; its owner owns the entry.",
+                    "type": "string",
+                    "example": "6f1c2a4e-8b7d-4f3a-9c2e-1d5b7a9e0f12"
                 }
             }
         },
@@ -3718,7 +4071,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "summary": {
-                    "description": "Summary is a one-sentence summary of the session conversation.",
+                    "description": "Summary is a one-sentence summary of the session conversation. It is\nreturned for display only and never persisted: context_summary holds the\nconsolidation summary that is fed back to the LLM.",
                     "type": "string"
                 },
                 "title": {

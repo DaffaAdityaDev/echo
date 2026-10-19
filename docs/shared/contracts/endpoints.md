@@ -38,9 +38,9 @@ planned rate limits.
 | agent/src/adapter/inbound/middleware/     |                                            |
 |   auth.ts                     | Agent auth middleware                      |
 | agent/api/openapi.json        | Hand-authored OpenAPI 3.0 spec             |
-| frontend/web/src/lib/         |                                            |
+| app/web/src/lib/         |                                            |
 |   api-client.ts               | Unified HTTP/SSE client                    |
-| frontend/web/src/features/    |                                            |
+| app/web/src/features/    |                                            |
 |   chat/constants.ts           | CHAT_ENDPOINTS constants                   |
 |   auth/constants/index.ts     | AUTH_ENDPOINTS constants                   |
 +-------------------------------+--------------------------------------------+
@@ -311,7 +311,7 @@ From `docs/architecture-plan.md` — not yet implemented:
 - **Go monolithic spec**: `backend/api/docs/swagger.json`
 - **Agent app**: `agent/src/index.ts`
 - **Agent OpenAPI spec**: `agent/api/openapi.json`
-- **Frontend API client**: `frontend/web/src/lib/api-client.ts`
+- **Frontend API client**: `app/web/src/lib/api-client.ts`
 
 ## Dependencies
 
@@ -330,9 +330,9 @@ From `docs/architecture-plan.md` — not yet implemented:
 | backend/api/split/main.go                      | 1-295 | Modular spec split tool          |
 | backend/internal/middleware/internal_auth.go     | 1-52  | Service JWT verification MW      |
 | agent/src/adapter/inbound/middleware/auth.ts                | 6-32  | Agent auth bypass for /          |
-| frontend/web/src/features/chat/constants.ts     | 31-34 | Frontend chat endpoint constants |
-| frontend/web/src/features/studio/constants.ts   | 1-25  | Frontend studio endpoint constants|
-| frontend/web/src/lib/api-client.ts              | 14-51 | Base URL construction,           |
+| app/web/src/features/chat/constants.ts     | 31-34 | Frontend chat endpoint constants |
+| app/web/src/features/studio/constants.ts   | 1-25  | Frontend studio endpoint constants|
+| app/web/src/lib/api-client.ts              | 14-51 | Base URL construction,           |
 |                                                 |       |   traceparent propagation        |
 | backend/internal/handler/llmops/                | 1-450 | Studio handler group             |
 | backend/internal/service/llmops/                | 1-350 | Studio service layer (prompts,   |

@@ -23,20 +23,27 @@ const PROVIDER_ERROR_MESSAGE = "Upstream LLM provider request failed. Please ret
 // other SDKs only embed the JSON in the message string.
 function extractProviderMessage(err: SdkErrorLike, rawMessage: string): string {
   const nested = err.error?.error?.message;
+
   if (nested?.trim()) return nested;
   const match = rawMessage.match(/"message"\s*:\s*"([^"]+)"/);
+
   if (match?.[1]) return match[1];
+
   return "";
 }
 
 function parseRetryAfter(headers?: Headers): number | undefined {
   if (!headers) return undefined;
   const raw = headers.get("retry-after");
+
   if (!raw) return undefined;
   const seconds = Number(raw);
+
   if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
   const dateMs = Date.parse(raw);
+
   if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
+
   return undefined;
 }
 
@@ -68,21 +75,26 @@ export class UpstreamProviderError extends Error {
   }
 }
 
+function isSdkErrorLike<T>(val: T): val is T & SdkErrorLike {
+  return Boolean(val) && Object.prototype.toString.call(val) === "[object Object]";
+}
+
 // classifyProviderError turns raw upstream LLM provider SDK errors (OpenAI
 // APIError and similar duck-typed shapes) into a structured, user-safe error.
 // Returns null for errors that are NOT upstream provider failures (internal
 // harness logic errors, aborts, cancellation) so callers keep their existing
 // generic handling for those.
-export function classifyProviderError(err: unknown): UpstreamProviderError | null {
-  const sdk = (err ?? {}) as SdkErrorLike;
-  const status = typeof sdk?.status === "number" ? sdk.status : undefined;
-  const rawMessage = sdk?.message || String(err ?? "Unknown provider error");
+export function classifyProviderError<T>(err: T): UpstreamProviderError | null {
+  const sdk: SdkErrorLike | undefined = isSdkErrorLike(err) ? err : undefined;
+  const status = Number.isFinite(sdk?.status) ? sdk?.status : undefined;
+  const rawMessage = err instanceof Error ? err.message : sdk?.message || String(err ?? "Unknown provider error");
   const lower = rawMessage.toLowerCase();
-  const providerMessage = extractProviderMessage(sdk, rawMessage);
+  const providerMessage = sdk ? extractProviderMessage(sdk, rawMessage) : "";
   const retryAfterMs = parseRetryAfter(sdk?.headers);
 
   if (status === 429 || lower.includes("429") || lower.includes("rate limit")) {
-    const isUsageLimit = sdk.error?.error?.type === "GoUsageLimitError" || lower.includes("usage limit");
+    const isUsageLimit = sdk?.error?.error?.type === "GoUsageLimitError" || lower.includes("usage limit");
+
     if (isUsageLimit) {
       return new UpstreamProviderError({
         kind: "usage_limit",
@@ -95,6 +107,7 @@ export function classifyProviderError(err: unknown): UpstreamProviderError | nul
         original: err,
       });
     }
+
     return new UpstreamProviderError({
       kind: "rate_limit",
       code: UPSTREAM_ERROR_CODES.RATE_LIMIT,

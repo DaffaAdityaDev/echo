@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -28,6 +29,7 @@ import (
 // @Failure 401 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 502 {object} map[string]string
 // @Router /api/v1/sessions/{id}/approve [post]
 func (h *Handler) HandleApproveTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "approve")
@@ -45,6 +47,7 @@ func (h *Handler) HandleApproveTool(c fiber.Ctx) error {
 // @Failure 401 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 502 {object} map[string]string
 // @Router /api/v1/sessions/{id}/deny [post]
 func (h *Handler) HandleDenyTool(c fiber.Ctx) error {
 	return h.handleHitlAction(c, "deny")
@@ -93,38 +96,45 @@ func (h *Handler) handleHitlAction(c fiber.Ctx, action string) error {
 	if err != nil {
 		return handlerutil.RespondError(c, fiber.StatusBadGateway, "Agent unreachable")
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error(msgconst.ErrChatReadAgentResponse, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyAction, action, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
-		return handlerutil.RespondError(c, resp.StatusCode, "Agent rejected")
-	}
 	if resp.StatusCode != http.StatusOK {
-		return handlerutil.RespondErrorDetail(c, resp.StatusCode, "Agent rejected", string(bodyBytes))
+		detail, readErr := readUpstreamError(resp)
+		if readErr != nil {
+			slog.Error(msgconst.ErrChatReadAgentResponse, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyAction, action, msgconst.KeySessionID, sessionID, msgconst.KeyErr, readErr)
+		}
+		return handlerutil.RespondErrorDetail(c, upstreamFailureStatus(resp.StatusCode), "Agent rejected", detail)
 	}
 
-	c.Response().Header.Set(httpxconst.HeaderContentType, httpxconst.ContentTypeEventStream)
-	c.Response().Header.Set("Cache-Control", "no-cache, no-transform")
-	c.Response().Header.Set("Connection", "keep-alive")
-	c.Response().Header.Set("Transfer-Encoding", "chunked")
-	c.Response().Header.Set("X-Accel-Buffering", "no")
+	setSSEHeaders(c)
 
+	// fasthttp runs the stream writer on its own goroutine after the handler
+	// returns, so the agent body is owned and closed by the writer.
 	return c.SendStreamWriter(func(w *bufio.Writer) {
-		reader := bufio.NewReader(resp.Body)
-		for {
-			line, rErr := reader.ReadBytes('\n')
-			if len(line) > 0 {
-				if _, wErr := w.Write(line); wErr != nil {
-					break
-				}
-				if err := w.Flush(); err != nil {
-					break
-				}
-			}
-			if rErr != nil {
-				break
-			}
+		defer func() { _ = resp.Body.Close() }()
+		if err := relaySSE(w, resp.Body); err != nil {
+			slog.Error(msgconst.ErrChatAgentStreamAborted, msgconst.ComponentKey, msgconst.ComponentChat, msgconst.KeyAction, action, msgconst.KeySessionID, sessionID, msgconst.KeyErr, err)
 		}
 	})
+}
+
+// relaySSE forwards the agent's SSE stream line by line, flushing each line so
+// the client sees packets as they arrive. A clean upstream EOF is not an error.
+func relaySSE(w *bufio.Writer, body io.Reader) error {
+	reader := bufio.NewReader(body)
+	for {
+		line, readErr := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			if _, err := w.Write(line); err != nil {
+				return fmt.Errorf("write to client: %w", err)
+			}
+			if err := w.Flush(); err != nil {
+				return fmt.Errorf("flush to client: %w", err)
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return nil
+		}
+		if readErr != nil {
+			return fmt.Errorf("read agent stream: %w", readErr)
+		}
+	}
 }

@@ -1,343 +1,183 @@
 {
-    "basePath": "/",
-    "definitions": {
-        "echo-backend_internal_models_auth.ApiKey": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Key creation time",
-                    "type": "string",
-                    "example": "2026-01-15T10:30:00Z"
-                },
-                "id": {
-                    "description": "Unique API key ID",
-                    "type": "string",
-                    "example": "key_a1b2c3d4e5f6"
-                },
-                "name": {
-                    "description": "Display name for the API key",
-                    "type": "string",
-                    "example": "Production API Key"
-                },
-                "prefix": {
-                    "description": "Prefix of the full key, shown for display purposes",
-                    "type": "string",
-                    "example": "sk_a1b2c3d4"
-                },
-                "scopes": {
-                    "description": "Optional permission scopes",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "read",
-                        "write",
-                        "admin"
-                    ]
-                },
-                "status": {
-                    "description": "Key status (e.g. active, revoked)",
-                    "type": "string",
-                    "example": "active"
-                },
-                "user_id": {
-                    "description": "ID of the user who owns the key",
-                    "type": "string",
-                    "example": "1"
-                }
-            }
+  "basePath": "/",
+  "definitions": {
+    "internal_handler_admin.AdminStatsResponse": {
+      "type": "object",
+      "properties": {
+        "active_keys": {
+          "description": "Number of active API keys",
+          "type": "integer"
         },
-        "internal_handler_admin.AdminStatsResponse": {
-            "type": "object",
-            "properties": {
-                "active_keys": {
-                    "description": "Number of active API keys",
-                    "type": "integer"
-                },
-                "total_keys": {
-                    "description": "Total number of API keys",
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_handler_admin.CreateAPIKeyResponse": {
-            "type": "object",
-            "properties": {
-                "api_key": {
-                    "description": "Stored API key record",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
-                        }
-                    ]
-                },
-                "key": {
-                    "description": "Full secret key shown only once",
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handler_admin.createAPIKeyRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "Display name for the API key",
-                    "type": "string",
-                    "example": "Production Key"
-                },
-                "scopes": {
-                    "description": "Optional permission scopes",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "read",
-                        "write"
-                    ]
-                }
-            }
+        "total_keys": {
+          "description": "Total number of API keys",
+          "type": "integer"
         }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "info": {
+    "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+    "title": "Echo Backend API",
+    "termsOfService": "https://echo.app/terms",
+    "contact": {
+      "name": "Echo API Support",
+      "url": "https://echo.app/support",
+      "email": "support@echo.app"
     },
-    "host": "localhost:8080",
-    "info": {
-        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
-        "title": "Echo Backend API",
-        "termsOfService": "https://echo.app/terms",
-        "contact": {
-            "name": "Echo API Support",
-            "url": "https://echo.app/support",
-            "email": "support@echo.app"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "paths": {
-        "/api/v1/admin/api-keys": {
-            "get": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "List API keys",
-                "description": "Returns all API keys (admin)",
-                "parameters": null,
-                "responses": {
-                    "200": {
-                        "description": "All API keys",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Create an API key",
-                "description": "Generates and stores a new API key (admin)",
-                "parameters": [
-                    {
-                        "description": "API key payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_admin.createAPIKeyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "New API key",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_admin.CreateAPIKeyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ]
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/admin/api-keys": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List API keys (Admin)",
+        "description": "Returns all API keys (admin)",
+        "parameters": null,
+        "responses": {
+          "200": {
+            "description": "All API keys",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/echo-backend_internal_models_auth.ApiKey"
+              }
             }
-        },
-        "/api/v1/admin/api-keys/{id}": {
-            "delete": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Revoke an API key",
-                "description": "Revokes an API key by ID (admin)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "API key ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Key revoked\\\"}",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
+          }
         },
-        "/api/v1/admin/stats": {
-            "get": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Get API key statistics",
-                "description": "Returns total and active API key counts (admin)",
-                "parameters": null,
-                "responses": {
-                    "200": {
-                        "description": "API key statistics",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_admin.AdminStatsResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    },
+    "/api/v1/admin/api-keys/{id}": {
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Revoke an API key (Admin)",
+        "description": "Revokes an API key by ID (admin)",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "API key ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmation: {\\\"status\\\":\\\"success\\\",\\\"message\\\":\\\"Key revoked\\\"}",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
         },
-        "InternalAuth": {
-            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
-            "type": "apiKey",
-            "name": "X-Internal-Token",
-            "in": "header"
-        }
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models_llmops.PromptVersion"
-    ]
+    "/api/v1/admin/stats": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get API key statistics",
+        "description": "Returns total and active API key counts (admin)",
+        "parameters": null,
+        "responses": {
+          "200": {
+            "description": "API key statistics",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_admin.AdminStatsResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    },
+    "InternalAuth": {
+      "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+      "type": "apiKey",
+      "name": "X-Internal-Token",
+      "in": "header"
+    }
+  },
+  "swagger": "2.0",
+  "x-shared-definitions": [
+    "echo-backend_internal_models_auth.ApiKey",
+    "echo-backend_internal_models_llmops.PromptVersion"
+  ]
 }

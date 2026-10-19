@@ -21,7 +21,7 @@ zero domain logic changes.
 ## File Structure
 
 +-------------------+--------------------------+-----------------------------------+
-| backend/internal/ | agent/src/               | frontend/web/src/                 |
+| backend/internal/ | agent/src/               | app/web/src/                 |
 +-------------------+--------------------------+-----------------------------------+
 | models/           | shared/types/            | lib/                              |
 |   models.go       |   index.ts               |   api-client.ts                   |
@@ -279,7 +279,7 @@ backend/config:
 | agent/src/core/agent/storage/factory.ts               | stateStorage singleton               |
 | agent/src/core/agent/strategies/factory.ts            | StrategyFactory.create()             |
 | agent/src/config/env.schema.ts                        | Env-based runtime configuration      |
-| frontend/web/src/lib/api-client.ts                    | Unified HTTP/SSE client              |
+| app/web/src/lib/api-client.ts                    | Unified HTTP/SSE client              |
 +-------------------------------------------------------+--------------------------------------+
 
 ================================================================================

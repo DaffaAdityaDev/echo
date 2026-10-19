@@ -4,15 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
+	"strconv"
+	"strings"
+	"time"
+
 	authconst "echo-backend/internal/constants/auth"
+	"echo-backend/internal/constants/db"
 	domainconst "echo-backend/internal/constants/domain"
 	msgconst "echo-backend/internal/constants/msg"
 	"echo-backend/internal/handler/handlerutil"
-	"echo-backend/internal/models/auth"
-	"echo-backend/internal/models/config"
-	"encoding/hex"
-	"strconv"
-	"time"
+	authmodel "echo-backend/internal/models/auth"
+	cfgmodel "echo-backend/internal/models/config"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -20,8 +23,10 @@ import (
 type APIKeyRepo interface {
 	Create(ctx context.Context, key *authmodel.ApiKey) error
 	List(ctx context.Context) ([]authmodel.ApiKey, error)
+	ListByUserID(ctx context.Context, userID string) ([]authmodel.ApiKey, error)
 	GetByID(ctx context.Context, id string) (*authmodel.ApiKey, error)
 	Revoke(ctx context.Context, id string) error
+	RevokeByUserID(ctx context.Context, id string, userID string) error
 }
 
 type Handler struct {
@@ -67,7 +72,7 @@ func generateAPIKey() (fullKey, prefix, hash string, err error) {
 }
 
 // HandleListKeys godoc
-// @Summary List API keys
+// @Summary List API keys (Admin)
 // @Description Returns all API keys (admin)
 // @Tags Admin
 // @Produce json
@@ -86,10 +91,37 @@ func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 	return handlerutil.RespondSuccess(c, keys)
 }
 
+// HandleListUserKeys godoc
+// @Summary List User API keys
+// @Description Returns API keys created by the current authenticated user
+// @Tags API Keys
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} authmodel.ApiKey "User API keys"
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/api-keys [get]
+func (h *Handler) HandleListUserKeys(c fiber.Ctx) error {
+	userIDInt, err := handlerutil.GetUserID(c)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+	userID := strconv.Itoa(userIDInt)
+
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	keys, err := h.APIKeyRepo.ListByUserID(ctx, userID)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminListKeys)
+	}
+	return handlerutil.RespondSuccess(c, keys)
+}
+
 // HandleCreateKey godoc
 // @Summary Create an API key
-// @Description Generates and stores a new API key (admin)
-// @Tags Admin
+// @Description Generates and stores a new API key
+// @Tags API Keys
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -98,7 +130,7 @@ func (h *Handler) HandleListKeys(c fiber.Ctx) error {
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/v1/admin/api-keys [post]
+// @Router /api/v1/api-keys [post]
 func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	var req createAPIKeyRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -149,8 +181,46 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 	})
 }
 
+// HandleRevokeUserKey godoc
+// @Summary Revoke user's API key
+// @Description Revokes an API key belonging to the current user
+// @Tags API Keys
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "API key ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/api-keys/{id} [delete]
+func (h *Handler) HandleRevokeUserKey(c fiber.Ctx) error {
+	id := c.Params("id")
+	if !handlerutil.IsValidUUID(id) {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminInvalidID)
+	}
+
+	userIDInt, err := handlerutil.GetUserID(c)
+	if err != nil {
+		return handlerutil.RespondError(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+	userID := strconv.Itoa(userIDInt)
+
+	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := h.APIKeyRepo.RevokeByUserID(ctx, id, userID); err != nil {
+		if strings.Contains(err.Error(), db.ErrRevokeApiKeyNotFound) {
+			return handlerutil.RespondError(c, fiber.StatusNotFound, msgconst.ErrAdminKeyNotFound)
+		}
+		return handlerutil.RespondError(c, fiber.StatusInternalServerError, msgconst.ErrAdminRevokeKey)
+	}
+
+	return handlerutil.RespondMessage(c, msgconst.MsgAdminKeyRevoked)
+}
+
 // HandleRevokeKey godoc
-// @Summary Revoke an API key
+// @Summary Revoke an API key (Admin)
 // @Description Revokes an API key by ID (admin)
 // @Tags Admin
 // @Produce json
@@ -163,8 +233,8 @@ func (h *Handler) HandleCreateKey(c fiber.Ctx) error {
 // @Router /api/v1/admin/api-keys/{id} [delete]
 func (h *Handler) HandleRevokeKey(c fiber.Ctx) error {
 	id := c.Params("id")
-	if id == "" {
-		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminIDRequired)
+	if !handlerutil.IsValidUUID(id) {
+		return handlerutil.RespondError(c, fiber.StatusBadRequest, msgconst.ErrAdminInvalidID)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)

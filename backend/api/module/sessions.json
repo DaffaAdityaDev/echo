@@ -1,806 +1,782 @@
 {
-    "basePath": "/",
-    "definitions": {
-        "echo-backend_internal_models_chat.Message": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "description": "Message content text",
-                    "type": "string",
-                    "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."
-                },
-                "created_at": {
-                    "description": "Timestamp of message creation",
-                    "type": "string",
-                    "example": "2026-01-15T10:35:00Z"
-                },
-                "id": {
-                    "description": "Unique message identifier",
-                    "type": "integer",
-                    "example": 42
-                },
-                "role": {
-                    "description": "Message role: \"user\", \"assistant\", \"system\", or \"tool\"",
-                    "type": "string",
-                    "example": "assistant"
-                },
-                "session_id": {
-                    "description": "ID of the session the message belongs to",
-                    "type": "string",
-                    "example": "sess_abc123"
-                },
-                "status": {
-                    "description": "Message status: \"streaming\", \"complete\", or \"interrupted\"",
-                    "type": "string",
-                    "example": "complete"
-                },
-                "steps": {
-                    "description": "JSON array of agent thought steps",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "token_count": {
-                    "description": "Approximate token count of the message",
-                    "type": "integer",
-                    "example": 156
-                },
-                "turn_number": {
-                    "description": "Turn number of the message within the session",
-                    "type": "integer",
-                    "example": 3
-                }
-            }
+  "basePath": "/",
+  "definitions": {
+    "echo-backend_internal_models_chat.Message": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Message content text",
+          "type": "string",
+          "example": "Echo is an AI agent platform that can autonomously execute complex tasks by reasoning, using tools, and learning from feedback."
         },
-        "echo-backend_internal_models_chat.Session": {
-            "type": "object",
-            "properties": {
-                "context_summary": {
-                    "description": "Summarized context of the conversation",
-                    "type": "string",
-                    "example": "User is building a REST API for a todo app using Express and Prisma"
-                },
-                "created_at": {
-                    "description": "Timestamp of session creation",
-                    "type": "string",
-                    "example": "2026-01-15T10:30:00Z"
-                },
-                "id": {
-                    "description": "Unique session identifier",
-                    "type": "string",
-                    "example": "sess_abc123"
-                },
-                "last_accessed_at": {
-                    "description": "Timestamp of the last access",
-                    "type": "string",
-                    "example": "2026-01-15T11:45:00Z"
-                },
-                "message_count": {
-                    "description": "Number of messages in the session",
-                    "type": "integer",
-                    "example": 12
-                },
-                "status": {
-                    "description": "Session status: \"active\" or \"deleted\"",
-                    "type": "string",
-                    "example": "active"
-                },
-                "strategy_version": {
-                    "description": "Strategy version from the catalog, e.g. nlah:v1",
-                    "type": "string",
-                    "example": "nlah:v1"
-                },
-                "title": {
-                    "description": "Session title",
-                    "type": "string",
-                    "example": "Build a REST API with Express"
-                },
-                "token_count": {
-                    "description": "Approximate token count of the session",
-                    "type": "integer",
-                    "example": 3421
-                },
-                "updated_at": {
-                    "description": "Timestamp of the last update",
-                    "type": "string",
-                    "example": "2026-01-15T11:45:00Z"
-                },
-                "user_id": {
-                    "description": "ID of the session owner",
-                    "type": "integer",
-                    "example": 1
-                }
-            }
+        "created_at": {
+          "description": "Timestamp of message creation",
+          "type": "string",
+          "example": "2026-01-15T10:35:00Z"
         },
-        "internal_handler_session.CreateSessionRequest": {
-            "type": "object",
-            "properties": {
-                "strategyVersion": {
-                    "description": "Strategy version from the catalog, e.g. nlah:v1; validated against catalog",
-                    "type": "string",
-                    "example": "nlah:v1"
-                },
-                "title": {
-                    "description": "Session title; defaults to 'New Chat' when empty",
-                    "type": "string",
-                    "example": "Build a REST API with Express"
-                }
-            }
+        "id": {
+          "description": "Unique message identifier",
+          "type": "integer",
+          "example": 42
         },
-        "internal_handler_session.GenerateTitleRequest": {
-            "type": "object",
-            "properties": {
-                "model": {
-                    "description": "Model is the model ID used for generation; falls back to the configured default when empty.",
-                    "type": "string"
-                }
-            }
+        "role": {
+          "description": "Message role: \"user\", \"assistant\", \"system\", or \"tool\"",
+          "type": "string",
+          "example": "assistant"
         },
-        "internal_handler_session.GenerateTitleResponse": {
-            "type": "object",
-            "properties": {
-                "cached": {
-                    "description": "Cached is true when the response was served from the existing session metadata.",
-                    "type": "boolean"
-                },
-                "summary": {
-                    "description": "Summary is a one-sentence summary of the session conversation.",
-                    "type": "string"
-                },
-                "title": {
-                    "description": "Title is the generated session title.",
-                    "type": "string"
-                }
-            }
+        "session_id": {
+          "description": "ID of the session the message belongs to",
+          "type": "string",
+          "example": "sess_abc123"
         },
-        "internal_handler_session.GetMessagesResponse": {
-            "type": "object",
-            "properties": {
-                "messages": {
-                    "description": "List of session messages",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/echo-backend_internal_models_chat.Message"
-                    }
-                },
-                "pagination": {
-                    "description": "Pagination metadata",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
-                        }
-                    ]
-                }
-            }
+        "status": {
+          "description": "Message status: \"streaming\", \"complete\", or \"interrupted\"",
+          "type": "string",
+          "example": "complete"
         },
-        "internal_handler_session.ListSessionsResponse": {
-            "type": "object",
-            "properties": {
-                "pagination": {
-                    "description": "Pagination metadata",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/internal_handler_session.PaginationMeta"
-                        }
-                    ]
-                },
-                "sessions": {
-                    "description": "List of active sessions",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
-                    }
-                }
-            }
+        "steps": {
+          "description": "JSON array of agent thought steps",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
         },
-        "internal_handler_session.MessageResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "description": "Human-readable result message",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Always \"success\"",
-                    "type": "string"
-                }
-            }
+        "token_count": {
+          "description": "Approximate token count of the message",
+          "type": "integer",
+          "example": 156
         },
-        "internal_handler_session.PaginationMeta": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "description": "Maximum number of items to return (0 = no limit)",
-                    "type": "integer"
-                },
-                "offset": {
-                    "description": "Number of items to skip before returning results",
-                    "type": "integer"
-                },
-                "total": {
-                    "description": "Total number of available items",
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_handler_session.PruneRequest": {
-            "type": "object",
-            "properties": {
-                "provider_config": {
-                    "description": "Provider configuration used for consolidation",
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            }
+        "turn_number": {
+          "description": "Turn number of the message within the session",
+          "type": "integer",
+          "example": 3
         }
+      }
     },
-    "host": "localhost:8080",
-    "info": {
-        "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
-        "title": "Echo Backend API",
-        "termsOfService": "https://echo.app/terms",
-        "contact": {
-            "name": "Echo API Support",
-            "url": "https://echo.app/support",
-            "email": "support@echo.app"
+    "echo-backend_internal_models_chat.Session": {
+      "type": "object",
+      "properties": {
+        "context_summary": {
+          "description": "Summarized context of the conversation",
+          "type": "string",
+          "example": "User is building a REST API for a todo app using Express and Prisma"
         },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        "created_at": {
+          "description": "Timestamp of session creation",
+          "type": "string",
+          "example": "2026-01-15T10:30:00Z"
         },
-        "version": "1.0"
-    },
-    "paths": {
-        "/api/v1/internal/sessions/{id}/prune": {
-            "post": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Prune and consolidate a session",
-                "description": "Triggers token-threshold pruning and consolidation for a session (internal)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Provider configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.PruneRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Confirmation",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": null,
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ]
-            }
+        "id": {
+          "description": "Unique session identifier",
+          "type": "string",
+          "example": "sess_abc123"
         },
-        "/api/v1/sessions": {
-            "get": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "List user sessions",
-                "description": "Returns all active sessions for the authenticated user",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Maximum number of sessions to return (0 = no limit)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of sessions to skip",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of sessions with pagination",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.ListSessionsResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Create a session",
-                "description": "Creates a new chat session with an optional strategy version",
-                "parameters": [
-                    {
-                        "description": "Session payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.CreateSessionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created session",
-                        "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ]
-            }
+        "last_accessed_at": {
+          "description": "Timestamp of the last access",
+          "type": "string",
+          "example": "2026-01-15T11:45:00Z"
         },
-        "/api/v1/sessions/{id}": {
-            "get": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Get a session",
-                "description": "Returns a session owned by the authenticated user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Session details",
-                        "schema": {
-                            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Delete a session",
-                "description": "Soft-deletes a session owned by the authenticated user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Confirmation",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.MessageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            }
+        "message_count": {
+          "description": "Number of messages in the session",
+          "type": "integer",
+          "example": 12
         },
-        "/api/v1/sessions/{id}/generate-title": {
-            "post": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Generate a session title",
-                "description": "Generates a title and summary from the session history using an LLM",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Model selection (optional)",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.GenerateTitleRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Generated title and summary",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.GenerateTitleResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ]
-            }
+        "status": {
+          "description": "Session status: \"active\" or \"deleted\"",
+          "type": "string",
+          "example": "active"
         },
-        "/api/v1/sessions/{id}/messages": {
-            "get": {
-                "tags": [
-                    "Sessions"
-                ],
-                "summary": "Get session messages",
-                "description": "Returns the message history of a session owned by the authenticated user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Maximum number of messages to return (0 = no limit)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of messages to skip",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Messages with pagination",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler_session.GetMessagesResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": null,
-                "produces": [
-                    "application/json"
-                ]
-            }
+        "strategy_version": {
+          "description": "Strategy version from the catalog, e.g. nlah:v1",
+          "type": "string",
+          "example": "nlah:v1"
+        },
+        "title": {
+          "description": "Session title",
+          "type": "string",
+          "example": "Build a REST API with Express"
+        },
+        "token_count": {
+          "description": "Approximate token count of the session",
+          "type": "integer",
+          "example": 3421
+        },
+        "updated_at": {
+          "description": "Timestamp of the last update",
+          "type": "string",
+          "example": "2026-01-15T11:45:00Z"
+        },
+        "user_id": {
+          "description": "ID of the session owner",
+          "type": "integer",
+          "example": 1
         }
+      }
     },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+    "internal_handler_session.CreateSessionRequest": {
+      "type": "object",
+      "properties": {
+        "strategyVersion": {
+          "description": "Strategy version from the catalog, e.g. nlah:v1; validated against catalog",
+          "type": "string",
+          "example": "nlah:v1"
         },
-        "InternalAuth": {
-            "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
-            "type": "apiKey",
-            "name": "X-Internal-Token",
-            "in": "header"
+        "title": {
+          "description": "Session title; defaults to 'New Chat' when empty",
+          "type": "string",
+          "example": "Build a REST API with Express"
         }
+      }
     },
-    "swagger": "2.0",
-    "x-shared-definitions": [
-        "echo-backend_internal_models_llmops.PromptVersion"
-    ]
+    "internal_handler_session.GenerateTitleRequest": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Model is the model ID used for generation; falls back to the configured default when empty.",
+          "type": "string"
+        }
+      }
+    },
+    "internal_handler_session.GenerateTitleResponse": {
+      "type": "object",
+      "properties": {
+        "cached": {
+          "description": "Cached is true when the response was served from the existing session metadata.",
+          "type": "boolean"
+        },
+        "summary": {
+          "description": "Summary is a one-sentence summary of the session conversation. It is\nreturned for display only and never persisted: context_summary holds the\nconsolidation summary that is fed back to the LLM.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title is the generated session title.",
+          "type": "string"
+        }
+      }
+    },
+    "internal_handler_session.GetMessagesResponse": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "description": "List of session messages",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/echo-backend_internal_models_chat.Message"
+          }
+        },
+        "pagination": {
+          "description": "Pagination metadata",
+          "allOf": [
+            {
+              "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+            }
+          ]
+        }
+      }
+    },
+    "internal_handler_session.ListSessionsResponse": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "description": "Pagination metadata",
+          "allOf": [
+            {
+              "$ref": "#/definitions/internal_handler_session.PaginationMeta"
+            }
+          ]
+        },
+        "sessions": {
+          "description": "List of active sessions",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+          }
+        }
+      }
+    },
+    "internal_handler_session.MessageResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "description": "Human-readable result message",
+          "type": "string"
+        },
+        "status": {
+          "description": "Always \"success\"",
+          "type": "string"
+        }
+      }
+    },
+    "internal_handler_session.PaginationMeta": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "description": "Maximum number of items to return (0 = no limit)",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "Number of items to skip before returning results",
+          "type": "integer"
+        },
+        "total": {
+          "description": "Total number of available items",
+          "type": "integer"
+        }
+      }
+    },
+    "internal_handler_session.PruneRequest": {
+      "type": "object",
+      "properties": {
+        "provider_config": {
+          "description": "Provider configuration used for consolidation",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "info": {
+    "description": "Core API Server for Echo Platform providing Auth, Chat, Sessions, Models, Settings, Admin, Memory, and System Services.",
+    "title": "Echo Backend API",
+    "termsOfService": "https://echo.app/terms",
+    "contact": {
+      "name": "Echo API Support",
+      "url": "https://echo.app/support",
+      "email": "support@echo.app"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/internal/sessions/{id}/prune": {
+      "post": {
+        "tags": ["Sessions"],
+        "summary": "Prune and consolidate a session",
+        "description": "Triggers token-threshold pruning and consolidation for a session (internal)",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Session ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Provider configuration",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.PruneRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmation",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.MessageResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": null,
+        "consumes": ["application/json"],
+        "produces": ["application/json"]
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "tags": ["Sessions"],
+        "summary": "List user sessions",
+        "description": "Returns all active sessions for the authenticated user",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Maximum number of sessions to return (0 = no limit)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Number of sessions to skip",
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of sessions with pagination",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.ListSessionsResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      },
+      "post": {
+        "tags": ["Sessions"],
+        "summary": "Create a session",
+        "description": "Creates a new chat session with an optional strategy version",
+        "parameters": [
+          {
+            "description": "Session payload",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.CreateSessionRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created session",
+            "schema": {
+              "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": ["application/json"],
+        "produces": ["application/json"]
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "get": {
+        "tags": ["Sessions"],
+        "summary": "Get a session",
+        "description": "Returns a session owned by the authenticated user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Session ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session details",
+            "schema": {
+              "$ref": "#/definitions/echo-backend_internal_models_chat.Session"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      },
+      "delete": {
+        "tags": ["Sessions"],
+        "summary": "Delete a session",
+        "description": "Soft-deletes a session owned by the authenticated user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Session ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmation",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.MessageResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    },
+    "/api/v1/sessions/{id}/generate-title": {
+      "post": {
+        "tags": ["Sessions"],
+        "summary": "Generate a session title",
+        "description": "Generates a title and summary from the session history using an LLM",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Session ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Model selection (optional)",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.GenerateTitleRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated title and summary",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.GenerateTitleResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": ["application/json"],
+        "produces": ["application/json"]
+      }
+    },
+    "/api/v1/sessions/{id}/messages": {
+      "get": {
+        "tags": ["Sessions"],
+        "summary": "Get session messages",
+        "description": "Returns the message history of a session owned by the authenticated user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Session ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "Maximum number of messages to return (0 = no limit)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Number of messages to skip",
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages with pagination",
+            "schema": {
+              "$ref": "#/definitions/internal_handler_session.GetMessagesResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": null,
+        "produces": ["application/json"]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Bearer token authorization header (Format: Bearer \u003cJWT\u003e).",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    },
+    "InternalAuth": {
+      "description": "Internal service JWT token (Format: Bearer \u003cservice JWT\u003e).",
+      "type": "apiKey",
+      "name": "X-Internal-Token",
+      "in": "header"
+    }
+  },
+  "swagger": "2.0",
+  "x-shared-definitions": [
+    "echo-backend_internal_models_auth.ApiKey",
+    "echo-backend_internal_models_llmops.PromptVersion"
+  ]
 }

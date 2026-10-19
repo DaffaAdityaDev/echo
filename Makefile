@@ -8,25 +8,25 @@ help:
 	@echo "                     ECHO APP BUILD & DEPLOYMENT SYSTEM"
 	@echo "======================================================================="
 	@echo "Development Stack:"
-	@echo "  make dev-up       - Start the development stack (with hot-reloading)"
-	@echo "  make dev-infra    - Start infrastructure only (postgres + redis)"
-	@echo "  make dev-down     - Stop the development stack and remove volumes"
-	@echo "  make dev-logs     - Follow development stack logs"
+	@echo "  make dev-echo          - Run backend, agent and web on the host (infra in Docker)"
+	@echo "  make dev-up            - Start Echo development stack"
+	@echo "  make dev-infra         - Start Echo infrastructure (postgres + redis)"
+	@echo "  make dev-down          - Stop Echo stack and remove volumes"
 	@echo ""
-	@echo "Production Stack:"
-	@echo "  make prod-up      - Start the production stack (pre-built assets)"
-	@echo "  make prod-down    - Stop the production stack and remove volumes"
-	@echo "  make prod-logs    - Follow production stack logs"
+	@echo "Production:"
+	@echo "  make prod-up           - Build and start the production stack"
+	@echo "  make deploy            - Rebuild and restart production (keeps data volumes)"
+	@echo "  make prod-down         - Stop production (keeps data volumes)"
 	@echo ""
-	@echo "Deployment:"
-	@echo "  make deploy       - Execute a clean build and start production stack"
+	@echo "KataraGnosis Stack (Hot-Reloading):"
+	@echo "  make katara-dev        - Run Katara locally with auto-infra (Concurrently)"
+	@echo "  make katara-docker-dev - Run Katara 100% in Docker with live volume hot-reload"
+	@echo "  make katara-docker-down- Stop Katara Docker stack and volumes"
+	@echo "  make katara-docker-logs- View Katara Docker logs"
 	@echo ""
-	@echo "Documentation:"
-	@echo "  make swagger-gen  - Generate backend Swaggo OpenAPI spec"
-	@echo ""
-	@echo "Utility:"
-	@echo "  make status       - Check status of all containers"
-	@echo "  make clean        - Stop stacks and prune unused docker resources"
+	@echo "Full Ecosystem (Echo + Katara - All 5 Services):"
+	@echo "  make dev-all           - 1-Click start all infra & 5 applications"
+	@echo "  make dev-all-down      - 1-Click teardown of all stacks"
 	@echo "======================================================================="
 
 # Swagger Docs Generation
@@ -40,7 +40,13 @@ dev-up:
 
 dev-infra:
 	-docker network create dokploy-network
-	docker compose -f docker-compose.dev.yml up -d
+	docker compose -f docker-compose.dev.yml up -d echo-postgres echo-redis
+
+dev-echo: dev-infra
+	bunx concurrently -n "ECHO-BE,ECHO-AGENT,ECHO-WEB" -c "blue.bold,green.bold,yellow.bold" --kill-others \
+		"cd backend && go run cmd/server/main.go" \
+		"cd agent && bun dev" \
+		"cd app/web && bun dev"
 
 dev-down:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
@@ -54,7 +60,7 @@ prod-up:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 prod-down:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 prod-logs:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
@@ -63,8 +69,7 @@ prod-logs:
 deploy:
 	@echo "Deploying production stack..."
 	-docker network create dokploy-network
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
 	@echo "Deployment complete. Production containers are running."
 
 # Utilities
@@ -77,23 +82,44 @@ clean:
 	docker system prune -f
 
 # Katara Targets
+katara-infra:
+	cd app/KataraGnosis && docker compose up -d katara_db katara_redis katara_qdrant katara_garage
+	@$(MAKE) katara-garage-init
+
+katara-dev: katara-infra
+	bunx concurrently -n "KATARA-BE,KATARA-FE" -c "cyan.bold,magenta.bold" --kill-others \
+		"cd app/KataraGnosis/backend && go run cmd/server/main.go" \
+		"cd app/KataraGnosis/frontend && bun dev"
+
 katara-backend-build:
 	cd app/KataraGnosis/backend && go build ./...
 
 katara-backend-test:
 	cd app/KataraGnosis/backend && go test ./...
 
+katara-seed:
+	cd app/KataraGnosis/backend && go run ./cmd/seed
+
 katara-frontend-build:
 	cd app/KataraGnosis/frontend && bun run build
 
-katara-dev-up:
-	cd app/KataraGnosis && docker compose up -d --build
+# Katara Docker Hot-Reload (Volume Mounted)
+katara-docker-dev:
+	cd app/KataraGnosis && docker compose -f docker-compose.dev.yml up -d --build
+	@$(MAKE) katara-garage-init
+	@echo "Katara Docker Hot-Reload stack running. Frontend: http://localhost:3002, Backend: http://localhost:8090"
 
-katara-dev-down:
-	cd app/KataraGnosis && docker compose down -v
+katara-docker-down:
+	cd app/KataraGnosis && docker compose -f docker-compose.dev.yml down -v
 
-katara-dev-logs:
-	cd app/KataraGnosis && docker compose logs -f
+katara-docker-logs:
+	cd app/KataraGnosis && docker compose -f docker-compose.dev.yml logs -f
+
+katara-dev-up: katara-docker-dev
+
+katara-dev-down: katara-docker-down
+
+katara-dev-logs: katara-docker-logs
 
 katara-garage-init:
 	@echo "Initializing GarageHQ single-node cluster and bucket..."
@@ -102,7 +128,26 @@ katara-garage-init:
 		docker exec katara_garage /garage layout assign -z garage -c 1G $$NODE_ID; \
 		docker exec katara_garage /garage layout apply --version 1; \
 		docker exec katara_garage /garage bucket create inquizitive-docs 2>/dev/null || true; \
-		docker exec katara_garage /garage key create katara-key 2>/dev/null || true; \
-		docker exec katara_garage /garage bucket allow --read --write --key katara-key inquizitive-docs 2>/dev/null || true; \
+		docker exec katara_garage /garage key import --yes -n katara-key GK7082bfabda7d6c2f702bd721 81661ba4ae2b57e8b1744ea041d116875c9f899049741d6c454511f6556fa3c2 2>/dev/null || true; \
+		docker exec katara_garage /garage bucket allow --read --write --key GK7082bfabda7d6c2f702bd721 inquizitive-docs 2>/dev/null || true; \
 		echo "GarageHQ cluster, katara-key, and bucket inquizitive-docs initialized successfully."; \
 	fi'
+
+# One-Click Full Stack (Echo + Katara Ecosystem)
+dev-all-infra:
+	-docker network create dokploy-network
+	docker compose -f docker-compose.dev.yml up -d echo-postgres echo-redis
+	cd app/KataraGnosis && docker compose up -d katara_db katara_redis katara_qdrant katara_garage
+	@$(MAKE) katara-garage-init
+
+dev-all: dev-all-infra
+	bunx concurrently -n "ECHO-BE,ECHO-AGENT,ECHO-WEB,KATARA-BE,KATARA-FE" -c "blue.bold,green.bold,yellow.bold,cyan.bold,magenta.bold" --kill-others \
+		"cd backend && go run cmd/server/main.go" \
+		"cd agent && bun dev" \
+		"cd app/web && bun dev" \
+		"cd app/KataraGnosis/backend && go run cmd/server/main.go" \
+		"cd app/KataraGnosis/frontend && bun dev"
+
+dev-all-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+	cd app/KataraGnosis && docker compose down -v

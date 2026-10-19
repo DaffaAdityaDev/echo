@@ -47,6 +47,11 @@ const (
 		SET context_summary = $2, updated_at = NOW()
 		WHERE id = $1
 	`
+	QueryUpdateSessionTitle = `
+		UPDATE sessions
+		SET title = $2, updated_at = NOW()
+		WHERE id = $1
+	`
 	QueryUpdateSessionTitleAndSummary = `
 		UPDATE sessions
 		SET title = $2, context_summary = $3, updated_at = NOW()
@@ -117,6 +122,14 @@ const (
 		SELECT COALESCE(SUM(GREATEST(m.token_count, CEIL(LENGTH(m.content) / 4.0))), 0)
 		FROM messages m
 		WHERE m.session_id = $1
+	`
+	// Row lock on the session serializes PrepareTurn across processes so the
+	// next turn number is computed and inserted atomically.
+	QueryLockSessionForTurn = `
+		SELECT id
+		FROM sessions
+		WHERE id = $1
+		FOR UPDATE
 	`
 	QueryGetMaxTurnNumber = `
 		SELECT COALESCE(MAX(turn_number), 0)

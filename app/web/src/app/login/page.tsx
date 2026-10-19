@@ -6,35 +6,40 @@ import { LoginForm, useAuth } from "@/features/auth";
 
 function LoginContent() {
   const { loginAsync, isLoggingIn, loginError } = useAuth();
+
   return <LoginForm loginAsync={loginAsync} isLoggingIn={isLoggingIn} loginError={loginError} />;
 }
 
 export default function LoginRoute() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-foreground flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Ambient background glow accents */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 rounded-full bg-purple-600/10 blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-md space-y-6 relative z-10">
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-1">
-            <ShieldCheck className="h-7 w-7" />
+    <main id="main-content" className="flex-1 min-h-0 overflow-y-auto bg-background bg-grid-tech text-foreground">
+      <div className="min-h-full flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6 py-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center p-3 rounded-md bg-accent-soft border border-accent/20 text-accent mb-1">
+              <ShieldCheck className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-section text-foreground">Welcome to ECHO</h1>
+            <p className="text-sm text-muted max-w-xs mx-auto">
+              Sign in to access the agent execution harness and management dashboard.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold font-display tracking-tight text-white">Welcome to ECHO</h1>
-          <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Sign in to access the agent execution harness and management dashboard.
-          </p>
-        </div>
 
-        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-8 shadow-2xl backdrop-blur-xl">
-          <Suspense fallback={<div className="text-center text-zinc-400 text-sm py-4">Loading form...</div>}>
-            <LoginContent />
-          </Suspense>
-        </div>
+          <div className="rounded-md border border-border bg-elevated p-6 sm:p-8 shadow-xl crosshair-container">
+            <span className="crosshair-tr" aria-hidden="true">
+              +
+            </span>
+            <span className="crosshair-bl" aria-hidden="true">
+              +
+            </span>
+            <Suspense fallback={<p className="text-center text-muted text-sm py-4">Loading form...</p>}>
+              <LoginContent />
+            </Suspense>
+          </div>
 
-        <p className="text-center text-[11px] text-zinc-600">© 2026 Echo Engine — Autonomous AI Harness Platform</p>
+          <p className="text-center text-2xs text-muted">© 2026 Echo Engine — Autonomous AI Harness Platform</p>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

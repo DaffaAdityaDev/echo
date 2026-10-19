@@ -1,5 +1,10 @@
 import { logger } from "../../../shared/utils/logger";
 
+export interface ReasoningDeltaResult {
+  deltaReasoning: string;
+  fullReasoning: string;
+}
+
 /**
  * Shared Reasoning Interceptor Utility for LLM Providers.
  * Captures thinking / reasoning tokens from raw SSE streams across providers (OpenAI, LM Studio, Anthropic).
@@ -21,17 +26,20 @@ export class ReasoningInterceptor {
         logger.error(
           `❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}:\n${errBody}`,
         );
-      } catch (_e) {
+      } catch {
         logger.error(`❌ LLM Provider HTTP Error ${response.status} (${response.statusText}) from ${url.toString()}`);
       }
+
       return response;
     }
 
     if (response.body) {
       const urlStr = url.toString();
+
       if (urlStr.includes("/chat/completions") || urlStr.includes("/messages")) {
         const [stream1, stream2] = response.body.tee();
         this.activeStreamPromise = this.processReasoningStream(stream1);
+
         return new Response(stream2, response);
       }
     }
@@ -51,6 +59,7 @@ export class ReasoningInterceptor {
     try {
       while (true) {
         const { done, value } = await reader.read();
+
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
@@ -60,6 +69,7 @@ export class ReasoningInterceptor {
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const dataStr = line.slice(6).trim();
+
           if (dataStr === "[DONE]") continue;
 
           try {
@@ -67,9 +77,11 @@ export class ReasoningInterceptor {
 
             // Extract Message / Event ID
             const extractedId: string | null = json.id || json.message?.id || null;
+
             if (extractedId) {
               currentMessageId = extractedId;
             }
+
             const id = extractedId || currentMessageId;
 
             let reasoning: string | undefined;
@@ -92,12 +104,12 @@ export class ReasoningInterceptor {
               const current = this.store.get(id) || "";
               this.store.set(id, current + reasoning);
             }
-          } catch (_e) {
+          } catch {
             // Ignore parse errors on incomplete JSON chunks
           }
         }
       }
-    } catch (_e) {
+    } catch {
       // Stream read closed or aborted
     }
   }
@@ -105,10 +117,7 @@ export class ReasoningInterceptor {
   /**
    * Retrieves the newly appended reasoning delta for a message ID.
    */
-  public getDelta(
-    messageId: string | undefined,
-    sentReasoningMap: Map<string, string>,
-  ): { deltaReasoning: string; fullReasoning: string } {
+  public getDelta(messageId: string | undefined, sentReasoningMap: Map<string, string>): ReasoningDeltaResult {
     if (!messageId) {
       return { deltaReasoning: "", fullReasoning: "" };
     }
@@ -130,7 +139,9 @@ export class ReasoningInterceptor {
   public getReasoningTokenCount(messageId: string | undefined): number | undefined {
     if (!messageId) return undefined;
     const text = this.store.get(messageId);
+
     if (!text) return undefined;
+
     return text.trim().split(/\s+/).length;
   }
 
@@ -141,10 +152,11 @@ export class ReasoningInterceptor {
     if (this.activeStreamPromise) {
       try {
         await this.activeStreamPromise;
-      } catch (_e) {
+      } catch {
         // Ignore stream abort errors
       }
     }
+
     for (const id of sentIds) {
       this.store.delete(id);
     }
@@ -157,10 +169,11 @@ export class ReasoningInterceptor {
     if (this.activeStreamPromise) {
       try {
         await this.activeStreamPromise;
-      } catch (_e) {
+      } catch {
         // Ignore stream abort errors
       }
     }
+
     this.store.clear();
   }
 }

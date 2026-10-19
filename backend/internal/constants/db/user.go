@@ -10,7 +10,9 @@ const (
 	QueryGetUserByEmail = `
 		SELECT id, email, password_hash, name, role, tier, created_at, updated_at
 		FROM users
-		WHERE email = $1
+		WHERE LOWER(email) = LOWER($1)
+		ORDER BY id
+		LIMIT 1
 	`
 )
 
@@ -48,6 +50,7 @@ const (
 	ErrFindRefreshToken        = "failed to find refresh token"
 	ErrRevokeRefreshToken      = "failed to revoke refresh token"
 	ErrRevokeRefreshTokensUser = "failed to revoke refresh tokens by user"
+	ErrRotateRefreshToken      = "failed to rotate refresh token"
 )
 
 const (

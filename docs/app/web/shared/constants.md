@@ -139,8 +139,8 @@ export const UI_CONFIG = {
 | src/lib/api-client.ts                | API_CONFIG, API_VERSION — base URL    |
 |                                      | construction                          |
 +--------------------------------------+---------------------------------------+
-| src/lib/queries.ts                   | QUERY_KEYS, ENDPOINTS — model query   |
-|                                      | factory                               |
+| src/features/chat/services/          | QUERY_KEYS — model query factory      |
+|   model-queries.ts                   |                                       |
 +--------------------------------------+---------------------------------------+
 | src/lib/get-query-client.ts          | QUERY_CONFIG — stale time             |
 +--------------------------------------+---------------------------------------+

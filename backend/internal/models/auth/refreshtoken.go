@@ -1,6 +1,14 @@
 package authmodel
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrRefreshTokenNotActive is returned by a rotation when the presented
+// refresh token was already revoked, typically by a concurrent rotation that
+// won the race.
+var ErrRefreshTokenNotActive = errors.New("refresh token is no longer active")
 
 type RefreshToken struct {
 	ID          int64      `json:"id"`

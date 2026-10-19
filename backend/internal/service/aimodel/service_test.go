@@ -2,10 +2,15 @@ package aimodel
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+
+	authconst "echo-backend/internal/constants/auth"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/config"
 	"echo-backend/internal/models/user"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -100,11 +105,7 @@ func TestResolveProviderConfig(t *testing.T) {
 			mockSettings.On("GetSettingsInternal", mock.Anything, tt.userID).
 				Return(tt.prefs, tt.prefsErr)
 
-			svc := &Service{
-				cfg:         cfg,
-				settingsSvc: mockSettings,
-				cache:       modelCache{entries: make(map[string]cacheEntry)},
-			}
+			svc := NewService(cfg, mockSettings)
 
 			got, err := svc.ResolveProviderConfig(context.Background(), tt.userID, tt.modelID)
 			if tt.wantErr {
@@ -116,4 +117,86 @@ func TestResolveProviderConfig(t *testing.T) {
 			mockSettings.AssertExpectations(t)
 		})
 	}
+}
+
+func newModelsProvider(t *testing.T, status int, calls *atomic.Int32) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(status)
+		if status != http.StatusOK {
+			_, _ = w.Write([]byte("upstream secret: internal stack trace"))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":"model-for-` + r.Header.Get(authconst.HeaderAuthorization) + `"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func settingsFor(userID int, baseURL, apiKey string) *mockSettingsProvider {
+	m := new(mockSettingsProvider)
+	m.On("GetSettingsInternal", mock.Anything, userID).Return(&usermodel.UserPreferences{
+		ProviderType: "openai",
+		APIKey:       apiKey,
+		BaseURL:      baseURL,
+	}, nil)
+	return m
+}
+
+type multiUserSettings map[int]*usermodel.UserPreferences
+
+func (m multiUserSettings) GetSettingsInternal(_ context.Context, userID int) (*usermodel.UserPreferences, error) {
+	prefs := *m[userID]
+	return &prefs, nil
+}
+
+func TestGetModels_CacheIsScopedToAPIKey(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	server := newModelsProvider(t, http.StatusOK, &calls)
+	settings := multiUserSettings{
+		1: {ProviderType: "openai", APIKey: "key-a", BaseURL: server.URL},
+		2: {ProviderType: "openai", APIKey: "key-b", BaseURL: server.URL},
+	}
+	svc := NewService(&cfgmodel.Config{AllowPrivateProviderURLs: true}, settings)
+
+	first, err := svc.GetModels(context.Background(), 1)
+	assert.NoError(t, err)
+	second, err := svc.GetModels(context.Background(), 2)
+	assert.NoError(t, err)
+	again, err := svc.GetModels(context.Background(), 1)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "model-for-Bearer key-a", first[0].ID)
+	assert.Equal(t, "model-for-Bearer key-b", second[0].ID)
+	assert.Equal(t, first, again)
+	assert.Equal(t, int32(2), calls.Load())
+}
+
+func TestGetModels_DoesNotEchoUpstreamBody(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	server := newModelsProvider(t, http.StatusUnauthorized, &calls)
+	svc := NewService(&cfgmodel.Config{AllowPrivateProviderURLs: true}, settingsFor(1, server.URL, "key"))
+
+	_, err := svc.GetModels(context.Background(), 1)
+
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "upstream secret")
+}
+
+func TestGetModels_RefusesPrivateProviderWhenDisallowed(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	server := newModelsProvider(t, http.StatusOK, &calls)
+	svc := NewService(&cfgmodel.Config{AllowPrivateProviderURLs: false}, settingsFor(1, server.URL, "key"))
+
+	_, err := svc.GetModels(context.Background(), 1)
+
+	assert.Error(t, err)
+	assert.Equal(t, int32(0), calls.Load())
 }

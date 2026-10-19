@@ -2,6 +2,7 @@ import Redis from "ioredis";
 import { logger } from "../../shared/utils/logger";
 
 let client: Redis | null = null;
+
 let available = false;
 
 export function initRedis(url: string): void {
@@ -50,5 +51,6 @@ export function closeRedis(): Promise<void> {
   const redis = client;
   client = null;
   available = false;
+
   return redis ? redis.quit().then(() => undefined) : Promise.resolve();
 }

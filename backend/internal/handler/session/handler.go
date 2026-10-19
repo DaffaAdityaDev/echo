@@ -2,11 +2,16 @@ package session
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
+	msgconst "echo-backend/internal/constants/msg"
+	"echo-backend/internal/handler/handlerutil"
 	"echo-backend/internal/models/ai"
 	"echo-backend/internal/models/chat"
 	"echo-backend/internal/models/config"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type SessionRepo interface {
@@ -15,6 +20,8 @@ type SessionRepo interface {
 	DeleteSession(ctx context.Context, sessionID string) error
 	ListByUser(ctx context.Context, userID int, limit int, offset int) ([]*chatmodel.Session, error)
 	GetSessionMessages(ctx context.Context, sessionID string, limit int, offset int) ([]*chatmodel.Message, error)
+	UpdateTitle(ctx context.Context, sessionID string, title string) error
+	UpdateContextSummary(ctx context.Context, sessionID string, summary string) error
 	UpdateTitleAndSummary(ctx context.Context, sessionID string, title string, summary string) error
 	GetSessionTokenCount(ctx context.Context, sessionID string) (int, error)
 	CountByUser(ctx context.Context, userID int) (int, error)
@@ -37,6 +44,35 @@ func parseNonNegativeInt(s string) int {
 		return 0
 	}
 	return val
+}
+
+// loadOwnedSession resolves the :id path param to a live session owned by
+// userID. On failure the error response is already written and the returned
+// error must be propagated by the caller.
+func (h *Handler) loadOwnedSession(c fiber.Ctx, userID int) (*chatmodel.Session, error) {
+	sessionID := c.Params("id")
+	if !handlerutil.IsValidUUID(sessionID) {
+		return nil, handlerutil.RespondError(c, fiber.StatusBadRequest, "Invalid session ID")
+	}
+
+	session, err := h.SessionRepo.GetByID(c.Context(), sessionID)
+	if err != nil {
+		return nil, respondInternalError(c, "Failed to get session", err)
+	}
+	if session == nil || session.Status == "deleted" {
+		return nil, handlerutil.RespondError(c, fiber.StatusNotFound, "Session not found")
+	}
+	if session.UserID != userID {
+		return nil, handlerutil.RespondError(c, fiber.StatusForbidden, "Forbidden: ownership mismatch")
+	}
+	return session, nil
+}
+
+// respondInternalError logs err server-side and returns a generic 500 so
+// database and driver details never reach the client.
+func respondInternalError(c fiber.Ctx, msg string, err error) error {
+	slog.Error(msg, msgconst.ComponentKey, msgconst.ComponentSession, msgconst.KeyErr, err)
+	return handlerutil.RespondError(c, fiber.StatusInternalServerError, msg)
 }
 
 type ModelSvc interface {
