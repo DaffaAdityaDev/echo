@@ -1,27 +1,18 @@
 import type { NextRequest } from "next/server";
-import { getBackendApiUrl } from "@/constants/api";
-import { getRequestToken } from "@/lib/get-request-token";
-import { proxyFetch } from "@/lib/proxy-fetch";
+import { proxyToBackend, readJsonBody } from "@/lib/backend-proxy";
 
-const BASE_URL = getBackendApiUrl();
+type PromptParams = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getRequestToken();
+async function versionsPath(params: PromptParams["params"]): Promise<string> {
   const { id } = await params;
 
-  return proxyFetch(`${BASE_URL}/studio/prompts/${id}/versions`, {
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  });
+  return `/studio/prompts/${encodeURIComponent(id)}/versions`;
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getRequestToken();
-  const { id } = await params;
-  const body = await req.json();
+export async function GET(_req: NextRequest, { params }: PromptParams) {
+  return proxyToBackend(await versionsPath(params));
+}
 
-  return proxyFetch(`${BASE_URL}/studio/prompts/${id}/versions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+export async function POST(req: NextRequest, { params }: PromptParams) {
+  return proxyToBackend(await versionsPath(params), "POST", await readJsonBody(req));
 }

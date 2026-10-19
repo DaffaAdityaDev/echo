@@ -133,71 +133,70 @@ export function formatValue(val: JsonValue | undefined): string {
 
 export function getSpanIcon(span: Span): ReactNode {
   if (span.name === "Agent Response") {
-    return <Bot className="h-3.5 w-3.5" />;
+    return <Bot className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 
   if (span.name === "Mission Initiated") {
-    return <Play className="h-3.5 w-3.5" />;
+    return <Play className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 
   if (span.name.startsWith("State Transition")) {
-    return <RefreshCw className="h-3.5 w-3.5" />;
+    return <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 
   switch (span.type) {
     case "thought":
-      return <Brain className="h-3.5 w-3.5" />;
+      return <Brain className="h-3.5 w-3.5" aria-hidden="true" />;
     case "tool":
-      return <Wrench className="h-3.5 w-3.5" />;
+      return <Wrench className="h-3.5 w-3.5" aria-hidden="true" />;
     case "subagent":
-      return <Users className="h-3.5 w-3.5" />;
+      return <Users className="h-3.5 w-3.5" aria-hidden="true" />;
     case "file_operation":
-      return <FileCode className="h-3.5 w-3.5" />;
+      return <FileCode className="h-3.5 w-3.5" aria-hidden="true" />;
     case "swarm_status":
-      return <Network className="h-3.5 w-3.5" />;
+      return <Network className="h-3.5 w-3.5" aria-hidden="true" />;
     case "todo":
-      return <CheckSquare className="h-3.5 w-3.5" />;
+      return <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />;
     case "error":
-      return <AlertCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />;
+      return <AlertCircle className="h-3.5 w-3.5 text-danger" aria-hidden="true" />;
     case "info":
-      return <Info className="h-3.5 w-3.5" />;
+      return <Info className="h-3.5 w-3.5" aria-hidden="true" />;
     default:
-      return <Terminal className="h-3.5 w-3.5" />;
+      return <Terminal className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 }
 
 export function getSpanColorClass(span: Span): string {
-  if (span.status === "failed") return "bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400";
+  if (span.status === "failed") return "bg-danger/10 text-danger border-danger/20";
 
-  if (span.status === "skipped")
-    return "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
+  if (span.status === "skipped") return "bg-surface-hover text-muted border-border";
 
-  if (span.status === "streaming") return "bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400";
+  if (span.status === "streaming") return "bg-success/10 text-success border-success/20";
 
   if (span.name === "Agent Response") {
-    return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
+    return "bg-accent/10 text-accent border-accent/20";
   }
 
   if (span.name === "Mission Initiated") {
-    return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
+    return "bg-accent/10 text-accent border-accent/20";
   }
 
   if (span.name.startsWith("State Transition")) {
-    return "bg-zinc-100/60 text-zinc-500 border-zinc-200/50 dark:bg-zinc-900/60 dark:text-zinc-400 dark:border-zinc-800/50";
+    return "bg-surface-hover text-muted border-border";
   }
 
   switch (span.type) {
     case "thought":
-      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400";
+      return "bg-success/10 text-success border-success/20";
     case "tool":
-      return "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "subagent":
-      return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "file_operation":
-      return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400";
+      return "bg-accent/10 text-accent border-accent/20";
     case "swarm_status":
-      return "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400";
+      return "bg-warning/10 text-warning border-warning/20";
     default:
-      return "bg-zinc-100 text-zinc-700 border-zinc-200/80 dark:bg-zinc-900/50 dark:text-zinc-300 dark:border-zinc-800/80";
+      return "bg-surface-hover text-foreground border-border";
   }
 }

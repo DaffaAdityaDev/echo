@@ -25,6 +25,10 @@ import {
   handleToolSkip,
 } from "./handlers/steps";
 
+function nextStatus(status: Message["status"]): Message["status"] {
+  return status === "complete" || status === "error" ? status : "streaming";
+}
+
 export function applyStreamPacket(data: StreamPacket): void {
   // Capture trace
   useTraceStore.getState().addOrUpdateTraceFromPacket(data);
@@ -42,7 +46,7 @@ export function applyStreamPacket(data: StreamPacket): void {
   const lastMessage: Message = {
     ...currentMsgs[lastIdx],
     steps: [...(currentMsgs[lastIdx].steps || [])],
-    status: currentMsgs[lastIdx].status === "complete" ? "complete" : "streaming",
+    status: nextStatus(currentMsgs[lastIdx].status),
   };
 
   switch (data.type) {

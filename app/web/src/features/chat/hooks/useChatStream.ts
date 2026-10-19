@@ -2,22 +2,30 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
-import { useTraceStore } from "@/features/debug/stores/traceStore";
+import { useCallback } from "react";
 import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { extractErrorMessage } from "@/utils/error";
 import { CHAT_QUERY_KEYS, CHAT_ROLES } from "../constants";
 import { chatApi, sessionApi } from "../services/chat-api";
 import { applyStreamPacket } from "../services/stream";
+import { stopActiveStream } from "../services/stream/stop-stream";
+import {
+  bindStreamRunSession,
+  finishStreamRun,
+  isActiveStreamRun,
+  isLatestStreamRun,
+  markStreamRunSnapshotRequested,
+  type StreamRun,
+  startStreamRun,
+} from "../services/stream/stream-run";
 import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 import type { Message, StreamPacket } from "../types";
 
 async function generateSessionTitle(sid: string): Promise<void> {
   const state = useChatStore.getState();
+  // An empty model lets the backend fall back to its configured default.
   const model = useSettingsStore.getState().config.defaultModel;
-
-  if (!sid || !model) return;
 
   const activeSess = state.sessions.find((s) => s.id === sid);
 
@@ -36,189 +44,142 @@ async function generateSessionTitle(sid: string): Promise<void> {
   }
 }
 
-// Stream control is scoped to the hook instance that started the stream:
-// module-level AbortControllers would let one mounted instance abort a
-// stream owned by another instance (e.g. a stale page transition or a
-// second chat page). Stop buttons reach the controller through the same
-// instance's sendMessage, so single-instance behavior is unchanged.
+function newTurnMessages(input: string): [Message, Message] {
+  return [
+    { role: CHAT_ROLES.USER, content: input, steps: [], id: crypto.randomUUID() },
+    { role: CHAT_ROLES.ASSISTANT, content: "", steps: [], id: crypto.randomUUID(), status: "streaming" },
+  ];
+}
+
+function updateMessage(messageId: string, update: (m: Message) => Message): void {
+  useChatStore.getState().setMessages((prev) => prev.map((m) => (m.id === messageId ? update(m) : m)));
+}
+
+// Packets are written only while the run is live and the store still shows
+// the session the run belongs to; anything else would land in another chat.
+function runOwnsStore(run: StreamRun): boolean {
+  if (!isActiveStreamRun(run)) return false;
+
+  return run.sessionId === null || run.sessionId === useChatStore.getState().activeSessionId;
+}
+
+function reportStreamFailure(run: StreamRun, err: unknown): void {
+  const errorMessage = extractErrorMessage(err instanceof Error ? err : null, "Failed to fetch response from agent.");
+  useChatStore.getState().setAgentState("error");
+  notifySystem("error", "STREAM_FAILED", errorMessage);
+  updateMessage(run.assistantMessageId, (m) => ({
+    ...m,
+    content: m.content ? `${m.content}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`,
+    status: "error",
+  }));
+}
+
 export function useChatStream() {
   const isLoading = useChatStore((s) => s.isLoading);
-  const setMessages = useChatStore((s) => s.setMessages);
-  const setIsLoading = useChatStore((s) => s.setIsLoading);
-  const setAgentProgress = useChatStore((s) => s.setAgentProgress);
-  const setAgentState = useChatStore((s) => s.setAgentState);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const queryClient = useQueryClient();
   const router = useRouter();
-  const activeAbortRef = useRef<AbortController | null>(null);
-  const interruptedTurnRef = useRef(false);
-  const pendingNavigationRef = useRef<string | null>(null);
 
-  const stopStreaming = useCallback(() => {
-    const controller = activeAbortRef.current;
+  const refreshMessages = async (run: StreamRun): Promise<void> => {
+    if (!run.sessionId) return;
+    markStreamRunSnapshotRequested(run, Date.now());
 
-    if (!controller) return;
-    interruptedTurnRef.current = true;
-    controller.abort();
-    activeAbortRef.current = null;
+    try {
+      await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(run.sessionId) });
+    } catch {
+      notifySystem("warning", "MESSAGE_REFRESH_FAILED", "Failed to refresh the message list.");
+    }
+  };
 
-    const sid = useChatStore.getState().activeSessionId;
+  // Title generation bumps updated_at, so the paginated list must refetch;
+  // invalidating exact ["sessions"] avoids refetching the messages queries.
+  const refreshSessionTitle = async (sid: string | null): Promise<void> => {
+    if (!sid) return;
 
-    if (sid) {
-      // Finalize any streaming trace for this session immediately, and tell
-      // the backend to interrupt the mission (aborts the in-flight LLM
-      // stream). Fire-and-forget: the fetch abort alone already stops the
-      // stream; the cancel request makes the stop prompt across the chain.
-      useTraceStore.getState().finalizeInterruptedForSession(sid);
-      const cancelController = new AbortController();
-      const cancelTimeout = setTimeout(() => cancelController.abort(), 5000);
-      sessionApi
-        .cancel(sid, cancelController.signal)
-        .catch((err: { code?: string; name?: string } | null | undefined) => {
-          // The 5s timeout aborts the request via the controller; not a failure.
-          if (err?.code !== "ERR_CANCELED" && err?.name !== "AbortError") {
-            notifySystem("warning", "CANCEL_FAILED", "Failed to cancel the in-flight mission.");
-          }
-        })
-        .finally(() => clearTimeout(cancelTimeout));
+    try {
+      await generateSessionTitle(sid);
+      await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
+    } catch {
+      notifySystem("warning", "SESSION_REFRESH_FAILED", "Failed to refresh the session list.");
+    }
+  };
+
+  const settleStreamRun = async (run: StreamRun, pendingNavigation: string | null): Promise<void> => {
+    // A stopped or superseded run was already finalized by stopActiveStream.
+    if (isActiveStreamRun(run)) {
+      finishStreamRun(run);
+      updateMessage(run.assistantMessageId, (m) => (m.status === "streaming" ? { ...m, status: "complete" } : m));
     }
 
-    useChatStore.getState().setIsLoading(false);
-    useChatStore.getState().setAgentProgress(null);
-    useChatStore.getState().setAgentState("aborted");
-  }, []);
+    await refreshMessages(run);
+
+    // A newer run owns the loading flags and the route from here on.
+    if (isLatestStreamRun(run)) {
+      const store = useChatStore.getState();
+      store.setIsLoading(false);
+      store.setAgentProgress(null);
+
+      if (pendingNavigation && store.activeSessionId === pendingNavigation) {
+        router.push(`/session/${pendingNavigation}`);
+      }
+    }
+
+    await refreshSessionTitle(run.sessionId);
+  };
 
   const sendMessage = async (input: string) => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || useChatStore.getState().isLoading) return;
 
-    interruptedTurnRef.current = false;
+    const [userMessage, assistantMessage] = newTurnMessages(input);
+    const store = useChatStore.getState();
+    const run = startStreamRun(store.activeSessionId, assistantMessage.id);
+    let pendingNavigation: string | null = null;
 
-    const userMessage: Message = {
-      role: CHAT_ROLES.USER,
-      content: input,
-      steps: [],
-      id: crypto.randomUUID(),
-    };
+    store.setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    store.setIsLoading(true);
+    store.setAgentState("running");
+    store.setAgentProgress({ iteration: 0, totalIterations: 0 });
 
-    const assistantMessage: Message = {
-      role: CHAT_ROLES.ASSISTANT,
-      content: "",
-      steps: [],
-      id: crypto.randomUUID(),
-      status: "streaming",
+    const bindNewSession = (response: Response) => {
+      const sessionId = response.headers.get("X-Session-ID");
+
+      if (!sessionId || run.sessionId !== null || !isActiveStreamRun(run)) return;
+      bindStreamRunSession(run, sessionId);
+      useChatStore.getState().setActiveSession(sessionId);
+      useChatStore.getState().setNewChatPending(false);
+      // Defer navigation until the turn ends: pushing mid-stream can drop
+      // the streaming connection (the mission is then cancelled for token
+      // safety). settleStreamRun navigates once the stream completes.
+      pendingNavigation = sessionId;
+      queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
     };
 
     try {
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
-      setIsLoading(true);
-      setAgentState("running");
-      setAgentProgress({
-        iteration: 0,
-        totalIterations: 0,
-      });
-
-      activeAbortRef.current = new AbortController();
-
-      const activeSessionId = useChatStore.getState().activeSessionId;
-
-      const payload = activeSessionId ? { message: input, sessionId: activeSessionId } : { message: input };
+      const payload = run.sessionId ? { message: input, sessionId: run.sessionId } : { message: input };
 
       await chatApi.sendMessage(
         payload,
         (data: StreamPacket) => {
-          applyStreamPacket(data);
+          if (runOwnsStore(run)) applyStreamPacket(data);
         },
-        activeAbortRef.current.signal,
-        (response: Response) => {
-          const sessionId = response.headers.get("X-Session-ID");
-
-          if (sessionId && useChatStore.getState().activeSessionId === null) {
-            useChatStore.getState().setActiveSession(sessionId);
-            useChatStore.getState().setNewChatPending(false);
-            // Defer navigation until the turn ends: pushing mid-stream can drop
-            // the streaming connection (the mission is then cancelled for token
-            // safety). The finally block navigates once the stream completes.
-            pendingNavigationRef.current = sessionId;
-            queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
-          }
-        },
+        run.controller.signal,
+        bindNewSession,
       );
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      const store = useChatStore.getState();
-      store.setAgentState("error");
-      const currentMsgs = store.messages;
-
-      if (currentMsgs.length === 0) return;
-      const lastIdx = currentMsgs.length - 1;
-      const errorMessage = extractErrorMessage(err, "Failed to fetch response from agent.");
-      notifySystem("error", "STREAM_FAILED", errorMessage);
-      const prevContent = currentMsgs[lastIdx]?.content || "";
-      const updatedContent = prevContent ? `${prevContent}\n\n[Error: ${errorMessage}]` : `Error: ${errorMessage}`;
-
-      const lastMessage = {
-        ...currentMsgs[lastIdx],
-        content: updatedContent,
-      };
-
-      store.setMessages([...currentMsgs.slice(0, -1), lastMessage]);
+      if (!run.controller.signal.aborted && isActiveStreamRun(run)) reportStreamFailure(run, err);
     } finally {
-      const store = useChatStore.getState();
-      const currentMsgs = store.messages;
-
-      if (currentMsgs.length > 0) {
-        const lastIdx = currentMsgs.length - 1;
-
-        if (currentMsgs[lastIdx].role === CHAT_ROLES.ASSISTANT && currentMsgs[lastIdx].status === "streaming") {
-          const updated = [...currentMsgs];
-          updated[lastIdx] = {
-            ...updated[lastIdx],
-            status: interruptedTurnRef.current ? ("interrupted" as const) : ("complete" as const),
-          };
-          store.setMessages(updated);
-        }
-      }
-
-      const sid = store.activeSessionId;
-
-      if (sid) {
-        try {
-          await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.messages(sid) });
-        } catch {
-          notifySystem("warning", "MESSAGE_REFRESH_FAILED", "Failed to refresh the message list.");
-        }
-      }
-
-      setIsLoading(false);
-      setAgentProgress(null);
-
-      const pendingSid = pendingNavigationRef.current;
-      pendingNavigationRef.current = null;
-
-      if (pendingSid && store.activeSessionId === pendingSid) {
-        router.push(`/session/${pendingSid}`);
-      }
-
-      // Auto-generate title if still default, then refresh the session list.
-      // Title generation bumps updated_at, so the paginated list must refetch;
-      // invalidating exact ["sessions"] avoids refetching the messages queries.
-      try {
-        await generateSessionTitle(sid || "");
-        await queryClient.invalidateQueries({ queryKey: CHAT_QUERY_KEYS.sessions, exact: true });
-      } catch {
-        notifySystem("warning", "SESSION_REFRESH_FAILED", "Failed to refresh the session list.");
-      }
+      await settleStreamRun(run, pendingNavigation);
     }
   };
 
   const stopStream = useCallback(() => {
-    stopStreaming();
-  }, [stopStreaming]);
+    stopActiveStream();
+  }, []);
 
   const handleClearMessages = useCallback(() => {
-    stopStream();
+    stopActiveStream();
     clearMessages();
-  }, [stopStream, clearMessages]);
+  }, [clearMessages]);
 
   return {
     sendMessage,

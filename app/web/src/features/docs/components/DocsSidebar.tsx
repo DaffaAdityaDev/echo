@@ -15,7 +15,11 @@ interface NavSection {
   children?: { id: string; label: string; href: string }[];
 }
 
-export function DocsSidebar() {
+interface DocsSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function DocsSidebar({ onNavigate }: DocsSidebarProps) {
   const { spec } = useSpec();
   const pathname = usePathname();
 
@@ -35,7 +39,7 @@ export function DocsSidebar() {
     {
       id: "getting-started",
       label: "Getting Started",
-      icon: <BookOpen size={13} />,
+      icon: <BookOpen size={13} aria-hidden="true" />,
       children: [
         { id: "overview", label: "Overview", href: "/docs" },
         { id: "quickstart", label: "Quick Start", href: "/docs/quickstart" },
@@ -44,7 +48,7 @@ export function DocsSidebar() {
     {
       id: "guides",
       label: "Integration Guides",
-      icon: <Terminal size={13} />,
+      icon: <Terminal size={13} aria-hidden="true" />,
       children: [
         { id: "authentication", label: "Authentication", href: "/docs/guides/authentication" },
         { id: "chat", label: "Chat API", href: "/docs/guides/chat" },
@@ -56,7 +60,7 @@ export function DocsSidebar() {
     {
       id: "reference",
       label: "API Reference",
-      icon: <Code size={13} />,
+      icon: <Code size={13} aria-hidden="true" />,
       children: [
         { id: "endpoints", label: "All Endpoints", href: "/docs/reference" },
         ...(spec?.tags.map((t) => ({
@@ -69,7 +73,7 @@ export function DocsSidebar() {
     {
       id: "examples",
       label: "Examples",
-      icon: <Settings size={13} />,
+      icon: <Settings size={13} aria-hidden="true" />,
       children: [
         { id: "curl", label: "cURL", href: "/docs/examples/curl" },
         { id: "python", label: "Python", href: "/docs/examples/python" },
@@ -79,13 +83,16 @@ export function DocsSidebar() {
     {
       id: "troubleshooting",
       label: "Troubleshooting",
-      icon: <HelpCircle size={13} />,
+      icon: <HelpCircle size={13} aria-hidden="true" />,
       children: [{ id: "errors", label: "Error Codes", href: "/docs/troubleshooting" }],
     },
   ];
 
   return (
-    <aside className="w-64 shrink-0 border-r border-border bg-white overflow-y-auto font-mono text-xs h-full shadow-xs">
+    <nav
+      aria-label="Documentation"
+      className="w-64 shrink-0 border-r border-border bg-elevated overflow-y-auto font-mono text-xs h-full shadow-xs"
+    >
       <div className="p-4 space-y-3">
         {navSections.map((section) => {
           const isExpanded = expanded[section.id];
@@ -95,14 +102,17 @@ export function DocsSidebar() {
               <button
                 type="button"
                 onClick={() => toggleSection(section.id)}
-                className="flex w-full items-center gap-2 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-900 hover:text-blue-600 transition-colors cursor-pointer"
+                aria-expanded={isExpanded}
+                className="flex w-full items-center gap-2 px-2 py-1 text-2xs font-bold uppercase tracking-wider text-foreground hover:text-accent transition-colors cursor-pointer"
               >
-                <span className="text-slate-500">{section.icon}</span>
+                <span className="text-muted" aria-hidden="true">
+                  {section.icon}
+                </span>
                 <span className="flex-1 text-left">{section.label}</span>
                 {isExpanded ? (
-                  <ChevronDown size={11} className="text-slate-400" />
+                  <ChevronDown size={11} className="text-muted" aria-hidden="true" />
                 ) : (
-                  <ChevronRight size={11} className="text-slate-400" />
+                  <ChevronRight size={11} className="text-muted" aria-hidden="true" />
                 )}
               </button>
               {isExpanded && section.children && (
@@ -111,11 +121,13 @@ export function DocsSidebar() {
                     <Link
                       key={child.id}
                       href={child.href}
+                      onClick={onNavigate}
+                      aria-current={isActive(child.href) ? "page" : undefined}
                       className={cn(
                         "block px-2.5 py-1.5 rounded-xs text-xs font-mono font-medium transition-all",
                         isActive(child.href)
-                          ? "bg-blue-50 text-blue-700 font-bold border-l-2 border-blue-600 shadow-xs"
-                          : "text-slate-700 hover:text-blue-600 hover:bg-slate-100/80",
+                          ? "bg-accent-soft text-accent font-bold border-l-2 border-accent shadow-xs"
+                          : "text-foreground hover:text-accent hover:bg-surface-hover",
                       )}
                     >
                       {child.label}
@@ -127,6 +139,6 @@ export function DocsSidebar() {
           );
         })}
       </div>
-    </aside>
+    </nav>
   );
 }

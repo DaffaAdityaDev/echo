@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { CodeBlock } from "@/components/docs/CodeBlock";
+import { CodeBlock } from "@/components/CodeBlock";
 import { cn } from "@/utils/cn";
 import "katex/dist/katex.min.css";
 
@@ -49,12 +49,18 @@ function isString(value: React.ReactNode): value is string {
   return typeof value === "string";
 }
 
-// 3-Step Robot Denoising Neural Diffusion Token Reveal
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// 3-step token reveal: each new token flickers through scrambled glyphs
+// before settling. The scramble is visual only — assistive tech reads the
+// real text, and users who prefer reduced motion skip the effect entirely.
 const DenoiseToken = React.memo(({ text, isStreaming }: { text: string; isStreaming?: boolean }) => {
-  const [denoiseStep, setDenoiseStep] = React.useState<number>(isStreaming ? 0 : 2);
+  const [denoiseStep, setDenoiseStep] = React.useState<number>(() => (isStreaming && !prefersReducedMotion() ? 0 : 2));
 
   React.useEffect(() => {
-    if (!isStreaming) return;
+    if (!isStreaming || prefersReducedMotion()) return;
 
     const t1 = setTimeout(() => setDenoiseStep(1), 70);
     const t2 = setTimeout(() => setDenoiseStep(2), 140);
@@ -77,15 +83,17 @@ const DenoiseToken = React.memo(({ text, isStreaming }: { text: string; isStream
   }
 
   return (
-    <span
-      className={cn(
-        "inline-block whitespace-pre-wrap transition-colors duration-100 font-mono font-bold",
-        denoiseStep === 0 && "text-sky-500 dark:text-sky-400 opacity-90 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]",
-        denoiseStep === 1 &&
-          "text-indigo-500 dark:text-indigo-400 opacity-95 drop-shadow-[0_0_5px_rgba(129,140,248,0.6)]",
-      )}
-    >
-      {displayText}
+    <span className="inline-block whitespace-pre-wrap">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "transition-colors duration-100 font-mono font-bold text-accent",
+          denoiseStep === 0 ? "opacity-70" : "opacity-90",
+        )}
+      >
+        {displayText}
+      </span>
+      <span className="sr-only">{text}</span>
     </span>
   );
 });
@@ -158,6 +166,132 @@ function animateMarkdownText(children: React.ReactNode, isStreaming?: boolean): 
   return processInput(children);
 }
 
+// Streaming state flows through context so the components map stays stable:
+// a new map per isStreaming value would remount the whole rendered tree.
+const StreamingContext = React.createContext(false);
+
+function AnimatedChildren({ children }: { children?: React.ReactNode }) {
+  const isStreaming = React.useContext(StreamingContext);
+
+  return <>{animateMarkdownText(children, isStreaming)}</>;
+}
+
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+
+const REHYPE_PLUGINS = [rehypeKatex];
+
+// Each renderer drops react-markdown's `node` prop so the hast node is never
+// spread onto the DOM element.
+const MARKDOWN_COMPONENTS: Components = {
+  h1: ({ node: _node, children, ...props }) => (
+    <h1 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h1>
+  ),
+  h2: ({ node: _node, children, ...props }) => (
+    <h2 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h2>
+  ),
+  h3: ({ node: _node, children, ...props }) => (
+    <h3 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h3>
+  ),
+  h4: ({ node: _node, children, ...props }) => (
+    <h4 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h4>
+  ),
+  h5: ({ node: _node, children, ...props }) => (
+    <h5 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h5>
+  ),
+  h6: ({ node: _node, children, ...props }) => (
+    <h6 {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </h6>
+  ),
+  p: ({ node: _node, children, ...props }) => (
+    <p {...props} className="my-1.5 leading-normal">
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </p>
+  ),
+  li: ({ node: _node, children, ...props }) => (
+    <li {...props} className="my-0.5 leading-normal">
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </li>
+  ),
+  blockquote: ({ node: _node, children, ...props }) => (
+    <blockquote
+      {...props}
+      className="my-2 border-l-2 border-accent bg-surface py-1 px-3 rounded-r-sm italic text-muted text-xs"
+    >
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </blockquote>
+  ),
+  a: ({ node: _node, children, href, ...props }) => (
+    <a {...props} href={href} target="_blank" rel="noopener noreferrer">
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </a>
+  ),
+  strong: ({ node: _node, children, ...props }) => (
+    <strong {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </strong>
+  ),
+  em: ({ node: _node, children, ...props }) => (
+    <em {...props}>
+      <AnimatedChildren>{children}</AnimatedChildren>
+    </em>
+  ),
+  code: ({ node: _node, className, children, ...props }) => {
+    const match = /language-(\w+)/.exec(className || "");
+    const language = match ? match[1] : "";
+    const isInline = !match && !String(children).includes("\n");
+
+    if (!isInline) {
+      return <CodeBlock language={language || "text"} code={String(children).replace(/\n$/, "")} />;
+    }
+
+    return (
+      <code
+        className={cn(
+          "bg-surface-hover text-accent border border-border rounded-sm px-1.5 py-0.5 font-mono text-[0.87em]",
+          className,
+        )}
+        translate="no"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+  table: ({ node: _node, children, ...props }) => (
+    <div className="overflow-x-auto my-3 border border-border rounded-sm bg-elevated">
+      <table {...props} className="w-full text-left border-collapse">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ node: _node, children, ...props }) => (
+    <thead {...props} className="bg-surface border-b border-border">
+      {children}
+    </thead>
+  ),
+  th: ({ node: _node, children, ...props }) => (
+    <th {...props} className="px-3 py-2 text-2xs font-bold uppercase tracking-wider text-inherit">
+      {children}
+    </th>
+  ),
+  td: ({ node: _node, children, ...props }) => (
+    <td {...props} className="px-3 py-1.5 text-xs md:text-sm border-t border-border text-inherit">
+      {children}
+    </td>
+  ),
+};
+
 const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps) => {
   const processedContent = React.useMemo(() => {
     if (!content) return "";
@@ -171,103 +305,6 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
       .replace(/(^|\n)(\\begin\{[a-z*]+\}[\s\S]*?\\end\{[a-z*]+\})(\n|$)/g, "$1$$$$$2$$$$$3");
   }, [content]);
 
-  const components = React.useMemo(
-    () => ({
-      h1: ({ children, ...props }: React.ComponentPropsWithoutRef<"h1">) => (
-        <h1 {...props}>{animateMarkdownText(children, isStreaming)}</h1>
-      ),
-      h2: ({ children, ...props }: React.ComponentPropsWithoutRef<"h2">) => (
-        <h2 {...props}>{animateMarkdownText(children, isStreaming)}</h2>
-      ),
-      h3: ({ children, ...props }: React.ComponentPropsWithoutRef<"h3">) => (
-        <h3 {...props}>{animateMarkdownText(children, isStreaming)}</h3>
-      ),
-      h4: ({ children, ...props }: React.ComponentPropsWithoutRef<"h4">) => (
-        <h4 {...props}>{animateMarkdownText(children, isStreaming)}</h4>
-      ),
-      h5: ({ children, ...props }: React.ComponentPropsWithoutRef<"h5">) => (
-        <h5 {...props}>{animateMarkdownText(children, isStreaming)}</h5>
-      ),
-      h6: ({ children, ...props }: React.ComponentPropsWithoutRef<"h6">) => (
-        <h6 {...props}>{animateMarkdownText(children, isStreaming)}</h6>
-      ),
-      p: ({ children, ...props }: React.ComponentPropsWithoutRef<"p">) => (
-        <p {...props} className="my-1.5 leading-normal">
-          {animateMarkdownText(children, isStreaming)}
-        </p>
-      ),
-      li: ({ children, ...props }: React.ComponentPropsWithoutRef<"li">) => (
-        <li {...props} className="my-0.5 leading-normal">
-          {animateMarkdownText(children, isStreaming)}
-        </li>
-      ),
-      blockquote: ({ children, ...props }: React.ComponentPropsWithoutRef<"blockquote">) => (
-        <blockquote
-          {...props}
-          className="my-2 border-l-2 border-gb-blue bg-slate-50/80 py-1 px-3 rounded-r-xs italic text-slate-600 text-xs"
-        >
-          {animateMarkdownText(children, isStreaming)}
-        </blockquote>
-      ),
-      a: ({ children, href, ...props }: React.ComponentPropsWithoutRef<"a">) => (
-        <a {...props} href={href} target="_blank" rel="noopener noreferrer">
-          {animateMarkdownText(children, isStreaming)}
-        </a>
-      ),
-      strong: ({ children, ...props }: React.ComponentPropsWithoutRef<"strong">) => (
-        <strong {...props}>{animateMarkdownText(children, isStreaming)}</strong>
-      ),
-      em: ({ children, ...props }: React.ComponentPropsWithoutRef<"em">) => (
-        <em {...props}>{animateMarkdownText(children, isStreaming)}</em>
-      ),
-      code: ({ className, children, ...props }: React.ComponentPropsWithoutRef<"code">) => {
-        const match = /language-(\w+)/.exec(className || "");
-        const language = match ? match[1] : "";
-        const isInline = !match && !String(children).includes("\n");
-
-        if (!isInline) {
-          return <CodeBlock language={language || "text"} code={String(children).replace(/\n$/, "")} />;
-        }
-
-        return (
-          <code
-            className={cn(
-              "bg-surface-hover text-gb-blue border border-border rounded-xs px-1.5 py-0.5 font-mono text-[0.87em]",
-              className,
-            )}
-            translate="no"
-            {...props}
-          >
-            {children}
-          </code>
-        );
-      },
-      table: ({ children, ...props }: React.ComponentPropsWithoutRef<"table">) => (
-        <div className="overflow-x-auto my-3 border border-border rounded-xs bg-white">
-          <table {...props} className="w-full text-left border-collapse">
-            {children}
-          </table>
-        </div>
-      ),
-      thead: ({ children, ...props }: React.ComponentPropsWithoutRef<"thead">) => (
-        <thead {...props} className="bg-slate-50/90 border-b border-border">
-          {children}
-        </thead>
-      ),
-      th: ({ children, ...props }: React.ComponentPropsWithoutRef<"th">) => (
-        <th {...props} className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-inherit">
-          {children}
-        </th>
-      ),
-      td: ({ children, ...props }: React.ComponentPropsWithoutRef<"td">) => (
-        <td {...props} className="px-3 py-1.5 text-xs md:text-sm border-t border-border text-inherit">
-          {children}
-        </td>
-      ),
-    }),
-    [isStreaming],
-  );
-
   return (
     <div
       className={cn(
@@ -280,16 +317,18 @@ const Markdown = React.memo(({ content, className, isStreaming }: MarkdownProps)
         "prose-ul:my-1.5 prose-ul:pl-4 prose-ul:space-y-0.5",
         "prose-ol:my-1.5 prose-ol:pl-4 prose-ol:space-y-0.5",
         "prose-li:my-0.5",
-        "prose-a:text-gb-blue prose-a:no-underline hover:prose-a:underline prose-a:transition-all",
-        "prose-code:text-gb-blue prose-code:bg-surface-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-xs prose-code:border prose-code:border-border prose-code:before:content-none prose-code:after:content-none",
-        "prose-blockquote:my-2 prose-blockquote:border-l-2 prose-blockquote:border-gb-blue prose-blockquote:bg-slate-50/80 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:rounded-r-xs prose-blockquote:text-slate-600 prose-blockquote:italic",
+        "prose-a:text-accent prose-a:underline-offset-2 hover:prose-a:underline prose-a:transition-all",
+        "prose-code:text-accent prose-code:bg-surface-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-sm prose-code:border prose-code:border-border prose-code:before:content-none prose-code:after:content-none",
+        "prose-blockquote:my-2 prose-blockquote:border-l-2 prose-blockquote:border-accent prose-blockquote:bg-surface prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:rounded-r-sm prose-blockquote:text-muted prose-blockquote:italic",
         "prose-hr:my-3 prose-hr:border-border",
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>
-        {processedContent}
-      </ReactMarkdown>
+      <StreamingContext.Provider value={isStreaming ?? false}>
+        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MARKDOWN_COMPONENTS}>
+          {processedContent}
+        </ReactMarkdown>
+      </StreamingContext.Provider>
     </div>
   );
 });

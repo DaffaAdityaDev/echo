@@ -1,13 +1,13 @@
-export interface LoopDetectionConfig {
+export type LoopDetectionConfig = {
   enabled: boolean;
   enableExactMatch?: boolean;
   enableCosineSimilarity?: boolean;
   maxConsecutiveIdenticalCalls?: number;
   similarityThreshold?: number;
   windowSize?: number;
-}
+};
 
-export interface BudgetMonitorConfig {
+export type BudgetMonitorConfig = {
   enabled: boolean;
   enforceMaxSteps?: boolean;
   maxSteps?: number;
@@ -15,37 +15,37 @@ export interface BudgetMonitorConfig {
   maxDurationMs?: number;
   enforceCostCap?: boolean;
   maxCostUsd?: number;
-}
+};
 
-export interface SystemNoticesConfig {
+export type SystemNoticesConfig = {
   enabled: boolean;
   emitLoopWarnings?: boolean;
   emitCompactionNotices?: boolean;
   emitBudgetWarnings?: boolean;
   emitPacingWarnings?: boolean;
-}
+};
 
-export interface HitlGuardConfig {
+export type HitlGuardConfig = {
   enabled: boolean;
   protectedTools?: string[];
   ttlMinutes?: number;
-}
+};
 
-export interface ContextOptimizationConfig {
+export type ContextOptimizationConfig = {
   enabled: boolean;
   enablePrefixCachingLayout?: boolean;
   enableAutoCompaction?: boolean;
   compactionThresholdRatio?: number;
   keepLastTurnsCount?: number;
-}
+};
 
-export interface HarnessFeatureToggles {
+export type HarnessFeatureToggles = {
   loopDetection?: LoopDetectionConfig;
   budgetMonitor?: BudgetMonitorConfig;
   systemNotices?: SystemNoticesConfig;
   hitlGuard?: HitlGuardConfig;
   contextOptimization?: ContextOptimizationConfig;
-}
+};
 
 export interface AgentConfig {
   defaultMode: string;
@@ -59,7 +59,7 @@ export interface AgentConfig {
   harnessToggles?: HarnessFeatureToggles;
 }
 
-export interface AgentConfigDTO {
+export type AgentConfigDTO = {
   default_mode?: string;
   default_model?: string;
   default_features?: string[];
@@ -70,7 +70,7 @@ export interface AgentConfigDTO {
   keep_api_key?: boolean;
   base_url?: string;
   harness_toggles?: HarnessFeatureToggles;
-}
+};
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   defaultMode: "standard",

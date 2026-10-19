@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CodeBlock } from "@/components/docs/CodeBlock";
+import { CodeBlock } from "@/components/CodeBlock";
 
 export default function LanguageExamplePage() {
   const params = useParams();
@@ -16,12 +16,12 @@ export default function LanguageExamplePage() {
         <div>
           <Link
             href="/docs/examples"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-blue-600 transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-accent transition-colors mb-4"
           >
-            <ArrowLeft size={14} /> All Examples
+            <ArrowLeft size={14} aria-hidden="true" /> All Examples
           </Link>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-xs bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
+            <span className="px-2 py-0.5 rounded-xs bg-success/10 border border-success/30 text-success text-2xs font-bold uppercase tracking-wider">
               Python SDK
             </span>
           </div>
@@ -30,7 +30,7 @@ export default function LanguageExamplePage() {
           </h1>
           <p className="text-xs text-muted mt-2 leading-relaxed font-mono">
             Complete Python client implementation for SSE chat streaming, session management, and HITL approvals using{" "}
-            <code className="text-blue-600 font-bold">requests</code>.
+            <code className="text-accent font-bold">requests</code>.
           </p>
         </div>
 
@@ -98,12 +98,12 @@ for event in client.chat_stream("Explain quantum computing"):
         <div>
           <Link
             href="/docs/examples"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-blue-600 transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-accent transition-colors mb-4"
           >
-            <ArrowLeft size={14} /> All Examples
+            <ArrowLeft size={14} aria-hidden="true" /> All Examples
           </Link>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-xs bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
+            <span className="px-2 py-0.5 rounded-xs bg-accent-soft border border-accent/30 text-accent text-2xs font-bold uppercase tracking-wider">
               Node.js / TypeScript
             </span>
           </div>
@@ -199,12 +199,12 @@ for await (const event of client.chatStream("Hello!")) {
       <div>
         <Link
           href="/docs/examples"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-blue-600 transition-colors mb-4"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-accent transition-colors mb-4"
         >
-          <ArrowLeft size={14} /> All Examples
+          <ArrowLeft size={14} aria-hidden="true" /> All Examples
         </Link>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-xs bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold uppercase tracking-wider">
+          <span className="px-2 py-0.5 rounded-xs bg-warning/10 border border-warning/30 text-warning text-2xs font-bold uppercase tracking-wider">
             cURL CLI
           </span>
         </div>

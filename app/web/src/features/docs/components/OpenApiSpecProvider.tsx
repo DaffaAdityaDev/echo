@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { createContext, useContext } from "react";
-import { specQueries } from "@/lib/queries";
-import type { NormalizedSpec } from "@/lib/docs/types";
+import { specQueries } from "@/features/docs/services/spec-queries";
+import type { NormalizedSpec } from "@/features/docs/lib/types";
 import { extractErrorMessage } from "@/utils/error";
 
 interface SpecContextValue {

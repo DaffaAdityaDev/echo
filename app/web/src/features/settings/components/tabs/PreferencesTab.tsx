@@ -15,31 +15,30 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
   return (
     <>
       <div className="space-y-3">
-        <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-          Default Execution Strategy
-        </p>
+        <p className="text-xs font-bold text-foreground uppercase tracking-wider block">Default Execution Strategy</p>
         <div className="grid grid-cols-2 gap-3">
           {([CHAT_MODES.STANDARD, CHAT_MODES.AGENT] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setConfig({ defaultMode: value })}
+              aria-pressed={config.defaultMode === value}
               className={cn(
-                "p-4 rounded-2xl text-left border transition-all text-xs font-medium flex flex-col gap-1 cursor-pointer",
+                "p-4 rounded-md text-left border transition-all text-xs font-medium flex flex-col gap-1 cursor-pointer",
                 config.defaultMode === value
-                  ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-sm"
-                  : "bg-zinc-50 dark:bg-zinc-950/40 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900",
+                  ? "bg-accent/10 border-accent/30 text-accent shadow-sm"
+                  : "bg-surface border-border text-muted hover:bg-surface-hover",
               )}
             >
               <div className="flex items-center justify-between font-bold capitalize text-sm">
                 <span>{value === "standard" ? "Standard Stream" : "Deeper Research"}</span>
                 {config.defaultMode === value && (
-                  <Badge variant="success" className="text-[10px]">
+                  <Badge variant="success" className="text-2xs">
                     Active
                   </Badge>
                 )}
               </div>
-              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
+              <span className="text-xs text-muted font-normal">
                 {value === "standard"
                   ? "Direct model completion streaming."
                   : "Multi-step iterative agent execution harness."}
@@ -52,7 +51,7 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
       <div className="space-y-3">
         <label
           htmlFor="default-model-select"
-          className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block"
+          className="text-xs font-bold text-foreground uppercase tracking-wider block"
         >
           Default Model
         </label>
@@ -60,8 +59,7 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
           id="default-model-select"
           value={config.defaultModel}
           onChange={(e) => setConfig({ defaultModel: e.target.value })}
-          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
-          style={{ colorScheme: "dark" }}
+          className="w-full bg-surface border border-border rounded-md px-4 py-3 text-xs text-foreground focus:outline-none focus:border-accent/50"
         >
           <option value="">Auto-select first available</option>
           {Object.entries(groupedModels).map(([provider, providerModels]) => (
@@ -77,15 +75,13 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
       </div>
 
       <div className="space-y-3 pt-2">
-        <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-          LLM Provider Configuration
-        </p>
+        <p className="text-xs font-bold text-foreground uppercase tracking-wider block">LLM Provider Configuration</p>
 
         <select
           value={config.providerType}
+          aria-label="LLM provider"
           onChange={(e) => setConfig({ providerType: e.target.value })}
-          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-purple-500/50"
-          style={{ colorScheme: "dark" }}
+          className="w-full bg-surface border border-border rounded-md px-4 py-3 text-xs text-foreground focus:outline-none focus:border-accent/50"
         >
           <option value="opencode-go">OpenCode Go</option>
           <option value="lm-studio">LM Studio (Local)</option>
@@ -94,15 +90,15 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
         </select>
 
         <div className="flex items-center justify-between">
-          <label htmlFor="api-key-input" className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label htmlFor="api-key-input" className="text-xs font-medium text-muted">
             API Key
           </label>
           <span
             className={cn(
-              "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+              "text-2xs font-semibold px-2 py-0.5 rounded-full",
               config.hasApiKey
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700",
+                ? "bg-success/10 text-success border border-success/20"
+                : "bg-surface-hover text-muted border border-border",
             )}
           >
             {config.hasApiKey ? "Active" : "Not Set"}
@@ -116,20 +112,20 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
             value={config.apiKey}
             onChange={(e) => setConfig({ apiKey: e.target.value })}
             placeholder={config.hasApiKey ? "Enter new key to change" : "Enter your API key"}
-            className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50"
+            className="flex-1 bg-surface border border-border rounded-md px-4 py-3 text-xs text-foreground placeholder:text-subtle focus:outline-none focus:border-accent/50"
           />
           {config.hasApiKey && (
             <button
               type="button"
               onClick={() => setConfig({ apiKey: "" })}
-              className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 text-xs font-medium transition-colors"
+              className="px-3 py-2 rounded-md bg-danger/10 border border-danger/20 text-danger hover:bg-danger/20 text-xs font-medium transition-colors"
             >
               Clear
             </button>
           )}
         </div>
 
-        <label htmlFor="base-url-input" className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+        <label htmlFor="base-url-input" className="text-xs font-medium text-muted">
           Base URL
         </label>
         <input
@@ -138,17 +134,17 @@ export function PreferencesTab({ config, setConfig, groupedModels }: Preferences
           value={config.baseUrl}
           onChange={(e) => setConfig({ baseUrl: e.target.value })}
           placeholder="https://..."
-          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 font-mono"
+          className="w-full bg-surface border border-border rounded-md px-4 py-3 text-xs text-foreground placeholder:text-subtle focus:outline-none focus:border-accent/50 font-mono"
         />
 
         <div
           className={cn(
-            "p-3 rounded-xl border text-[11px] leading-relaxed",
+            "p-3 rounded-md border text-xs leading-relaxed",
             config.providerType === "opencode-go"
-              ? "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-300"
+              ? "bg-warning/5 border-warning/20 text-warning"
               : config.providerType === "lm-studio"
-                ? "bg-blue-500/5 border-blue-500/20 text-blue-700 dark:text-blue-300"
-                : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400",
+                ? "bg-accent/5 border-accent/20 text-accent"
+                : "bg-surface border-border text-muted",
           )}
         >
           {config.providerType === "opencode-go" && (

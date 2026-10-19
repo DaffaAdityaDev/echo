@@ -300,3 +300,11 @@ export interface SystemNotice {
 }
 
 export type AgentProgress = AgentProgressData;
+
+export interface Model {
+  id: string;
+  name: string;
+  provider_type: string;
+  provider_name: string;
+  supports_multimodal?: boolean;
+}

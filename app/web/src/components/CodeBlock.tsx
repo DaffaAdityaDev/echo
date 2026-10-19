@@ -3,7 +3,7 @@
 import { Check, Copy, Terminal } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import echoTheme from "@/lib/docs/echoTheme";
+import echoTheme from "@/lib/echo-code-theme";
 
 interface CodeBlockProps {
   language: string;
@@ -14,12 +14,11 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
   const { copied, copy } = useCopyToClipboard();
 
   return (
-    <div className="relative group my-2.5 rounded-md overflow-hidden border border-zinc-800 bg-[#0d1117] font-mono shadow-sm animate-in">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-zinc-800/80 text-xs select-none">
+    <div className="relative group my-2.5 rounded-md overflow-hidden border border-code-border bg-code font-mono shadow-sm animate-in">
+      <div className="flex items-center justify-between px-4 py-2 bg-code-header border-b border-code-border text-xs select-none">
         <div className="flex items-center gap-2">
-          <Terminal size={13} className="text-blue-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 font-mono">
+          <Terminal size={13} className="text-accent" aria-hidden="true" />
+          <span className="text-2xs font-semibold uppercase tracking-wider text-code-muted font-mono">
             {language || "code"}
           </span>
         </div>
@@ -27,17 +26,17 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
         <button
           type="button"
           onClick={() => copy(code)}
-          className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer px-2 py-0.5 rounded hover:bg-zinc-800/60"
+          className="flex items-center gap-1.5 text-2xs font-medium text-code-muted hover:text-code-foreground transition-colors cursor-pointer px-2 py-0.5 rounded-sm hover:bg-code-border/60"
           aria-label={copied ? "Copied" : "Copy code"}
         >
           {copied ? (
             <>
-              <Check size={13} className="text-emerald-400" />
-              <span className="text-emerald-400 font-semibold">Copied</span>
+              <Check size={13} className="text-success" aria-hidden="true" />
+              <span className="text-success font-semibold">Copied</span>
             </>
           ) : (
             <>
-              <Copy size={13} />
+              <Copy size={13} aria-hidden="true" />
               <span>Copy</span>
             </>
           )}

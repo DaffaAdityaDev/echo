@@ -1,21 +1,9 @@
 "use client";
 
-import { useMaturityAssessment, useSaveClientAssessment } from "./useMaturity";
 import { useMaturityModel } from "./useMaturityModel";
 
+// Maturity data is computed client-side; the backend exposes no maturity
+// endpoints, so client diagnostics are not persisted.
 export function useMaturityPage() {
-  const model = useMaturityModel();
-  const assessmentQuery = useMaturityAssessment();
-  const saveAssessment = useSaveClientAssessment();
-
-  const handleSaveClient = async () => {
-    await saveAssessment.mutateAsync(model.clientAssessment);
-  };
-
-  return {
-    ...model,
-    serverAssessment: assessmentQuery.data ?? null,
-    isSaving: saveAssessment.isPending,
-    onSaveClient: handleSaveClient,
-  };
+  return useMaturityModel();
 }

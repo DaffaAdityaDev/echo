@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constants";
 import { api } from "@/lib/api-client";
-import type { Model } from "@/lib/queries";
+import type { Model } from "../types";
 
 export const modelsApi = {
   list: async (): Promise<{ models: Model[] }> => {

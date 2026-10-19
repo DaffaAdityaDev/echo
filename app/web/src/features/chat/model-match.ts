@@ -1,4 +1,4 @@
-import type { Model } from "@/lib/queries";
+import type { Model } from "./types";
 
 export function resolveDefaultModel(models: Model[], defaultModel: string | undefined): Model | undefined {
   if (!defaultModel) return undefined;

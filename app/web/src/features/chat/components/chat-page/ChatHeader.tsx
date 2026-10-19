@@ -1,6 +1,19 @@
 "use client";
 
-import { Bug, ChevronDown, Cpu, Download, Menu, Plus, Settings, Share2, Square } from "lucide-react";
+import {
+  Bug,
+  ChevronDown,
+  Cpu,
+  Download,
+  type LucideIcon,
+  Menu,
+  MoreVertical,
+  Plus,
+  Settings,
+  Share2,
+  Square,
+} from "lucide-react";
+import { DropdownMenu, type DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import { useSidebar } from "@/lib/sidebar-context";
 import { AgentStatusBadge } from "../AgentStatusBadge";
 
@@ -17,6 +30,11 @@ interface ChatHeaderProps {
   onExportChat: () => void;
 }
 
+type HeaderAction = DropdownMenuItem & { icon: LucideIcon };
+
+const ICON_BUTTON =
+  "p-2 rounded-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer";
+
 export function ChatHeader({
   activeModelName,
   packetCount,
@@ -31,100 +49,88 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const { toggleSidebar } = useSidebar();
 
+  const secondaryActions: HeaderAction[] = [
+    { id: "settings", label: "Agent Settings", icon: Settings, onSelect: onOpenSettings },
+    { id: "new", label: "New Chat", icon: Plus, onSelect: onCreateSession },
+    { id: "share", label: "Copy Session URL", icon: Share2, onSelect: onShareSession },
+    { id: "export", label: "Export Chat JSON", icon: Download, onSelect: onExportChat },
+  ];
+
   return (
-    <header className="h-16 border-b border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-between px-6 shrink-0 z-20 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="md:hidden text-zinc-500 hover:text-zinc-900 dark:hover:text-white p-1.5 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          onClick={toggleSidebar}
-          aria-label="Open sidebar"
-        >
-          <Menu className="h-5 w-5" />
+    <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between gap-2 px-3 sm:px-6 shrink-0 z-20 bg-background/80 backdrop-blur-md">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button type="button" className={`md:hidden ${ICON_BUTTON}`} onClick={toggleSidebar} aria-label="Open sidebar">
+          <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
 
-        {/* Model Selector Header Button */}
         <button
           type="button"
           onClick={onOpenWorkspace}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-800/50 text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-colors shadow-sm"
+          className="flex items-center gap-2 min-w-0 px-2.5 sm:px-3 py-1.5 rounded-sm border border-border bg-surface text-xs font-semibold text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
           title="Select Intelligence Model"
+          aria-label={`Model: ${activeModelName}. Change model`}
         >
-          <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <Cpu className="h-3.5 w-3.5 text-purple-500" />
-          <span>{activeModelName}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+          <Cpu className="h-3.5 w-3.5 text-accent shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[8rem] sm:max-w-[16rem]">{activeModelName}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted shrink-0" aria-hidden="true" />
         </button>
 
-        <AgentStatusBadge />
+        <AgentStatusBadge className="hidden sm:inline-flex" />
       </div>
 
-      {/* Header Right Actions */}
-      <div className="flex items-center gap-2">
-        {/* Stop Generating Button */}
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {isLoading && (
           <button
             type="button"
             onClick={onStop}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-500/20 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-sm border border-danger/30 bg-danger/10 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors cursor-pointer"
             title="Stop generating"
+            aria-label="Stop generating"
           >
-            <Square className="h-3.5 w-3.5 fill-current" />
+            <Square className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
             <span className="hidden sm:inline">Stop</span>
           </button>
         )}
 
-        {/* Debug Drawer Toggle Button */}
         <button
           type="button"
           onClick={onToggleDebug}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-semibold hover:bg-purple-500/20 transition-all cursor-pointer relative"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-sm border border-accent/30 bg-accent-soft text-accent text-xs font-semibold hover:bg-accent/15 transition-colors cursor-pointer"
           title="Toggle Developer Debug Drawer (Ctrl + `)"
+          aria-label="Toggle debug drawer"
         >
-          <Bug className="h-3.5 w-3.5" />
+          <Bug className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">Debug</span>
-          {packetCount > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+          {packetCount > 0 && <span className="w-2 h-2 rounded-full bg-success animate-pulse" aria-hidden="true" />}
         </button>
 
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-          title="Agent Settings"
-          aria-label="Agent Settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        <div className="hidden sm:flex items-center gap-1">
+          {secondaryActions.map((action) => {
+            const Icon = action.icon;
 
-        <button
-          type="button"
-          onClick={onCreateSession}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-          title="New Chat"
-          aria-label="New Chat"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={action.onSelect}
+                className={ICON_BUTTON}
+                title={action.label}
+                aria-label={action.label}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
 
-        <button
-          type="button"
-          onClick={onShareSession}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-          title="Copy Session URL Slug"
-          aria-label="Copy Session URL Slug"
-        >
-          <Share2 className="h-4 w-4 text-purple-500" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onExportChat}
-          className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors hidden sm:inline-flex cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-          title="Export Chat JSON"
-          aria-label="Export Chat JSON"
-        >
-          <Download className="h-4 w-4" />
-        </button>
+        <div className="sm:hidden">
+          <DropdownMenu
+            label="More actions"
+            icon={MoreVertical}
+            items={secondaryActions}
+            triggerClassName={ICON_BUTTON}
+          />
+        </div>
       </div>
     </header>
   );

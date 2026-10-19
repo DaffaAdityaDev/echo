@@ -18,16 +18,16 @@ export interface PaginatedMessages {
   pagination: PaginationMeta;
 }
 
-export interface DecisionPayload {
+export type DecisionPayload = {
   approvalId: string;
   decision: "approve" | "deny" | string;
   reason?: string;
-}
+};
 
-export interface SendMessagePayload {
+export type SendMessagePayload = {
   message: string;
   sessionId?: string;
-}
+};
 
 interface RawSessionPayload {
   id?: string | null;

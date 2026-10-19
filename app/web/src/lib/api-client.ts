@@ -5,6 +5,21 @@ import { generateTraceContext } from "./telemetry-fetch";
 
 const BASE_URL = "/api";
 
+/** An HTTP error response from the API, carrying the status code. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function hasApiStatus(err: unknown, ...statuses: number[]): boolean {
+  return err instanceof ApiError && statuses.includes(err.status);
+}
+
 function isJsonObject(value?: JsonValue): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -24,6 +39,12 @@ function setAuthHeaders(headers: { set: (k: string, v: string) => void }, body?:
       headers.set("x-agent-session-id", sid);
     }
   }
+}
+
+// Mirrors AuthGuard's redirect so both paths land on the same login URL and
+// the user returns to the page they were on.
+export function buildLoginUrl(pathname: string): string {
+  return `/login?redirect=${encodeURIComponent(pathname)}`;
 }
 
 const client: AxiosInstance = axios.create({
@@ -74,11 +95,11 @@ client.interceptors.response.use(
         return client(config);
       }
 
-      window.location.href = "/login";
+      window.location.href = buildLoginUrl(window.location.pathname);
     }
 
     if (error.response) {
-      throw new Error(extractErrorMessage(error.response.data, error.response.statusText));
+      throw new ApiError(extractErrorMessage(error.response.data, error.response.statusText), error.response.status);
     }
 
     throw new Error(extractErrorMessage(error.message, "Network error"));
@@ -143,7 +164,7 @@ async function stream<T = JsonValue>(
   await readStream(response, (data) => onChunk(data as T), abortSignal);
 }
 
-async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) => void, signal?: AbortSignal) {
+export async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) => void, signal?: AbortSignal) {
   if (!response.ok) {
     const errorText = await response.text();
     let message = `Request failed with status ${response.status}`;
@@ -166,6 +187,8 @@ async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) 
 
   const contentType = response.headers.get("content-type") || "";
   const allowPlainText = PLAIN_TEXT_CONTENT_TYPES.some((t) => contentType.includes(t));
+  // SAFETY: Parsed stream packet conforms to consumer chunk type T.
+  const emitLine = (line: string) => processStreamLine(line, allowPlainText, (packet) => onChunk(packet as T));
 
   while (true) {
     const { done, value } = await reader.read();
@@ -174,33 +197,14 @@ async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) 
 
     if (value && value.byteLength > 0) hasReceivedData = true;
 
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = (partialLine + chunk).split("\n");
+    const lines = (partialLine + decoder.decode(value, { stream: true })).split("\n");
     partialLine = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-
-      if (!trimmedLine || trimmedLine.startsWith(":")) continue;
-
-      let jsonStr = trimmedLine;
-
-      if (trimmedLine.startsWith("data: ")) {
-        jsonStr = trimmedLine.slice(6).trim();
-      }
-
-      if (jsonStr === "[DONE]") continue;
-
-      if (!jsonStr) continue;
-
-      const packet = parseStreamLine(jsonStr, allowPlainText);
-
-      if (packet !== undefined) {
-        // SAFETY: Parsed stream packet conforms to consumer chunk type T.
-        onChunk(packet as T);
-      }
-    }
+    lines.forEach(emitLine);
   }
+
+  // The final packet may arrive without a trailing newline, and the decoder
+  // may still hold the tail of a multi-byte character.
+  emitLine(partialLine + decoder.decode());
 
   if (!hasReceivedData && signal?.aborted) {
     return;
@@ -209,6 +213,20 @@ async function readStream<T = JsonValue>(response: Response, onChunk: (data: T) 
   if (!hasReceivedData) {
     throw new Error("Stream ended without receiving any data");
   }
+}
+
+function processStreamLine(line: string, allowPlainText: boolean, onPacket: (packet: JsonValue) => void): void {
+  const trimmedLine = line.trim();
+
+  if (!trimmedLine || trimmedLine.startsWith(":")) return;
+
+  const jsonStr = trimmedLine.startsWith("data: ") ? trimmedLine.slice(6).trim() : trimmedLine;
+
+  if (!jsonStr || jsonStr === "[DONE]") return;
+
+  const packet = parseStreamLine(jsonStr, allowPlainText);
+
+  if (packet !== undefined) onPacket(packet);
 }
 
 // Echo backends always send JSON envelopes over SSE. Plain-text content is

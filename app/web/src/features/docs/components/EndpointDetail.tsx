@@ -1,8 +1,8 @@
 "use client";
 
-import { generateExample, SSE_SAMPLE } from "@/lib/docs/example";
-import type { Endpoint, SchemaObject } from "@/lib/docs/types";
-import { CodeBlock } from "./CodeBlock";
+import { generateExample, SSE_SAMPLE } from "@/features/docs/lib/example";
+import type { Endpoint, SchemaObject } from "@/features/docs/lib/types";
+import { CodeBlock } from "@/components/CodeBlock";
 import { SchemaTable, SchemaViewer } from "./SchemaViewer";
 
 interface EndpointDetailProps {
@@ -14,17 +14,17 @@ interface EndpointDetailProps {
 function getMethodStyle(method: string): string {
   switch (method.toLowerCase()) {
     case "get":
-      return "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30";
+      return "bg-success/10 text-success border border-success/30";
     case "post":
-      return "bg-blue-500/10 text-blue-500 border border-blue-500/30";
+      return "bg-accent/10 text-accent border border-accent/30";
     case "put":
-      return "bg-amber-500/10 text-amber-500 border border-amber-500/30";
+      return "bg-warning/10 text-warning border border-warning/30";
     case "delete":
-      return "bg-rose-500/10 text-rose-500 border border-rose-500/30";
+      return "bg-danger/10 text-danger border border-danger/30";
     case "patch":
-      return "bg-purple-500/10 text-purple-500 border border-purple-500/30";
+      return "bg-accent/10 text-accent border border-accent/30";
     default:
-      return "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20";
+      return "bg-subtle/10 text-muted border border-border-strong";
   }
 }
 
@@ -103,9 +103,9 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
   const isSse = endpoint.produces?.some((p) => p.includes("event-stream")) ?? false;
 
   return (
-    <div className="border border-border bg-white rounded-xs p-5 md:p-6 space-y-6 shadow-xs font-mono crosshair-container relative">
+    <div className="border border-border bg-elevated rounded-xs p-5 md:p-6 space-y-6 shadow-xs font-mono crosshair-container relative">
       <div className="flex flex-wrap items-center gap-3">
-        <div className={`px-2.5 py-1 text-[11px] font-bold uppercase rounded-xs tracking-wider ${methodColor}`}>
+        <div className={`px-2.5 py-1 text-2xs font-bold uppercase rounded-xs tracking-wider ${methodColor}`}>
           {endpoint.method}
         </div>
         <span className="font-mono text-sm font-bold text-foreground select-all tracking-tight break-all">
@@ -119,7 +119,6 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         <p className="text-xs text-muted/80 leading-relaxed font-mono">{endpoint.description}</p>
       )}
 
-      {/* Path Parameters */}
       {pathParams.length > 0 && (
         <SchemaTable
           title="Path Parameters"
@@ -134,7 +133,6 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         />
       )}
 
-      {/* Query Parameters */}
       {queryParams.length > 0 && (
         <SchemaTable
           title="Query Parameters"
@@ -149,12 +147,11 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         />
       )}
 
-      {/* Request Body Schema */}
       {endpoint.requestBodySchema && (
         <div className="space-y-2">
           <SchemaViewer schema={endpoint.requestBodySchema} title="Request Body" definitions={definitions} />
           <div className="space-y-1.5">
-            <h6 className="text-[10px] font-bold uppercase tracking-wider text-muted">Example Request</h6>
+            <h6 className="text-2xs font-bold uppercase tracking-wider text-muted">Example Request</h6>
             <CodeBlock
               language="json"
               code={JSON.stringify(generateExample(endpoint.requestBodySchema, definitions), null, 2)}
@@ -163,10 +160,9 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         </div>
       )}
 
-      {/* Responses */}
       {endpoint.responses.length > 0 && (
         <div className="space-y-4">
-          <h5 className="text-[11px] font-bold uppercase tracking-wider text-foreground">Responses</h5>
+          <h5 className="text-2xs font-bold uppercase tracking-wider text-foreground">Responses</h5>
           {endpoint.responses.map((resp) => (
             <ResponseCard
               key={resp.statusCode}
@@ -178,9 +174,8 @@ export function EndpointDetail({ endpoint, baseUrl, definitions }: EndpointDetai
         </div>
       )}
 
-      {/* cURL Example */}
       <div className="space-y-2">
-        <h5 className="text-[11px] font-bold uppercase tracking-wider text-foreground">cURL Example</h5>
+        <h5 className="text-2xs font-bold uppercase tracking-wider text-foreground">cURL Example</h5>
         <CodeBlock language="bash" code={curl} />
       </div>
     </div>
@@ -200,11 +195,11 @@ function ResponseCard({
 
   const colorClass =
     statusNum >= 200 && statusNum < 300
-      ? "text-emerald-600 font-bold"
+      ? "text-success font-bold"
       : statusNum >= 400 && statusNum < 500
-        ? "text-amber-600 font-bold"
+        ? "text-warning font-bold"
         : statusNum >= 500
-          ? "text-rose-600 font-bold"
+          ? "text-danger font-bold"
           : "text-muted font-bold";
 
   const hasProperties = !!response.schema?.properties;
@@ -216,7 +211,7 @@ function ResponseCard({
       : null;
 
   return (
-    <div className="border border-border bg-slate-50/50 rounded-xs p-4 font-mono">
+    <div className="border border-border bg-surface rounded-xs p-4 font-mono">
       <div className="flex items-center gap-3 mb-2">
         <span className={`font-mono text-xs ${colorClass}`}>{response.statusCode}</span>
         <span className="text-xs text-muted">{response.description}</span>
@@ -224,7 +219,7 @@ function ResponseCard({
       {response.schema && <SchemaViewer schema={response.schema} definitions={definitions} />}
       {example !== null && (
         <div className="mt-3 space-y-1.5">
-          <h6 className="text-[10px] font-bold uppercase tracking-wider text-muted">
+          <h6 className="text-2xs font-bold uppercase tracking-wider text-muted">
             {sse ? "Example Stream" : "Example Response"}
           </h6>
           <CodeBlock language={sse ? "text" : "json"} code={example} />

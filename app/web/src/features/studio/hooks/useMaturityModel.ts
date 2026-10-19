@@ -64,7 +64,7 @@ interface WeakestLinkResult {
 function findWeakestLink(scores: Record<MaturityDimensionKey, MaturityLevel>): WeakestLinkResult {
   // SAFETY: Object.keys of Record<MaturityDimensionKey, MaturityLevel> yields maturity dimension keys
   const keys = Object.keys(scores) as MaturityDimensionKey[];
-  let minWeight = LEVEL_WEIGHTS.L5;
+  let minWeight: number = LEVEL_WEIGHTS.L5;
   let weakest: MaturityDimensionKey = keys[0] ?? "skills";
 
   for (const key of keys) {

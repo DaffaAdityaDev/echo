@@ -1,6 +1,6 @@
 "use client";
 
-import { CodeBlock } from "@/components/docs/CodeBlock";
+import { CodeBlock } from "@/components/CodeBlock";
 
 export default function ExamplesPage() {
   return (

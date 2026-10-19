@@ -1,11 +1,48 @@
 "use client";
 
-import { Activity, ArrowRight, Clock, Coins, Cpu, Filter, Search, Trash2 } from "lucide-react";
+import { Activity, ArrowRight, Clock, Coins, Cpu, Filter, type LucideIcon, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { formatCost, formatDuration } from "@/features/debug/components/span-tree-helpers";
+import { TraceStatusBadge } from "@/features/debug/components/TraceStatusBadge";
 import { useTraceStore } from "@/features/debug/stores/traceStore";
 import { cn } from "@/utils/cn";
+
+interface MetricCardProps {
+  label: string;
+  value: ReactNode;
+  icon: ReactNode;
+}
+
+function MetricCard({ label, value, icon }: MetricCardProps) {
+  return (
+    <div className="p-4 rounded-md bg-elevated border border-border shadow-sm flex flex-col justify-between h-24">
+      <div className="flex items-center justify-between text-muted">
+        <span className="text-2xs font-extrabold uppercase tracking-wider">{label}</span>
+        {icon}
+      </div>
+      <span className="mt-2 text-2xl font-bold font-display tracking-tight text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function MetricIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="h-4 w-4" aria-hidden="true" />;
+}
+
+function ActivityDot({ active }: { active: boolean }) {
+  return (
+    <span className="relative flex h-2 w-2" aria-hidden="true">
+      <span
+        className={cn(
+          "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+          active ? "bg-success" : "bg-border-strong",
+        )}
+      />
+      <span className={cn("relative inline-flex rounded-full h-2 w-2", active ? "bg-success" : "bg-subtle")} />
+    </span>
+  );
+}
 
 export default function TracesPage() {
   const traces = useTraceStore((state) => state.traces);
@@ -15,7 +52,6 @@ export default function TracesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modelFilter, setModelFilter] = useState<string>("all");
 
-  // Calculate high-level stats
   const stats = useMemo(() => {
     let totalCost = 0;
     let totalTokens = 0;
@@ -38,21 +74,18 @@ export default function TracesPage() {
     };
   }, [traces]);
 
-  // Extract unique models for filtering
   const models = useMemo(() => {
     const set = new Set<string>();
 
     for (const t of traces) {
-      if (t.metadata?.model) {
-        // SAFETY: Telemetry model metadata is recorded as a string model ID
-        set.add(t.metadata.model as string);
+      if (t.model) {
+        set.add(t.model);
       }
     }
 
     return Array.from(set);
   }, [traces]);
 
-  // Apply filters
   const filteredTraces = useMemo(() => {
     return traces.filter((t) => {
       const matchesSearch =
@@ -62,26 +95,25 @@ export default function TracesPage() {
 
       const matchesStatus = statusFilter === "all" || t.status === statusFilter;
 
-      const matchesModel = modelFilter === "all" || t.metadata?.model === modelFilter;
+      const matchesModel = modelFilter === "all" || t.model === modelFilter;
 
       return matchesSearch && matchesStatus && matchesModel;
     });
   }, [traces, search, statusFilter, modelFilter]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans select-none animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-5">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans animate-in fade-in duration-300">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
-              <Activity className="h-5 w-5" />
+            <div className="p-2 rounded-md bg-accent/10 border border-accent/20 text-accent">
+              <Activity className="h-5 w-5" aria-hidden="true" />
             </div>
-            <h1 className="text-xl font-bold font-display uppercase tracking-wider text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-xl font-bold font-display uppercase tracking-wider text-foreground">
               Agent Telemetry & Traces
             </h1>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             Analyze execution runs, tool invocations, latencies, and costs in real-time.
           </p>
         </div>
@@ -91,104 +123,50 @@ export default function TracesPage() {
             <button
               type="button"
               onClick={clearTraces}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-red-600 dark:hover:text-red-400 transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-elevated text-xs text-muted hover:bg-surface hover:text-danger transition-all cursor-pointer shadow-sm"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Clear History</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Traces */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm flex flex-col justify-between h-24">
-          <div className="flex items-center justify-between text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Total Runs</span>
-            <Activity className="h-4 w-4" />
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-bold font-display tracking-tight text-zinc-950 dark:text-white">
-              {stats.totalTraces}
-            </span>
-          </div>
-        </div>
-
-        {/* Active Runs */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm flex flex-col justify-between h-24">
-          <div className="flex items-center justify-between text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Active Stream</span>
-            <div className="relative flex h-2 w-2">
-              <span
-                className={cn(
-                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                  stats.activeCount > 0 ? "bg-green-400" : "bg-zinc-400",
-                )}
-              />
-              <span
-                className={cn(
-                  "relative inline-flex rounded-full h-2 w-2",
-                  stats.activeCount > 0 ? "bg-green-500" : "bg-zinc-500",
-                )}
-              />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-bold font-display tracking-tight text-zinc-950 dark:text-white">
-              {stats.activeCount}
-            </span>
-          </div>
-        </div>
-
-        {/* Cumulative Tokens */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm flex flex-col justify-between h-24">
-          <div className="flex items-center justify-between text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Total Tokens</span>
-            <Cpu className="h-4 w-4" />
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-bold font-display tracking-tight text-zinc-950 dark:text-white">
-              {stats.totalTokens.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Estimated Cost */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm flex flex-col justify-between h-24">
-          <div className="flex items-center justify-between text-zinc-400 dark:text-zinc-500">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Estimated Cost</span>
-            <Coins className="h-4 w-4" />
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-bold font-display tracking-tight text-zinc-950 dark:text-white">
-              {formatCost(stats.totalCost)}
-            </span>
-          </div>
-        </div>
+        <MetricCard label="Total Runs" value={stats.totalTraces} icon={<MetricIcon icon={Activity} />} />
+        <MetricCard
+          label="Active Stream"
+          value={stats.activeCount}
+          icon={<ActivityDot active={stats.activeCount > 0} />}
+        />
+        <MetricCard label="Total Tokens" value={stats.totalTokens.toLocaleString()} icon={<MetricIcon icon={Cpu} />} />
+        <MetricCard label="Estimated Cost" value={formatCost(stats.totalCost)} icon={<MetricIcon icon={Coins} />} />
       </div>
 
-      {/* Toolbar & Filters */}
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 p-3 rounded-2xl shrink-0">
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between bg-surface border border-border p-3 rounded-md shrink-0">
         <div className="relative flex-1">
-          <Search className="h-4 w-4 absolute left-3 top-3 text-zinc-400 pointer-events-none" />
+          <Search
+            className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            aria-hidden="true"
+          />
           <input
-            type="text"
+            type="search"
+            aria-label="Search traces"
             placeholder="Search by trace name, session title or run ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all"
+            className="w-full bg-elevated border border-border rounded-md pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-subtle focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Status Filter */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1">
-            <Filter className="h-3 w-3 text-zinc-400" />
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+            <Filter className="h-3 w-3 text-muted" aria-hidden="true" />
             <select
               value={statusFilter}
+              aria-label="Filter by status"
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent border-0 text-[11px] text-zinc-700 dark:text-zinc-300 font-medium focus:outline-none cursor-pointer py-1 pr-1"
+              className="bg-transparent border-0 text-xs text-foreground font-medium focus:outline-none cursor-pointer py-1 pr-1"
             >
               <option value="all">All Statuses</option>
               <option value="streaming">Streaming</option>
@@ -198,14 +176,14 @@ export default function TracesPage() {
             </select>
           </div>
 
-          {/* Model Filter */}
           {models.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1">
-              <Cpu className="h-3 w-3 text-zinc-400" />
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+              <Cpu className="h-3 w-3 text-muted" aria-hidden="true" />
               <select
                 value={modelFilter}
+                aria-label="Filter by model"
                 onChange={(e) => setModelFilter(e.target.value)}
-                className="bg-transparent border-0 text-[11px] text-zinc-700 dark:text-zinc-300 font-medium focus:outline-none cursor-pointer py-1 pr-1"
+                className="bg-transparent border-0 text-xs text-foreground font-medium focus:outline-none cursor-pointer py-1 pr-1"
               >
                 <option value="all">All Models</option>
                 {models.map((model) => (
@@ -219,31 +197,51 @@ export default function TracesPage() {
         </div>
       </div>
 
-      {/* Traces Table / Grid */}
-      <div className="bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-elevated border border-border rounded-md overflow-hidden shadow-sm">
         {filteredTraces.length === 0 ? (
-          <div className="text-center py-20 text-xs text-zinc-400 dark:text-zinc-500 space-y-3">
-            <Activity className="h-10 w-10 mx-auto text-zinc-300 dark:text-zinc-800 animate-pulse" />
-            <div>
-              <p className="font-semibold text-zinc-700 dark:text-zinc-300">No traces captured yet</p>
-              <p className="text-zinc-400 dark:text-zinc-600 mt-1">Start a chat session to stream telemetry runs.</p>
-            </div>
+          <div role="status" className="text-center py-20 text-xs text-muted space-y-3">
+            <Activity className="h-10 w-10 mx-auto text-subtle" aria-hidden="true" />
+            {traces.length === 0 ? (
+              <div>
+                <p className="font-semibold text-foreground">No traces captured yet</p>
+                <p className="text-muted mt-1">Start a chat session to stream telemetry runs.</p>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold text-foreground">No traces match your filters</p>
+                <p className="text-muted mt-1">Adjust the search text, status or model filter.</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  <th className="px-5 py-3">Trace name / Objective</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Latency</th>
-                  <th className="px-5 py-3">Tokens</th>
-                  <th className="px-5 py-3">Cost</th>
-                  <th className="px-5 py-3">Model</th>
-                  <th className="px-5 py-3 text-right">Time</th>
+                <tr className="border-b border-border bg-surface text-2xs font-extrabold uppercase tracking-wider text-muted">
+                  <th scope="col" className="px-5 py-3">
+                    Trace name / Objective
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Status
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Latency
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Tokens
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Cost
+                  </th>
+                  <th scope="col" className="px-5 py-3">
+                    Model
+                  </th>
+                  <th scope="col" className="px-5 py-3 text-right">
+                    Time
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200/60 dark:divide-zinc-800/60 text-xs text-zinc-700 dark:text-zinc-300">
+              <tbody className="divide-y divide-border text-xs text-foreground">
                 {filteredTraces.map((trace) => {
                   const relativeTime = new Date(trace.startTime).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -251,26 +249,22 @@ export default function TracesPage() {
                     second: "2-digit",
                   });
 
-                  // SAFETY: Telemetry model metadata is recorded as a string model ID
-                  const traceModel = (trace.metadata?.model as string | undefined) || trace.model || "—";
+                  const traceModel = trace.model || "—";
 
                   return (
-                    <tr
-                      key={trace.id}
-                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10 transition-colors group cursor-pointer"
-                    >
+                    <tr key={trace.id} className="hover:bg-surface transition-colors group">
                       <td className="px-5 py-4 font-medium max-w-md">
                         <Link href={`/traces/${trace.id}`} className="block">
                           <div className="flex items-center gap-2">
-                            <span className="text-zinc-900 dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate font-display font-bold">
+                            <span className="text-foreground group-hover:text-accent transition-colors truncate font-display font-bold">
                               {trace.name}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                          <div className="flex items-center gap-2 mt-1 text-2xs text-muted font-mono">
                             <span>ID: {trace.id.slice(0, 8)}...</span>
                             {trace.sessionTitle && (
                               <>
-                                <span>•</span>
+                                <span aria-hidden="true">•</span>
                                 <span className="truncate max-w-xs">{trace.sessionTitle}</span>
                               </>
                             )}
@@ -278,54 +272,31 @@ export default function TracesPage() {
                         </Link>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border",
-                            trace.status === "streaming" &&
-                              "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-                            trace.status === "complete" &&
-                              "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                            trace.status === "error" &&
-                              "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-                            trace.status === "interrupted" &&
-                              "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-                          )}
-                        >
-                          {trace.status === "streaming" && (
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-                            </span>
-                          )}
-                          {trace.status}
-                        </span>
+                        <TraceStatusBadge status={trace.status} withPulse />
                       </td>
-                      <td className="px-5 py-4 whitespace-nowrap font-mono text-[11px]">
-                        <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
-                          <Clock className="h-3 w-3 text-zinc-400" />
+                      <td className="px-5 py-4 whitespace-nowrap font-mono text-xs">
+                        <div className="flex items-center gap-1.5 text-muted">
+                          <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
                           <span>{formatDuration(trace.durationMs)}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-4 whitespace-nowrap font-mono text-[11px]">
-                        <div className="text-zinc-800 dark:text-zinc-300 font-bold">
-                          {trace.totalTokens.toLocaleString()}
-                        </div>
-                        <div className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                      <td className="px-5 py-4 whitespace-nowrap font-mono text-xs">
+                        <div className="text-foreground font-bold">{trace.totalTokens.toLocaleString()}</div>
+                        <div className="text-2xs text-muted mt-0.5">
                           in: {trace.promptTokens} | out: {trace.completionTokens}
                         </div>
                       </td>
-                      <td className="px-5 py-4 whitespace-nowrap font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-300">
+                      <td className="px-5 py-4 whitespace-nowrap font-mono text-xs font-semibold text-foreground">
                         {formatCost(trace.costUsd)}
                       </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-zinc-500 dark:text-zinc-400 max-w-xs truncate">
-                        {traceModel}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-right text-zinc-400 dark:text-zinc-500 font-mono text-[10px]">
+                      <td className="px-5 py-4 whitespace-nowrap text-muted max-w-xs truncate">{traceModel}</td>
+                      <td className="px-5 py-4 whitespace-nowrap text-right text-muted font-mono text-xs">
                         <div className="flex items-center justify-end gap-2">
                           <span>{relativeTime}</span>
-                          <Link href={`/traces/${trace.id}`}>
-                            <ArrowRight className="h-3.5 w-3.5 text-zinc-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all" />
-                          </Link>
+                          <ArrowRight
+                            className="h-3.5 w-3.5 text-subtle group-hover:text-accent group-hover:translate-x-0.5 transition-all"
+                            aria-hidden="true"
+                          />
                         </div>
                       </td>
                     </tr>

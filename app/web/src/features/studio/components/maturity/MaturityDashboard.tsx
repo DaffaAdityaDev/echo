@@ -32,9 +32,6 @@ interface MaturityDashboardProps {
   levelsInfo: readonly MaturityLevelInfo[];
   dimensions: readonly MaturityDimension[];
   questions: readonly ScoringQuestion[];
-  serverAssessment: SystemMaturityAssessment | null;
-  isSaving: boolean;
-  onSaveClient: () => void;
 }
 
 export function MaturityDashboard({
@@ -53,46 +50,43 @@ export function MaturityDashboard({
   levelsInfo,
   dimensions,
   questions,
-  onSaveClient,
 }: MaturityDashboardProps) {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header Banner */}
-      <div className="border border-border bg-white rounded-xs p-6 relative overflow-hidden shadow-xs">
+      <div className="border border-border bg-elevated rounded-xs p-6 relative overflow-hidden shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10 font-mono">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-xs bg-blue-50 border border-gb-bright-blue/40 text-gb-blue text-xs font-semibold">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-xs bg-accent-soft border border-accent/30 text-accent text-xs font-semibold">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               AI-Ready System Maturity Model v1.0
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
               System Maturity & AI Readiness
             </h1>
-            <p className="text-xs md:text-sm text-slate-600 max-w-2xl mt-1 leading-relaxed">
-              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule â€” a
-              system is only as mature as its lowest dimension.
+            <p className="text-xs md:text-sm text-muted max-w-2xl mt-1 leading-relaxed">
+              Evaluates AI readiness across 7 pattern-agnostic dimensions. Governed by the Weakest Link Rule — a system
+              is only as mature as its lowest dimension.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 shrink-0 font-mono">
-            <div className="border border-gb-bright-blue/40 bg-blue-50 rounded-xs px-4 py-3 text-center">
-              <div className="text-[10px] text-gb-blue font-bold uppercase tracking-wider">Overall Echo Level</div>
-              <div className="text-3xl font-black text-foreground mt-0.5">{echoAssessment.overallLevel}</div>
-              <div className="text-[10px] text-slate-600 font-medium mt-0.5">Structured Baseline</div>
+          <div className="flex flex-wrap items-center gap-4 shrink-0 font-mono">
+            <div className="border border-accent/30 bg-accent-soft rounded-xs px-4 py-3 text-center">
+              <div className="text-2xs text-accent font-bold uppercase tracking-wider">Overall Echo Level</div>
+              <div className="text-3xl font-bold text-foreground mt-0.5">{echoAssessment.overallLevel}</div>
+              <div className="text-2xs text-muted font-medium mt-0.5">Structured Baseline</div>
             </div>
 
-            <div className="border border-amber-300 bg-amber-50 rounded-xs px-4 py-3 text-center">
-              <div className="text-[10px] text-amber-800 font-bold uppercase tracking-wider">Weakest Link</div>
-              <div className="text-sm font-bold text-amber-900 mt-1 capitalize">{echoAssessment.weakestDimension}</div>
-              <div className="text-[10px] text-amber-700 mt-0.5 flex items-center justify-center gap-1 font-semibold">
-                <AlertTriangle className="h-3 w-3" /> Bottleneck
+            <div className="border border-warning/30 bg-warning/10 rounded-xs px-4 py-3 text-center">
+              <div className="text-2xs text-warning font-bold uppercase tracking-wider">Weakest Link</div>
+              <div className="text-sm font-bold text-warning mt-1 capitalize">{echoAssessment.weakestDimension}</div>
+              <div className="text-2xs text-warning mt-0.5 flex items-center justify-center gap-1 font-semibold">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" /> Bottleneck
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-border">
         <Tabs
           tabs={[
@@ -102,14 +96,14 @@ export function MaturityDashboard({
           ]}
           active={activeTab}
           onChange={setActiveTab}
-          className="gap-6 font-mono"
-          itemClassName="pb-3 uppercase tracking-wider"
-          activeClassName="border-gb-blue text-gb-blue font-bold"
+          ariaLabel="Maturity views"
+          className="gap-6 font-mono overflow-x-auto"
+          itemClassName="pb-3 uppercase tracking-wider whitespace-nowrap"
+          activeClassName="border-accent text-accent font-bold"
           inactiveClassName="border-transparent text-muted hover:text-foreground"
         />
       </div>
 
-      {/* Main Content View */}
       {activeTab === "matrix" && (
         <MaturityMatrix
           dimensions={dimensions}
@@ -130,7 +124,6 @@ export function MaturityDashboard({
           onClientNameChange={setClientName}
           onClientScoreChange={setClientScore}
           onClientEvidenceChange={setClientEvidence}
-          onSaveClientAssessment={onSaveClient}
         />
       )}
     </div>

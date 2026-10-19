@@ -32,7 +32,8 @@ interface ChatState {
   sessions: Session[];
   activeSessionId: string | null;
   newChatPending: boolean;
-  agentState: AgentState;
+  // null until a run reports a state, so a fresh session shows no status.
+  agentState: AgentState | null;
 
   // Debug & Telemetry State
   packetLogs: LoggedPacket[];
@@ -72,7 +73,7 @@ export const useChatStore = create<ChatState>((set) => ({
   sessions: [],
   activeSessionId: null,
   newChatPending: false,
-  agentState: "completed",
+  agentState: null,
 
   // Debug Telemetry Initial State
   packetLogs: [],
@@ -101,6 +102,7 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [],
       isLoading: false,
       agentProgress: null,
+      agentState: null,
       packetLogs: [],
       cumulativeUsage: null,
       debugPacketHistory: [],

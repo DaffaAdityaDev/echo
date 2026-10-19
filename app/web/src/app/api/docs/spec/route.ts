@@ -44,12 +44,12 @@ export async function GET() {
     }
   }
 
+  console.error("[docs/spec] OpenAPI spec not found; tried:", tried);
+
   return NextResponse.json(
     {
       error: "API specification not found",
-      detail:
-        "The OpenAPI spec file is not available at any known location. Set NEXT_PUBLIC_SPEC_PATH to the swagger.json path (e.g. /app/backend/api/docs/swagger.json).",
-      tried,
+      detail: "The OpenAPI spec file is not available. Set NEXT_PUBLIC_SPEC_PATH to the swagger.json path.",
     },
     { status: 404 },
   );

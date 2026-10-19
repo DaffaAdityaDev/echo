@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { SchemaObject } from "@/lib/docs/types";
+import type { SchemaObject } from "@/features/docs/lib/types";
 import type { JsonValue } from "@/types/json";
 
 function isSchemaObject(val: unknown): val is SchemaObject {
@@ -107,35 +107,35 @@ export function SchemaTable({
   maxDepth: number;
 }) {
   return (
-    <div className="my-4 border border-border bg-white rounded-xs overflow-hidden font-mono shadow-xs">
+    <div className="my-4 border border-border bg-elevated rounded-xs overflow-hidden font-mono shadow-xs">
       {title && (
-        <div className="px-4 py-2 bg-slate-50 border-b border-border">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted font-mono">{title}</span>
+        <div className="px-4 py-2 bg-surface border-b border-border">
+          <span className="text-2xs font-bold uppercase tracking-wider text-muted font-mono">{title}</span>
         </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse font-mono">
-          <thead className="bg-slate-50/80 border-b border-border">
+          <thead className="bg-surface border-b border-border">
             <tr>
-              <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Field</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Type</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Required</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted">Description</th>
+              <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Field</th>
+              <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Type</th>
+              <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Required</th>
+              <th className="px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted">Description</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {fields.map((field) => (
               <React.Fragment key={field.name}>
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-2.5 font-mono text-xs text-blue-600 font-semibold">{field.name}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-purple-600">{field.type}</td>
+                <tr className="hover:bg-surface transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-xs text-accent font-semibold">{field.name}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-accent">{field.type}</td>
                   <td className="px-4 py-2.5 text-xs">
                     {field.required ? (
-                      <span className="text-rose-600 font-semibold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-xs text-[10px]">
+                      <span className="text-danger font-semibold bg-danger/10 border border-danger/30 px-1.5 py-0.5 rounded-xs text-2xs">
                         Required
                       </span>
                     ) : (
-                      <span className="text-muted font-semibold bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-xs text-[10px]">
+                      <span className="text-muted font-semibold bg-surface-hover border border-border px-1.5 py-0.5 rounded-xs text-2xs">
                         Optional
                       </span>
                     )}
@@ -143,7 +143,7 @@ export function SchemaTable({
                   <td className="px-4 py-2.5 text-xs text-muted leading-relaxed">
                     {field.description}
                     {field.example !== undefined && (
-                      <span className="block text-slate-500 mt-0.5 font-mono text-[10px]">
+                      <span className="block text-muted mt-0.5 font-mono text-xs">
                         Example: {JSON.stringify(field.example)}
                       </span>
                     )}

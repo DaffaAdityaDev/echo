@@ -7,6 +7,8 @@ import { useSettingsStore } from "@/features/settings/stores/settingsStore";
 import { cn } from "@/utils/cn";
 import { CHAT_MODES } from "../constants";
 import { usePersistAgentConfig } from "../hooks/usePersistAgentConfig";
+import { checkTextAttachment, composeMessage, type TextAttachment } from "../lib/text-attachment";
+import { notifySystem } from "../services/system-notice";
 import { useChatStore } from "../stores/chatStore";
 
 interface ChatInputProps {
@@ -18,7 +20,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInputProps) {
   const [input, setInput] = useState("");
-  const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<TextAttachment | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,23 +44,25 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
     void persistConfig({ defaultFeatures: nextFeatures });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
-    if (file) {
-      setAttachedFileName(file.name);
-      const reader = new FileReader();
+    e.target.value = "";
 
-      reader.onload = (event) => {
-        // SAFETY: FileReader readAsText produces a string result upon completion
-        const content = (event.target?.result as string) || "";
+    if (!file) return;
 
-        setInput((prev) =>
-          prev ? `${prev}\n\n[Attached File: ${file.name}]\n${content}` : `[Attached File: ${file.name}]\n${content}`,
-        );
-      };
+    const check = checkTextAttachment(file);
 
-      reader.readAsText(file);
+    if (!check.ok) {
+      notifySystem("warning", "ATTACHMENT_REJECTED", check.reason);
+
+      return;
+    }
+
+    try {
+      setAttachment({ name: file.name, content: await file.text() });
+    } catch {
+      notifySystem("error", "ATTACHMENT_READ_FAILED", `Could not read "${file.name}".`);
     }
   };
 
@@ -82,37 +86,41 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
     }
   };
 
+  const canSend = (input.trim() !== "" || attachment !== null) && !isLoading;
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
 
-    if (!input.trim() || isLoading) return;
-    onSend(input);
+    if (!canSend) return;
+    onSend(composeMessage(input, attachment));
     setInput("");
-    setAttachedFileName(null);
+    setAttachment(null);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
   };
 
+  const isAgentMode = mode === CHAT_MODES.AGENT;
+
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Hidden File Input */}
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" tabIndex={-1} />
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border-border rounded-xs p-4 shadow-md space-y-3 transition-all focus-within:border-gb-blue focus-within:ring-1 focus-within:ring-gb-blue font-mono"
+        className="bg-elevated border border-border rounded-md p-3 sm:p-4 shadow-md space-y-3 transition-all focus-within:border-accent focus-within:ring-1 focus-within:ring-accent font-mono"
       >
-        {attachedFileName && (
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-xs bg-blue-50 border border-gb-bright-blue/30 text-xs font-bold text-gb-blue">
-            <span>Attached: {attachedFileName}</span>
+        {attachment && (
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-sm bg-accent-soft border border-accent/30 text-xs font-semibold text-accent">
+            <span className="truncate">Attached: {attachment.name}</span>
             <button
               type="button"
-              onClick={() => setAttachedFileName(null)}
-              className="p-0.5 hover:bg-blue-500/20 rounded-xs"
+              aria-label={`Remove attachment ${attachment.name}`}
+              onClick={() => setAttachment(null)}
+              className="p-0.5 rounded-sm hover:bg-accent/15 cursor-pointer shrink-0"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3 w-3" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -124,64 +132,68 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Ask me anything..."
+          aria-label="Message"
           autoComplete="off"
           spellCheck={false}
-          className="w-full bg-transparent border-none outline-none text-sm text-foreground font-mono placeholder:text-slate-400 focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
+          className="w-full bg-transparent border-none outline-none text-sm text-foreground font-mono placeholder:text-subtle focus:ring-0 resize-none max-h-[180px] overflow-y-auto"
         />
 
-        {/* Input Bar Action Controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-border flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            {/* Mode Toggle Pill */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <button
               type="button"
               onClick={toggleMode}
               disabled={!activeSessionId}
+              title="Toggle chat mode"
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-bold transition-all border cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed",
-                mode === CHAT_MODES.AGENT
-                  ? "bg-blue-50 border-gb-bright-blue text-gb-blue shadow-xs"
-                  : "bg-slate-50 border-border text-slate-600 hover:text-foreground hover:bg-surface-hover",
+                "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-sm text-2xs font-bold transition-all border cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed",
+                isAgentMode
+                  ? "bg-accent-soft border-accent/40 text-accent shadow-xs"
+                  : "bg-surface border-border text-muted hover:text-foreground hover:bg-surface-hover",
               )}
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{mode === CHAT_MODES.AGENT ? "Deeper Research" : "Standard"}</span>
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only">Mode: </span>
+              <span className="sr-only sm:not-sr-only">{isAgentMode ? "Deeper Research" : "Standard"}</span>
             </button>
 
-            {/* Quick Feature Pills */}
             <button
               type="button"
               onClick={toggleWebSearch}
               disabled={!activeSessionId}
-              className={cn(
-                "p-1.5 rounded-lg transition-colors border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
-                isWebSearchActive
-                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                  : "bg-transparent border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              )}
+              aria-pressed={isWebSearchActive}
+              aria-label="Web search"
               title={isWebSearchActive ? "Web Search Active" : "Enable Web Search"}
+              className={cn(
+                "p-1.5 rounded-sm transition-colors border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                isWebSearchActive
+                  ? "bg-accent-soft border-accent/30 text-accent"
+                  : "bg-transparent border-transparent text-muted hover:text-foreground hover:bg-surface-hover",
+              )}
             >
-              <Globe className="h-4 w-4" />
+              <Globe className="h-4 w-4" aria-hidden="true" />
             </button>
 
             <button
               type="button"
               onClick={onOpenSettings}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border border-transparent"
+              className="p-1.5 rounded-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors border border-transparent cursor-pointer"
               title="Harness Settings"
+              aria-label="Harness settings"
             >
-              <Sliders className="h-4 w-4" />
+              <Sliders className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+              aria-label="Attach file"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-sm border border-border text-xs font-medium text-muted hover:text-foreground hover:bg-surface-hover transition-all cursor-pointer"
             >
-              <Paperclip className="h-3.5 w-3.5" />
-              <span>Attach file</span>
+              <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Attach file</span>
             </button>
 
             {isLoading ? (
@@ -190,22 +202,24 @@ export function ChatInput({ onSend, onStop, isLoading, onOpenSettings }: ChatInp
                 onClick={onStop}
                 title="Stop generating"
                 aria-label="Stop generating"
-                className="p-2 rounded-full transition-all shrink-0 cursor-pointer bg-rose-600 text-white hover:bg-rose-500 shadow-md shadow-rose-600/20"
+                className="p-2 rounded-sm transition-all shrink-0 cursor-pointer bg-danger text-background hover:bg-danger/90 shadow-md"
               >
-                <Square className="h-4 w-4 fill-current" />
+                <Square className="h-4 w-4 fill-current" aria-hidden="true" />
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim()}
+                disabled={!canSend}
+                aria-label="Send message"
+                title="Send message"
                 className={cn(
-                  "p-2 rounded-full transition-all shrink-0 cursor-pointer",
-                  input.trim()
-                    ? "bg-purple-600 text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
-                    : "bg-purple-600/20 text-purple-400/50 cursor-not-allowed",
+                  "p-2 rounded-sm transition-all shrink-0",
+                  canSend
+                    ? "bg-primary text-primary-foreground hover:bg-primary-hover shadow-md cursor-pointer"
+                    : "bg-surface-hover text-subtle cursor-not-allowed",
                 )}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
           </div>

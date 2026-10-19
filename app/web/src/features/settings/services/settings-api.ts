@@ -28,7 +28,9 @@ function toAgentConfig(dto: UserPreferencesDTO): AgentConfig {
   };
 }
 
-function toDTO(config: AgentConfig): AgentConfigDTO {
+// The stored key is kept unless the user typed a replacement: the client never
+// holds the saved key, so an empty apiKey must not be read as "remove it".
+export function toDTO(config: AgentConfig): AgentConfigDTO {
   const body: AgentConfigDTO = {
     default_mode: config.defaultMode,
     default_model: config.defaultModel,
@@ -41,7 +43,7 @@ function toDTO(config: AgentConfig): AgentConfigDTO {
   if (config.apiKey) {
     body.api_key = config.apiKey;
     body.keep_api_key = false;
-  } else if (config.hasApiKey) {
+  } else {
     body.keep_api_key = true;
   }
 

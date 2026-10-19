@@ -14,11 +14,11 @@ export interface ApiKey {
   created_at: string;
 }
 
-export interface CreateApiKeyRequest {
+export type CreateApiKeyRequest = {
   name: string;
 
   scopes?: string[];
-}
+};
 
 export interface CreateApiKeyResponse {
   key: string;

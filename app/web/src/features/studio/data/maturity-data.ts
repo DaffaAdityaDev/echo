@@ -5,35 +5,35 @@ export const MATURITY_LEVELS = [
     definition:
       "No formal contracts. Every output is a one-off. AI has nothing reliable to anchor to. Consistency depends on who built it.",
     description: "Hallucination is the default state. Manual human cleanup required for every turn.",
-    color: "border-red-500/30 bg-red-500/10 text-red-400",
+    color: "border-danger/30 bg-danger/10 text-danger",
   },
   {
     level: "L2",
     name: "Cataloged",
     definition: "Things are listed somewhere, but code has drifted from documentation. Naming is inconsistent.",
     description: "AI can read the catalog but cannot trust it — output is plausible but often wrong.",
-    color: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+    color: "border-warning/30 bg-warning/10 text-warning",
   },
   {
     level: "L3",
     name: "Structured",
     definition: "Real contracts exist (schemas, interfaces, typed boundaries). Humans work efficiently.",
     description: "Rules still live in people's heads & review comments. AI output is mostly right.",
-    color: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+    color: "border-accent/30 bg-accent/10 text-accent",
   },
   {
     level: "L4",
     name: "Validated",
     definition: "Rules are enforceable at build — they fail CI, not review. Schema-driven everywhere.",
     description: "AI produces usable output within explicit guardrails. The most valuable jump.",
-    color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+    color: "border-success/30 bg-success/10 text-success",
   },
   {
     level: "L5",
     name: "Agentic",
     definition: "AI executes autonomously within fully-specified contracts. Human review is the exception.",
     description: "Feature velocity 5-10x. Governance holds without a person in every loop.",
-    color: "border-purple-500/30 bg-purple-500/10 text-purple-400",
+    color: "border-accent/30 bg-accent/10 text-accent",
   },
 ] as const;
 

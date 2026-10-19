@@ -1,6 +1,6 @@
 "use client";
 
-import type { SchemaObject, TagGroup } from "@/lib/docs/types";
+import type { SchemaObject, TagGroup } from "@/features/docs/lib/types";
 import { EndpointDetail } from "./EndpointDetail";
 
 interface EndpointListProps {
@@ -19,7 +19,7 @@ export function EndpointList({ tagGroups, baseUrl, definitions }: EndpointListPr
               <h2 className="text-lg md:text-xl font-bold font-mono text-foreground uppercase tracking-tight">
                 {group.name}
               </h2>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-xs font-mono">
+              <span className="text-2xs font-bold uppercase tracking-wider text-accent bg-accent-soft border border-accent/30 px-2 py-0.5 rounded-xs font-mono">
                 {group.endpoints.length} {group.endpoints.length === 1 ? "endpoint" : "endpoints"}
               </span>
             </div>

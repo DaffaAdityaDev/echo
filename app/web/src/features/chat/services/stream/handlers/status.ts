@@ -2,6 +2,11 @@ import { CANCELLED_MESSAGE } from "../../../constants";
 import type { Message, StreamPacket } from "../../../types";
 import type { StreamStore } from "./types";
 
+// A terminal packet that trails an error must not hide the failure.
+function completeUnlessFailed(lastMessage: Message): void {
+  if (lastMessage.status !== "error") lastMessage.status = "complete";
+}
+
 export function handleTurnComplete(
   lastMessage: Message,
   data: StreamPacket & { type: "turn_complete" },
@@ -12,7 +17,7 @@ export function handleTurnComplete(
     store.setCumulativeUsage(data.usage);
   }
 
-  lastMessage.status = "complete";
+  completeUnlessFailed(lastMessage);
   store.setAgentState("completed");
 }
 
@@ -31,7 +36,7 @@ export function handleError(lastMessage: Message, data: StreamPacket & { type: "
 
   const currentContent = lastMessage.content || "";
   lastMessage.content = currentContent ? `${currentContent}\n\n[Error: ${errDetail}]` : `Error: ${errDetail}`;
-  lastMessage.status = "complete";
+  lastMessage.status = "error";
   store.setAgentState("error");
 }
 
@@ -40,7 +45,7 @@ export function handleMissionCompleted(
   _data: StreamPacket & { type: "mission_completed" },
   store: StreamStore,
 ): void {
-  lastMessage.status = "complete";
+  completeUnlessFailed(lastMessage);
   store.setAgentState("completed");
 }
 

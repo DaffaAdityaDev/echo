@@ -1,23 +1,17 @@
-export type ErrorContext = Error | string | { message?: string; error?: string } | null | undefined;
+function readMessageField(value: object): string | undefined {
+  if ("message" in value && typeof value.message === "string" && value.message) return value.message;
 
-function isString(value: ErrorContext): value is string {
-  return typeof value === "string";
+  if ("error" in value && typeof value.error === "string" && value.error) return value.error;
+
+  return undefined;
 }
 
-function isErrorObject(value: ErrorContext): value is { message?: string; error?: string } {
-  return typeof value === "object" && value !== null && !(value instanceof Error);
-}
-
-export function extractErrorMessage(err: ErrorContext, fallback = "Unexpected error"): string {
+export function extractErrorMessage(err: unknown, fallback = "Unexpected error"): string {
   if (err instanceof Error) return err.message;
 
-  if (isString(err)) return err;
+  if (typeof err === "string") return err;
 
-  if (isErrorObject(err)) {
-    if (err.message) return err.message;
-
-    if (err.error) return err.error;
-  }
+  if (typeof err === "object" && err !== null) return readMessageField(err) ?? fallback;
 
   return fallback;
 }

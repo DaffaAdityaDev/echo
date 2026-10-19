@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Model } from "@/lib/queries";
-import { modelQueries } from "@/lib/queries";
+import type { Model } from "../types";
+import { modelQueries } from "../services/model-queries";
 
 const EMPTY_MODELS: Model[] = [];
 

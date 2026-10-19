@@ -1,40 +1,22 @@
 import type { NextRequest } from "next/server";
-import { getBackendApiUrl } from "@/constants/api";
-import { getRequestToken } from "@/lib/get-request-token";
-import { proxyFetch } from "@/lib/proxy-fetch";
+import { proxyToBackend, readJsonBody } from "@/lib/backend-proxy";
 
-const BASE_URL = getBackendApiUrl();
+type SessionParams = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getRequestToken();
+async function sessionPath(params: SessionParams["params"]): Promise<string> {
   const { id } = await params;
 
-  return proxyFetch(`${BASE_URL}/sessions/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return `/sessions/${encodeURIComponent(id)}`;
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getRequestToken();
-  const { id } = await params;
-  const body = await req.json();
-
-  return proxyFetch(`${BASE_URL}/sessions/${id}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+export async function GET(_req: NextRequest, { params }: SessionParams) {
+  return proxyToBackend(await sessionPath(params));
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getRequestToken();
-  const { id } = await params;
+export async function PATCH(req: NextRequest, { params }: SessionParams) {
+  return proxyToBackend(await sessionPath(params), "PATCH", await readJsonBody(req));
+}
 
-  return proxyFetch(`${BASE_URL}/sessions/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export async function DELETE(_req: NextRequest, { params }: SessionParams) {
+  return proxyToBackend(await sessionPath(params), "DELETE");
 }

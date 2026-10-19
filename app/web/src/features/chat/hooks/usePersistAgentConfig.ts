@@ -11,11 +11,20 @@ export function usePersistAgentConfig() {
 
   const persistConfig = useCallback(
     async (partial: Partial<AgentConfig>) => {
-      const merged = { ...useSettingsStore.getState().config, ...partial };
-      useSettingsStore.getState().setConfig(partial);
+      const store = useSettingsStore.getState();
+      const hydrated = await store.ensureHydrated();
+      store.setConfig(partial);
+
+      // Without the server's settings the local config holds defaults, and
+      // persisting it would overwrite the user's saved preferences.
+      if (!hydrated) {
+        showToast("Failed to load saved settings — the change was not persisted.", "error");
+
+        return;
+      }
 
       try {
-        await settingsApi.update(merged);
+        await settingsApi.update(useSettingsStore.getState().config);
       } catch {
         showToast("Failed to save preference — the change may not persist.", "error");
       }

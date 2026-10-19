@@ -29,7 +29,11 @@ export function SpanTree({
   const visibleNodes = useMemo(() => getVisibleNodes(spanTree, collapsedSpans), [spanTree, collapsedSpans]);
 
   if (visibleNodes.length === 0 && emptyMessage) {
-    return <div className="text-center py-20 text-xs text-zinc-400 dark:text-zinc-500">{emptyMessage}</div>;
+    return (
+      <p role="status" className="text-center py-20 text-xs text-muted">
+        {emptyMessage}
+      </p>
+    );
   }
 
   return (
@@ -39,73 +43,69 @@ export function SpanTree({
         const isCollapsed = collapsedSpans.has(node.span.id);
 
         return (
-          // biome-ignore lint/a11y/noStaticElementInteractions: Tree node navigation
-          // biome-ignore lint/a11y/useKeyWithClickEvents: Tree node navigation
           <div
             key={node.span.id}
-            onClick={() => onSelectSpan(node.span.id)}
             style={{ paddingLeft: `${node.depth * (compact ? 12 : 14)}px` }}
             className={cn(
-              "flex items-center justify-between border border-transparent cursor-pointer transition-all select-none group",
-              compact
-                ? "p-1.5 rounded-lg hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50"
-                : "p-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+              "flex items-center border border-transparent transition-all group",
+              compact ? "p-1.5 rounded-sm hover:bg-surface-hover gap-1.5" : "p-2 rounded-sm hover:bg-surface gap-2",
               isSelected
-                ? "bg-purple-500/10 border-purple-500/20 text-purple-950 dark:text-purple-300 font-bold"
+                ? "bg-accent/10 border-accent/20 text-accent font-bold"
                 : compact
-                  ? "text-zinc-600 dark:text-zinc-400"
-                  : "text-zinc-700 dark:text-zinc-300",
+                  ? "text-muted"
+                  : "text-foreground",
             )}
           >
-            <div className={cn("flex items-center min-w-0", compact ? "gap-1.5" : "gap-2")}>
-              {hasChildren ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleCollapse(node.span.id);
-                  }}
-                  className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-800 dark:hover:text-white"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
-                  ) : (
-                    <ChevronDown className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
-                  )}
-                </button>
-              ) : (
-                <div className={compact ? "w-3.5" : "w-4"} />
-              )}
-
-              <div
-                className={cn(
-                  "border flex items-center justify-center shrink-0 shadow-sm",
-                  compact ? "p-0.5 rounded" : "p-1 rounded-lg",
-                  getSpanColorClass(node.span),
-                )}
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={() => onToggleCollapse(node.span.id)}
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${node.span.name}`}
+                className="p-0.5 rounded-sm hover:bg-border transition-colors text-muted hover:text-foreground cursor-pointer shrink-0"
               >
-                {getSpanIcon(node.span)}
-              </div>
+                {isCollapsed ? (
+                  <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                )}
+              </button>
+            ) : (
+              <span className="w-4 shrink-0" aria-hidden="true" />
+            )}
 
-              <span className="truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                {node.span.name}
-              </span>
-            </div>
-
-            <div
+            <button
+              type="button"
+              onClick={() => onSelectSpan(node.span.id)}
+              aria-pressed={isSelected}
               className={cn(
-                "flex items-center gap-2 shrink-0 text-zinc-400 dark:text-zinc-500",
-                compact ? "text-[8px] ml-2" : "text-[10px]",
+                "flex flex-1 items-center justify-between min-w-0 text-left cursor-pointer rounded-sm",
+                compact ? "gap-1.5" : "gap-2",
               )}
             >
-              <span>{formatDuration(node.span.durationMs)}</span>
-              {!compact && node.span.status === "streaming" && (
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+              <span className={cn("flex items-center min-w-0", compact ? "gap-1.5" : "gap-2")}>
+                <span
+                  className={cn(
+                    "border flex items-center justify-center shrink-0",
+                    compact ? "p-0.5 rounded-sm" : "p-1 rounded-sm",
+                    getSpanColorClass(node.span),
+                  )}
+                >
+                  {getSpanIcon(node.span)}
                 </span>
-              )}
-            </div>
+                <span className="truncate group-hover:text-accent transition-colors">{node.span.name}</span>
+              </span>
+
+              <span className="flex items-center gap-2 shrink-0 text-muted text-2xs">
+                <span>{formatDuration(node.span.durationMs)}</span>
+                {!compact && node.span.status === "streaming" && (
+                  <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success" />
+                  </span>
+                )}
+              </span>
+            </button>
           </div>
         );
       })}

@@ -1,17 +1,22 @@
 "use client";
 
-"use client";
-
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { hasApiStatus } from "@/lib/api-client";
 import { QUERY_STANDARD } from "@/lib/query-standard";
 import { CHAT_QUERY_KEYS } from "../constants";
 import { groupMessagesByTurn } from "../lib/group-messages";
 import { sessionApi } from "../services/chat-api";
+import { isAwaitingTurnSnapshot } from "../services/stream/stream-run";
 import { useChatStore } from "../stores/chatStore";
 import { useChatStream } from "./useChatStream";
 import { useSessions } from "./useSessions";
+
+// The session does not exist or belongs to someone else; retrying cannot help.
+function isSessionUnavailable(error: unknown): boolean {
+  return hasApiStatus(error, 403, 404);
+}
 
 export function useChatPage() {
   const { createSession, deleteSession, selectSession } = useSessions();
@@ -26,10 +31,13 @@ export function useChatPage() {
 
   const {
     data: messagesData,
+    dataUpdatedAt,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading: isMessagesLoading,
     isError: isMessagesError,
+    error: messagesError,
     refetch: refetchMessages,
   } = useInfiniteQuery({
     queryKey: CHAT_QUERY_KEYS.messages(sessionId),
@@ -43,6 +51,7 @@ export function useChatPage() {
     enabled: !!activeSessionId && isAuthenticated,
     staleTime: 30_000,
     ...QUERY_STANDARD,
+    retry: (failureCount, error) => !isSessionUnavailable(error) && failureCount < QUERY_STANDARD.retry,
     // Reuse previous page data only while the session is unchanged; switching sessions is a clean slate.
     placeholderData: (prev, prevQuery) => (prevQuery?.queryKey?.[1] === activeSessionId ? prev : undefined),
   });
@@ -59,6 +68,10 @@ export function useChatPage() {
   useEffect(() => {
     if (isLoading) return;
 
+    const storeMessages = useChatStore.getState().messages;
+
+    if (isAwaitingTurnSnapshot(activeSessionId, storeMessages.at(-1)?.id, dataUpdatedAt)) return;
+
     const sorted = [...flattenedMessages].sort((a, b) => {
       if (a.turn_number !== b.turn_number) {
         return a.turn_number - b.turn_number;
@@ -68,8 +81,6 @@ export function useChatPage() {
     });
 
     const rebuilt = groupMessagesByTurn(sorted);
-
-    const storeMessages = useChatStore.getState().messages;
 
     if (rebuilt.length > 0 && storeMessages.length > 0) {
       const lastStore = storeMessages[storeMessages.length - 1];
@@ -96,7 +107,7 @@ export function useChatPage() {
     }
 
     setMessages(rebuilt);
-  }, [flattenedMessages, isLoading, setMessages]);
+  }, [flattenedMessages, dataUpdatedAt, activeSessionId, isLoading, setMessages]);
 
   const handleSelectSession = async (id: string) => {
     stopStream();
@@ -119,7 +130,9 @@ export function useChatPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isMessagesLoading,
     isMessagesError,
+    isSessionUnavailable: isSessionUnavailable(messagesError),
     refetchMessages,
   };
 }
