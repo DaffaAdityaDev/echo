@@ -6,7 +6,7 @@
     "backend",
     "agent",
     "app/web",
-    "app/dekstop"
+    "app/desktop"
   ],
   "scripts": {
     "dev": "turbo dev --filter=backend --filter=echo-agent --filter=web",
